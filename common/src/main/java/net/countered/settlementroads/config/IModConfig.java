@@ -1,8 +1,10 @@
 package net.countered.settlementroads.config;
 
+import java.util.List;
+
 public interface IModConfig {
     // Structures
-    String structureToLocate();
+    List<String> structuresToLocate();
     int structureSearchRadius();
 
     // Pre-generation
@@ -26,4 +28,12 @@ public interface IModConfig {
     // 手动连接时更激进的阈值
     int manualMaxHeightDifference();
     int manualMaxTerrainStability();
+    boolean manualIgnoreWater();
+    
+    // 道路旁结构生成配置
+    boolean enableRoadsideStructures();
+    List<String> roadsideStructureTags();
+    float roadsideStructureSpawnChance();
+    int minDistanceBetweenRoadsideStructures();
+    int roadsideStructureDistance();
 }

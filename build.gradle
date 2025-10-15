@@ -13,7 +13,7 @@ architectury {
 // 全局配置
 allprojects {
 	group = 'net.countered.settlementroads'
-	version = '1.0.0'
+	version = '1.0.3'
 }
 
 // 子项目通用配置

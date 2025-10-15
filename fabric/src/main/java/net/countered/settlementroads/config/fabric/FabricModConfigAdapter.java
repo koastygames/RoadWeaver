@@ -2,14 +2,16 @@ package net.countered.settlementroads.config.fabric;
 
 import net.countered.settlementroads.config.IModConfig;
 
+import java.util.List;
+
 /**
  * Adapter class to bridge FabricModConfig with IModConfig interface
  */
 public class FabricModConfigAdapter implements IModConfig {
     
     @Override
-    public String structureToLocate() {
-        return FabricModConfig.getStructureToLocate();
+    public List<String> structuresToLocate() {
+        return FabricModConfig.getStructuresToLocate();
     }
 
     @Override
@@ -95,5 +97,35 @@ public class FabricModConfigAdapter implements IModConfig {
     @Override
     public int manualMaxTerrainStability() {
         return FabricModConfig.getManualMaxTerrainStability();
+    }
+
+    @Override
+    public boolean manualIgnoreWater() {
+        return FabricModConfig.getManualIgnoreWater();
+    }
+
+    @Override
+    public boolean enableRoadsideStructures() {
+        return FabricModConfig.getEnableRoadsideStructures();
+    }
+
+    @Override
+    public List<String> roadsideStructureTags() {
+        return FabricModConfig.getRoadsideStructureTags();
+    }
+
+    @Override
+    public float roadsideStructureSpawnChance() {
+        return FabricModConfig.getRoadsideStructureSpawnChance();
+    }
+
+    @Override
+    public int minDistanceBetweenRoadsideStructures() {
+        return FabricModConfig.getMinDistanceBetweenRoadsideStructures();
+    }
+
+    @Override
+    public int roadsideStructureDistance() {
+        return FabricModConfig.getRoadsideStructureDistance();
     }
 }

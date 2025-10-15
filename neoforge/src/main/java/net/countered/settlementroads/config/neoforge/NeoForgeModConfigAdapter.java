@@ -2,96 +2,130 @@ package net.countered.settlementroads.config.neoforge;
 
 import net.countered.settlementroads.config.IModConfig;
 
+import java.util.List;
+
+/**
+ * Adapter class to bridge NeoForgeJsonConfig with IModConfig interface
+ */
 public class NeoForgeModConfigAdapter implements IModConfig {
-    private static final NeoForgeModConfig CONFIG = new NeoForgeModConfig();
-    
+
     @Override
-    public String structureToLocate() {
-        return CONFIG.structureToLocate();
+    public List<String> structuresToLocate() {
+        return NeoForgeJsonConfig.getStructuresToLocate();
     }
 
     @Override
     public int structureSearchRadius() {
-        return CONFIG.structureSearchRadius();
+        return NeoForgeJsonConfig.getStructureSearchRadius();
     }
 
     @Override
     public int initialLocatingCount() {
-        return CONFIG.initialLocatingCount();
+        return NeoForgeJsonConfig.getInitialLocatingCount();
     }
 
     @Override
     public int maxConcurrentRoadGeneration() {
-        return CONFIG.maxConcurrentRoadGeneration();
+        return NeoForgeJsonConfig.getMaxConcurrentRoadGeneration();
     }
 
     @Override
     public int structureSearchTriggerDistance() {
-        return CONFIG.structureSearchTriggerDistance();
+        return NeoForgeJsonConfig.getStructureSearchTriggerDistance();
     }
 
     @Override
     public int averagingRadius() {
-        return CONFIG.averagingRadius();
+        return NeoForgeJsonConfig.getAveragingRadius();
     }
 
     @Override
     public boolean allowArtificial() {
-        return CONFIG.allowArtificial();
+        return NeoForgeJsonConfig.getAllowArtificial();
     }
 
     @Override
     public boolean allowNatural() {
-        return CONFIG.allowNatural();
+        return NeoForgeJsonConfig.getAllowNatural();
     }
 
     @Override
     public boolean placeWaypoints() {
-        return CONFIG.placeWaypoints();
+        return NeoForgeJsonConfig.getPlaceWaypoints();
     }
 
     @Override
     public boolean placeRoadFences() {
-        return CONFIG.placeRoadFences();
+        return NeoForgeJsonConfig.getPlaceRoadFences();
     }
 
     @Override
     public boolean placeSwings() {
-        return CONFIG.placeSwings();
+        return NeoForgeJsonConfig.getPlaceSwings();
     }
 
     @Override
     public boolean placeBenches() {
-        return CONFIG.placeBenches();
+        return NeoForgeJsonConfig.getPlaceBenches();
     }
 
     @Override
     public boolean placeGloriettes() {
-        return CONFIG.placeGloriettes();
+        return NeoForgeJsonConfig.getPlaceGloriettes();
     }
 
     @Override
     public int structureDistanceFromRoad() {
-        return CONFIG.structureDistanceFromRoad();
+        return NeoForgeJsonConfig.getStructureDistanceFromRoad();
     }
 
     @Override
     public int maxHeightDifference() {
-        return CONFIG.maxHeightDifference();
+        return NeoForgeJsonConfig.getMaxHeightDifference();
     }
 
     @Override
     public int maxTerrainStability() {
-        return CONFIG.maxTerrainStability();
+        return NeoForgeJsonConfig.getMaxTerrainStability();
     }
 
     @Override
     public int manualMaxHeightDifference() {
-        return CONFIG.manualMaxHeightDifference();
+        return NeoForgeJsonConfig.getManualMaxHeightDifference();
     }
 
     @Override
     public int manualMaxTerrainStability() {
-        return CONFIG.manualMaxTerrainStability();
+        return NeoForgeJsonConfig.getManualMaxTerrainStability();
+    }
+
+    @Override
+    public boolean manualIgnoreWater() {
+        return NeoForgeJsonConfig.getManualIgnoreWater();
+    }
+
+    @Override
+    public boolean enableRoadsideStructures() {
+        return NeoForgeJsonConfig.getEnableRoadsideStructures();
+    }
+
+    @Override
+    public List<String> roadsideStructureTags() {
+        return NeoForgeJsonConfig.getRoadsideStructureTags();
+    }
+
+    @Override
+    public float roadsideStructureSpawnChance() {
+        return NeoForgeJsonConfig.getRoadsideStructureSpawnChance();
+    }
+
+    @Override
+    public int minDistanceBetweenRoadsideStructures() {
+        return NeoForgeJsonConfig.getMinDistanceBetweenRoadsideStructures();
+    }
+
+    @Override
+    public int roadsideStructureDistance() {
+        return NeoForgeJsonConfig.getRoadsideStructureDistance();
     }
 }
