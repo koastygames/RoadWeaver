@@ -1,84 +1,20 @@
-RoadWeaver
-Copyright (c) 2025 shiroha-233
+RoadWeaver Credits and Notices
 
-This project includes code derived from the following open source projects:
+This project includes code adapted from:
 
-================================================================================
+- settlement-roads-new (CC0 1.0 Universal)
+  Author: Countered
+  Source: https://github.com/countered/settlement-roads-new
+  Notes: Portions of the road generation and decoration system were ported, including but not limited to:
+  - Feature configuration and placement data formats (configured/placed features)
+  - Road generation logic (A* pathfinding, segment interpolation, surface placement)
+  - Decoration system (lampposts, fence waypoints, distance signs, buoys)
+  - Biome-aware wood selection
 
-RoadArchitect
-Copyright (c) 2024 Shadscure
-Licensed under the Apache License, Version 2.0
+The original work is dedicated to the public domain under CC0 1.0; attribution is not legally required, but is provided here out of respect and for transparency.
 
-This project incorporates concepts and code from RoadArchitect (https://github.com/Shadscure/RoadArchitect),
-specifically:
+Additional Acknowledgments
 
-1. A* Pathfinding Algorithm (PathFinder.java)
-   - Used in: common/src/main/java/net/countered/settlementroads/features/roadlogic/RoadPathCalculator.java
-   - Derived from: modules/common/src/main/java/net/oxcodsnet/roadarchitect/util/PathFinder.java
-   - Core algorithm structure, cost calculation system, and heuristic functions
+- The map is inspired by RoadArchitect: https://github.com/Shadscure/RoadArchitect
 
-2. Cost Calculation Constants
-   - Elevation cost multiplier (40.0)
-   - Biome-based penalties (water, ocean, deep ocean)
-   - Diagonal movement cost calculations
-
-3. Grid-based Pathfinding Approach
-   - 8-directional neighbor offsets
-   - Grid alignment and snapping mechanisms
-
-The original Apache 2.0 license can be found at:
-http://www.apache.org/licenses/LICENSE-2.0
-
-================================================================================
-
-Countered's Settlement Roads
-Copyright (c) 2024 Countered
-Licensed under CC0 1.0 Universal (Public Domain Dedication)
-
-This project incorporates concepts and code from Countered's Settlement Roads 
-(https://github.com/Countered/settlement-roads-new), specifically:
-
-1. Road Decoration Placement Concepts
-   - Distance signs with hanging signs
-   - Lamppost decorations with lanterns
-   - Waypoint markers with fences and torches
-   - Used in: common/src/main/java/net/countered/settlementroads/features/decoration/
-   - Derived from: src/main/java/net/countered/settlementroads/features/RoadStructures.java
-   - Approximately 17% of the original decoration placement logic was adapted
-
-2. Road Decoration Data Structure
-   - RoadDecoration record (BlockPos, Vec3i, centerBlockCount, distance, isStart)
-   - Used in: common/src/main/java/net/countered/settlementroads/helpers/Records.java
-   - Derived from: src/main/java/net/countered/settlementroads/helpers/Records.java
-   - Modified to include signText field
-
-3. Feature Generation Framework
-   - Road feature generation lifecycle
-   - Chunk-based road placement logic
-   - Used in: common/src/main/java/net/countered/settlementroads/features/RoadFeature.java
-   - Derived from: src/main/java/net/countered/settlementroads/features/RoadFeature.java
-   - Approximately 17% of the original framework structure was adapted
-
-RoadWeaver's Original Improvements:
-- Replaced Catmull-Rom spline curves with A* pathfinding algorithm
-- Replaced in-memory caching with persistent data storage system
-- Refactored decoration system into object-oriented design with 8 decoration types
-- Added Minimum Spanning Tree (MST) road planning algorithm
-- Added debug GUI system (6 classes, ~1400 lines)
-- Added Architectury multi-platform support (Fabric + Forge)
-- Added biome-aware wood selection system
-- Added structure connection status management
-- Added manual road connection functionality
-
-The original CC0 1.0 Universal license can be found at:
-https://creativecommons.org/publicdomain/zero/1.0/
-
-Note: CC0 1.0 is a public domain dedication where the author waives all copyright 
-and related rights. This means the code can be freely used, modified, and 
-redistributed without any restrictions. We acknowledge the original work out of 
-respect for the author's contribution to the open source community.
-
-================================================================================
-
-This software includes dependencies licensed under various open source licenses.
-Please see the respective dependency documentation for more information.
+RoadWeaver is licensed under the MIT License. See LICENSE for details.

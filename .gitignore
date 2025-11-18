@@ -1,15 +1,14 @@
-# ===================================
-# Gradle 构建输出
-# ===================================
+
 .gradle/
 build/
 out/
 bin/
 
-# 子项目构建产物
+
 /common/build/
 /common/.gradle/
 /common/bin/
+/common/run/
 
 /fabric/build/
 /fabric/.gradle/
@@ -21,19 +20,11 @@ bin/
 /forge/bin/
 /forge/run/
 
-# ===================================
-# Minecraft 模组开发
-# ===================================
 run/
 logs/
 *.log
 
-# Architectury 转换器
-.architectury-transformer/
-
-# ===================================
-# Eclipse IDE
-# ===================================
+**/.architectury-transformer/
 .classpath
 .project
 .settings/
@@ -41,41 +32,28 @@ logs/
 .factorypath
 *.launch
 
-# ===================================
-# IntelliJ IDEA
-# ===================================
 .idea/
 *.iml
 *.iws
 *.ipr
 
-# ===================================
-# Visual Studio Code
-# ===================================
+
 .vscode/
 *.code-workspace
 
-# ===================================
-# 操作系统生成的文件
-# ===================================
-# macOS
+
 .DS_Store
 .AppleDouble
 .LSOverride
 
-# Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# Linux
 *~
 .directory
 
-# ===================================
-# 临时文件和备份
-# ===================================
 *.tmp
 *.bak
 *.swp
@@ -84,13 +62,11 @@ $RECYCLE.BIN/
 *.orig
 *.rej
 
-# ===================================
-# 项目特定
-# ===================================
-# 遗留嵌套项目快照（保留作为参考，从VCS和构建中排除）
-/RoadWeaver/
-/RoadWeaver/**
-
-# 本地配置文件
 local.properties
 gradle-local.properties
+
+/.claude/
+/MCP-Reborn-1.20
+/.windsurf
+/1.0.0
+

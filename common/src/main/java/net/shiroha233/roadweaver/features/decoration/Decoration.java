@@ -1,10 +1,10 @@
 package net.shiroha233.roadweaver.features.decoration;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 public abstract class Decoration {
@@ -18,28 +18,23 @@ public abstract class Decoration {
 
     public abstract void place();
 
+    public BlockPos computeSurfacePos() {
+        return new BlockPos(placePos.getX(), world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, placePos.getX(), placePos.getZ()), placePos.getZ());
+    }
+
+    public boolean isPlaceAllowedAt(BlockPos surfacePos) {
+        BlockState below = world.getBlockState(surfacePos.below());
+        boolean belowInvalid = below.is(Blocks.WATER) || below.is(Blocks.LAVA) || below.is(BlockTags.LOGS) || RoadFeatureCompat.dontPlaceHere(below.getBlock());
+        return !belowInvalid;
+    }
+
     protected final boolean placeAllowed() {
-        BlockPos placePos = getPos();
-        BlockPos surfacePos = placePos.atY(world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, placePos.getX(), placePos.getZ()));
+        BlockPos surfacePos = computeSurfacePos();
         this.placePos = surfacePos;
-        BlockState blockStateBelow = world.getBlockState(surfacePos.below());
-
-        boolean belowInvalid = blockStateBelow.is(Blocks.WATER)
-                || blockStateBelow.is(Blocks.LAVA)
-                || blockStateBelow.is(BlockTags.LOGS)
-                || RoadPlacementRules.dontPlaceHere.contains(blockStateBelow.getBlock());
-
-        if (belowInvalid) {
-            return false;
-        }
-        return true;
+        return isPlaceAllowedAt(surfacePos);
     }
 
-    public BlockPos getPos() {
-        return placePos;
-    }
+    public BlockPos getPos() { return placePos; }
 
-    public WorldGenLevel getWorld() {
-        return world;
-    }
+    public WorldGenLevel getWorld() { return world; }
 }

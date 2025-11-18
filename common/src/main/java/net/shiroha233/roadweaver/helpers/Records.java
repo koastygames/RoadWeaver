@@ -3,7 +3,6 @@ package net.shiroha233.roadweaver.helpers;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -19,8 +18,6 @@ public final class Records {
     private Records() {}
 
     public record WoodAssets(Block fence, Block hangingSign, Block planks) {}
-
-    public record RoadDecoration(BlockPos placePos, Vec3i vector, int centerBlockCount, String signText, boolean isStart) {}
 
     /**
      * 单个结构位置与类型
@@ -95,31 +92,38 @@ public final class Records {
         }
     }
 
-    /**
-     * 道路段放置点（中点 + 宽度内所有放置位置）
-     */
     public record RoadSegmentPlacement(BlockPos middlePos, List<BlockPos> positions) {
         public static final Codec<RoadSegmentPlacement> CODEC = RecordCodecBuilder.create(instance ->
                 instance.group(
-                        // 字段名使用 middle_pos 以对齐历史数据
                         BlockPos.CODEC.fieldOf("middle_pos").forGetter(RoadSegmentPlacement::middlePos),
                         BlockPos.CODEC.listOf().fieldOf("positions").forGetter(RoadSegmentPlacement::positions)
                 ).apply(instance, RoadSegmentPlacement::new)
         );
     }
 
-    /**
-     * 道路数据（类型/材料/段列表）
-     * roadType: 0=人工，1=自然
-     */
-    public record RoadData(int width, int roadType, List<BlockState> materials, List<RoadSegmentPlacement> roadSegmentList) {
-        public static final Codec<RoadData> CODEC = RecordCodecBuilder.create(instance ->
+    public enum SpanType {
+        BRIDGE,
+        TUNNEL
+    }
+
+    public record RoadSpan(BlockPos start, BlockPos end, SpanType type) {
+        public static final Codec<RoadSpan> CODEC = RecordCodecBuilder.create(instance ->
                 instance.group(
-                        Codec.INT.fieldOf("width").forGetter(RoadData::width),
-                        Codec.INT.fieldOf("road_type").forGetter(RoadData::roadType),
-                        BlockState.CODEC.listOf().fieldOf("materials").forGetter(RoadData::materials),
-                        RoadSegmentPlacement.CODEC.listOf().fieldOf("placements").forGetter(RoadData::roadSegmentList)
-                ).apply(instance, RoadData::new)
+                        BlockPos.CODEC.fieldOf("start").forGetter(RoadSpan::start),
+                        BlockPos.CODEC.fieldOf("end").forGetter(RoadSpan::end),
+                        Codec.STRING.fieldOf("type").xmap(SpanType::valueOf, Enum::name).forGetter(RoadSpan::type)
+                ).apply(instance, RoadSpan::new)
         );
+    }
+
+    public record RoadData(int width, int roadType, List<BlockState> materials, List<RoadSegmentPlacement> roadSegmentList, List<RoadSpan> spans, List<Integer> targetY) {
+        public static final Codec<RoadData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.INT.fieldOf("width").forGetter(RoadData::width),
+                Codec.INT.fieldOf("road_type").forGetter(RoadData::roadType),
+                BlockState.CODEC.listOf().fieldOf("materials").forGetter(RoadData::materials),
+                RoadSegmentPlacement.CODEC.listOf().fieldOf("placements").forGetter(RoadData::roadSegmentList),
+                RoadSpan.CODEC.listOf().optionalFieldOf("spans", new ArrayList<>()).forGetter(RoadData::spans),
+                Codec.INT.listOf().optionalFieldOf("target_y", new ArrayList<>()).forGetter(RoadData::targetY)
+        ).apply(instance, RoadData::new));
     }
 }

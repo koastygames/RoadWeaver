@@ -1,44 +1,11 @@
 package net.shiroha233.roadweaver.features.config;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 
-import java.util.List;
-
+/**
+ * 空配置：旧的“预设”字段已移除，所有材质/宽度由 config/ 路径下的预设与配置驱动。
+ */
 public class RoadFeatureConfig implements FeatureConfiguration {
-
-    public final List<List<BlockState>> artificialMaterials;
-    public final List<List<BlockState>> naturalMaterials;
-    public final List<Integer> width;
-    public final List<Integer> quality;
-
-    public static final Codec<RoadFeatureConfig> CODEC = RecordCodecBuilder.create(
-            instance -> instance.group(
-                            BlockState.CODEC.listOf().listOf().fieldOf("artificialMaterials").forGetter(RoadFeatureConfig::getArtificialMaterials),
-                            BlockState.CODEC.listOf().listOf().fieldOf("naturalMaterials").forGetter(RoadFeatureConfig::getNaturalMaterials),
-                            Codec.INT.listOf().fieldOf("width").forGetter(RoadFeatureConfig::getWidths),
-                            Codec.INT.listOf().fieldOf("quality").forGetter(RoadFeatureConfig::getQualities)
-                    )
-                    .apply(instance, RoadFeatureConfig::new)
-    );
-
-    public RoadFeatureConfig(List<List<BlockState>> artificialMaterials, List<List<BlockState>> naturalMaterials, List<Integer> width, List<Integer> quality) {
-        this.artificialMaterials = artificialMaterials;
-        this.naturalMaterials = naturalMaterials;
-        this.width = width;
-        this.quality = quality;
-    }
-
-    public List<List<BlockState>> getArtificialMaterials() {
-        return artificialMaterials;
-    }
-    public List<List<BlockState>> getNaturalMaterials() {return naturalMaterials;}
-    public List<Integer> getWidths() {
-        return width;
-    }
-    public List<Integer> getQualities() {
-        return quality;
-    }
+    public static final Codec<RoadFeatureConfig> CODEC = Codec.unit(new RoadFeatureConfig());
 }

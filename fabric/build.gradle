@@ -1,9 +1,5 @@
-import net.darkhax.curseforgegradle.TaskPublishCurseForge
-
 plugins {
 	id 'com.gradleup.shadow' version '8.3.6'
-	id "com.modrinth.minotaur" version "2.+"
-	id 'net.darkhax.curseforgegradle' version '1.1.15'
 }
 
 architectury {
@@ -29,11 +25,7 @@ repositories {
 	}
 }
 
-// Loom 1.0.x 不支持 fabricApi.configureDataGeneration
-// 数据生成配置已移至 loom.runs 中
-
 dependencies {
-	// Common 模块 - 添加源代码到编译路径
 	implementation project(":common")
 	common(project(path: ":common", configuration: "namedElements")) { transitive = false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive = false }
@@ -54,9 +46,7 @@ dependencies {
 	modApi("me.shedaniel.cloth:cloth-config-fabric:11.1.106") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
-	
-	// ModMenu for configuration screen
-	modImplementation("com.terraformersmc:modmenu:7.2.2")
+	include("me.shedaniel.cloth:cloth-config-fabric:11.1.106")
 }
 
 processResources {
@@ -99,61 +89,14 @@ components.java {
     }
 }
 
-// Modrinth 发布配置
-modrinth {
-    token = System.getenv("MODRINTH_TOKEN")
-    projectId = "countereds-settlement-roads"
-    versionNumber = "${project.version}"
-    versionType = "release"
-    uploadFile = remapJar
-    gameVersions = ["1.20.1"]
-    loaders = ["fabric"]
-    changelog = file("${rootProject.projectDir}/docs/CHANGELOG.md").text
-    versionName = "RoadWeaver ${project.version} (Fabric)"
-    dependencies {
-        embedded.project "midnightlib"
-    }
-}
-
-// CurseForge 发布配置
-tasks.register("curseforge", TaskPublishCurseForge) {
-	apiToken = System.getenv("CURSEFORGE_TOKEN")
-	def projectId = "1140708"
-	def mainFile = upload(projectId, remapJar)
-	mainFile.changelog = file("${rootProject.projectDir}/docs/CHANGELOG.md")
-	mainFile.changelogType = "markdown"
-	mainFile.displayName = "RoadWeaver ${project.version} (Fabric)"
-	mainFile.addGameVersion("Fabric")
-	mainFile.addGameVersion("1.20.1")
-	mainFile.addEmbedded("midnightlib")
-}
-
-// Maven 发布
-publishing {
-    publications {
-        create("mavenJava", MavenPublication) {
-            artifactId = "${rootProject.name}-fabric"
-            from components.java
-        }
-    }
-    repositories {
-        // 添加发布仓库
-    }
-}
-
-// 使用 common 中的代码，避免重复类定义
 sourceSets {
     main {
         java {
-            // 使用 common 中的特性类
-            exclude 'net/countered/settlementroads/features/RoadFeature.java'
-            exclude 'net/countered/settlementroads/events/ModEventHandler.java'
-            exclude 'net/countered/settlementroads/features/config/RoadFeatureRegistry.java'
+            // Avoid JPMS split-package with shaded common (network package) in dev runtime
         }
         resources {
-            // Use common data-driven configured/placed features
-            exclude 'data/roadweaver/worldgen/configured_feature/road_feature.json'
-            exclude 'data/roadweaver/worldgen/placed_feature/road_feature_placed.json'
+            exclude 'assets/roadweaver/lang/*.json'
+            exclude 'pack.mcmeta'
         }
     }
 }

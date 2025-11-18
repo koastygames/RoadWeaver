@@ -3,17 +3,14 @@ modLoader = "javafml"
 loaderVersion = "[47,)"
 license = "MIT"
 
-# Mixin 配置
-[[mixins]]
-config = "roadweaver.mixins.json"
-
 [[mods]]
 modId = "roadweaver"
 version = "${mod_version}"
 displayName = "RoadWeaver"
 authors = "shiroha233"
+credits = "Includes code adapted from 'settlement-roads-new' (CC0-1.0) by Countered."
 description = '''Automatically generates roads between structures like villages'''
-logoFile = "icon.png"
+logoFile = "assets/roadweaver/icon.png"
 
 [[dependencies.roadweaver]]
 modId = "forge"
@@ -39,7 +36,7 @@ side = "BOTH"
 
 [[dependencies.roadweaver]]
 modId = "cloth_config"
-mandatory = true
+mandatory = false
 versionRange = "[11.0,)"
 ordering = "NONE"
 side = "CLIENT"

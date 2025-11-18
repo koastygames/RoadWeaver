@@ -1,72 +1,63 @@
 package net.shiroha233.roadweaver.features.decoration;
 
-import net.shiroha233.roadweaver.features.decoration.util.BiomeWoodAware;
-import net.shiroha233.roadweaver.helpers.Records;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Half;
+import net.shiroha233.roadweaver.features.decoration.util.BiomeWoodAware;
+import net.shiroha233.roadweaver.features.decoration.util.WoodTrapdoorMapper;
+import net.shiroha233.roadweaver.helpers.Records;
 
 public class LamppostDecoration extends OrientedDecoration implements BiomeWoodAware {
-    private final boolean leftRoadSide;
     private Records.WoodAssets wood;
 
-    public LamppostDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world, boolean leftRoadSide) {
+    public LamppostDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world) {
         super(pos, direction, world);
-        this.leftRoadSide = leftRoadSide;
     }
 
     @Override
     public void place() {
         if (!placeAllowed()) return;
-
         BlockPos basePos = this.getPos();
         WorldGenLevel world = this.getWorld();
-
-        buildNewLamppost(basePos, world);
+        placeLampStructure(basePos, world);
     }
 
-    private void buildNewLamppost(BlockPos basePos, WorldGenLevel world) {
-        world.setBlock(basePos, Blocks.COBBLED_DEEPSLATE_WALL.defaultBlockState(), 3);
-        world.setBlock(basePos.above(1), Blocks.SPRUCE_FENCE.defaultBlockState(), 3);
-        world.setBlock(basePos.above(2), Blocks.SPRUCE_FENCE.defaultBlockState(), 3);
-        world.setBlock(basePos.above(3), Blocks.COBBLED_DEEPSLATE_WALL.defaultBlockState(), 3);
+    private void placeLampStructure(BlockPos pos, WorldGenLevel world) {
+        world.setBlock(pos, Blocks.STONE_BRICKS.defaultBlockState(), 3);
+        world.setBlock(pos.above(1), Blocks.STONE_BRICK_WALL.defaultBlockState(), 3);
+        world.setBlock(pos.above(2), wood.fence().defaultBlockState(), 3);
+        world.setBlock(pos.above(3), wood.fence().defaultBlockState(), 3);
+        world.setBlock(pos.above(4), Blocks.STONE_BRICK_WALL.defaultBlockState(), 3);
 
-        BlockPos lampPos = basePos.above(4);
+        BlockPos lampPos = pos.above(5);
         world.setBlock(lampPos, Blocks.REDSTONE_LAMP.defaultBlockState(), 3);
-        world.setBlock(basePos.above(5), Blocks.DAYLIGHT_DETECTOR.defaultBlockState()
+
+        world.setBlock(lampPos.above(), Blocks.DAYLIGHT_DETECTOR.defaultBlockState()
                 .setValue(BlockStateProperties.INVERTED, true), 3);
 
-        placeTrapdoorsAroundLamp(lampPos, world);
-    }
-
-    private void placeTrapdoorsAroundLamp(BlockPos lampPos, WorldGenLevel world) {
-        world.setBlock(lampPos.east(),
-                Blocks.SPRUCE_TRAPDOOR.defaultBlockState()
-                        .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.EAST)
-                        .setValue(BlockStateProperties.OPEN, false)
-                        .setValue(BlockStateProperties.HALF, Half.TOP), 3);
-        world.setBlock(lampPos.west(),
-                Blocks.SPRUCE_TRAPDOOR.defaultBlockState()
-                        .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.WEST)
-                        .setValue(BlockStateProperties.OPEN, false)
-                        .setValue(BlockStateProperties.HALF, Half.TOP), 3);
-        world.setBlock(lampPos.south(),
-                Blocks.SPRUCE_TRAPDOOR.defaultBlockState()
-                        .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.SOUTH)
-                        .setValue(BlockStateProperties.OPEN, false)
-                        .setValue(BlockStateProperties.HALF, Half.TOP), 3);
-        world.setBlock(lampPos.north(),
-                Blocks.SPRUCE_TRAPDOOR.defaultBlockState()
-                        .setValue(BlockStateProperties.HORIZONTAL_FACING, net.minecraft.core.Direction.NORTH)
-                        .setValue(BlockStateProperties.OPEN, false)
-                        .setValue(BlockStateProperties.HALF, Half.TOP), 3);
+        Block trap = WoodTrapdoorMapper.trapdoorForWood(wood);
+        for (Direction dir : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST}) {
+            BlockPos tpos = lampPos.relative(dir);
+            BlockState st = trap.defaultBlockState()
+                    .setValue(BlockStateProperties.HORIZONTAL_FACING, dir)
+                    .setValue(BlockStateProperties.OPEN, false)
+                    .setValue(BlockStateProperties.HALF, Half.TOP);
+            if (st.hasProperty(BlockStateProperties.WATERLOGGED)) {
+                st = st.setValue(BlockStateProperties.WATERLOGGED, false);
+            }
+            world.setBlock(tpos, st, 3);
+        }
     }
 
     @Override
     public void setWoodType(Records.WoodAssets assets) {
         this.wood = assets;
     }
+
 }

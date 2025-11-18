@@ -29,13 +29,6 @@ public final class WorldDataHelper {
         return new ArrayList<>();
     }
 
-    public static List<Records.RoadData> getRoadDataList(Level level) {
-        if (level instanceof ServerLevel server) {
-            return WorldDataProvider.getInstance().getRoadDataList(server);
-        }
-        return new ArrayList<>();
-    }
-
     public static void setStructureLocations(Level level, Records.StructureLocationData data) {
         if (level instanceof ServerLevel server) {
             WorldDataProvider.getInstance().setStructureLocations(server, data);
@@ -45,12 +38,6 @@ public final class WorldDataHelper {
     public static void setStructureConnections(Level level, List<Records.StructureConnection> connections) {
         if (level instanceof ServerLevel server) {
             WorldDataProvider.getInstance().setStructureConnections(server, connections);
-        }
-    }
-
-    public static void setRoadDataList(Level level, List<Records.RoadData> roadDataList) {
-        if (level instanceof ServerLevel server) {
-            WorldDataProvider.getInstance().setRoadDataList(server, roadDataList);
         }
     }
 }

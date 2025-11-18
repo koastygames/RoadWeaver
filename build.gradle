@@ -11,10 +11,9 @@ architectury {
 allprojects {
 	apply plugin: 'java'
 	apply plugin: 'architectury-plugin'
-	apply plugin: 'maven-publish'
 	
 	group = 'net.shiroha233.roadweaver'
-	version = '1.0.5'
+	version = '2.0.2-1.20.1'
 	
 	repositories {
 		maven { url = 'https://maven.architectury.dev/' }
@@ -53,4 +52,10 @@ subprojects {
 		minecraft "com.mojang:minecraft:1.20.1"
 		mappings loom.officialMojangMappings()
 	}
+
+    tasks.withType(JavaExec).configureEach {
+        javaLauncher.set(javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(17)
+        })
+    }
 }

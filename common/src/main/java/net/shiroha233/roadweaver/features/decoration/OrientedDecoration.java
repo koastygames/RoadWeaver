@@ -1,13 +1,13 @@
 package net.shiroha233.roadweaver.features.decoration;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
 
-public abstract class OrientedDecoration extends Decoration{
+public abstract class OrientedDecoration extends Decoration {
 
     private final Vec3i orthogonalVector;
 
@@ -16,32 +16,28 @@ public abstract class OrientedDecoration extends Decoration{
         this.orthogonalVector = orthogonalVector;
     }
 
-    protected final int getCardinalRotationFromVector(Vec3i orthogonalVector, boolean start) {
+    protected final int getCardinalRotationFromVector(Vec3i vec, boolean start) {
         if (start) {
-            if (Math.abs(orthogonalVector.getX()) > Math.abs(orthogonalVector.getZ())) {
-                return orthogonalVector.getX() > 0 ? 0 : 8; // N or S
+            if (Math.abs(vec.getX()) > Math.abs(vec.getZ())) {
+                return vec.getX() > 0 ? 0 : 8;
             } else {
-                return orthogonalVector.getZ() > 0 ? 4 : 12; // E or W
+                return vec.getZ() > 0 ? 4 : 12;
             }
-        }
-        else {
-            if (Math.abs(orthogonalVector.getX()) > Math.abs(orthogonalVector.getZ())) {
-                return orthogonalVector.getX() > 0 ? 8 : 0; // N or S
+        } else {
+            if (Math.abs(vec.getX()) > Math.abs(vec.getZ())) {
+                return vec.getX() > 0 ? 8 : 0;
             } else {
-                return orthogonalVector.getZ() > 0 ? 12 : 4; // E or W
+                return vec.getZ() > 0 ? 12 : 4;
             }
         }
     }
 
-    public Vec3i getOrthogonalVector() {
-        return orthogonalVector;
-    }
+    public Vec3i getOrthogonalVector() { return orthogonalVector; }
 
     protected static class DirectionProperties {
         Direction offsetDirection;
         BooleanProperty reverseDirectionProperty;
         BooleanProperty directionProperty;
-
         DirectionProperties(Direction offset, BooleanProperty reverse, BooleanProperty direction) {
             this.offsetDirection = offset;
             this.reverseDirectionProperty = reverse;
@@ -52,9 +48,9 @@ public abstract class OrientedDecoration extends Decoration{
     protected DirectionProperties getDirectionProperties(int rotation) {
         return switch (rotation) {
             case 12 -> new DirectionProperties(Direction.NORTH, BlockStateProperties.SOUTH, BlockStateProperties.NORTH);
-            case 0 -> new DirectionProperties(Direction.EAST,  BlockStateProperties.WEST,  BlockStateProperties.EAST);
+            case 0 -> new DirectionProperties(Direction.EAST, BlockStateProperties.WEST, BlockStateProperties.EAST);
             case 4 -> new DirectionProperties(Direction.SOUTH, BlockStateProperties.NORTH, BlockStateProperties.SOUTH);
-            default -> new DirectionProperties(Direction.WEST,  BlockStateProperties.EAST,  BlockStateProperties.WEST);
+            default -> new DirectionProperties(Direction.WEST, BlockStateProperties.EAST, BlockStateProperties.WEST);
         };
     }
 }
