@@ -5,8 +5,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.features.decoration.Decoration;
- 
+import net.shiroha233.roadweaver.features.decoration.base.Decoration;
 
 import java.util.List;
 import java.util.Set;

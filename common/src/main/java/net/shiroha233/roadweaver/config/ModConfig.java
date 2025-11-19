@@ -57,6 +57,17 @@ public final class ModConfig {
     private boolean bridgeKeepLamps;
     private int bridgeRampSegments;
 
+    // A* 寻路成本权重
+    private double orthoStepCost;
+    private double diagStepCost;
+    private int elevationWeight;
+    private int biomeWeight;
+    private int stabilityWeight;
+    private int waterDepthWeight;
+    private int nearWaterCost;
+    private double heuristicWeight;
+    private double deviationWeight;
+
     public ModConfig() {
         this.villagePredictionEnabled = true;
         this.predictRadiusChunks = 1024;
@@ -108,6 +119,17 @@ public final class ModConfig {
         this.bridgePierMaxHeight = 20;
         this.bridgeKeepLamps = true;
         this.bridgeRampSegments = 4;
+
+        // A* 寻路成本权重
+        this.orthoStepCost = 1.0;
+        this.diagStepCost = 1.0;
+        this.elevationWeight = 80;
+        this.biomeWeight = 2;
+        this.stabilityWeight = 15;
+        this.waterDepthWeight = 40;
+        this.nearWaterCost = 40;
+        this.heuristicWeight = 15.0;
+        this.deviationWeight = 0.5;
     }
 
     public boolean villagePredictionEnabled() {
@@ -214,6 +236,17 @@ public final class ModConfig {
         if (bridgePierMaxHeight > 64) bridgePierMaxHeight = 64;
         if (bridgeRampSegments < 0) bridgeRampSegments = 0;
         if (bridgeRampSegments > 12) bridgeRampSegments = 12;
+
+        // A* 寻路成本权重校验
+        if (orthoStepCost < 0) orthoStepCost = 0;
+        if (diagStepCost < 0) diagStepCost = 0;
+        if (elevationWeight < 0) elevationWeight = 0;
+        if (biomeWeight < 0) biomeWeight = 0;
+        if (stabilityWeight < 0) stabilityWeight = 0;
+        if (waterDepthWeight < 0) waterDepthWeight = 0;
+        if (nearWaterCost < 0) nearWaterCost = 0;
+        if (heuristicWeight < 0) heuristicWeight = 0;
+        if (deviationWeight < 0) deviationWeight = 0;
     }
 
     // 初始规划半径
@@ -331,4 +364,32 @@ public final class ModConfig {
 
     public int bridgeRampSegments() { return bridgeRampSegments; }
     public void setBridgeRampSegments(int v) { this.bridgeRampSegments = v; }
+
+    // A* 寻路成本权重
+    public double orthoStepCost() { return orthoStepCost; }
+    public void setOrthoStepCost(double v) { this.orthoStepCost = v; }
+
+    public double diagStepCost() { return diagStepCost; }
+    public void setDiagStepCost(double v) { this.diagStepCost = v; }
+
+    public int elevationWeight() { return elevationWeight; }
+    public void setElevationWeight(int v) { this.elevationWeight = v; }
+
+    public int biomeWeight() { return biomeWeight; }
+    public void setBiomeWeight(int v) { this.biomeWeight = v; }
+
+    public int stabilityWeight() { return stabilityWeight; }
+    public void setStabilityWeight(int v) { this.stabilityWeight = v; }
+
+    public int waterDepthWeight() { return waterDepthWeight; }
+    public void setWaterDepthWeight(int v) { this.waterDepthWeight = v; }
+
+    public int nearWaterCost() { return nearWaterCost; }
+    public void setNearWaterCost(int v) { this.nearWaterCost = v; }
+
+    public double heuristicWeight() { return heuristicWeight; }
+    public void setHeuristicWeight(double v) { this.heuristicWeight = v; }
+
+    public double deviationWeight() { return deviationWeight; }
+    public void setDeviationWeight(double v) { this.deviationWeight = v; }
 }

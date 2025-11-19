@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.bridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;

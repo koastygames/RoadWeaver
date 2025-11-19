@@ -341,6 +341,80 @@ public class ConfigScreenFactoryImpl {
                         .build()
         );
 
+        ConfigCategory pathfindingCosts = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.pathfinding_costs"));
+
+        pathfindingCosts.addEntry(
+                eb.startDoubleField(Component.translatable("config.roadweaver.ortho_step_cost"), conf.orthoStepCost())
+                        .setTooltip(Component.translatable("config.roadweaver.ortho_step_cost.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setOrthoStepCost)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startDoubleField(Component.translatable("config.roadweaver.diag_step_cost"), conf.diagStepCost())
+                        .setTooltip(Component.translatable("config.roadweaver.diag_step_cost.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setDiagStepCost)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startIntField(Component.translatable("config.roadweaver.elevation_weight"), conf.elevationWeight())
+                        .setTooltip(Component.translatable("config.roadweaver.elevation_weight.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setElevationWeight)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startIntField(Component.translatable("config.roadweaver.biome_weight"), conf.biomeWeight())
+                        .setTooltip(Component.translatable("config.roadweaver.biome_weight.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setBiomeWeight)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startIntField(Component.translatable("config.roadweaver.stability_weight"), conf.stabilityWeight())
+                        .setTooltip(Component.translatable("config.roadweaver.stability_weight.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setStabilityWeight)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startIntField(Component.translatable("config.roadweaver.water_depth_weight"), conf.waterDepthWeight())
+                        .setTooltip(Component.translatable("config.roadweaver.water_depth_weight.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setWaterDepthWeight)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startIntField(Component.translatable("config.roadweaver.near_water_cost"), conf.nearWaterCost())
+                        .setTooltip(Component.translatable("config.roadweaver.near_water_cost.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setNearWaterCost)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startDoubleField(Component.translatable("config.roadweaver.heuristic_weight"), conf.heuristicWeight())
+                        .setTooltip(Component.translatable("config.roadweaver.heuristic_weight.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setHeuristicWeight)
+                        .build()
+        );
+
+        pathfindingCosts.addEntry(
+                eb.startDoubleField(Component.translatable("config.roadweaver.deviation_weight"), conf.deviationWeight())
+                        .setTooltip(Component.translatable("config.roadweaver.deviation_weight.tooltip"))
+                        .setMin(0)
+                        .setSaveConsumer(conf::setDeviationWeight)
+                        .build()
+        );
+
         return builder.build();
     }
 

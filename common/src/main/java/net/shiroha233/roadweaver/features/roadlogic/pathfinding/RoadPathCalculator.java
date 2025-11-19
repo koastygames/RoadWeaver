@@ -1,9 +1,10 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.features.roadlogic.core.RoadDirection;
 
 import java.util.*;
 
@@ -39,7 +40,12 @@ public final class RoadPathCalculator {
         BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
         BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
-        List<Records.RoadSegmentPlacement> land = BasicAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);
+        List<Records.RoadSegmentPlacement> land;
+        if (ConfigService.get().useBidirectionalAStar()) {
+            land = BidirectionalAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);
+        } else {
+            land = BasicAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);
+        }
         return land;
     }
 

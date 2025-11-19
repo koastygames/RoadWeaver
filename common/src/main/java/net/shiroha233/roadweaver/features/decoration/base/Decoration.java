@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration;
+package net.shiroha233.roadweaver.features.decoration.base;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -6,6 +6,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.shiroha233.roadweaver.features.decoration.compat.RoadFeatureCompat;
 
 public abstract class Decoration {
     private BlockPos placePos;

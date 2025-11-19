@@ -69,4 +69,9 @@ gradle-local.properties
 /MCP-Reborn-1.20
 /.windsurf
 /1.0.0
+/tectonic
+/ReTerraForged
 
+/common/.gradle
+**/.gradle/
+.gradle/

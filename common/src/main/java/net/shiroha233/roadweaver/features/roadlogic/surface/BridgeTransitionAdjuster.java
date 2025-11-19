@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.surface;
 
 import net.shiroha233.roadweaver.config.ModConfig;
 

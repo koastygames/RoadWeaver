@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration.util;
+package net.shiroha233.roadweaver.features.decoration.material.surface;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;

@@ -1,10 +1,11 @@
-package net.shiroha233.roadweaver.features.decoration;
+package net.shiroha233.roadweaver.features.decoration.types;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
-import net.shiroha233.roadweaver.features.decoration.util.BiomeWoodAware;
+import net.shiroha233.roadweaver.features.decoration.base.OrientedDecoration;
+import net.shiroha233.roadweaver.features.decoration.material.wood.BiomeWoodAware;
 import net.shiroha233.roadweaver.helpers.Records;
 
 public class LanternPostDecoration extends OrientedDecoration implements BiomeWoodAware {

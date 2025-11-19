@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration.util;
+package net.shiroha233.roadweaver.features.decoration.material.wood;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;

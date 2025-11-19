@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.core;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -24,7 +24,7 @@ public final class SegmentPaver {
             BlockPos pos = new BlockPos(widthBlock.getX(), averageY, widthBlock.getZ());
             List<BlockState> mats;
             if (roadType == 1) {
-                mats = net.shiroha233.roadweaver.features.decoration.util.BiomeRoadMaterialSelector.forBiome(world, pos);
+                mats = net.shiroha233.roadweaver.features.decoration.material.surface.BiomeRoadMaterialSelector.forBiome(world, pos);
             } else {
                 mats = materials;
             }

@@ -88,7 +88,7 @@
   "config.roadweaver.a_star_max_steps": "A* 最大搜索步数",
   "config.roadweaver.a_star_max_steps.tooltip": "A* 算法单次搜索的最大步数限制，防止在复杂地形中无限搜索。",
   "config.roadweaver.use_bidirectional_a_star": "启用双向 A* 寻路（实验性）",
-  "config.roadweaver.use_bidirectional_a_star.tooltip": "开启后从起点和终点同时进行 A* 搜索，若失败则回退到原先的单向 A*。",
+  "config.roadweaver.use_bidirectional_a_star.tooltip": "在经典单向 A* 与双向 A*（起点和终点同时搜索）之间进行切换。",
 
   "gui.roadweaver.map.menu.teleport": "传送到此处",
   "gui.roadweaver.map.teleport.success": "传送成功",
@@ -149,5 +149,25 @@
   "gui.roadweaver.preset_editor.rename": "重命名",
   "gui.roadweaver.preset_editor.delete": "删除",
   "gui.roadweaver.preset_editor.default_name": "预设",
-  "config.roadweaver.open_preset_editor": "打开预设编辑器"
+  "config.roadweaver.open_preset_editor": "打开预设编辑器",
+
+  "config.roadweaver.category.pathfinding_costs": "寻路成本",
+  "config.roadweaver.ortho_step_cost": "正交步进成本",
+  "config.roadweaver.ortho_step_cost.tooltip": "正交移动的基础成本。数值越高，越不倾向于正交移动。",
+  "config.roadweaver.diag_step_cost": "对角步进成本",
+  "config.roadweaver.diag_step_cost.tooltip": "对角移动的基础成本。数值越高，越不倾向于对角移动。",
+  "config.roadweaver.elevation_weight": "高度变化权重",
+  "config.roadweaver.elevation_weight.tooltip": "高度变化的成本权重。数值越高，越偏好平坦地形。",
+  "config.roadweaver.biome_weight": "生物群系权重",
+  "config.roadweaver.biome_weight.tooltip": "特定生物群系（如河流、海洋）的成本权重。",
+  "config.roadweaver.stability_weight": "地形稳定性权重",
+  "config.roadweaver.stability_weight.tooltip": "地形稳定性的成本权重。数值越高，越倾向于避开悬崖和坑洞。",
+  "config.roadweaver.water_depth_weight": "水深权重",
+  "config.roadweaver.water_depth_weight.tooltip": "水深的成本权重。数值越高，越倾向于避开深水区。",
+  "config.roadweaver.near_water_cost": "临水成本",
+  "config.roadweaver.near_water_cost.tooltip": "靠近水源的成本。数值越高，越倾向于远离水源。",
+  "config.roadweaver.heuristic_weight": "启发式权重",
+  "config.roadweaver.heuristic_weight.tooltip": "启发式算法的权重。数值越高，路径越倾向于直接朝向目标。",
+  "config.roadweaver.deviation_weight": "偏离直线权重",
+  "config.roadweaver.deviation_weight.tooltip": "路径偏离起点-终点直线的成本权重。数值越高，越偏好直线路径。"
 }

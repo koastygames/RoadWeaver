@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.core;
 
 public enum RoadDirection {
     X_AXIS,

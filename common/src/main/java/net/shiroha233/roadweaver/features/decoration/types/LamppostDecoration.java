@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration;
+package net.shiroha233.roadweaver.features.decoration.types;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -9,8 +9,9 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Half;
-import net.shiroha233.roadweaver.features.decoration.util.BiomeWoodAware;
-import net.shiroha233.roadweaver.features.decoration.util.WoodTrapdoorMapper;
+import net.shiroha233.roadweaver.features.decoration.base.OrientedDecoration;
+import net.shiroha233.roadweaver.features.decoration.material.wood.BiomeWoodAware;
+import net.shiroha233.roadweaver.features.decoration.material.wood.WoodTrapdoorMapper;
 import net.shiroha233.roadweaver.helpers.Records;
 
 public class LamppostDecoration extends OrientedDecoration implements BiomeWoodAware {

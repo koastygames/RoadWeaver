@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration;
+package net.shiroha233.roadweaver.features.decoration.base;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -34,11 +34,12 @@ public abstract class OrientedDecoration extends Decoration {
 
     public Vec3i getOrthogonalVector() { return orthogonalVector; }
 
-    protected static class DirectionProperties {
-        Direction offsetDirection;
-        BooleanProperty reverseDirectionProperty;
-        BooleanProperty directionProperty;
-        DirectionProperties(Direction offset, BooleanProperty reverse, BooleanProperty direction) {
+    public static class DirectionProperties {
+        public final Direction offsetDirection;
+        public final BooleanProperty reverseDirectionProperty;
+        public final BooleanProperty directionProperty;
+
+        public DirectionProperties(Direction offset, BooleanProperty reverse, BooleanProperty direction) {
             this.offsetDirection = offset;
             this.reverseDirectionProperty = reverse;
             this.directionProperty = direction;

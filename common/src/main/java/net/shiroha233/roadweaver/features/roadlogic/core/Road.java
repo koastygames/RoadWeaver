@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.core;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -6,6 +6,8 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.Blocks;
 import net.shiroha233.roadweaver.features.config.RoadFeatureConfig;
+import net.shiroha233.roadweaver.features.roadlogic.pathfinding.RoadPathCalculator;
+import net.shiroha233.roadweaver.features.roadlogic.pathfinding.TerrainSamplingCache;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
@@ -92,7 +94,7 @@ public final class Road {
             int hi = Math.min(n - 1, i + avg);
             for (int j = lo; j <= hi; j++) {
                 BlockPos sp = centers.get(j);
-                int yTop = RoadPathCalculator.heightSampler(cache, sp.getX(), sp.getZ(), level);
+                int yTop = cache.height(level, sp.getX(), sp.getZ());
                 sum += yTop; cnt++;
             }
             base[i] = cnt > 0 ? (int) Math.round(sum / (double) cnt) : centers.get(i).getY();

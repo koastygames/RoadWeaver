@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration.util;
+package net.shiroha233.roadweaver.features.decoration.text;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;

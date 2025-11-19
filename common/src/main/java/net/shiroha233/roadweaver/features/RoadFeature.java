@@ -14,16 +14,16 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.config.RoadFeatureConfig;
-import net.shiroha233.roadweaver.features.decoration.Decoration;
-import net.shiroha233.roadweaver.features.decoration.RoadStructures;
+import net.shiroha233.roadweaver.features.decoration.base.Decoration;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.features.decoration.system.DecorationPlanner;
-import net.shiroha233.roadweaver.features.roadlogic.BridgeRangeCalculator;
-import net.shiroha233.roadweaver.features.roadlogic.HeightProfileService;
-import net.shiroha233.roadweaver.features.roadlogic.SegmentPaver;
-import net.shiroha233.roadweaver.features.roadlogic.BridgeSegmentPlanner;
-import net.shiroha233.roadweaver.features.roadlogic.BridgeTransitionAdjuster;
+import net.shiroha233.roadweaver.features.decoration.system.DecorationExecutor;
+import net.shiroha233.roadweaver.features.roadlogic.bridge.BridgeRangeCalculator;
+import net.shiroha233.roadweaver.features.roadlogic.bridge.BridgeSegmentPlanner;
+import net.shiroha233.roadweaver.features.roadlogic.core.SegmentPaver;
+import net.shiroha233.roadweaver.features.roadlogic.surface.BridgeTransitionAdjuster;
+import net.shiroha233.roadweaver.features.roadlogic.surface.HeightProfileService;
 
 import java.util.*;
 
@@ -127,7 +127,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                 }
             }
         }
-        RoadStructures.tryPlaceDecorations(decorations);
+        DecorationExecutor.tryPlaceDecorations(decorations);
         return true;
     }
     

@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.decoration.util;
+package net.shiroha233.roadweaver.features.decoration.material.wood;
 
 import net.shiroha233.roadweaver.helpers.Records;
 

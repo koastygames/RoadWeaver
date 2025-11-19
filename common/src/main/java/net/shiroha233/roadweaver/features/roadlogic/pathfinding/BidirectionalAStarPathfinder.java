@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.features.roadlogic;
+package net.shiroha233.roadweaver.features.roadlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -16,21 +16,11 @@ import java.util.*;
 final class BidirectionalAStarPathfinder {
     private BidirectionalAStarPathfinder() {}
 
-    
-    private static final double ORTHO_STEP_COST = 1.0;//正交步进基础成本，数值越大越不倾向采用正交步进
-    private static final double DIAG_STEP_COST = 1.0;//对角步进基础成本，数值越大越不倾向采用对角步进
-    private static final int ELEVATION_WEIGHT = 80;//高度成本权重，数值越大越偏好平坦区域，防止道路贴近悬崖边或坑洼
-    private static final int BIOME_BASE_COST = 40;// 特定生物群系基础成本（河流/海洋/深海），已参与计算
-    private static final int BIOME_WEIGHT = 2;// 生物群系成本权重，实际代价为 BIOME_BASE_COST * BIOME_WEIGHT
-    private static final int STABILITY_WEIGHT = 15;// 稳定性权重，数值越大越偏好平坦区域，防止道路贴近悬崖边或坑洼
-    private static final int WATER_DEPTH_WEIGHT = 40;// 水深权重，数值越大越偏好远离水域
-    private static final int NEAR_WATER_COST = 40;// 水边成本，数值越大越偏好远离水域
-    private static final double HEURISTIC_WEIGHT = 15.0;//启发式权重，积极朝终点方向推进，路径更直，但也更可能忽视局部最优绕路
-    private static final double HEURISTIC_EPSILON = 0.2;//启发式epsilon
-    private static final double DEVIATION_WEIGHT = 0.5;//偏差权重，数值越大越偏好直线路径
+    private static final int BIOME_BASE_COST = 12; // 特定生物群系基础成本（河流/海洋/深海）
+    private static final double HEURISTIC_EPSILON = 0.2; // 启发式 epsilon
 
     static List<Records.RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
-                                                                BlockPos endGround,
+                                                                  BlockPos endGround,
                                                                 int width,
                                                                 ServerLevel level,
                                                                 int maxSteps,
@@ -46,6 +36,8 @@ final class BidirectionalAStarPathfinder {
                 {d, d}, {d, -d}, {-d, d}, {-d, -d}
         };
 
+        var cfg = net.shiroha233.roadweaver.config.ConfigService.get();
+
         PriorityQueue<Node> openF = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         PriorityQueue<Node> openB = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<BlockPos, Node> nodesF = new HashMap<>();
@@ -53,8 +45,8 @@ final class BidirectionalAStarPathfinder {
         Set<BlockPos> closedF = new HashSet<>();
         Set<BlockPos> closedB = new HashSet<>();
 
-        Node startNode = new Node(startGround, null, 0.0, heuristic(startGround, endGround));
-        Node endNode = new Node(endGround, null, 0.0, heuristic(endGround, startGround));
+        Node startNode = new Node(startGround, null, 0.0, heuristic(startGround, endGround, cfg));
+        Node endNode = new Node(endGround, null, 0.0, heuristic(endGround, startGround, cfg));
         openF.add(startNode);
         nodesF.put(startGround, startNode);
         openB.add(endNode);
@@ -80,14 +72,15 @@ final class BidirectionalAStarPathfinder {
             Meet meet;
             if (expandForward) {
                 meet = expandOneSide(openF, nodesF, closedF, nodesB,
-                        startGround, endGround, level, cache, neighborOffsets, d);
+                        startGround, endGround, level, cache, neighborOffsets, d, cfg);
             } else {
                 meet = expandOneSide(openB, nodesB, closedB, nodesF,
-                        endGround, startGround, level, cache, neighborOffsets, d);
+                        endGround, startGround, level, cache, neighborOffsets, d, cfg);
             }
 
             if (meet != null) {
-                return reconstructPath(meet.forward, meet.backward, width);
+                // 会合后，将前向/反向节点链表合并为一条原始路径，交给 PathPostProcessor 统一处理
+                return reconstructPath(meet.forward, meet.backward, width, level, cache);
             }
         }
 
@@ -103,8 +96,9 @@ final class BidirectionalAStarPathfinder {
                                       ServerLevel level,
                                       TerrainSamplingCache cache,
                                       int[][] neighborOffsets,
-                                      int d) {
-        if (open.isEmpty()) return null;
+                                      int d,
+                                      net.shiroha233.roadweaver.config.ModConfig cfg) {
+       if (open.isEmpty()) return null;
         Node current = open.poll();
         if (current == null) return null;
 
@@ -124,24 +118,24 @@ final class BidirectionalAStarPathfinder {
             int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
             int elevation = Math.abs(y - current.pos.getY());
             int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
-            double stepCost = (offsetSum == 2 * d) ? DIAG_STEP_COST : ORTHO_STEP_COST;
+            double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
             int stabilityCost = RoadPathCalculator.calculateTerrainStability(cache, np, y, level);
             int sea = level.getSeaLevel();
             boolean waterColumn = RoadPathCalculator.isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
             boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
             int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
             int waterDepth = Math.max(0, sea - oceanFloor);
-            int waterDepthCost = waterColumn ? waterDepth * WATER_DEPTH_WEIGHT : 0;
-            int nearWaterCost = nearWater ? NEAR_WATER_COST : 0;
+            int waterDepthCost = waterColumn ? waterDepth * cfg.waterDepthWeight() : 0;
+            int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
 
             double deviation = deviation2d(np, from, to);
-            double deviationCost = deviation * DEVIATION_WEIGHT / Math.max(1.0, d);
+            double deviationCost = deviation * cfg.deviationWeight() / Math.max(1.0, d);
 
             double tentativeG = current.g
                     + stepCost
-                    + elevation * ELEVATION_WEIGHT
-                    + biomeCost * BIOME_WEIGHT
-                    + stabilityCost * STABILITY_WEIGHT
+                    + elevation * cfg.elevationWeight()
+                    + biomeCost * cfg.biomeWeight()
+                    + stabilityCost * cfg.stabilityWeight()
                     + waterDepthCost
                     + nearWaterCost
                     + deviationCost;
@@ -151,7 +145,7 @@ final class BidirectionalAStarPathfinder {
                 continue;
             }
 
-            double h = heuristic(np, to);
+            double h = heuristic(np, to, cfg);
             double fWeighted = tentativeG + (1.0 + HEURISTIC_EPSILON) * h;
             Node next = new Node(np, current, tentativeG, fWeighted);
             nodesThis.put(np, next);
@@ -185,78 +179,42 @@ final class BidirectionalAStarPathfinder {
 
     private static List<Records.RoadSegmentPlacement> reconstructPath(Node meetForward,
                                                                       Node meetBackward,
-                                                                      int width) {
-        // 从前向搜索链表回溯到起点
-        List<Node> forwardNodes = new ArrayList<>();
+                                                                      int width,
+                                                                      ServerLevel level,
+                                                                      TerrainSamplingCache cache) {
+        // 1. 从前向搜索链表回溯到起点，得到起点 -> 会合点 的路径
+        List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
         while (cur != null) {
-            forwardNodes.add(cur);
+            rawPath.add(cur.pos);
             cur = cur.parent;
         }
-        Collections.reverse(forwardNodes);
+        Collections.reverse(rawPath);
 
-        // 从反向搜索链表回溯到终点，注意跳过重复的汇合节点
-        List<Node> backwardNodes = new ArrayList<>();
-        cur = (meetBackward != null && meetBackward.pos.equals(meetForward.pos)) ? meetBackward.parent : meetBackward;
+        // 2. 从反向搜索链表回溯到终点，注意跳过重复的会合节点
+        List<BlockPos> backward = new ArrayList<>();
+        Node backStart = (meetBackward != null && meetBackward.pos.equals(meetForward.pos)) ? meetBackward.parent : meetBackward;
+        cur = backStart;
         while (cur != null) {
-            backwardNodes.add(cur);
+            backward.add(cur.pos);
             cur = cur.parent;
         }
-        Collections.reverse(backwardNodes);
+        Collections.reverse(backward);
+        rawPath.addAll(backward);
 
-        List<Node> allNodes = new ArrayList<>(forwardNodes.size() + backwardNodes.size());
-        allNodes.addAll(forwardNodes);
-        allNodes.addAll(backwardNodes);
-
-        Map<BlockPos, Set<BlockPos>> segments = new LinkedHashMap<>();
-        Set<BlockPos> widthCache = new HashSet<>();
-
-        for (int i = 0; i < allNodes.size(); i++) {
-            Node curNode = allNodes.get(i);
-            BlockPos p = curNode.pos;
-            RoadDirection dir = RoadDirection.X_AXIS;
-
-            if (i > 0) {
-                Node prevNode = allNodes.get(i - 1);
-                BlockPos prev = prevNode.pos;
-                int dx = p.getX() - prev.getX();
-                int dz = p.getZ() - prev.getZ();
-                int stepCount = Math.max(Math.abs(dx), Math.abs(dz));
-                if ((dx < 0 && dz > 0) || (dx > 0 && dz < 0)) dir = RoadDirection.DIAGONAL_1;
-                else if ((dx < 0 && dz < 0) || (dx > 0 && dz > 0)) dir = RoadDirection.DIAGONAL_2;
-                else if (dx == 0 && dz != 0) dir = RoadDirection.Z_AXIS;
-
-                if (stepCount > 1) {
-                    for (int s = 1; s < stepCount; s++) {
-                        int ix = prev.getX() + dx * s / stepCount;
-                        int iz = prev.getZ() + dz * s / stepCount;
-                        BlockPos ip = new BlockPos(ix, prev.getY(), iz);
-                        Set<BlockPos> ws = RoadPathCalculator.generateWidth(ip, width / 2, widthCache, dir);
-                        segments.put(ip, ws);
-                    }
-                }
-            }
-
-            Set<BlockPos> ws = RoadPathCalculator.generateWidth(p, width / 2, widthCache, dir);
-            segments.put(p, ws);
-        }
-
-        List<Records.RoadSegmentPlacement> out = new ArrayList<>();
-        for (Map.Entry<BlockPos, Set<BlockPos>> e : segments.entrySet()) {
-            out.add(new Records.RoadSegmentPlacement(e.getKey(), new ArrayList<>(e.getValue())));
-        }
-        return out;
+        // 3. 交给 PathPostProcessor 做样条平滑和宽度填充
+        return PathPostProcessor.process(rawPath, width, level, cache);
     }
 
     private static int manhattan2d(BlockPos a, BlockPos b) {
         return Math.abs(a.getX() - b.getX()) + Math.abs(a.getZ() - b.getZ());
     }
 
-    private static double heuristic(BlockPos a, BlockPos b) {
+    private static double heuristic(BlockPos a, BlockPos b, net.shiroha233.roadweaver.config.ModConfig cfg) {
         int dx = a.getX() - b.getX();
         int dz = a.getZ() - b.getZ();
         double dxzApprox = Math.abs(dx) + Math.abs(dz) - 0.6 * Math.min(Math.abs(dx), Math.abs(dz));
-        return dxzApprox * HEURISTIC_WEIGHT;
+        return dxzApprox * cfg.heuristicWeight();
     }
 
     private static double deviation2d(BlockPos p, BlockPos a, BlockPos b) {

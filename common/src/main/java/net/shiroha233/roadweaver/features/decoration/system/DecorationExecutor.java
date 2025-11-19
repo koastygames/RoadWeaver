@@ -1,13 +1,14 @@
-package net.shiroha233.roadweaver.features.decoration;
+package net.shiroha233.roadweaver.features.decoration.system;
 
-import net.shiroha233.roadweaver.features.decoration.util.WoodSelector;
-import net.shiroha233.roadweaver.features.decoration.util.BiomeWoodAware;
+import net.shiroha233.roadweaver.features.decoration.base.Decoration;
+import net.shiroha233.roadweaver.features.decoration.material.wood.BiomeWoodAware;
+import net.shiroha233.roadweaver.features.decoration.material.wood.WoodSelector;
 
 import java.util.Iterator;
 import java.util.Set;
 
-public final class RoadStructures {
-    private RoadStructures() {}
+public final class DecorationExecutor {
+    private DecorationExecutor() {}
 
     public static void tryPlaceDecorations(Set<Decoration> positions) {
         if (positions.isEmpty()) return;

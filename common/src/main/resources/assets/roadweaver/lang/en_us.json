@@ -87,7 +87,7 @@
   "config.roadweaver.a_star_max_steps": "A* Max Search Steps",
   "config.roadweaver.a_star_max_steps.tooltip": "Maximum search steps for A* algorithm per generation to prevent infinite loops in complex terrain.",
   "config.roadweaver.use_bidirectional_a_star": "Use Bidirectional A* (experimental)",
-  "config.roadweaver.use_bidirectional_a_star.tooltip": "When enabled, run a bidirectional A* search from both endpoints and fall back to basic A* if no meeting point is found.",
+  "config.roadweaver.use_bidirectional_a_star.tooltip": "Toggle between classic single-direction A* and bidirectional A* that searches from both endpoints.",
 
   "gui.roadweaver.map.menu.teleport": "Teleport here",
   "gui.roadweaver.map.teleport.success": "Teleported",
@@ -149,5 +149,25 @@
   "gui.roadweaver.preset_editor.rename": "Rename",
   "gui.roadweaver.preset_editor.delete": "Delete",
   "gui.roadweaver.preset_editor.default_name": "Preset",
-  "config.roadweaver.open_preset_editor": "Open Preset Editor"
+  "config.roadweaver.open_preset_editor": "Open Preset Editor",
+
+  "config.roadweaver.category.pathfinding_costs": "Pathfinding Costs",
+  "config.roadweaver.ortho_step_cost": "Orthogonal Step Cost",
+  "config.roadweaver.ortho_step_cost.tooltip": "Base cost for orthogonal steps. Higher values discourage orthogonal movement.",
+  "config.roadweaver.diag_step_cost": "Diagonal Step Cost",
+  "config.roadweaver.diag_step_cost.tooltip": "Base cost for diagonal steps. Higher values discourage diagonal movement.",
+  "config.roadweaver.elevation_weight": "Elevation Weight",
+  "config.roadweaver.elevation_weight.tooltip": "Weight for elevation changes. Higher values prefer flatter terrain.",
+  "config.roadweaver.biome_weight": "Biome Weight",
+  "config.roadweaver.biome_weight.tooltip": "Weight for biome cost (e.g., rivers, oceans).",
+  "config.roadweaver.stability_weight": "Stability Weight",
+  "config.roadweaver.stability_weight.tooltip": "Weight for terrain stability. Higher values avoid cliffs and pits.",
+  "config.roadweaver.water_depth_weight": "Water Depth Weight",
+  "config.roadweaver.water_depth_weight.tooltip": "Weight for water depth. Higher values avoid deep water.",
+  "config.roadweaver.near_water_cost": "Near Water Cost",
+  "config.roadweaver.near_water_cost.tooltip": "Cost for being near water. Higher values prefer to stay away from water.",
+  "config.roadweaver.heuristic_weight": "Heuristic Weight",
+  "config.roadweaver.heuristic_weight.tooltip": "Weight for the heuristic. Higher values push the path more directly towards the goal.",
+  "config.roadweaver.deviation_weight": "Deviation Weight",
+  "config.roadweaver.deviation_weight.tooltip": "Weight for deviation from a straight line. Higher values prefer straighter paths."
 }

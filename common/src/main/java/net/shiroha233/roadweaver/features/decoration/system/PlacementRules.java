@@ -2,7 +2,7 @@ package net.shiroha233.roadweaver.features.decoration.system;
 
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Block;
-import net.shiroha233.roadweaver.features.decoration.RoadFeatureCompat;
+import net.shiroha233.roadweaver.features.decoration.compat.RoadFeatureCompat;
 
 public final class PlacementRules {
     private PlacementRules() {}

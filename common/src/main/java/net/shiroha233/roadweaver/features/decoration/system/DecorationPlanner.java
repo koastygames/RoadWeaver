@@ -7,10 +7,10 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.features.decoration.Decoration;
-import net.shiroha233.roadweaver.features.decoration.DistanceSignDecoration;
-import net.shiroha233.roadweaver.features.decoration.LamppostDecoration;
-import net.shiroha233.roadweaver.features.decoration.LanternPostDecoration;
+import net.shiroha233.roadweaver.features.decoration.base.Decoration;
+import net.shiroha233.roadweaver.features.decoration.types.DistanceSignDecoration;
+import net.shiroha233.roadweaver.features.decoration.types.LamppostDecoration;
+import net.shiroha233.roadweaver.features.decoration.types.LanternPostDecoration;
 
 import java.util.List;
 import java.util.Set;
