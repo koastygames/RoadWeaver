@@ -39,9 +39,12 @@ public final class Road {
         if (!allowA && !allowN) return;
         int type = allowA && allowN ? (random.nextBoolean() ? 0 : 1) : (allowA ? 0 : 1);
         List<BlockState> materials;
+        List<BlockState> slabMaterials = java.util.List.of();
         if (type == 0) {
             // 人工道路始终从 JSON 预设系统中选择一套材质
-            materials = PresetService.chooseMaterialsForArtificial(random, cfg);
+            PresetService.PresetDef preset = PresetService.choosePresetForArtificial(random, cfg);
+            materials = PresetService.toBlockStatesFromIds(preset.materials());
+            slabMaterials = PresetService.toBlockStatesFromIds(preset.slabMaterials());
         } else {
             materials = java.util.List.of(Blocks.DIRT_PATH.defaultBlockState(), Blocks.GRAVEL.defaultBlockState());
         }
@@ -55,7 +58,7 @@ public final class Road {
 
         List<Integer> targetY = computeTargetY(level, segments, spans, cache);
 
-        Records.RoadData rd = new Records.RoadData(width, type, materials, segments, spans, targetY);
+        Records.RoadData rd = new Records.RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
         RoadShardStorage.addRoad(level, rd);
     }
 

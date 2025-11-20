@@ -57,6 +57,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             int roadType = data.roadType();
             int roadWidth = Math.max(1, data.width());
             List<BlockState> materials = data.materials();
+            List<BlockState> slabMaterials = data.slabMaterials();
             List<Records.RoadSegmentPlacement> segments = data.roadSegmentList();
             if (segments == null || segments.size() < 5) continue;
 
@@ -106,7 +107,8 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                     if (cfg.bridgeEnabled() && isBridge[i]) {
                         BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, i, bridgeCtx);
                     } else {
-                        SegmentPaver.paveSegment(world, seg, baseYForThis, roadType, materials, random, cfg);
+                        boolean useSlab = shouldUseSlabForSegment(baseYArr, i, roadType, slabMaterials);
+                        SegmentPaver.paveSegment(world, seg, baseYForThis, roadType, materials, slabMaterials, useSlab, random, cfg);
                     }
 
                     if (!isBridge[i] || cfg.bridgeKeepLamps()) {
@@ -130,5 +132,28 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
         DecorationExecutor.tryPlaceDecorations(decorations);
         return true;
     }
-    
+
+    private static boolean shouldUseSlabForSegment(int[] baseYArr,
+                                                   int index,
+                                                   int roadType,
+                                                   java.util.List<BlockState> slabMaterials) {
+        // 只在人工道路且预设中配置了 slab 材质时考虑使用 slab
+        if (roadType != 0) return false;
+        if (slabMaterials == null || slabMaterials.isEmpty()) return false;
+        if (baseYArr == null) return false;
+        if (index <= 0 || index >= baseYArr.length - 1) return false;
+
+        int cur = baseYArr[index];
+        int prev = baseYArr[index - 1];
+        int next = baseYArr[index + 1];
+
+        // 情形 A：高平台 -> 低平台，当前是“第一个低格”：prev 比当前高，当前与 next 等高
+        boolean firstLowAfterDrop = (cur < prev && cur == next);
+
+        // 情形 B：低平台 -> 高平台，当前是“最后一个低格”：next 比当前高，当前与 prev 等高
+        boolean lastLowBeforeRise = (cur < next && cur == prev);
+
+        return firstLowAfterDrop || lastLowBeforeRise;
+    }
+
 }

@@ -61,13 +61,22 @@ public final class PresetService {
                             if (b != null && b != Blocks.AIR) valid.add(s);
                         } catch (Throwable ignored) {}
                     }
+                    List<String> slabIds = dto.slabMaterials != null ? dto.slabMaterials : List.of();
+                    List<String> validSlabs = new ArrayList<>();
+                    for (String s : slabIds) {
+                        try {
+                            ResourceLocation rl = new ResourceLocation(s);
+                            Block b = BuiltInRegistries.BLOCK.get(rl);
+                            if (b != null && b != Blocks.AIR) validSlabs.add(s);
+                        } catch (Throwable ignored) {}
+                    }
                     if (valid.isEmpty()) {
                         LOGGER.warn("Skip preset {} due to empty/invalid materials", p.getFileName());
                         continue;
                     }
                     int weight = dto.weight <= 0 ? 1 : dto.weight;
                     String name = dto.name == null || dto.name.isBlank() ? id : dto.name;
-                    PresetDef def = new PresetDef(id, name, Collections.unmodifiableList(valid), weight);
+                    PresetDef def = new PresetDef(id, name, Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs), weight);
                     if (map.containsKey(id)) {
                         LOGGER.warn("Duplicate preset id '{}', file {} is ignored", id, p.getFileName());
                         continue;
@@ -130,9 +139,27 @@ public final class PresetService {
 
     private static Map<String, PresetDef> defaultPresets() {
         Map<String, PresetDef> m = new LinkedHashMap<>();
-        PresetDef a = new PresetDef("mud_road", "Mud Road", List.of("minecraft:mud_bricks", "minecraft:packed_mud"), 1);
-        PresetDef b = new PresetDef("stone_street", "Stone Street", List.of("minecraft:polished_andesite", "minecraft:stone_bricks"), 1);
-        PresetDef c = new PresetDef("aged_stone", "Aged Stone", List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"), 1);
+        PresetDef a = new PresetDef(
+                "mud_road",
+                "Mud Road",
+                List.of("minecraft:mud_bricks", "minecraft:packed_mud"),
+                List.of("minecraft:mud_brick_slab"),
+                1
+        );
+        PresetDef b = new PresetDef(
+                "stone_street",
+                "Stone Street",
+                List.of("minecraft:polished_andesite", "minecraft:stone_bricks"),
+                List.of("minecraft:polished_andesite_slab", "minecraft:stone_brick_slab"),
+                1
+        );
+        PresetDef c = new PresetDef(
+                "aged_stone",
+                "Aged Stone",
+                List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"),
+                List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab"),
+                1
+        );
         m.put(a.id(), a);
         m.put(b.id(), b);
         m.put(c.id(), c);
@@ -144,7 +171,7 @@ public final class PresetService {
         return List.copyOf(PRESETS.get().values());
     }
 
-    public static synchronized List<BlockState> chooseMaterialsForArtificial(RandomSource rnd, ModConfig cfg) {
+    public static synchronized PresetDef choosePresetForArtificial(RandomSource rnd, ModConfig cfg) {
         // 人工道路材质现在完全由 JSON 预设目录决定，不再依赖配置里手动填写的预设 ID
         if (PRESETS.get().isEmpty()) reload();
         Map<String, PresetDef> all = PRESETS.get();
@@ -153,7 +180,11 @@ public final class PresetService {
             // 如果磁盘上一个预设都没有，就使用内置默认预设
             pool = new ArrayList<>(defaultPresets().values());
         }
-        PresetDef chosen = pickPreset(rnd, pool);
+        return pickPreset(rnd, pool);
+    }
+
+    public static synchronized List<BlockState> chooseMaterialsForArtificial(RandomSource rnd, ModConfig cfg) {
+        PresetDef chosen = choosePresetForArtificial(rnd, cfg);
         return toBlockStates(chosen.materials());
     }
 
@@ -188,6 +219,10 @@ public final class PresetService {
     }
 
     public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials, int weight) {
+        saveOrUpdatePresetFile(id, name, materials, null, weight);
+    }
+
+    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials, List<String> slabMaterials, int weight) {
         if (id == null || id.isBlank()) {
             return;
         }
@@ -203,6 +238,7 @@ public final class PresetService {
         dto.id = id;
         dto.name = name;
         dto.materials = materials == null ? List.of() : new ArrayList<>(materials);
+        dto.slabMaterials = slabMaterials == null ? List.of() : new ArrayList<>(slabMaterials);
         dto.weight = weight <= 0 ? 1 : weight;
         writePreset(presetDir.resolve(id + ".json"), dto);
     }
@@ -225,8 +261,9 @@ public final class PresetService {
         String id;
         String name;
         List<String> materials;
+        List<String> slabMaterials;
         int weight;
     }
 
-    public record PresetDef(String id, String name, List<String> materials, int weight) {}
+    public record PresetDef(String id, String name, List<String> materials, List<String> slabMaterials, int weight) {}
 }

@@ -38,6 +38,7 @@ public class MaterialPresetEditorScreen extends Screen {
     private EditBox searchBox;
     private EditBox presetNameBox;
     private final List<String> materialIds = new ArrayList<>();
+    private final List<String> slabMaterialIds = new ArrayList<>();
     private final List<Block> allBlocks = new ArrayList<>();
     private final List<Block> filteredBlocks = new ArrayList<>();
     private int blockScrollOffset = 0;
@@ -51,10 +52,18 @@ public class MaterialPresetEditorScreen extends Screen {
     private final List<Button> presetButtons = new ArrayList<>();
     private boolean loadedFromConfig = false;
 
+    private enum TargetList {
+        BASE,
+        SLAB
+    }
+
+    private TargetList activeList = TargetList.BASE;
+
     private static class UiPreset {
         String id;
         String name;
         List<String> materials = new ArrayList<>();
+        List<String> slabMaterials = new ArrayList<>();
         int weight;
     }
 
@@ -165,6 +174,26 @@ public class MaterialPresetEditorScreen extends Screen {
         }
     }
 
+    private void renderSlabGrid(GuiGraphics g, int startX, int startY, int mouseX, int mouseY) {
+        int index = 0;
+        int bgColor = (activeList == TargetList.SLAB ? 0xC0000000 : 0x80000000);
+        for (int row = 0; row < LEFT_ROWS; row++) {
+            for (int col = 0; col < LEFT_COLS; col++) {
+                int x = startX + col * SLOT_SIZE;
+                int y = startY + row * SLOT_SIZE;
+                g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, bgColor);
+                if (index < slabMaterialIds.size()) {
+                    Block b = blockFromId(slabMaterialIds.get(index));
+                    if (b != null && b != Blocks.AIR) {
+                        ItemStack stack = new ItemStack(b);
+                        g.renderFakeItem(stack, x + 1, y + 1);
+                    }
+                }
+                index++;
+            }
+        }
+    }
+
     private void loadPresetsFromJson() {
         presets.clear();
         originalPresetIds.clear();
@@ -176,6 +205,7 @@ public class MaterialPresetEditorScreen extends Screen {
             p.id = def.id();
             p.name = def.name();
             p.materials = new ArrayList<>(def.materials());
+            p.slabMaterials = new ArrayList<>(def.slabMaterials());
             p.weight = def.weight();
             presets.add(p);
             originalPresetIds.add(p.id);
@@ -186,6 +216,7 @@ public class MaterialPresetEditorScreen extends Screen {
             p.id = "custom_1";
             p.name = "Custom 1";
             p.materials = new ArrayList<>();
+            p.slabMaterials = new ArrayList<>();
             p.weight = 1;
             presets.add(p);
         }
@@ -198,6 +229,12 @@ public class MaterialPresetEditorScreen extends Screen {
         materialIds.addAll(presets.get(activePresetIndex).materials);
         if (materialIds.size() > MAX_MATERIALS) {
             materialIds.subList(MAX_MATERIALS, materialIds.size()).clear();
+        }
+
+        slabMaterialIds.clear();
+        slabMaterialIds.addAll(presets.get(activePresetIndex).slabMaterials);
+        if (slabMaterialIds.size() > MAX_MATERIALS) {
+            slabMaterialIds.subList(MAX_MATERIALS, slabMaterialIds.size()).clear();
         }
     }
 
@@ -221,12 +258,19 @@ public class MaterialPresetEditorScreen extends Screen {
         }
         active.name = nameFromBox;
 
-        // 缓存当前材质列表到预设（限制最大数量）
+        // 缓存当前整块材质列表到预设（限制最大数量）
         List<String> copy = new ArrayList<>(materialIds);
         if (copy.size() > MAX_MATERIALS) {
             copy = new ArrayList<>(copy.subList(0, MAX_MATERIALS));
         }
         active.materials = copy;
+
+        // 缓存当前 slab 材质列表到预设（限制最大数量）
+        List<String> slabCopy = new ArrayList<>(slabMaterialIds);
+        if (slabCopy.size() > MAX_MATERIALS) {
+            slabCopy = new ArrayList<>(slabCopy.subList(0, MAX_MATERIALS));
+        }
+        active.slabMaterials = slabCopy;
     }
 
     private String generateNewPresetId() {
@@ -256,6 +300,11 @@ public class MaterialPresetEditorScreen extends Screen {
         materialIds.addAll(presets.get(activePresetIndex).materials);
         if (materialIds.size() > MAX_MATERIALS) {
             materialIds.subList(MAX_MATERIALS, materialIds.size()).clear();
+        }
+        slabMaterialIds.clear();
+        slabMaterialIds.addAll(presets.get(activePresetIndex).slabMaterials);
+        if (slabMaterialIds.size() > MAX_MATERIALS) {
+            slabMaterialIds.subList(MAX_MATERIALS, slabMaterialIds.size()).clear();
         }
         if (presetNameBox != null) {
             presetNameBox.setValue(getActivePresetName());
@@ -292,6 +341,7 @@ public class MaterialPresetEditorScreen extends Screen {
         presets.add(p);
         activePresetIndex = presets.size() - 1;
         materialIds.clear();
+        slabMaterialIds.clear();
         if (presetNameBox != null) {
             presetNameBox.setValue(name);
         }
@@ -316,10 +366,12 @@ public class MaterialPresetEditorScreen extends Screen {
             p.id = "custom_1";
             p.name = "Custom 1";
             p.materials = new ArrayList<>();
+            p.slabMaterials = new ArrayList<>();
             p.weight = 1;
             presets.add(p);
             activePresetIndex = 0;
             materialIds.clear();
+            slabMaterialIds.clear();
         } else {
             if (activePresetIndex >= presets.size()) {
                 activePresetIndex = presets.size() - 1;
@@ -328,6 +380,11 @@ public class MaterialPresetEditorScreen extends Screen {
             materialIds.addAll(presets.get(activePresetIndex).materials);
             if (materialIds.size() > MAX_MATERIALS) {
                 materialIds.subList(MAX_MATERIALS, materialIds.size()).clear();
+            }
+            slabMaterialIds.clear();
+            slabMaterialIds.addAll(presets.get(activePresetIndex).slabMaterials);
+            if (slabMaterialIds.size() > MAX_MATERIALS) {
+                slabMaterialIds.subList(MAX_MATERIALS, slabMaterialIds.size()).clear();
             }
         }
         if (presetNameBox != null) {
@@ -396,18 +453,21 @@ public class MaterialPresetEditorScreen extends Screen {
         int leftAreaX = centerX - 140;
         int rightAreaX = centerX - 10;
         int gridTop = 70;
+        int slabGridTop = gridTop + LEFT_ROWS * SLOT_SIZE + 8;
 
         renderMaterialsGrid(g, leftAreaX, gridTop, mouseX, mouseY);
+        renderSlabGrid(g, leftAreaX, slabGridTop, mouseX, mouseY);
         renderBlocksGrid(g, rightAreaX, gridTop, mouseX, mouseY);
     }
 
     private void renderMaterialsGrid(GuiGraphics g, int startX, int startY, int mouseX, int mouseY) {
         int index = 0;
+        int bgColor = (activeList == TargetList.BASE ? 0xC0000000 : 0x80000000);
         for (int row = 0; row < LEFT_ROWS; row++) {
             for (int col = 0; col < LEFT_COLS; col++) {
                 int x = startX + col * SLOT_SIZE;
                 int y = startY + row * SLOT_SIZE;
-                g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0x80000000);
+                g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, bgColor);
                 if (index < materialIds.size()) {
                     Block b = blockFromId(materialIds.get(index));
                     if (b != null && b != Blocks.AIR) {
@@ -453,8 +513,10 @@ public class MaterialPresetEditorScreen extends Screen {
         int leftAreaX = centerX - 140;
         int rightAreaX = centerX - 10;
         int gridTop = 70;
+        int slabGridTop = gridTop + LEFT_ROWS * SLOT_SIZE + 8;
 
         if (handleClickMaterials(mouseX, mouseY, leftAreaX, gridTop, button)) return true;
+        if (handleClickSlabs(mouseX, mouseY, leftAreaX, slabGridTop, button)) return true;
         if (handleClickBlocks(mouseX, mouseY, rightAreaX, gridTop, button)) return true;
 
         return false;
@@ -467,8 +529,31 @@ public class MaterialPresetEditorScreen extends Screen {
                 int x = startX + col * SLOT_SIZE;
                 int y = startY + row * SLOT_SIZE;
                 if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
+                    // 选中上方窗口作为当前编辑目标
+                    activeList = TargetList.BASE;
                     if (button == 0 && index < materialIds.size()) {
                         materialIds.remove(index);
+                        return true;
+                    }
+                    return true;
+                }
+                index++;
+            }
+        }
+        return false;
+    }
+
+    private boolean handleClickSlabs(double mouseX, double mouseY, int startX, int startY, int button) {
+        int index = 0;
+        for (int row = 0; row < LEFT_ROWS; row++) {
+            for (int col = 0; col < LEFT_COLS; col++) {
+                int x = startX + col * SLOT_SIZE;
+                int y = startY + row * SLOT_SIZE;
+                if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
+                    // 选中下方窗口作为当前编辑目标
+                    activeList = TargetList.SLAB;
+                    if (button == 0 && index < slabMaterialIds.size()) {
+                        slabMaterialIds.remove(index);
                         return true;
                     }
                     return true;
@@ -489,12 +574,18 @@ public class MaterialPresetEditorScreen extends Screen {
                 int x = startX + col * SLOT_SIZE;
                 int y = startY + row * SLOT_SIZE;
                 if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
-                    if (index < filteredBlocks.size() && button == 0) {
-                        if (materialIds.size() < MAX_MATERIALS) {
-                            Block b = filteredBlocks.get(index);
-                            ResourceLocation id = BuiltInRegistries.BLOCK.getKey(b);
-                            if (id != null) {
-                                materialIds.add(id.toString());
+                    if (button == 0 && index < filteredBlocks.size()) {
+                        Block b = filteredBlocks.get(index);
+                        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(b);
+                        if (id != null) {
+                            if (activeList == TargetList.BASE) {
+                                if (materialIds.size() < MAX_MATERIALS) {
+                                    materialIds.add(id.toString());
+                                }
+                            } else {
+                                if (slabMaterialIds.size() < MAX_MATERIALS) {
+                                    slabMaterialIds.add(id.toString());
+                                }
                             }
                         }
                         return true;
@@ -544,6 +635,7 @@ public class MaterialPresetEditorScreen extends Screen {
             }
             active.name = name;
             active.materials = new ArrayList<>(materialIds);
+            active.slabMaterials = new ArrayList<>(slabMaterialIds);
         }
 
         // 计算需要删除的旧预设（原来存在，现在已经不在 UI 列表中）
@@ -562,7 +654,7 @@ public class MaterialPresetEditorScreen extends Screen {
         // 保存或更新所有当前预设到 JSON 文件
         for (UiPreset p : presets) {
             if (p.id == null || p.id.isBlank()) continue;
-            PresetService.saveOrUpdatePresetFile(p.id, p.name, p.materials, p.weight <= 0 ? 1 : p.weight);
+            PresetService.saveOrUpdatePresetFile(p.id, p.name, p.materials, p.slabMaterials, p.weight <= 0 ? 1 : p.weight);
         }
         PresetService.reload();
         if (this.minecraft != null) {

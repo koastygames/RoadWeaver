@@ -21,7 +21,7 @@
 
 ### Overview
 
-RoadWeaver automatically generates roads between vanilla and modded structures (such as villages and outposts) on top of existing terrain. It is built as a cross‑loader Architectury mod targeting **Minecraft 1.20.1** (Fabric & Forge).
+An automatic road generation mod based on [Countered's Settlement Roads](https://modrinth.com/mod/countereds-settlement-roads), supporting Fabric/Forge, currently targeting Minecraft version 1.20.1.
 
 Compared to earlier versions, the structure predictor, road network planner, pathfinding core and road generator have all been refactored with a strong focus on performance and stability.
 
@@ -85,7 +85,7 @@ The mod is still under active development. Current versions should be seen as a 
 
 ## 简体中文
 
-一个基于 Countered's Settlement Roads 重构的自动道路生成模组，支持 Fabric / Forge，当前目标版本为 Minecraft 1.20.1。
+一个基于 [Countered's Settlement Roads](https://modrinth.com/mod/countereds-settlement-roads) 重构的自动道路生成模组，支持 Fabric / Forge，当前目标版本为 Minecraft 1.20.1。
 
 ### 项目状态
 
