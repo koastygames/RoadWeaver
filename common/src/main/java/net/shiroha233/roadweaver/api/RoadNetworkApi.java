@@ -12,7 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class RoadNetworkApi {
-    private RoadNetworkApi() {}
+    private RoadNetworkApi() {
+    }
 
     public static void registerStructureEndpoint(ServerLevel level, BlockPos pos) {
         registerStructureEndpoint(level, pos, null, false);
@@ -22,12 +23,16 @@ public final class RoadNetworkApi {
         registerStructureEndpoint(level, pos, null, autoConnect);
     }
 
-    public static void registerStructureEndpoint(ServerLevel level, BlockPos pos, String structureId, boolean autoConnect) {
-        if (level == null || pos == null) return;
+    public static void registerStructureEndpoint(ServerLevel level, BlockPos pos, String structureId,
+            boolean autoConnect) {
+        if (level == null || pos == null)
+            return;
         WorldDataProvider provider = WorldDataProvider.getInstance();
         Records.StructureLocationData existing = provider.getStructureLocations(level);
-        List<BlockPos> locations = existing != null ? new ArrayList<>(existing.structureLocations()) : new ArrayList<>();
-        List<Records.StructureInfo> infos = existing != null ? new ArrayList<>(existing.structureInfos()) : new ArrayList<>();
+        List<BlockPos> locations = existing != null ? new ArrayList<>(existing.structureLocations())
+                : new ArrayList<>();
+        List<Records.StructureInfo> infos = existing != null ? new ArrayList<>(existing.structureInfos())
+                : new ArrayList<>();
 
         if (structureId != null && !structureId.isEmpty()) {
             Records.StructureInfo info = new Records.StructureInfo(pos, structureId);
@@ -54,13 +59,17 @@ public final class RoadNetworkApi {
     }
 
     public static void ensureConnection(ServerLevel level, BlockPos from, BlockPos to, boolean generateImmediately) {
-        if (level == null || from == null || to == null) return;
-        if (from.equals(to)) return;
+        if (level == null || from == null || to == null)
+            return;
+        if (from.equals(to))
+            return;
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
         Records.StructureLocationData existing = provider.getStructureLocations(level);
-        List<BlockPos> locations = existing != null ? new ArrayList<>(existing.structureLocations()) : new ArrayList<>();
-        List<Records.StructureInfo> infos = existing != null ? new ArrayList<>(existing.structureInfos()) : new ArrayList<>();
+        List<BlockPos> locations = existing != null ? new ArrayList<>(existing.structureLocations())
+                : new ArrayList<>();
+        List<Records.StructureInfo> infos = existing != null ? new ArrayList<>(existing.structureInfos())
+                : new ArrayList<>();
 
         boolean changed = false;
         if (!locations.contains(from)) {
@@ -77,7 +86,8 @@ public final class RoadNetworkApi {
         }
 
         List<Records.StructureConnection> existingConns = provider.getStructureConnections(level);
-        List<Records.StructureConnection> list = existingConns != null ? new ArrayList<>(existingConns) : new ArrayList<>();
+        List<Records.StructureConnection> list = existingConns != null ? new ArrayList<>(existingConns)
+                : new ArrayList<>();
         boolean exists = false;
         for (Records.StructureConnection c : list) {
             if (sameEdge(c, from, to)) {
@@ -92,13 +102,51 @@ public final class RoadNetworkApi {
         }
 
         if (generateImmediately) {
-            Records.StructureConnection conn = new Records.StructureConnection(from, to, Records.ConnectionStatus.PLANNED);
-            RoadGenerationService.generateInline(level, conn);
+            Records.StructureConnection conn = new Records.StructureConnection(from, to,
+                    Records.ConnectionStatus.GENERATING);
+            // 更新状态为 GENERATING
+            List<Records.StructureConnection> currentList = provider.getStructureConnections(level);
+            List<Records.StructureConnection> all = currentList != null ? new ArrayList<>(currentList)
+                    : new ArrayList<>();
+            boolean found = false;
+            for (int i = 0; i < all.size(); i++) {
+                if (sameEdge(all.get(i), from, to)) {
+                    all.set(i, conn);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                all.add(conn);
+            provider.setStructureConnections(level, all);
+
+            // 执行生成
+            boolean success = RoadGenerationService.generateTask(level, conn);
+
+            // 更新最终状态
+            Records.ConnectionStatus finalStatus = success ? Records.ConnectionStatus.COMPLETED
+                    : Records.ConnectionStatus.FAILED;
+            Records.StructureConnection finalConn = new Records.StructureConnection(from, to, finalStatus);
+
+            currentList = provider.getStructureConnections(level);
+            all = currentList != null ? new ArrayList<>(currentList) : new ArrayList<>();
+            found = false;
+            for (int i = 0; i < all.size(); i++) {
+                if (sameEdge(all.get(i), from, to)) {
+                    all.set(i, finalConn);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                all.add(finalConn);
+            provider.setStructureConnections(level, all);
         }
     }
 
     public static void planRegion(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        if (level == null) return;
+        if (level == null)
+            return;
         RoadPlanningService.planRectAsync(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
     }
 

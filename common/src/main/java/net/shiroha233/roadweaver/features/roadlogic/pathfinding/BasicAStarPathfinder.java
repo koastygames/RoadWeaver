@@ -12,17 +12,18 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import java.util.*;
 
 final class BasicAStarPathfinder {
-    private BasicAStarPathfinder() {}
-    
+    private BasicAStarPathfinder() {
+    }
+
     private static final int BIOME_BASE_COST = 12; // 特定生物群系基础成本（河流/海洋/深海）
     private static final double HEURISTIC_EPSILON = 0.2; // 启发式 epsilon
 
     public static List<Records.RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
-                                                                       BlockPos endGround,
-                                                                       int width,
-                                                                       ServerLevel level,
-                                                                       int maxSteps,
-                                                                       TerrainSamplingCache cache) {
+            BlockPos endGround,
+            int width,
+            ServerLevel level,
+            int maxSteps,
+            TerrainSamplingCache cache) {
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<BlockPos, Node> allNodes = new HashMap<>();
         Set<BlockPos> closed = new HashSet<>();
@@ -34,9 +35,9 @@ final class BasicAStarPathfinder {
         allNodes.put(startGround, startNode);
 
         int d = getNeighborDistance();
-        int[][] neighborOffsets = new int[][]{
-                {d, 0}, {-d, 0}, {0, d}, {0, -d},
-                {d, d}, {d, -d}, {-d, d}, {-d, -d}
+        int[][] neighborOffsets = new int[][] {
+                { d, 0 }, { -d, 0 }, { 0, d }, { 0, -d },
+                { d, d }, { d, -d }, { -d, d }, { -d, -d }
         };
 
         int stepsBudget = Math.max(1, maxSteps);
@@ -45,7 +46,8 @@ final class BasicAStarPathfinder {
                 return null;
             }
             Node current = openSet.poll();
-            if (current == null) break;
+            if (current == null)
+                break;
 
             if (manhattan2d(current.pos, endGround) < d * 2) {
                 // 找到路径后，委托给 PostProcessor 处理
@@ -70,10 +72,12 @@ final class BasicAStarPathfinder {
                 BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
                 int y = RoadPathCalculator.heightSampler(cache, nxz.getX(), nxz.getZ(), level);
                 BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
-                if (closed.contains(np)) continue;
+                if (closed.contains(np))
+                    continue;
 
-                Holder<Biome> biome = level.getBiome(np);
-                int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
+                Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+                int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
+                        || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
                 int elevation = Math.abs(y - current.pos.getY());
                 int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
                 double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
@@ -114,8 +118,10 @@ final class BasicAStarPathfinder {
     private static int getNeighborDistance() {
         try {
             int v = ConfigService.get().aStarStep();
-            if (v < 4) return 16;
-            if (v > 128) return 128;
+            if (v < 4)
+                return 16;
+            if (v > 128)
+                return 128;
             return v;
         } catch (Throwable ignore) {
             return 16;
@@ -142,7 +148,8 @@ final class BasicAStarPathfinder {
         double pz = p.getZ();
         double num = Math.abs((bz - az) * px - (bx - ax) * pz + bx * az - bz * ax);
         double den = Math.hypot(bx - ax, bz - az);
-        if (den <= 0.0) return 0.0;
+        if (den <= 0.0)
+            return 0.0;
         return num / den;
     }
 
@@ -151,8 +158,12 @@ final class BasicAStarPathfinder {
         final Node parent;
         final double g;
         final double f;
+
         Node(BlockPos pos, Node parent, double g, double f) {
-            this.pos = pos; this.parent = parent; this.g = g; this.f = f;
+            this.pos = pos;
+            this.parent = parent;
+            this.g = g;
+            this.f = f;
         }
     }
 }

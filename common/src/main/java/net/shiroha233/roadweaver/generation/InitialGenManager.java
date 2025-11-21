@@ -12,34 +12,53 @@ import java.util.List;
  * 初始道路生成管理器：在服务器启动后，阻塞直到初始规划范围内的道路生成完成，并提供进度统计。
  */
 public final class InitialGenManager {
-    private InitialGenManager() {}
+    private InitialGenManager() {
+    }
 
     private static volatile boolean active;
-    private static volatile int total;
-    private static volatile int done;
-    private static volatile int planned;
-    private static volatile int generating;
-    private static volatile int failed;
+    private static final java.util.concurrent.atomic.AtomicInteger total = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+    private static final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger(
+            0);
 
-    public static boolean isActive() { return active; }
-    public static int getTotal() { return total; }
-    public static int getDone() { return done; }
-    public static int getPlanned() { return planned; }
-    public static int getGenerating() { return generating; }
-    public static int getFailed() { return failed; }
+    private static final java.util.concurrent.atomic.AtomicInteger generating = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+    private static final java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+
+    public static boolean isActive() {
+        return active;
+    }
+
+    public static int getTotal() {
+        return total.get();
+    }
+
+    public static int getDone() {
+        return done.get();
+    }
+
+    public static int getGenerating() {
+        return generating.get();
+    }
+
+    public static int getFailed() {
+        return failed.get();
+    }
 
     /**
      * 在服务器启动时调用：执行初始规划并计算总任务数。
      */
     public static void begin(ServerLevel level) {
-        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension()))
+            return;
         // 清零状态
         active = true;
-        total = 0;
-        done = 0;
-        planned = 0;
-        generating = 0;
-        failed = 0;
+        total.set(0);
+        done.set(0);
+
+        generating.set(0);
+        failed.set(0);
 
         // 确保生成线程池已初始化
         RoadGenerationService.onServerStarted();
@@ -53,50 +72,160 @@ public final class InitialGenManager {
         // 统计总数
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<Records.StructureConnection> conns = provider.getStructureConnections(level);
-        total = (conns == null) ? 0 : conns.size();
+        total.set((conns == null) ? 0 : conns.size());
         // 初始化一次完成度
         update(level);
     }
 
     /**
      * 循环推进生成并阻塞直到全部完成或总数为0。
-     * 注意：在服务器启动线程中调用，期间不会触发常规 tick，因此这里主动调用 tick 推进队列与执行。
+     * 注意：在服务器启动线程中调用，期间不会触发常规 tick。
+     * 改为多线程并行生成以提高速度。
      */
     public static void blockUntilDone(ServerLevel level) {
-        if (!active) return;
-        // 采用同步方式逐条生成，确保在世界生成前完成（避免依赖线程池和玩家列表）
+        if (!active)
+            return;
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<Records.StructureConnection> list = provider.getStructureConnections(level);
-        if (list != null) {
-            for (Records.StructureConnection c : new java.util.ArrayList<>(list)) {
+
+        if (list != null && !list.isEmpty()) {
+            // 筛选出需要生成的任务
+            List<Records.StructureConnection> tasks = new java.util.ArrayList<>();
+            for (Records.StructureConnection c : list) {
                 if (c.status() == Records.ConnectionStatus.PLANNED) {
-                    RoadGenerationService.generateInline(level, c);
-                    update(level);
+                    tasks.add(c);
+                }
+            }
+
+            if (!tasks.isEmpty()) {
+                // 提交任务到线程池 - 使用配置的初始生成线程数创建专用线程池
+                int nThreads = net.shiroha233.roadweaver.config.ConfigService.get().initialGenerationThreads();
+                java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
+                        nThreads,
+                        new java.util.concurrent.ThreadFactory() {
+                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(
+                                    1);
+
+                            @Override
+                            public Thread newThread(Runnable r) {
+                                Thread t = new Thread(r, "RoadWeaver-InitialGen-" + count.getAndIncrement());
+                                t.setDaemon(true);
+                                return t;
+                            }
+                        });
+                List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+
+                for (Records.StructureConnection task : tasks) {
+                    futures.add(executor.submit(() -> {
+                        // 更新状态为生成中
+                        generating.incrementAndGet();
+
+                        boolean success = RoadGenerationService.generateTask(level, task);
+
+                        generating.decrementAndGet();
+                        if (success) {
+                            done.incrementAndGet();
+                        } else {
+                            failed.incrementAndGet();
+                        }
+                        return new java.util.AbstractMap.SimpleEntry<>(task, success);
+                    }));
+                }
+
+                // 等待所有任务完成
+                // 收集结果用于批量更新
+                java.util.Map<Records.StructureConnection, Boolean> results = new java.util.HashMap<>();
+                for (java.util.concurrent.Future<?> f : futures) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        var entry = (java.util.Map.Entry<Records.StructureConnection, Boolean>) f.get();
+                        results.put(entry.getKey(), entry.getValue());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                // 关闭专用线程池
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+
+                // 批量更新 WorldDataProvider
+                List<Records.StructureConnection> currentList = provider.getStructureConnections(level);
+                if (currentList != null) {
+                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentList);
+                    boolean changed = false;
+                    for (int i = 0; i < updatedList.size(); i++) {
+                        Records.StructureConnection original = updatedList.get(i);
+                        for (java.util.Map.Entry<Records.StructureConnection, Boolean> entry : results.entrySet()) {
+                            Records.StructureConnection task = entry.getKey();
+                            if (sameEdge(original, task)) {
+                                Records.ConnectionStatus newStatus = entry.getValue()
+                                        ? Records.ConnectionStatus.COMPLETED
+                                        : Records.ConnectionStatus.FAILED;
+                                updatedList.set(i,
+                                        new Records.StructureConnection(original.from(), original.to(), newStatus));
+                                changed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (changed) {
+                        provider.setStructureConnections(level, updatedList);
+                    }
                 }
             }
         }
         active = false;
     }
 
+    private static boolean sameEdge(Records.StructureConnection a, Records.StructureConnection b) {
+        net.minecraft.core.BlockPos af = a.from(), at = a.to();
+        net.minecraft.core.BlockPos bf = b.from(), bt = b.to();
+        return (af.equals(bf) && at.equals(bt)) || (af.equals(bt) && at.equals(bf));
+    }
+
     /**
      * 读取世界数据统计完成数量。
+     * 注意：在多线程生成期间，此方法可能不会反映实时进度（因为我们只更新了 AtomicInteger，没有更新 WorldData），
+     * 但 UI 读取的是 AtomicInteger，所以 UI 是实时的。
+     * 生成结束后，再次调用此方法会从 WorldData 同步最终状态。
      */
     public static void update(ServerLevel level) {
+        // 如果处于活跃状态（生成中），不要从 WorldData 重置计数器，因为 WorldData 还没更新
+        if (active)
+            return;
+
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<Records.StructureConnection> conns = provider.getStructureConnections(level);
-        if (conns == null) { total = 0; planned = 0; generating = 0; done = 0; failed = 0; return; }
-        int p = 0, g = 0, c = 0, f = 0;
+        if (conns == null) {
+            total.set(0);
+
+            generating.set(0);
+            done.set(0);
+            failed.set(0);
+            return;
+        }
+        int g = 0, c = 0, f = 0;
         for (Records.StructureConnection sc : conns) {
             Records.ConnectionStatus s = sc.status();
-            if (s == Records.ConnectionStatus.PLANNED) p++;
-            else if (s == Records.ConnectionStatus.GENERATING) g++;
-            else if (s == Records.ConnectionStatus.COMPLETED) c++;
-            else if (s == Records.ConnectionStatus.FAILED) f++;
+            if (s == Records.ConnectionStatus.GENERATING)
+                g++;
+            else if (s == Records.ConnectionStatus.COMPLETED)
+                c++;
+            else if (s == Records.ConnectionStatus.FAILED)
+                f++;
         }
-        total = conns.size();
-        planned = p;
-        generating = g;
-        done = c;
-        failed = f;
+        total.set(conns.size());
+
+        generating.set(g);
+        done.set(c);
+        failed.set(f);
     }
 }

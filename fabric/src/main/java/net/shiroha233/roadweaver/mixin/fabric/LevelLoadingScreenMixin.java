@@ -14,12 +14,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelLoadingScreen.class)
 public abstract class LevelLoadingScreenMixin {
     @Inject(method = "render", at = @At("TAIL"))
-    private void roadweaver$renderProgress(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    private void roadweaver$renderProgress(GuiGraphics graphics, int mouseX, int mouseY, float partialTick,
+            CallbackInfo ci) {
         LoadingTipsRenderer.render(graphics);
-        if (!InitialGenManager.isActive()) return;
+        if (!InitialGenManager.isActive())
+            return;
         int total = InitialGenManager.getTotal();
         int done = InitialGenManager.getDone();
-        int planned = InitialGenManager.getPlanned();
+
         int generating = InitialGenManager.getGenerating();
         int failed = InitialGenManager.getFailed();
         int percent = (total <= 0) ? 0 : (int) Math.round(100.0 * done / Math.max(1, total));
@@ -30,7 +32,8 @@ public abstract class LevelLoadingScreenMixin {
         int sh = mc.getWindow().getGuiScaledHeight();
 
         Component title = Component.translatable("gui.roadweaver.initgen.title");
-        Component summary = Component.translatable("gui.roadweaver.initgen.summary", total, planned, generating, done, failed);
+        Component summary = Component.translatable("gui.roadweaver.initgen.summary", total, generating, done,
+                failed);
         Component progress = Component.translatable("gui.roadweaver.initgen.progress", done, total, percent);
 
         int y = sh - 60;

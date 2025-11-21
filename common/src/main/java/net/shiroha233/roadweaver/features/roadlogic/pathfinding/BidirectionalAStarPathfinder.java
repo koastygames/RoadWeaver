@@ -14,26 +14,27 @@ import java.util.*;
  * 在中间相遇后重建完整路径，以减少节点展开数量。
  */
 final class BidirectionalAStarPathfinder {
-    private BidirectionalAStarPathfinder() {}
+    private BidirectionalAStarPathfinder() {
+    }
 
     private static final int BIOME_BASE_COST = 12; // 特定生物群系基础成本（河流/海洋/深海）
     private static final double HEURISTIC_EPSILON = 0.2; // 启发式 epsilon
 
     static List<Records.RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
-                                                                  BlockPos endGround,
-                                                                int width,
-                                                                ServerLevel level,
-                                                                int maxSteps,
-                                                                TerrainSamplingCache cache) {
+            BlockPos endGround,
+            int width,
+            ServerLevel level,
+            int maxSteps,
+            TerrainSamplingCache cache) {
         // 特殊情况：起终点非常接近时无需复杂寻路
         if (startGround.equals(endGround)) {
             return Collections.emptyList();
         }
 
         int d = RoadPathCalculator.getNeighborDistance();
-        int[][] neighborOffsets = new int[][]{
-                {d, 0}, {-d, 0}, {0, d}, {0, -d},
-                {d, d}, {d, -d}, {-d, d}, {-d, -d}
+        int[][] neighborOffsets = new int[][] {
+                { d, 0 }, { -d, 0 }, { 0, d }, { 0, -d },
+                { d, d }, { d, -d }, { -d, d }, { -d, -d }
         };
 
         var cfg = net.shiroha233.roadweaver.config.ConfigService.get();
@@ -88,19 +89,21 @@ final class BidirectionalAStarPathfinder {
     }
 
     private static Meet expandOneSide(PriorityQueue<Node> open,
-                                      Map<BlockPos, Node> nodesThis,
-                                      Set<BlockPos> closedThis,
-                                      Map<BlockPos, Node> nodesOther,
-                                      BlockPos from,
-                                      BlockPos to,
-                                      ServerLevel level,
-                                      TerrainSamplingCache cache,
-                                      int[][] neighborOffsets,
-                                      int d,
-                                      net.shiroha233.roadweaver.config.ModConfig cfg) {
-       if (open.isEmpty()) return null;
+            Map<BlockPos, Node> nodesThis,
+            Set<BlockPos> closedThis,
+            Map<BlockPos, Node> nodesOther,
+            BlockPos from,
+            BlockPos to,
+            ServerLevel level,
+            TerrainSamplingCache cache,
+            int[][] neighborOffsets,
+            int d,
+            net.shiroha233.roadweaver.config.ModConfig cfg) {
+        if (open.isEmpty())
+            return null;
         Node current = open.poll();
-        if (current == null) return null;
+        if (current == null)
+            return null;
 
         closedThis.add(current.pos);
         nodesThis.remove(current.pos);
@@ -112,10 +115,12 @@ final class BidirectionalAStarPathfinder {
             BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
             int y = RoadPathCalculator.heightSampler(cache, nxz.getX(), nxz.getZ(), level);
             BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
-            if (closedThis.contains(np)) continue;
+            if (closedThis.contains(np))
+                continue;
 
-            Holder<Biome> biome = level.getBiome(np);
-            int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
+            Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+            int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
+                    || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
             int elevation = Math.abs(y - current.pos.getY());
             int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
             double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
@@ -170,7 +175,8 @@ final class BidirectionalAStarPathfinder {
         // 用于决定哪一个视作“前向”节点，哪一个视作“反向”节点。
         int da = manhattan2d(a.pos, from);
         int db = manhattan2d(b.pos, from);
-        if (da != db) return da <= db;
+        if (da != db)
+            return da <= db;
         // 若距离相同，则用到终点的距离作为次要判断，保持稳定性
         int ea = manhattan2d(a.pos, to);
         int eb = manhattan2d(b.pos, to);
@@ -178,10 +184,10 @@ final class BidirectionalAStarPathfinder {
     }
 
     private static List<Records.RoadSegmentPlacement> reconstructPath(Node meetForward,
-                                                                      Node meetBackward,
-                                                                      int width,
-                                                                      ServerLevel level,
-                                                                      TerrainSamplingCache cache) {
+            Node meetBackward,
+            int width,
+            ServerLevel level,
+            TerrainSamplingCache cache) {
         // 1. 从前向搜索链表回溯到起点，得到起点 -> 会合点 的路径
         List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
@@ -193,7 +199,8 @@ final class BidirectionalAStarPathfinder {
 
         // 2. 从反向搜索链表回溯到终点，注意跳过重复的会合节点
         List<BlockPos> backward = new ArrayList<>();
-        Node backStart = (meetBackward != null && meetBackward.pos.equals(meetForward.pos)) ? meetBackward.parent : meetBackward;
+        Node backStart = (meetBackward != null && meetBackward.pos.equals(meetForward.pos)) ? meetBackward.parent
+                : meetBackward;
         cur = backStart;
         while (cur != null) {
             backward.add(cur.pos);
@@ -226,7 +233,8 @@ final class BidirectionalAStarPathfinder {
         double pz = p.getZ();
         double num = Math.abs((bz - az) * px - (bx - ax) * pz + bx * az - bz * ax);
         double den = Math.hypot(bx - ax, bz - az);
-        if (den <= 0.0) return 0.0;
+        if (den <= 0.0)
+            return 0.0;
         return num / den;
     }
 

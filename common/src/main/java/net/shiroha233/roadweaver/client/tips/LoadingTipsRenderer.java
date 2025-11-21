@@ -24,8 +24,7 @@ public final class LoadingTipsRenderer {
             Component.translatable("tip.roadweaver.loading.2"),
             Component.translatable("tip.roadweaver.loading.3"),
             Component.translatable("tip.roadweaver.loading.4"),
-            Component.translatable("tip.roadweaver.loading.5")
-    );
+            Component.translatable("tip.roadweaver.loading.5"));
 
     /** 当前显示的提示索引 */
     private static int currentIndex = 0;
