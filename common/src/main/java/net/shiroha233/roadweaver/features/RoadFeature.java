@@ -147,13 +147,14 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
         int prev = baseYArr[index - 1];
         int next = baseYArr[index + 1];
 
-        // 情形 A：高平台 -> 低平台，当前是“第一个低格”：prev 比当前高，当前与 next 等高
-        boolean firstLowAfterDrop = (cur < prev && cur == next);
+        // 逻辑：只要当前位置放置半砖（+0.5高度）能缓解一侧的落差（即该侧比当前高），
+        // 且不会导致另一侧“上不来”（即另一侧不比当前低，或者说是下坡/平路），就放置。
+        // 1. 前方有坎 (next > cur)，且后方能走过来 (prev >= cur)
+        boolean helpsNext = (next > cur) && (prev >= cur);
+        // 2. 后方有坎 (prev > cur)，且前方能走回去 (next >= cur) -> 相当于下坡时的缓冲
+        boolean helpsPrev = (prev > cur) && (next >= cur);
 
-        // 情形 B：低平台 -> 高平台，当前是“最后一个低格”：next 比当前高，当前与 prev 等高
-        boolean lastLowBeforeRise = (cur < next && cur == prev);
-
-        return firstLowAfterDrop || lastLowBeforeRise;
+        return helpsNext || helpsPrev;
     }
 
 }

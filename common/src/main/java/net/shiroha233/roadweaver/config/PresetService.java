@@ -74,9 +74,8 @@ public final class PresetService {
                         LOGGER.warn("Skip preset {} due to empty/invalid materials", p.getFileName());
                         continue;
                     }
-                    int weight = dto.weight <= 0 ? 1 : dto.weight;
                     String name = dto.name == null || dto.name.isBlank() ? id : dto.name;
-                    PresetDef def = new PresetDef(id, name, Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs), weight);
+                    PresetDef def = new PresetDef(id, name, Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs));
                     if (map.containsKey(id)) {
                         LOGGER.warn("Duplicate preset id '{}', file {} is ignored", id, p.getFileName());
                         continue;
@@ -121,14 +120,20 @@ public final class PresetService {
         a.id = "stone_street";
         a.name = "Stone Street";
         a.materials = List.of("minecraft:stone_bricks", "minecraft:polished_andesite");
-        a.weight = 8;
+        a.slabMaterials = List.of("minecraft:stone_brick_slab", "minecraft:polished_andesite_slab");
         PresetFile b = new PresetFile();
         b.id = "mud_road";
         b.name = "Mud Road";
         b.materials = List.of("minecraft:mud_bricks", "minecraft:packed_mud");
-        b.weight = 1;
+        b.slabMaterials = List.of("minecraft:mud_brick_slab");
+        PresetFile c = new PresetFile();
+        c.id = "aged_stone";
+        c.name = "Aged Stone";
+        c.materials = List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks");
+        c.slabMaterials = List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab");
         writePreset(dir.resolve("stone_street.json"), a);
         writePreset(dir.resolve("mud_road.json"), b);
+        writePreset(dir.resolve("aged_stone.json"), c);
     }
 
     private static void writePreset(Path file, PresetFile dto) {
@@ -143,22 +148,19 @@ public final class PresetService {
                 "mud_road",
                 "Mud Road",
                 List.of("minecraft:mud_bricks", "minecraft:packed_mud"),
-                List.of("minecraft:mud_brick_slab"),
-                1
+                List.of("minecraft:mud_brick_slab")
         );
         PresetDef b = new PresetDef(
                 "stone_street",
                 "Stone Street",
                 List.of("minecraft:polished_andesite", "minecraft:stone_bricks"),
-                List.of("minecraft:polished_andesite_slab", "minecraft:stone_brick_slab"),
-                1
+                List.of("minecraft:polished_andesite_slab", "minecraft:stone_brick_slab")
         );
         PresetDef c = new PresetDef(
                 "aged_stone",
                 "Aged Stone",
                 List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"),
-                List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab"),
-                1
+                List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab")
         );
         m.put(a.id(), a);
         m.put(b.id(), b);
@@ -218,11 +220,11 @@ public final class PresetService {
         return combos;
     }
 
-    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials, int weight) {
-        saveOrUpdatePresetFile(id, name, materials, null, weight);
+    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials) {
+        saveOrUpdatePresetFile(id, name, materials, null);
     }
 
-    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials, List<String> slabMaterials, int weight) {
+    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials, List<String> slabMaterials) {
         if (id == null || id.isBlank()) {
             return;
         }
@@ -239,7 +241,6 @@ public final class PresetService {
         dto.name = name;
         dto.materials = materials == null ? List.of() : new ArrayList<>(materials);
         dto.slabMaterials = slabMaterials == null ? List.of() : new ArrayList<>(slabMaterials);
-        dto.weight = weight <= 0 ? 1 : weight;
         writePreset(presetDir.resolve(id + ".json"), dto);
     }
 
@@ -262,8 +263,7 @@ public final class PresetService {
         String name;
         List<String> materials;
         List<String> slabMaterials;
-        int weight;
     }
 
-    public record PresetDef(String id, String name, List<String> materials, List<String> slabMaterials, int weight) {}
+    public record PresetDef(String id, String name, List<String> materials, List<String> slabMaterials) {}
 }

@@ -64,7 +64,6 @@ public class MaterialPresetEditorScreen extends Screen {
         String name;
         List<String> materials = new ArrayList<>();
         List<String> slabMaterials = new ArrayList<>();
-        int weight;
     }
 
     public MaterialPresetEditorScreen(Screen parent) {
@@ -206,7 +205,6 @@ public class MaterialPresetEditorScreen extends Screen {
             p.name = def.name();
             p.materials = new ArrayList<>(def.materials());
             p.slabMaterials = new ArrayList<>(def.slabMaterials());
-            p.weight = def.weight();
             presets.add(p);
             originalPresetIds.add(p.id);
         }
@@ -217,7 +215,6 @@ public class MaterialPresetEditorScreen extends Screen {
             p.name = "Custom 1";
             p.materials = new ArrayList<>();
             p.slabMaterials = new ArrayList<>();
-            p.weight = 1;
             presets.add(p);
         }
 
@@ -337,7 +334,6 @@ public class MaterialPresetEditorScreen extends Screen {
         p.id = id;
         p.name = name;
         p.materials = new ArrayList<>();
-        p.weight = 1;
         presets.add(p);
         activePresetIndex = presets.size() - 1;
         materialIds.clear();
@@ -367,7 +363,6 @@ public class MaterialPresetEditorScreen extends Screen {
             p.name = "Custom 1";
             p.materials = new ArrayList<>();
             p.slabMaterials = new ArrayList<>();
-            p.weight = 1;
             presets.add(p);
             activePresetIndex = 0;
             materialIds.clear();
@@ -654,7 +649,7 @@ public class MaterialPresetEditorScreen extends Screen {
         // 保存或更新所有当前预设到 JSON 文件
         for (UiPreset p : presets) {
             if (p.id == null || p.id.isBlank()) continue;
-            PresetService.saveOrUpdatePresetFile(p.id, p.name, p.materials, p.slabMaterials, p.weight <= 0 ? 1 : p.weight);
+            PresetService.saveOrUpdatePresetFile(p.id, p.name, p.materials, p.slabMaterials);
         }
         PresetService.reload();
         if (this.minecraft != null) {

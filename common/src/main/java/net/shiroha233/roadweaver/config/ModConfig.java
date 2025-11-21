@@ -42,8 +42,6 @@ public final class ModConfig {
     private int causewayMaxDepth;
     private int maxSlopeStepPerTwoSegments;
     private boolean slopeLimitEnabled = true; // 是否启用基于 maxSlopeStepPerTwoSegments 的限坡平滑
-    @Deprecated
-    private boolean useBidirectionalAStar; // 已废弃，请使用 pathfindingAlgorithm
     private PathfindingAlgorithm pathfindingAlgorithm; // 具体寻路算法策略
 
     private int roadWidth;
@@ -107,8 +105,7 @@ public final class ModConfig {
         this.causewayMaxDepth = 1;
         this.maxSlopeStepPerTwoSegments = 1;
         this.slopeLimitEnabled = true;
-        this.useBidirectionalAStar = true;
-        this.pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BIDIRECTIONAL;
+        this.pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
 
         // 新增默认值
         this.roadWidth = 3;
@@ -221,7 +218,7 @@ public final class ModConfig {
 
         if (pathfindingAlgorithm == null) {
             // 迁移旧配置
-            pathfindingAlgorithm = useBidirectionalAStar ? PathfindingAlgorithm.ASTAR_BIDIRECTIONAL : PathfindingAlgorithm.ASTAR_BASIC;
+            pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
         }
 
         // 新增字段校验
@@ -433,14 +430,6 @@ public final class ModConfig {
 
     public void setSlopeLimitEnabled(boolean v) {
         this.slopeLimitEnabled = v;
-    }
-
-    public boolean useBidirectionalAStar() {
-        return useBidirectionalAStar;
-    }
-
-    public void setUseBidirectionalAStar(boolean v) {
-        this.useBidirectionalAStar = v;
     }
 
     public PathfindingAlgorithm pathfindingAlgorithm() {
