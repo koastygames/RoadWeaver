@@ -1,21 +1,21 @@
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] ============================
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.3-1.20.1-beta-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionFabric.jar
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] 
-[Architectury Transformer DEBUG] Transforming 5 transformer(s) from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapMixinVariables@3b367731
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@38c29e16
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@15a1f4a9
+[Architectury Transformer DEBUG] Transforming 5 transformer(s) from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.3-1.20.1-beta-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionFabric.jar: 
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapMixinVariables@9caf736
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@72326c5c
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@66e14635
 [Architectury Transformer DEBUG]  - AddRefmapName(enabled=() -> kotlin.Boolean)
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@5f597c96
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar with 5 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
-[Architectury Transformer DEBUG] Reading mixin mappings file: D:\GITHUB\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@46dd2376
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.3-1.20.1-beta-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionFabric.jar with 5 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
+[Architectury Transformer DEBUG] Reading mixin mappings file: C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
 [Architectury Transformer DEBUG] Remapping with 1 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.shadowed.impl.dev.architectury.tinyremapper.TinyUtils$$Lambda$2429/0x0000010a40b12fd0@144a7857
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.shadowed.impl.dev.architectury.tinyremapper.TinyUtils$$Lambda/0x000002319fee9d10@39688996
 [Architectury Transformer DEBUG] Provided 59 classpath jar(s):
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\dev.architectury\architectury-injectables\1.0.10\62db2a366d662606d1b23ad02ccc3212ed37ec3\architectury-injectables-1.0.10.jar
-[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.17.3\deafaba5de4d9bbd76105783ff4e21ce0773874f\fabric-loader-0.17.3.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.18.1\2f1cf1fa62e868562f522698cce909fa1c474d36\fabric-loader-0.18.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.jetbrains\annotations\24.1.0\7af6a669488450c4a07c2c3254e2151df42d7d04\annotations-24.1.0.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\tiny-mappings-parser\0.3.0+build.17\2f10540a290e382a7cd35c16ec3900046a4e252\tiny-mappings-parser-0.3.0+build.17.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\sponge-mixin\0.12.5+mixin.0.8.5\8d31fb97c3e0cd7c8dad3441851c523bcfae6d8e\sponge-mixin-0.12.5+mixin.0.8.5.jar
@@ -69,83 +69,168 @@
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl-tinyfd\3.3.1\ff1914111ef2e3e0110ef2dabc8d8cdaad82347\lwjgl-tinyfd-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl\3.3.1\ae58664f88e18a9bb2c77b063833ca7aaec484cb\lwjgl-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.slf4j\slf4j-api\2.0.1\f48d81adce2abf5ad3cfe463df517952749e03bc\slf4j-api-2.0.1.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\c7350a71920f3ae9142945e25fed4846cce53374\netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\476409d6255001ca53a55f65b01c13822f8dc93a\netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
-[Architectury Transformer] Read classpath in 1.068 s
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
+[Architectury Transformer] Read classpath in 1.076 s
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] Found class transformer
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/persistence/WorldDataProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/DebugDataPacket with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/PacketHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/RoadWeaverNetworkManager with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocatorImpl with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$ConnectionStatus with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureConnection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureInfo with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureConnector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureLocationData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$WoodAssets with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateStats with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateResult with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateRequest with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/RoadFeature with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/Road with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator$Node with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadDirection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadFenceDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration$DirectionProperties with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadPlacementRules with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/SwingDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/GlorietteDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/FenceWaypointDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/DistanceSignDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadStructures with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/Decoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/StructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/NbtStructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/LamppostDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/BenchDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/WoodSelector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/BiomeWoodAware with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureRegistry with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/events/ModEventHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/IModConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/ConfigProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Closed File Systems for D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar
-[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.266 s
-[Architectury Transformer DEBUG] Closed File Systems for D:\GITHUB\common\build\libs\roadweaver-common-1.0.4.jar
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/util/ComputeService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/StructureSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService$StructureBlueprints with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/model/StructureInstance with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/interop/RoadInteropBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/ChunkStructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndexRestorer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/BlendPlan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/TerrainBlender with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureBlueprint with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureVariant with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/SpawnRule with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/FoundationType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/BlendProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructureVerificationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor$Filters with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/runtime/ThreadPoolManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1Pair with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Bounds with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Edge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/PlanningUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RNGPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RoadPlanningService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Tri with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Vertex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$Neighbor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/WorldDataProvider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$Shard with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/ClientNetBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/MapSnapshotCodec with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSpan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$ConnectionStatus with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$SpanType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureLocationData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureInfo with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$WoodAssets with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureConnection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/RoadGenerationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/RoadFeature with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService$HeightProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/BridgeTransitionAdjuster with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/TerrainSamplingCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/RoadPathCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor$Vec2d with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Meet with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/Road with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/SegmentPaver with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/RoadDirection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator$RangeResult with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner$Context with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/FenceWaypointDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LanternPostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/DistanceSignDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LamppostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/text/SignTextService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationExecutor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/ArtificialDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner$Mode with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/AboveColumnClearer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/RoadBlockPlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/NaturalDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/SurfacePlacementUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/TreeRemovalUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/PlacementRules with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodTrapdoorMapper with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/BiomeWoodAware with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/surface/BiomeRoadMaterialSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/compat/RoadFeatureCompat with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration$DirectionProperties with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/Decoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/config/RoadFeatureConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/bridge/BridgeBuilder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ConfigService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PlanningAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetFile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PathfindingAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetDef with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/ConfigScreenFactory with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/tips/LoadingTipsRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapDataCollector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/GridRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshot with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RoadMapScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshotCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$SegmentInView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapInteraction with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RenderUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu$Item with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/SimpleTextInputScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/data/ClientMapNotes with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$TargetList with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$UiPreset with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/api/RoadNetworkApi with maxs=true frames=true
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionFabric.jar
+[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.576 s
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] ============================
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.3-1.20.1-beta-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionForge.jar
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] 
-[Architectury Transformer DEBUG] Transforming 7 transformer(s) from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@72eb2e2d
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@5b13251c
+[Architectury Transformer DEBUG] Transforming 7 transformer(s) from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.3-1.20.1-beta-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionForge.jar: 
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@3168d076
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@723803bd
 [Architectury Transformer DEBUG]  - AddRefmapName(enabled=() -> kotlin.Boolean)
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@ca27f64
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeAnnotations@9dcc244
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment@1a3c544
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.FixForgeMixin@3578d781
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar with 7 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
-[Architectury Transformer DEBUG] Reading mixin mappings file: D:\GITHUB\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@35c06011
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeAnnotations@1214fec7
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment@39546599
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.FixForgeMixin@77b5812b
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.3-1.20.1-beta-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionForge.jar with 7 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
+[Architectury Transformer DEBUG] Reading mixin mappings file: C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
 [Architectury Transformer DEBUG] Remapping with 2 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda$3587/0x0000010a41047848@606bf4ea
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda$3588/0x0000010a41047a70@4572c79
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x000002319ff56c18@12783d3c
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x000002319ff56a00@d9643cb
 [Architectury Transformer DEBUG] Provided 59 classpath jar(s):
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\dev.architectury\architectury-injectables\1.0.10\62db2a366d662606d1b23ad02ccc3212ed37ec3\architectury-injectables-1.0.10.jar
-[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.17.3\deafaba5de4d9bbd76105783ff4e21ce0773874f\fabric-loader-0.17.3.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.18.1\2f1cf1fa62e868562f522698cce909fa1c474d36\fabric-loader-0.18.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.jetbrains\annotations\24.1.0\7af6a669488450c4a07c2c3254e2151df42d7d04\annotations-24.1.0.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\tiny-mappings-parser\0.3.0+build.17\2f10540a290e382a7cd35c16ec3900046a4e252\tiny-mappings-parser-0.3.0+build.17.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\sponge-mixin\0.12.5+mixin.0.8.5\8d31fb97c3e0cd7c8dad3441851c523bcfae6d8e\sponge-mixin-0.12.5+mixin.0.8.5.jar
@@ -199,83 +284,170 @@
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl-tinyfd\3.3.1\ff1914111ef2e3e0110ef2dabc8d8cdaad82347\lwjgl-tinyfd-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl\3.3.1\ae58664f88e18a9bb2c77b063833ca7aaec484cb\lwjgl-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.slf4j\slf4j-api\2.0.1\f48d81adce2abf5ad3cfe463df517952749e03bc\slf4j-api-2.0.1.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\c7350a71920f3ae9142945e25fed4846cce53374\netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\476409d6255001ca53a55f65b01c13822f8dc93a\netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
-[Architectury Transformer] Read classpath in 748.7 ms
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
+[Architectury Transformer] Read classpath in 763.6 ms
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] net/fabricmc/api/EnvType -> net/minecraftforge/api/distmarker/Dist
 [Architectury Transformer DEBUG] net/fabricmc/api/Environment -> net/minecraftforge/api/distmarker/OnlyIn
 [Architectury Transformer DEBUG] Found class transformer
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/persistence/WorldDataProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/PacketHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/DebugDataPacket with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/RoadWeaverNetworkManager with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocatorImpl with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$ConnectionStatus with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureConnection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureInfo with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureConnector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureLocationData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$WoodAssets with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateStats with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateRequest with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateResult with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/RoadFeature with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/Road with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator$Node with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadDirection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadFenceDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration$DirectionProperties with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadPlacementRules with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/SwingDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/GlorietteDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/FenceWaypointDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadStructures with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/Decoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/DistanceSignDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/StructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/NbtStructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/BenchDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/LamppostDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/WoodSelector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/BiomeWoodAware with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureRegistry with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/events/ModEventHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/IModConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/ConfigProvider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/util/ComputeService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/StructureSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService$StructureBlueprints with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/model/StructureInstance with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/interop/RoadInteropBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/ChunkStructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndexRestorer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/BlendPlan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/TerrainBlender with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureBlueprint with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureVariant with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/SpawnRule with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/FoundationType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/BlendProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructureVerificationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor$Filters with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/runtime/ThreadPoolManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1Pair with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Bounds with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Edge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/PlanningUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RNGPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RoadPlanningService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Tri with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Vertex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$Neighbor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/WorldDataProvider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$Shard with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/ClientNetBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/MapSnapshotCodec with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSpan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureInfo with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$ConnectionStatus with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$WoodAssets with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$SpanType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureLocationData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureConnection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/RoadGenerationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/RoadFeature with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/BridgeTransitionAdjuster with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService$HeightProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/TerrainSamplingCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor$Vec2d with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/RoadPathCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Meet with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/Road with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/SegmentPaver with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/RoadDirection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator$RangeResult with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner$Context with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/FenceWaypointDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/DistanceSignDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LanternPostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LamppostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/text/SignTextService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationExecutor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/ArtificialDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner$Mode with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/RoadBlockPlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/AboveColumnClearer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/NaturalDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/SurfacePlacementUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/TreeRemovalUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/PlacementRules with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodTrapdoorMapper with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/BiomeWoodAware with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/surface/BiomeRoadMaterialSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/compat/RoadFeatureCompat with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration$DirectionProperties with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/Decoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/config/RoadFeatureConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/bridge/BridgeBuilder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PlanningAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ConfigService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetDef with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetFile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PathfindingAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/ConfigScreenFactory with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/tips/LoadingTipsRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapDataCollector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshot with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RoadMapScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/GridRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshotCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$SegmentInView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapInteraction with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RenderUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu$Item with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/SimpleTextInputScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/data/ClientMapNotes with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$TargetList with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$UiPreset with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/api/RoadNetworkApi with maxs=true frames=true
 [Architectury Transformer DEBUG] Injecting MixinConfigs into /META-INF/MANIFEST.MF
 [Architectury Transformer DEBUG] Remapping refmap from intermediary to srg: roadweaver-common-common-refmap.json
-[Architectury Transformer DEBUG] Closed File Systems for D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar
-[Architectury Transformer] Transformed jar with 7 transformer(s) in 938.0 ms
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta-transformProductionForge.jar
+[Architectury Transformer] Transformed jar with 7 transformer(s) in 1.174 s
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.3-1.20.1-beta.jar
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] ============================
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.4-1.20.1-BETA-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionFabric.jar
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] 
-[Architectury Transformer DEBUG] Transforming 5 transformer(s) from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapMixinVariables@aebe82f
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@35f49362
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@4a052de4
+[Architectury Transformer DEBUG] Transforming 5 transformer(s) from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.4-1.20.1-BETA-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionFabric.jar: 
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapMixinVariables@88c000b
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@105d7cd6
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@29b88fed
 [Architectury Transformer DEBUG]  - AddRefmapName(enabled=() -> kotlin.Boolean)
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@4a1fcfc7
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar with 5 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
-[Architectury Transformer DEBUG] Reading mixin mappings file: D:\GITHUB\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@70fe6eb3
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.4-1.20.1-BETA-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionFabric.jar with 5 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
+[Architectury Transformer DEBUG] Reading mixin mappings file: C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
 [Architectury Transformer DEBUG] Remapping with 1 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.shadowed.impl.dev.architectury.tinyremapper.TinyUtils$$Lambda$2429/0x0000010a40b12fd0@41487bd1
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.shadowed.impl.dev.architectury.tinyremapper.TinyUtils$$Lambda/0x000002319fee9d10@46a38d5f
 [Architectury Transformer DEBUG] Provided 59 classpath jar(s):
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\dev.architectury\architectury-injectables\1.0.10\62db2a366d662606d1b23ad02ccc3212ed37ec3\architectury-injectables-1.0.10.jar
-[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.17.3\deafaba5de4d9bbd76105783ff4e21ce0773874f\fabric-loader-0.17.3.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.18.1\2f1cf1fa62e868562f522698cce909fa1c474d36\fabric-loader-0.18.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.jetbrains\annotations\24.1.0\7af6a669488450c4a07c2c3254e2151df42d7d04\annotations-24.1.0.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\tiny-mappings-parser\0.3.0+build.17\2f10540a290e382a7cd35c16ec3900046a4e252\tiny-mappings-parser-0.3.0+build.17.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\sponge-mixin\0.12.5+mixin.0.8.5\8d31fb97c3e0cd7c8dad3441851c523bcfae6d8e\sponge-mixin-0.12.5+mixin.0.8.5.jar
@@ -329,82 +501,168 @@
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl-tinyfd\3.3.1\ff1914111ef2e3e0110ef2dabc8d8cdaad82347\lwjgl-tinyfd-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl\3.3.1\ae58664f88e18a9bb2c77b063833ca7aaec484cb\lwjgl-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.slf4j\slf4j-api\2.0.1\f48d81adce2abf5ad3cfe463df517952749e03bc\slf4j-api-2.0.1.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\c7350a71920f3ae9142945e25fed4846cce53374\netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\476409d6255001ca53a55f65b01c13822f8dc93a\netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
-[Architectury Transformer] Read classpath in 915.4 ms
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
+[Architectury Transformer] Read classpath in 837.5 ms
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] Found class transformer
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/persistence/WorldDataProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/DebugDataPacket with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/PacketHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/RoadWeaverNetworkManager with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocatorImpl with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureConnector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$ConnectionStatus with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureInfo with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureConnection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureLocationData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$WoodAssets with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateStats with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateRequest with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateResult with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/RoadFeature with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadDirection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/Road with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator$Node with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/LamppostDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadFenceDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration$DirectionProperties with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadPlacementRules with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/SwingDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/GlorietteDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/FenceWaypointDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/BenchDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/DistanceSignDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/Decoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadStructures with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/StructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/NbtStructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/WoodSelector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/BiomeWoodAware with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureRegistry with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/events/ModEventHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/IModConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/ConfigProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Closed File Systems for D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionFabric.jar
-[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.097 s
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/util/ComputeService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/StructureSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService$StructureBlueprints with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/model/StructureInstance with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/interop/RoadInteropBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/ChunkStructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndexRestorer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/BlendPlan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/TerrainBlender with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureBlueprint with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureVariant with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/SpawnRule with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/FoundationType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/BlendProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructureVerificationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor$Filters with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/runtime/ThreadPoolManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1Pair with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Bounds with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Edge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/PlanningUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RNGPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RoadPlanningService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Tri with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Vertex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$Neighbor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/WorldDataProvider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$Shard with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/ClientNetBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/MapSnapshotCodec with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSpan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$ConnectionStatus with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$SpanType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureInfo with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$WoodAssets with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureConnection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureLocationData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/RoadGenerationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/RoadFeature with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService$HeightProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/BridgeTransitionAdjuster with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/TerrainSamplingCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/RoadPathCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor$Vec2d with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Meet with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/Road with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/SegmentPaver with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/RoadDirection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator$RangeResult with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner$Context with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/FenceWaypointDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LanternPostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/DistanceSignDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LamppostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/text/SignTextService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationExecutor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/ArtificialDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner$Mode with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/RoadBlockPlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/AboveColumnClearer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/NaturalDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/SurfacePlacementUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/TreeRemovalUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/PlacementRules with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodTrapdoorMapper with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/BiomeWoodAware with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/surface/BiomeRoadMaterialSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/compat/RoadFeatureCompat with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration$DirectionProperties with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/Decoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/config/RoadFeatureConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/bridge/BridgeBuilder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ConfigService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PlanningAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetFile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetDef with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PathfindingAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/ConfigScreenFactory with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/tips/LoadingTipsRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapDataCollector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/GridRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshot with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RoadMapScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshotCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$SegmentInView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapInteraction with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RenderUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu$Item with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/SimpleTextInputScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/data/ClientMapNotes with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$UiPreset with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$TargetList with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/api/RoadNetworkApi with maxs=true frames=true
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionFabric.jar
+[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.218 s
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] ============================
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.4-1.20.1-BETA-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionForge.jar
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] 
-[Architectury Transformer DEBUG] Transforming 7 transformer(s) from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@5cc195ea
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@57bf247f
+[Architectury Transformer DEBUG] Transforming 7 transformer(s) from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.4-1.20.1-BETA-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionForge.jar: 
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@7e367a16
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@63891669
 [Architectury Transformer DEBUG]  - AddRefmapName(enabled=() -> kotlin.Boolean)
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@66d04a0e
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeAnnotations@56eec358
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment@5afe02d4
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.FixForgeMixin@60a9728b
-[Architectury Transformer DEBUG] Transforming from D:\GITHUB\common\build\devlibs\roadweaver-common-1.0.4-dev.jar to D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar with 7 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
-[Architectury Transformer DEBUG] Reading mixin mappings file: D:\GITHUB\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@1c44719e
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeAnnotations@69b07e78
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment@3c759ed2
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.FixForgeMixin@693764fb
+[Architectury Transformer DEBUG] Transforming from C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\devlibs\roadweaver-common-2.0.4-1.20.1-BETA-dev.jar to C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionForge.jar with 7 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
+[Architectury Transformer DEBUG] Reading mixin mappings file: C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\fabric\build\loom-cache\mixin-map-loom.mappings.1_20_1.layered+hash.40359-v2.main.tiny
 [Architectury Transformer DEBUG] Remapping with 2 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda$3587/0x0000010a41047848@44dd4aa
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda$3588/0x0000010a41047a70@4572c79
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x000002319ff56a00@564030c2
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformForgeEnvironment$$Lambda/0x000002319ff56c18@12783d3c
 [Architectury Transformer DEBUG] Provided 59 classpath jar(s):
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\dev.architectury\architectury-injectables\1.0.10\62db2a366d662606d1b23ad02ccc3212ed37ec3\architectury-injectables-1.0.10.jar
-[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.17.3\deafaba5de4d9bbd76105783ff4e21ce0773874f\fabric-loader-0.17.3.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\fabric-loader\0.18.1\2f1cf1fa62e868562f522698cce909fa1c474d36\fabric-loader-0.18.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.jetbrains\annotations\24.1.0\7af6a669488450c4a07c2c3254e2151df42d7d04\annotations-24.1.0.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\tiny-mappings-parser\0.3.0+build.17\2f10540a290e382a7cd35c16ec3900046a4e252\tiny-mappings-parser-0.3.0+build.17.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\net.fabricmc\sponge-mixin\0.12.5+mixin.0.8.5\8d31fb97c3e0cd7c8dad3441851c523bcfae6d8e\sponge-mixin-0.12.5+mixin.0.8.5.jar
@@ -458,63 +716,149 @@
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl-tinyfd\3.3.1\ff1914111ef2e3e0110ef2dabc8d8cdaad82347\lwjgl-tinyfd-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.lwjgl\lwjgl\3.3.1\ae58664f88e18a9bb2c77b063833ca7aaec484cb\lwjgl-3.3.1.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\org.slf4j\slf4j-api\2.0.1\f48d81adce2abf5ad3cfe463df517952749e03bc\slf4j-api-2.0.1.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\minecraftMaven\net\minecraft\minecraft-merged-3760f957dc\1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2\minecraft-merged-3760f957dc-1.20.1-loom.mappings.1_20_1.layered+hash.40359-v2.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\c7350a71920f3ae9142945e25fed4846cce53374\netty-transport-native-epoll-4.1.82.Final-linux-x86_64.jar
 [Architectury Transformer DEBUG]  - C:\Users\shiroha\scoop\apps\gradle\current\.gradle\caches\modules-2\files-2.1\io.netty\netty-transport-native-epoll\4.1.82.Final\476409d6255001ca53a55f65b01c13822f8dc93a\netty-transport-native-epoll-4.1.82.Final-linux-aarch_64.jar
-[Architectury Transformer DEBUG]  - D:\GITHUB\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
-[Architectury Transformer] Read classpath in 723.7 ms
+[Architectury Transformer DEBUG]  - C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\.gradle\loom-cache\remapped_mods\loom_mappings_1_20_1_layered_hash_40359_v2\dev\architectury\architectury\9.2.14\architectury-9.2.14.jar
+[Architectury Transformer] Read classpath in 755.4 ms
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] net/fabricmc/api/EnvType -> net/minecraftforge/api/distmarker/Dist
 [Architectury Transformer DEBUG] net/fabricmc/api/Environment -> net/minecraftforge/api/distmarker/OnlyIn
 [Architectury Transformer DEBUG] Found class transformer
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/persistence/WorldDataProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/PacketHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/DebugDataPacket with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/network/RoadWeaverNetworkManager with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocatorImpl with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$ConnectionStatus with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureConnector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureInfo with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureConnection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$StructureLocationData with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$WoodAssets with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/StructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/Records with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateStats with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateResult with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/helpers/async/ThrottledStructureLocator$LocateRequest with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/RoadFeature with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/Road with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadPathCalculator$Node with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/roadlogic/RoadDirection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration$DirectionProperties with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadFenceDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadPlacementRules with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/SwingDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/OrientedDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/GlorietteDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/FenceWaypointDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/DistanceSignDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/RoadStructures with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/Decoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/NbtStructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/StructureDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/LamppostDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/BenchDecoration with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/WoodSelector with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/decoration/util/BiomeWoodAware with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/features/config/RoadFeatureRegistry with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/events/ModEventHandler with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/IModConfig with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing net/countered/settlementroads/config/ConfigProvider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/util/ComputeService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/StructureSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/spawn/SpawnCabinService$StructureBlueprints with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/pipeline/StructurePlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/model/StructureInstance with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/interop/RoadInteropBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/ChunkStructureIndex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/index/StructureIndexRestorer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/BlendPlan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/blend/TerrainBlender with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureBlueprint with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/StructureVariant with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/SpawnRule with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/FoundationType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/structures/api/BlendProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructureVerificationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/search/StructurePredictor$Filters with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/runtime/ThreadPoolManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$1Pair with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Bounds with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Edge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/PlanningUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RNGPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/RoadPlanningService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Vertex with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/DelaunayPlanner$Tri with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/planning/KNNPlanner$Neighbor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/WorldDataProvider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage$Shard with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/persistence/sharded/RoadShardStorage with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/ClientNetBridge with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/network/MapSnapshotCodec with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSpan with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadSegmentPlacement with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$RoadData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$ConnectionStatus with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureInfo with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/StructureConnector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$SpanType with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$WoodAssets with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureLocationData with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/helpers/Records$StructureConnection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/RoadGenerationService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/generation/InitialGenManager$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/RoadFeature with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService$HeightProfile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/BridgeTransitionAdjuster with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/surface/HeightProfileService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/TerrainSamplingCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/RoadPathCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BasicAStarPathfinder$Node with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/PathPostProcessor$Vec2d with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/GradientDescentPathfinder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/pathfinding/BidirectionalAStarPathfinder$Meet with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/Road with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/SegmentPaver with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/core/RoadDirection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator$RangeResult with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeRangeCalculator with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/roadlogic/bridge/BridgeSegmentPlanner$Context with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/FenceWaypointDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LanternPostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/DistanceSignDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/types/LamppostDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/text/SignTextService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner$Mode with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationExecutor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/ArtificialDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/RoadBlockPlacer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/AboveColumnClearer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/NaturalDecorationSystem with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/DecorationPlanner with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/SurfacePlacementUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/PlacementRules with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/system/TreeRemovalUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodTrapdoorMapper with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/BiomeWoodAware with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/wood/WoodSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/material/surface/BiomeRoadMaterialSelector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/compat/RoadFeatureCompat with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/OrientedDecoration$DirectionProperties with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/decoration/base/Decoration with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/config/RoadFeatureConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/features/bridge/BridgeBuilder with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ConfigService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PlanningAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetFile with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetConfig with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/ModConfig$PathfindingAlgorithm with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/config/PresetService$PresetDef with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/ConfigScreenFactory with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/tips/LoadingTipsRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapDataCollector with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshotCache with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/GridRenderer with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapSnapshot with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$SegmentInView with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RoadMapScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapInteraction with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/RenderUtils with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/MapRenderers$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/ContextMenu$Item with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/ui/SimpleTextInputScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/map/data/ClientMapNotes with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$TargetList with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen$UiPreset with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/client/config/MaterialPresetEditorScreen with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing net/shiroha233/roadweaver/api/RoadNetworkApi with maxs=true frames=true
 [Architectury Transformer DEBUG] Injecting MixinConfigs into /META-INF/MANIFEST.MF
 [Architectury Transformer DEBUG] Remapping refmap from intermediary to srg: roadweaver-common-common-refmap.json
-[Architectury Transformer DEBUG] Closed File Systems for D:\GITHUB\common\build\libs\roadweaver-common-1.0.4-transformProductionForge.jar
-[Architectury Transformer] Transformed jar with 7 transformer(s) in 930.9 ms
-[Architectury Transformer DEBUG] Closed File Systems for D:\GITHUB\common\build\libs\roadweaver-common-1.0.4.jar
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA-transformProductionForge.jar
+[Architectury Transformer] Transformed jar with 7 transformer(s) in 1.023 s
+[Architectury Transformer DEBUG] Closed File Systems for C:\Users\shiroha\Desktop\GITHUB\RoadWeaver\common\build\libs\roadweaver-common-2.0.4-1.20.1-BETA.jar

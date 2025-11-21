@@ -1,9 +1,0 @@
-eclipse.preferences.version=1
-org.eclipse.jdt.apt.aptEnabled=true
-org.eclipse.jdt.apt.genSrcDir=bin/generated-sources/annotations
-org.eclipse.jdt.apt.genTestSrcDir=bin/generated-test-sources/annotations
-org.eclipse.jdt.apt.processorOptions/defaultObfuscationEnv=named\:intermediary
-org.eclipse.jdt.apt.processorOptions/inMapFileNamedIntermediary=C\:\\Users\\shiroha\\scoop\\apps\\gradle\\current\\.gradle\\caches\\fabric-loom\\1.21.1\\loom.mappings.1_21_1.layered+hash.40545-v2\\mappings.tiny
-org.eclipse.jdt.apt.processorOptions/outMapFileNamedIntermediary=E\:\\Github\\RoadWeaver\\fabric\\build\\loom-cache\\mixin-map-loom.mappings.1_21_1.layered+hash.40545-v2.main.tiny
-org.eclipse.jdt.apt.processorOptions/outRefMapFile=E\:\\Github\\RoadWeaver\\fabric\\build\\classes\\java\\main\\roadweaver-fabric-fabric-refmap.json
-org.eclipse.jdt.apt.processorOptions/quiet=true
