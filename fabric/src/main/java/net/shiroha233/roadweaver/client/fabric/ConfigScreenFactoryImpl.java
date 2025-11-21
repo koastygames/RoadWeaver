@@ -383,12 +383,16 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
 
                 genPerformance.addEntry(
-                                eb.startBooleanToggle(
-                                                Component.translatable("config.roadweaver.use_bidirectional_a_star"),
-                                                conf.useBidirectionalAStar())
+                                eb.startEnumSelector(
+                                                Component.translatable("config.roadweaver.pathfinding_algorithm"),
+                                                ModConfig.PathfindingAlgorithm.class,
+                                                conf.pathfindingAlgorithm())
                                                 .setTooltip(Component.translatable(
-                                                                "config.roadweaver.use_bidirectional_a_star.tooltip"))
-                                                .setSaveConsumer(conf::setUseBidirectionalAStar)
+                                                                "config.roadweaver.pathfinding_algorithm.tooltip"))
+                                                .setEnumNameProvider(v -> Component.translatable(
+                                                                "config.roadweaver.pathfinding_algorithm.option."
+                                                                                + v.name().toLowerCase(Locale.ROOT)))
+                                                .setSaveConsumer(conf::setPathfindingAlgorithm)
                                                 .build());
 
                 genPerformance.addEntry(

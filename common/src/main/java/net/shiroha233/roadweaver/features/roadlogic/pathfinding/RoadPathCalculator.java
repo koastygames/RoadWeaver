@@ -41,7 +41,11 @@ public final class RoadPathCalculator {
         BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
         List<Records.RoadSegmentPlacement> land;
-        if (ConfigService.get().useBidirectionalAStar()) {
+        var algo = ConfigService.get().pathfindingAlgorithm();
+        
+        if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.GRADIENT_DESCENT) {
+            land = GradientDescentPathfinder.calculatePath(startGround, endGround, width, level, maxSteps, cache);
+        } else if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL) {
             land = BidirectionalAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);
         } else {
             land = BasicAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);

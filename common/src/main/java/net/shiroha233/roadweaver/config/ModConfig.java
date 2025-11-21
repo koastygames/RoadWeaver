@@ -10,6 +10,12 @@ public final class ModConfig {
         RNG
     }
 
+    public enum PathfindingAlgorithm {
+        ASTAR_BASIC,
+        ASTAR_BIDIRECTIONAL,
+        GRADIENT_DESCENT
+    }
+
     private boolean villagePredictionEnabled;
     private int predictRadiusChunks;
     private boolean biomePrefilter;
@@ -36,7 +42,9 @@ public final class ModConfig {
     private int causewayMaxDepth;
     private int maxSlopeStepPerTwoSegments;
     private boolean slopeLimitEnabled = true; // 是否启用基于 maxSlopeStepPerTwoSegments 的限坡平滑
-    private boolean useBidirectionalAStar; // 是否启用双向 A* 寻路
+    @Deprecated
+    private boolean useBidirectionalAStar; // 已废弃，请使用 pathfindingAlgorithm
+    private PathfindingAlgorithm pathfindingAlgorithm; // 具体寻路算法策略
 
     private int roadWidth;
     private int lampInterval;
@@ -100,6 +108,7 @@ public final class ModConfig {
         this.maxSlopeStepPerTwoSegments = 1;
         this.slopeLimitEnabled = true;
         this.useBidirectionalAStar = true;
+        this.pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BIDIRECTIONAL;
 
         // 新增默认值
         this.roadWidth = 3;
@@ -209,6 +218,11 @@ public final class ModConfig {
             maxSlopeStepPerTwoSegments = 0;// 最小斜坡步数
         if (maxSlopeStepPerTwoSegments > 8)
             maxSlopeStepPerTwoSegments = 8;// 最大斜坡步数
+
+        if (pathfindingAlgorithm == null) {
+            // 迁移旧配置
+            pathfindingAlgorithm = useBidirectionalAStar ? PathfindingAlgorithm.ASTAR_BIDIRECTIONAL : PathfindingAlgorithm.ASTAR_BASIC;
+        }
 
         // 新增字段校验
         if (roadWidth < 0)
@@ -427,6 +441,14 @@ public final class ModConfig {
 
     public void setUseBidirectionalAStar(boolean v) {
         this.useBidirectionalAStar = v;
+    }
+
+    public PathfindingAlgorithm pathfindingAlgorithm() {
+        return pathfindingAlgorithm;
+    }
+
+    public void setPathfindingAlgorithm(PathfindingAlgorithm v) {
+        this.pathfindingAlgorithm = v;
     }
 
     // 新增：道路宽度（0=自动）
