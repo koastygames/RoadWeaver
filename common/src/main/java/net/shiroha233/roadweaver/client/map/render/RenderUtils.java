@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.GuiGraphics;
 

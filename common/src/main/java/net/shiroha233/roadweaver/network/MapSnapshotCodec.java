@@ -2,7 +2,7 @@ package net.shiroha233.roadweaver.network;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.shiroha233.roadweaver.client.map.MapSnapshot;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.helpers.Records;
 
 import java.util.ArrayList;

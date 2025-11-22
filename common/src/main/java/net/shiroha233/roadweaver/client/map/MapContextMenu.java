@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.client.map;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 
 final class MapContextMenu {
     private MapContextMenu() {}

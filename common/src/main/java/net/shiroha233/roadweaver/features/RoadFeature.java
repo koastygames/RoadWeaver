@@ -92,7 +92,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                     BlockPos middle = middlePositions.get(i);
                     if (!processedMiddle.add(middle)) continue;
                     segmentIndex++;
-                    if (segmentIndex < 60 || segmentIndex > segments.size() - 60) continue;
+                    if (segmentIndex < 8 || segmentIndex > segments.size() - 8) continue;
                     ChunkPos middleChunk = new ChunkPos(middle);
                     if (!middleChunk.equals(currentChunk)) continue;
 
@@ -105,7 +105,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
 
                     Records.RoadSegmentPlacement seg = segments.get(i);
                     if (cfg.bridgeEnabled() && isBridge[i]) {
-                        BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, i, bridgeCtx);
+                        BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
                     } else {
                         boolean useSlab = shouldUseSlabForSegment(baseYArr, i, roadType, slabMaterials);
                         SegmentPaver.paveSegment(world, seg, baseYForThis, roadType, materials, slabMaterials, useSlab, random, cfg);

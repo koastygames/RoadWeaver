@@ -9,6 +9,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
+import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
+import net.shiroha233.roadweaver.client.map.render.GridRenderer;
+import net.shiroha233.roadweaver.client.map.render.MapRenderers;
+import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import java.util.concurrent.CompletableFuture;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -590,15 +597,11 @@ public class RoadMapScreen extends Screen {
         if (this.minecraft == null) return;
         Screen next = null;
         try {
-            Class<?> c = Class.forName("net.shiroha233.roadweaver.client.fabric.ConfigScreenFactoryImpl");
-            next = (Screen) c.getMethod("createConfigScreen", Screen.class).invoke(null, this);
-        } catch (Throwable ignored) {}
-        if (next == null) {
-            try {
-                Class<?> c = Class.forName("net.shiroha233.roadweaver.client.forge.ConfigScreenFactoryImpl");
-                next = (Screen) c.getMethod("createConfigScreen", Screen.class).invoke(null, this);
-            } catch (Throwable ignored) {}
+            next = net.shiroha233.roadweaver.client.ConfigScreenFactory.createConfigScreen(this);
+        } catch (Throwable t) {
         }
-        if (next != null) this.minecraft.setScreen(next);
+        if (next != null) {
+            this.minecraft.setScreen(next);
+        }
     }
 }

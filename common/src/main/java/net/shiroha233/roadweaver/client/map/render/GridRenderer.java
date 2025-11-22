@@ -1,21 +1,21 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
-final class GridRenderer {
+public final class GridRenderer {
     private GridRenderer() {}
 
-    static void render(GuiGraphics g,
-                       Font font,
-                       int mapX, int mapY, int mapW, int mapH,
-                       int innerPad,
-                       double viewMinX, double viewMaxX,
-                       double viewMinZ, double viewMaxZ,
-                       int colorGrid,
-                       int gridTargetPx,
-                       int colorText) {
+    public static void render(GuiGraphics g,
+                              Font font,
+                              int mapX, int mapY, int mapW, int mapH,
+                              int innerPad,
+                              double viewMinX, double viewMaxX,
+                              double viewMinZ, double viewMaxZ,
+                              int colorGrid,
+                              int gridTargetPx,
+                              int colorText) {
         int left = mapX + innerPad;
         int top = mapY + innerPad;
         int right = mapX + mapW - innerPad;
@@ -57,11 +57,11 @@ final class GridRenderer {
         g.drawString(font, labelComp, tx, ty, colorText, false);
     }
 
-    static int computeGridStep(int mapX, int mapY, int mapW, int mapH,
-                               int innerPad,
-                               double viewMinX, double viewMaxX,
-                               double viewMinZ, double viewMaxZ,
-                               int gridTargetPx) {
+    public static int computeGridStep(int mapX, int mapY, int mapW, int mapH,
+                                      int innerPad,
+                                      double viewMinX, double viewMaxX,
+                                      double viewMinZ, double viewMaxZ,
+                                      int gridTargetPx) {
         int contentW = mapW - innerPad * 2;
         int contentH = mapH - innerPad * 2;
         double ppbX = contentW / Math.max(1.0, (viewMaxX - viewMinX));

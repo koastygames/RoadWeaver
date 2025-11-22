@@ -63,6 +63,7 @@ public final class BridgeSegmentPlanner {
                                       RandomSource random,
                                       ModConfig cfg,
                                       List<int[]> bridgeRanges,
+                                      int[] baseYArr,
                                       int i,
                                       Context ctx) {
         int segDeckY = deckY;
@@ -93,6 +94,16 @@ public final class BridgeSegmentPlanner {
                         double f = (dStart < rampN) ? (dStart / (double) rampN) : (dEnd / (double) rampN);
                         f = Math.max(0.0, Math.min(1.0, f));
                         int rampBaseY = baseYForThis;
+                        if (baseYArr != null && baseYArr.length > 0) {
+                            if (dStart < rampN) {
+                                int idx = Math.max(0, Math.min(baseYArr.length - 1, r[0]));
+                                rampBaseY = baseYArr[idx];
+                            } else {
+                                int idx = Math.max(0, Math.min(baseYArr.length - 1, r[1]));
+                                rampBaseY = baseYArr[idx];
+                            }
+                        }
+                        
                         segDeckY = (int) Math.round(rampBaseY + (deckY - rampBaseY) * f);
                         placePier = false;
                         placeRail = false;

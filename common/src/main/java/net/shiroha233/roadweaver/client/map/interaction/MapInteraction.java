@@ -1,20 +1,22 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.interaction;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.client.map.MapView;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 
-final class MapInteraction {
+public final class MapInteraction {
     private MapInteraction() {}
 
-    static void renderHoverHighlight(GuiGraphics g,
-                                     MapSnapshot snapshot,
-                                     MapView view,
-                                     int mapX, int mapY, int mapW, int mapH,
-                                     int innerPad,
-                                     double mouseX, double mouseY) {
+    public static void renderHoverHighlight(GuiGraphics g,
+                                            MapSnapshot snapshot,
+                                            MapView view,
+                                            int mapX, int mapY, int mapW, int mapH,
+                                            int innerPad,
+                                            double mouseX, double mouseY) {
         double mx = mouseX;
         double my = mouseY;
         if (!insideMap(mx, my, mapX, mapY, mapW, mapH, innerPad)) return;
@@ -38,13 +40,13 @@ final class MapInteraction {
         }
     }
 
-    static void renderHoverTooltip(GuiGraphics g,
-                                   Font font,
-                                   MapSnapshot snapshot,
-                                   MapView view,
-                                   int mapX, int mapY, int mapW, int mapH,
-                                   int innerPad,
-                                   double mouseX, double mouseY) {
+    public static void renderHoverTooltip(GuiGraphics g,
+                                          Font font,
+                                          MapSnapshot snapshot,
+                                          MapView view,
+                                          int mapX, int mapY, int mapW, int mapH,
+                                          int innerPad,
+                                          double mouseX, double mouseY) {
         double mx = mouseX;
         double my = mouseY;
         int contentW = mapW - innerPad * 2;

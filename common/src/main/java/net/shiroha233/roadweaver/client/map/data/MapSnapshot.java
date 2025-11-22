@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.helpers.Records;

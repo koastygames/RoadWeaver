@@ -57,11 +57,11 @@ public class RoadWeaver {
     }
     
     private static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn e) {
-        net.shiroha233.roadweaver.client.map.MapSnapshotCache.clearNow();
+        net.shiroha233.roadweaver.client.map.data.MapSnapshotCache.clearNow();
     }
     
     private static void onClientLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
-        net.shiroha233.roadweaver.client.map.MapSnapshotCache.clearNow();
+        net.shiroha233.roadweaver.client.map.data.MapSnapshotCache.clearNow();
     }
     
     public static Logger getLogger() {

@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.data;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;

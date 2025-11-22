@@ -9,9 +9,9 @@ import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.shiroha233.roadweaver.RoadWeaver;
-import net.shiroha233.roadweaver.client.map.MapDataCollector;
-import net.shiroha233.roadweaver.client.map.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
+import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.minecraft.world.level.levelgen.Heightmap;
 

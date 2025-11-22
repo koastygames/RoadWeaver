@@ -2,7 +2,7 @@ package net.shiroha233.roadweaver.client.forge;
 
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.common.MinecraftForge;
-import net.shiroha233.roadweaver.client.map.MapSnapshotCache;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 
 public final class ClientEvents {
     private ClientEvents() {}

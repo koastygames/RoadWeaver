@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -9,29 +9,29 @@ import net.shiroha233.roadweaver.helpers.Records;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
 
-final class MapRenderers {
+public final class MapRenderers {
     private MapRenderers() {}
 
-    interface SegmentInView { boolean test(int x1, int z1, int x2, int z2); }
+    public interface SegmentInView { boolean test(int x1, int z1, int x2, int z2); }
 
-    static void renderGrid(GuiGraphics g,
-                           Font font,
-                           int mapX, int mapY, int mapW, int mapH,
-                           int innerPad,
-                           double viewMinX, double viewMaxX, double viewMinZ, double viewMaxZ,
-                           int colorGrid, int gridTargetPx, int colorText) {
+    public static void renderGrid(GuiGraphics g,
+                                  Font font,
+                                  int mapX, int mapY, int mapW, int mapH,
+                                  int innerPad,
+                                  double viewMinX, double viewMaxX, double viewMinZ, double viewMaxZ,
+                                  int colorGrid, int gridTargetPx, int colorText) {
         GridRenderer.render(g, font, mapX, mapY, mapW, mapH, innerPad,
                 viewMinX, viewMaxX, viewMinZ, viewMaxZ, colorGrid, gridTargetPx, colorText);
     }
 
-    static void renderStructures(GuiGraphics g,
-                                 List<BlockPos> points,
-                                 IntUnaryOperator toScreenX,
-                                 IntUnaryOperator toScreenY,
-                                 java.util.function.BiPredicate<Integer, Integer> isInViewWorld,
-                                 int size,
-                                 int color,
-                                 int left, int top, int right, int bottom) {
+    public static void renderStructures(GuiGraphics g,
+                                        List<BlockPos> points,
+                                        IntUnaryOperator toScreenX,
+                                        IntUnaryOperator toScreenY,
+                                        java.util.function.BiPredicate<Integer, Integer> isInViewWorld,
+                                        int size,
+                                        int color,
+                                        int left, int top, int right, int bottom) {
         for (BlockPos p : points) {
             int bx = p.getX();
             int bz = p.getZ();
@@ -42,14 +42,14 @@ final class MapRenderers {
         }
     }
 
-    static void renderConnections(GuiGraphics g,
-                                  List<Records.StructureConnection> connections,
-                                  SegmentInView segmentInView,
-                                  IntUnaryOperator toScreenX,
-                                  IntUnaryOperator toScreenY,
-                                  int thickness,
-                                  int colorPlanned, int colorGenerating, int colorCompleted, int colorFailed,
-                                  int left, int top, int right, int bottom) {
+    public static void renderConnections(GuiGraphics g,
+                                         List<Records.StructureConnection> connections,
+                                         SegmentInView segmentInView,
+                                         IntUnaryOperator toScreenX,
+                                         IntUnaryOperator toScreenY,
+                                         int thickness,
+                                         int colorPlanned, int colorGenerating, int colorCompleted, int colorFailed,
+                                         int left, int top, int right, int bottom) {
         for (Records.StructureConnection c : connections) {
             int fx = c.from().getX();
             int fz = c.from().getZ();
@@ -77,15 +77,15 @@ final class MapRenderers {
         }
     }
 
-    static void renderRoadPolylines(GuiGraphics g,
-                                    List<List<BlockPos>> polylines,
-                                    SegmentInView segmentInView,
-                                    IntUnaryOperator toScreenX,
-                                    IntUnaryOperator toScreenY,
-                                    int thickness,
-                                    int color,
-                                    int left, int top, int right, int bottom,
-                                    int lodStepBlocks) {
+    public static void renderRoadPolylines(GuiGraphics g,
+                                           List<List<BlockPos>> polylines,
+                                           SegmentInView segmentInView,
+                                           IntUnaryOperator toScreenX,
+                                           IntUnaryOperator toScreenY,
+                                           int thickness,
+                                           int color,
+                                           int left, int top, int right, int bottom,
+                                           int lodStepBlocks) {
         for (List<BlockPos> pl : polylines) {
             if (pl == null || pl.size() < 2) continue;
             BlockPos keep = pl.get(0);
@@ -127,22 +127,22 @@ final class MapRenderers {
         }
     }
 
-    static void renderLegend(GuiGraphics g,
-                             Font font,
-                             int rightBound,
-                             int startY,
-                             int gap,
-                             int colorText,
-                             int colorStruct,
-                             int colorPlanned,
-                             int colorGenerating,
-                             int colorCompleted,
-                             int colorFailed,
-                             int structuresCount,
-                             int plannedCount,
-                             int generatingCount,
-                             int completedCount,
-                             int failedCount) {
+    public static void renderLegend(GuiGraphics g,
+                                    Font font,
+                                    int rightBound,
+                                    int startY,
+                                    int gap,
+                                    int colorText,
+                                    int colorStruct,
+                                    int colorPlanned,
+                                    int colorGenerating,
+                                    int colorCompleted,
+                                    int colorFailed,
+                                    int structuresCount,
+                                    int plannedCount,
+                                    int generatingCount,
+                                    int completedCount,
+                                    int failedCount) {
         int y = startY;
         Component l1 = Component.translatable("gui.roadweaver.map.legend.structures").append(": ").append(Integer.toString(structuresCount));
         int w1 = font.width(l1);
@@ -185,16 +185,16 @@ final class MapRenderers {
         g.drawString(font, l5, x5, y, colorText, false);
     }
 
-    static void drawPlayerArrow(GuiGraphics g,
-                                int sx, int sy,
-                                float yawDeg,
-                                int tipLen,
-                                int baseLen,
-                                int baseHalfWidth,
-                                int color,
-                                int left, int top, int right, int bottom,
-                                double pxPerBlockX,
-                                double pxPerBlockZ) {
+    public static void drawPlayerArrow(GuiGraphics g,
+                                       int sx, int sy,
+                                       float yawDeg,
+                                       int tipLen,
+                                       int baseLen,
+                                       int baseHalfWidth,
+                                       int color,
+                                       int left, int top, int right, int bottom,
+                                       double pxPerBlockX,
+                                       double pxPerBlockZ) {
         double rx = Math.toRadians(yawDeg);
         double vx = -Math.sin(rx);
         double vz = Math.cos(rx);

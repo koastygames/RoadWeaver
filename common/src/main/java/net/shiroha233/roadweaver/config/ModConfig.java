@@ -201,8 +201,9 @@ public final class ModConfig {
         if (dynamicPlanStrideChunks > 256)
             dynamicPlanStrideChunks = 256;
         if (planningAlgorithm == null)
-            if (aStarStep > 128)
-                aStarStep = 128; // 步数上限
+            planningAlgorithm = PlanningAlgorithm.RNG;
+        if (aStarStep > 128)
+            aStarStep = 128; // 步数上限
         if (aStarMaxSteps < 3000)
             aStarMaxSteps = 3000; // 最小步数下限
         if (aStarMaxSteps > 100000)

@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.client.map;
+package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -6,8 +6,7 @@ import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.minecraft.world.level.Level;
-import net.shiroha233.roadweaver.search.StructurePredictor;
-import net.shiroha233.roadweaver.search.StructureVerificationService;
+import net.shiroha233.roadweaver.search.StructureIndexService;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
@@ -48,25 +47,15 @@ public final class MapDataCollector {
         }
 
         if (Level.OVERWORLD.equals(level.dimension())) {
-            if (cfg.villagePredictionEnabled()) {
-                List<Records.StructureInfo> predicted = StructurePredictor.predictOverworldStructuresAroundSpawn(
-                        level,
-                        cfg.predictRadiusChunks(),
-                        cfg.biomePrefilter(),
-                        cfg.structureWhitelist(),
-                        cfg.structureBlacklist()
-                );
-                // 在使用预测结果前做一次轻量验证，尽量剔除伪结构点
-                List<Records.StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
-                if (!verified.isEmpty()) {
-                    Set<BlockPos> existing = new HashSet<>(structures);
-                    for (Records.StructureInfo info : verified) {
-                        BlockPos p = info.pos();
-                        if (!existing.contains(p)) {
-                            structures.add(p);
-                            infos.add(info);
-                            existing.add(p);
-                        }
+            List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyAroundSpawn(level);
+            if (!verified.isEmpty()) {
+                Set<BlockPos> existing = new HashSet<>(structures);
+                for (Records.StructureInfo info : verified) {
+                    BlockPos p = info.pos();
+                    if (!existing.contains(p)) {
+                        structures.add(p);
+                        infos.add(info);
+                        existing.add(p);
                     }
                 }
             }
@@ -108,32 +97,21 @@ public final class MapDataCollector {
         }
 
         if (Level.OVERWORLD.equals(level.dimension())) {
-            ModConfig cfg = ConfigService.get();
-            if (cfg.villagePredictionEnabled()) {
-                int cminx = Math.floorDiv(minBlockX, 16);
-                int cminz = Math.floorDiv(minBlockZ, 16);
-                int cmaxx = Math.floorDiv(maxBlockX, 16);
-                int cmaxz = Math.floorDiv(maxBlockZ, 16);
-                List<Records.StructureInfo> predicted = StructurePredictor.predictOverworldStructuresInRect(
-                        level,
-                        cminx, cminz, cmaxx, cmaxz,
-                        cfg.biomePrefilter(),
-                        cfg.structureWhitelist(),
-                        cfg.structureBlacklist()
-                );
-                // 规划前验证预测结构点，避免将明显不存在的结构纳入路网规划
-                List<Records.StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
-                if (!verified.isEmpty()) {
-                    Set<BlockPos> existing = new HashSet<>(structures);
-                    for (Records.StructureInfo info : verified) {
-                        BlockPos p = info.pos();
-                        if (!existing.contains(p)) {
-                            int x = p.getX(), z = p.getZ();
-                            if (x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ) {
-                                structures.add(p);
-                                infos.add(info);
-                                existing.add(p);
-                            }
+            List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyInRect(
+                    level,
+                    minBlockX, minBlockZ,
+                    maxBlockX, maxBlockZ
+            );
+            if (!verified.isEmpty()) {
+                Set<BlockPos> existing = new HashSet<>(structures);
+                for (Records.StructureInfo info : verified) {
+                    BlockPos p = info.pos();
+                    if (!existing.contains(p)) {
+                        int x = p.getX(), z = p.getZ();
+                        if (x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ) {
+                            structures.add(p);
+                            infos.add(info);
+                            existing.add(p);
                         }
                     }
                 }
@@ -172,6 +150,9 @@ public final class MapDataCollector {
             return dx * dx + dz * dz <= r2;
         };
 
+        int spanX = Math.abs(maxBlockX - minBlockX);
+        int spanZ = Math.abs(maxBlockZ - minBlockZ);
+
         // 先构建“已规划端点”集合（任何状态）
         java.util.Set<BlockPos> plannedEndpoints = new java.util.HashSet<>();
         if (connections != null) {
@@ -195,7 +176,6 @@ public final class MapDataCollector {
 
         // 预计算已规划 tiles 对应的近似矩形（块坐标）
         java.util.List<int[]> plannedRects = new java.util.ArrayList<>();
-        java.util.HashSet<Long> rectKeys = new java.util.HashSet<>();
         java.util.Map<Long, Long> centersMap = RoadPlanningService.getPlannedTileCenters(level);
         for (Long key : RoadPlanningService.getPlannedTiles(level)) {
             int kx = (int) (key >> 32);
@@ -217,7 +197,6 @@ public final class MapDataCollector {
             int minBz = czBlocks - dynRadiusBlocks;
             int maxBz = czBlocks + dynRadiusBlocks;
             plannedRects.add(new int[]{minBx, minBz, maxBx, maxBz});
-            rectKeys.add(key);
         }
 
         java.util.function.BiPredicate<Integer, Integer> inPlannedCoverage = (x, z) -> {
@@ -290,42 +269,7 @@ public final class MapDataCollector {
             }
         }
 
-        if (Level.OVERWORLD.equals(level.dimension())) {
-            ModConfig cfg = ConfigService.get();
-            if (cfg.villagePredictionEnabled()) {
-                int cminx = Math.floorDiv(minBlockX, 16);
-                int cminz = Math.floorDiv(minBlockZ, 16);
-                int cmaxx = Math.floorDiv(maxBlockX, 16);
-                int cmaxz = Math.floorDiv(maxBlockZ, 16);
-                List<Records.StructureInfo> predicted = StructurePredictor.predictOverworldStructuresInRect(
-                        level,
-                        cminx, cminz, cmaxx, cmaxz,
-                        cfg.biomePrefilter(),
-                        cfg.structureWhitelist(),
-                        cfg.structureBlacklist()
-                );
-                // 同样在动态规划和地图视图中使用前对预测结构点做验证
-                List<Records.StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
-                if (!verified.isEmpty()) {
-                    Set<BlockPos> existing = new HashSet<>(structures);
-                    for (Records.StructureInfo info : verified) {
-                        BlockPos p = info.pos();
-                        int x = p.getX(), z = p.getZ();
-                        boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                        if (!inRect) continue;
-                        if (!existing.contains(p) && (inPlannedCoverage.test(x, z) || inAOI.test(x, z))) {
-                            structures.add(p);
-                            infos.add(info);
-                            existing.add(p);
-                        }
-                    }
-                }
-            }
-        }
-
         List<List<BlockPos>> roads = new ArrayList<>();
-        int spanX = Math.abs(maxBlockX - minBlockX);
-        int spanZ = Math.abs(maxBlockZ - minBlockZ);
         // 视图跨度太大时跳过道路几何的加载，只用连接直线表示已连接道路
         boolean loadDetailedRoads = spanX <= MAX_DETAILED_ROAD_SPAN_BLOCKS && spanZ <= MAX_DETAILED_ROAD_SPAN_BLOCKS;
         if (loadDetailedRoads) {

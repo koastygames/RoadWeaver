@@ -124,11 +124,14 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(conf::setDynamicPlanStrideChunks)
                                                 .build());
 
+                ModConfig.PlanningAlgorithm planningAlgo =
+                                conf.planningAlgorithm() != null ? conf.planningAlgorithm() : ModConfig.PlanningAlgorithm.RNG;
+
                 planning.addEntry(
                                 eb.startEnumSelector(
                                                 Component.translatable("config.roadweaver.planning_algorithm"),
                                                 ModConfig.PlanningAlgorithm.class,
-                                                conf.planningAlgorithm())
+                                                planningAlgo)
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.planning_algorithm.tooltip"))
                                                 .setEnumNameProvider(v -> Component.translatable(

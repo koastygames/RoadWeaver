@@ -1,8 +1,9 @@
 package net.shiroha233.roadweaver.client.map;
 
 import net.minecraft.client.Minecraft;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 
-final class MapView {
+public final class MapView {
     private double minX, maxX, minZ, maxZ;
     private boolean initialized;
 
@@ -36,29 +37,29 @@ final class MapView {
         initialized = true;
     }
 
-    int toScreenX(int blockX, int mapX, int innerPad, int contentW) {
+    public int toScreenX(int blockX, int mapX, int innerPad, int contentW) {
         double rangeX = Math.max(1.0, maxX - minX);
         double nx = (blockX - minX) / rangeX;
         return mapX + innerPad + (int) Math.round(nx * contentW);
     }
 
-    int toScreenY(int blockZ, int mapY, int innerPad, int contentH) {
+    public int toScreenY(int blockZ, int mapY, int innerPad, int contentH) {
         double rangeZ = Math.max(1.0, maxZ - minZ);
         double nz = (blockZ - minZ) / rangeZ;
         return mapY + innerPad + (int) Math.round(nz * contentH);
     }
 
-    double screenToWorldX(double sx, int mapX, int innerPad, int contentW) {
+    public double screenToWorldX(double sx, int mapX, int innerPad, int contentW) {
         double nx = (sx - (mapX + innerPad)) / Math.max(1.0, contentW);
         return minX + nx * Math.max(1.0, maxX - minX);
     }
 
-    double screenToWorldZ(double sy, int mapY, int innerPad, int contentH) {
+    public double screenToWorldZ(double sy, int mapY, int innerPad, int contentH) {
         double ny = (sy - (mapY + innerPad)) / Math.max(1.0, contentH);
         return minZ + ny * Math.max(1.0, maxZ - minZ);
     }
 
-    boolean isInViewWorld(int x, int z) {
+    public boolean isInViewWorld(int x, int z) {
         return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
     }
 
