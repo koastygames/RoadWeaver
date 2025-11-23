@@ -71,7 +71,9 @@ gradle-local.properties
 /1.0.0
 /tectonic
 /ReTerraForged
+/terralith
 
 /common/.gradle
 **/.gradle/
 .gradle/
+/worldgen-roadweaver-analysis.md

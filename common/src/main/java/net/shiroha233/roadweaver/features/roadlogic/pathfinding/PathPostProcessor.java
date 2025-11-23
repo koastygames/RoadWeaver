@@ -20,7 +20,8 @@ public final class PathPostProcessor {
         if (rawPath == null || rawPath.size() < 2) return new ArrayList<>();
 
         // 1. 路径简化
-        List<BlockPos> controlPoints = simplifyPath(rawPath);
+        List<BlockPos> simplified = simplifyPath(rawPath);
+        List<BlockPos> controlPoints = relaxPath(simplified);
         if (controlPoints.size() < 2) return new ArrayList<>();
 
         // 2. 生成高密度样条曲线点集
@@ -197,5 +198,32 @@ public final class PathPostProcessor {
         
         simplified.add(nodes.get(nodes.size() - 1));
         return simplified;
+    }
+
+    /**
+     * 对路径控制点进行松弛操作，消除尖锐的折角。
+     * 解决 Z 字形路径在样条插值后产生扭曲的问题。
+     */
+    private static List<BlockPos> relaxPath(List<BlockPos> nodes) {
+        if (nodes.size() < 3) return new ArrayList<>(nodes);
+        
+        List<BlockPos> relaxed = new ArrayList<>();
+        relaxed.add(nodes.get(0)); // 起点不动
+        
+        for (int i = 1; i < nodes.size() - 1; i++) {
+            BlockPos prev = nodes.get(i - 1);
+            BlockPos curr = nodes.get(i);
+            BlockPos next = nodes.get(i + 1);
+            
+            // 加权平均: (Prev + 2*Curr + Next) / 4
+            // 这样可以保留大部分原始位置，但会把尖角稍微"磨圆"
+            int nx = (prev.getX() + curr.getX() * 2 + next.getX()) / 4;
+            int nz = (prev.getZ() + curr.getZ() * 2 + next.getZ()) / 4;
+            
+            relaxed.add(new BlockPos(nx, curr.getY(), nz));
+        }
+        
+        relaxed.add(nodes.get(nodes.size() - 1)); // 终点不动
+        return relaxed;
     }
 }
