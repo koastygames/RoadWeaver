@@ -25,14 +25,8 @@ public final class ThreadPoolManager {
 
     public static synchronized void onServerStarted(MinecraftServer server) {
         EPOCH.incrementAndGet();
-        // 计算池: CPU-1
-        int computeThreads;
-        try {
-            int cores = Runtime.getRuntime().availableProcessors();
-            computeThreads = Math.max(1, cores - 1);
-        } catch (Throwable t) {
-            computeThreads = 1;
-        }
+        // 计算池: 从配置（0=自动，自动模式为 CPU-1）
+        int computeThreads = resolveComputeThreadsFromConfig();
         if (COMPUTE_EXEC != null && !COMPUTE_EXEC.isShutdown() && !COMPUTE_EXEC.isTerminated()) {
             try { COMPUTE_EXEC.shutdownNow(); } catch (Throwable ignored) {}
         }
@@ -66,18 +60,26 @@ public final class ThreadPoolManager {
         GENERATION_EXEC = Executors.newFixedThreadPool(genThreads, namedFactory("RW-Gen"));
     }
 
+    // 计算池在运行时动态调整
+    public static synchronized void resizeComputePool(int threads) {
+        int computeThreads;
+        if (threads <= 0) {
+            computeThreads = resolveComputeThreadsFromConfig();
+        } else {
+            computeThreads = Math.max(1, threads);
+        }
+        if (COMPUTE_EXEC != null && !COMPUTE_EXEC.isShutdown() && !COMPUTE_EXEC.isTerminated()) {
+            try { COMPUTE_EXEC.shutdownNow(); } catch (Throwable ignored) {}
+        }
+        COMPUTE_EXEC = Executors.newFixedThreadPool(computeThreads, namedFactory("RW-Compute"));
+    }
+
     public static ExecutorService computeExecutor() {
         ExecutorService e = COMPUTE_EXEC;
         if (e == null || e.isShutdown() || e.isTerminated()) {
             synchronized (ThreadPoolManager.class) {
                 if (COMPUTE_EXEC == null || COMPUTE_EXEC.isShutdown() || COMPUTE_EXEC.isTerminated()) {
-                    int computeThreads;
-                    try {
-                        int cores = Runtime.getRuntime().availableProcessors();
-                        computeThreads = Math.max(1, cores - 1);
-                    } catch (Throwable t) {
-                        computeThreads = 1;
-                    }
+                    int computeThreads = resolveComputeThreadsFromConfig();
                     COMPUTE_EXEC = Executors.newFixedThreadPool(computeThreads, namedFactory("RW-Compute"));
                 }
                 e = COMPUTE_EXEC;
@@ -106,5 +108,22 @@ public final class ThreadPoolManager {
 
     public static boolean isEpoch(long epoch) {
         return EPOCH.get() == epoch;
+    }
+
+    // 从配置解析计算线程数，0=自动（CPU-1），异常时回退为1
+    private static int resolveComputeThreadsFromConfig() {
+        int configured = 0;
+        try {
+            configured = ConfigService.get().computeThreads();
+        } catch (Throwable ignored) {}
+        if (configured > 0) {
+            return Math.max(1, configured);
+        }
+        try {
+            int cores = Runtime.getRuntime().availableProcessors();
+            return Math.max(1, cores - 1);
+        } catch (Throwable t) {
+            return 1;
+        }
     }
 }

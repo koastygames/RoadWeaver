@@ -35,6 +35,7 @@ public final class ModConfig {
     private boolean placeWaypoints;
     private int averagingRadius;
     private int generationThreads;
+    private int computeThreads; // 计算线程池大小（0=自动，>0=固定值）
     private int initialGenerationThreads; // 初始生成专用线程数
     private int maxConcurrentGenerations;
     private int aStarStep; // A* 采样步长（方块）
@@ -98,6 +99,8 @@ public final class ModConfig {
         this.averagingRadius = 8;
 
         this.generationThreads = Math.max(2, Math.min(3, Runtime.getRuntime().availableProcessors()));
+        // computeThreads=0 表示自动模式：在 ThreadPoolManager 中按 CPU-1 计算
+        this.computeThreads = 0;
         this.initialGenerationThreads = 6; // 初始生成默认6个线程
         this.maxConcurrentGenerations = Math.max(1, Math.min(3, this.generationThreads));
         this.aStarStep = 16;
@@ -216,6 +219,12 @@ public final class ModConfig {
             maxSlopeStepPerTwoSegments = 0;// 最小斜坡步数
         if (maxSlopeStepPerTwoSegments > 8)
             maxSlopeStepPerTwoSegments = 8;// 最大斜坡步数
+
+        // computeThreads 校验：0=自动模式，>0 时限制上限，防止配置过大
+        if (computeThreads < 0)
+            computeThreads = 0;
+        if (computeThreads > 128)
+            computeThreads = 128;
 
         if (pathfindingAlgorithm == null) {
             // 迁移旧配置
@@ -373,6 +382,15 @@ public final class ModConfig {
 
     public void setGenerationThreads(int v) {
         this.generationThreads = v;
+    }
+
+    // 计算线程池线程数（0=自动，>0=固定值）
+    public int computeThreads() {
+        return computeThreads;
+    }
+
+    public void setComputeThreads(int v) {
+        this.computeThreads = v;
     }
 
     public int initialGenerationThreads() {

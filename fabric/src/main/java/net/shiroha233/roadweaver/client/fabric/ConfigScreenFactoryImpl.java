@@ -349,6 +349,17 @@ public class ConfigScreenFactoryImpl {
                 genPerformance.addEntry(
                                 eb.startIntField(
                                                 Component.translatable(
+                                                                "text.autoconfig.roadweaver.option.computeThreads"),
+                                                conf.computeThreads())
+                                                .setTooltip(Component.translatable(
+                                                                "text.autoconfig.roadweaver.option.computeThreads.@Tooltip"))
+                                                .setMin(0).setMax(128)
+                                                .setSaveConsumer(conf::setComputeThreads)
+                                                .build());
+
+                genPerformance.addEntry(
+                                eb.startIntField(
+                                                Component.translatable(
                                                                 "text.autoconfig.roadweaver.option.generationThreads"),
                                                 conf.generationThreads())
                                                 .setTooltip(Component.translatable(

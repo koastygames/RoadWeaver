@@ -107,6 +107,9 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                     if (cfg.bridgeEnabled() && isBridge[i]) {
                         BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
                     } else {
+                        // 对非桥梁路段进行地形适配（填土/削坡/边缘平滑）
+                        net.shiroha233.roadweaver.features.roadlogic.surface.RoadTerrainAdapter.adapt(world, middle, roadWidth, baseYForThis, random, cfg);
+                        
                         boolean useSlab = shouldUseSlabForSegment(baseYArr, i, roadType, slabMaterials);
                         SegmentPaver.paveSegment(world, seg, baseYForThis, roadType, materials, slabMaterials, useSlab, random, cfg);
                     }
