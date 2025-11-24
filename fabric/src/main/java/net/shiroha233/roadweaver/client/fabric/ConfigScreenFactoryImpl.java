@@ -343,6 +343,36 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(conf::setBridgeRampSegments)
                                                 .build());
 
+                // 路边结构设置
+                ConfigCategory roadsideStructures = builder.getOrCreateCategory(
+                                Component.translatable("config.roadweaver.category.roadside_structures"));
+                roadsideStructures.addEntry(
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.roadside_structures_enabled"),
+                                                conf.roadsideStructuresEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.roadside_structures_enabled.tooltip"))
+                                                .setSaveConsumer(conf::setRoadsideStructuresEnabled)
+                                                .build());
+                roadsideStructures.addEntry(
+                                eb.startIntField(
+                                                Component.translatable("config.roadweaver.roadside_structure_interval"),
+                                                conf.roadsideStructureInterval())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.roadside_structure_interval.tooltip"))
+                                                .setMin(1).setMax(256)
+                                                .setSaveConsumer(conf::setRoadsideStructureInterval)
+                                                .build());
+                roadsideStructures.addEntry(
+                                eb.startFloatField(
+                                                Component.translatable("config.roadweaver.roadside_structure_chance"),
+                                                conf.roadsideStructureChance())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.roadside_structure_chance.tooltip"))
+                                                .setMin(0f).setMax(1f)
+                                                .setSaveConsumer(conf::setRoadsideStructureChance)
+                                                .build());
+
                 ConfigCategory genPerformance = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.gen_performance"));
 

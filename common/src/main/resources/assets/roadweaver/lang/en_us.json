@@ -162,5 +162,12 @@
   "config.roadweaver.heuristic_weight": "Heuristic Weight",
   "config.roadweaver.heuristic_weight.tooltip": "Weight for the heuristic. Higher values push the path more directly towards the goal.",
   "config.roadweaver.deviation_weight": "Deviation Weight",
-  "config.roadweaver.deviation_weight.tooltip": "Weight for deviation from a straight line. Higher values prefer straighter paths."
+  "config.roadweaver.deviation_weight.tooltip": "Weight for deviation from a straight line. Higher values prefer straighter paths.",
+  "config.roadweaver.category.roadside_structures": "Roadside Structures",
+  "config.roadweaver.roadside_structures_enabled": "Enable Roadside Structures",
+  "config.roadweaver.roadside_structures_enabled.tooltip": "When enabled, small decorative structures (benches, campfires, etc.) may appear along roads.",
+  "config.roadweaver.roadside_structure_interval": "Placement Interval (segments)",
+  "config.roadweaver.roadside_structure_interval.tooltip": "Check for roadside structure placement every N segments. Larger values result in sparser structures.",
+  "config.roadweaver.roadside_structure_chance": "Placement Chance",
+  "config.roadweaver.roadside_structure_chance.tooltip": "Probability (0.0-1.0) of placing a roadside structure when the interval check passes. 0.3 = 30%."
 }

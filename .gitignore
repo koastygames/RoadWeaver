@@ -77,3 +77,4 @@ gradle-local.properties
 **/.gradle/
 .gradle/
 /worldgen-roadweaver-analysis.md
+/nbt

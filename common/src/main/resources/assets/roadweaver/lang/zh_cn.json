@@ -158,5 +158,12 @@
   "config.roadweaver.heuristic_weight": "启发式权重",
   "config.roadweaver.heuristic_weight.tooltip": "启发式算法的权重。数值越高，路径越倾向于直接朝向目标。",
   "config.roadweaver.deviation_weight": "偏离直线权重",
-  "config.roadweaver.deviation_weight.tooltip": "路径偏离起点-终点直线的成本权重。数值越高，越偏好直线路径。"
+  "config.roadweaver.deviation_weight.tooltip": "路径偏离起点-终点直线的成本权重。数值越高，越偏好直线路径。",
+  "config.roadweaver.category.roadside_structures": "路边结构",
+  "config.roadweaver.roadside_structures_enabled": "启用路边结构",
+  "config.roadweaver.roadside_structures_enabled.tooltip": "开启后，道路旁会随机出现小型装饰结构（长椅、营火等）。",
+  "config.roadweaver.roadside_structure_interval": "放置间隔（段）",
+  "config.roadweaver.roadside_structure_interval.tooltip": "每隔 N 个路段检查一次是否放置路边结构。数值越大，结构越稀疏。",
+  "config.roadweaver.roadside_structure_chance": "放置概率",
+  "config.roadweaver.roadside_structure_chance.tooltip": "间隔检查通过时，放置路边结构的概率（0.0-1.0）。0.3 = 30%。"
 }

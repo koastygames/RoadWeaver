@@ -4,6 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
@@ -13,13 +16,28 @@ import net.minecraft.world.phys.AABB;
 import net.shiroha233.roadweaver.structures.api.BlendProfile;
 import net.shiroha233.roadweaver.structures.api.StructureBlueprint;
 import net.shiroha233.roadweaver.structures.model.StructureInstance;
-import net.shiroha233.roadweaver.structures.terrain.NoiseTerracePlacer;
+import net.shiroha233.roadweaver.structures.roadside.BeardedTerracePlacer;
 
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * 结构放置统一入口
+ * 
+ * 所有结构放置都应通过此类，内部自动处理地形托盘。
+ * 
+ * 提供两种放置模式：
+ * 1. place() - 完整模式，需要 StructureBlueprint，返回 StructureInstance
+ * 2. placeSimple() - 轻量模式，只需模板 ID，返回是否成功
+ * 
+ * 地形托盘由 BeardedTerracePlacer 处理，调用方无需关心。
+ */
 public final class StructurePlacer {
     private StructurePlacer() {}
+    
+    // 默认地形托盘参数
+    private static final int DEFAULT_TERRACE_BUFFER = 2;      // 结构周围缓冲区
+    private static final int DEFAULT_TERRACE_TRANSITION = 4;  // 平滑过渡区宽度
 
     public static StructureInstance place(ServerLevel level, StructureBlueprint bp, ResourceLocation variantTemplateId,
                                           BlockPos anchor, Rotation rotation, Mirror mirror, AABB preBounds, BlendProfile blend) {
@@ -45,7 +63,8 @@ public final class StructurePlacer {
         BlockPos max = anchor.offset(size.getX() - 1, size.getY() - 1, size.getZ() - 1);
         AABB bounds = new AABB(min, max);
 
-        // 使用噪声生成圆形碗状托盘，自然融入地形
+        // 使用新的碗状地形托盘算法，自然融入地形
+        // BeardedTerracePlacer 使用 smoothstep 函数实现平滑过渡，并自动修复暴露的泥土
         if (blend != null) {
             int centerX = (min.getX() + max.getX()) / 2;
             int centerZ = (min.getZ() + max.getZ()) / 2;
@@ -58,8 +77,8 @@ public final class StructurePlacer {
             // 外环：内环 + 平滑过渡区（8-12格）
             int outerRadius = innerRadius + Math.max(8, blend.ringOuter() - blend.ringInner());
             
-            NoiseTerracePlacer.buildNoisyTerrace(level, centerX, centerZ, targetY, 
-                                                  innerRadius, outerRadius, level.getRandom());
+            BeardedTerracePlacer.buildTerraceForLargeStructure(level, centerX, centerZ, targetY, 
+                                                                innerRadius, outerRadius, level.getRandom());
         }
 
         // 放置模板
@@ -84,5 +103,135 @@ public final class StructurePlacer {
         };
     }
 
-    // 旧的托盘系统方法已移除，现使用 NoiseTerracePlacer 生成自然融入的圆形碗状托盘
+    // ==================== 轻量级放置方法（用于路边结构等） ====================
+    
+    /**
+     * 轻量级结构放置（用于 Feature 阶段，如路边结构）
+     * 
+     * @param world       WorldGenLevel
+     * @param server      ServerLevel（用于获取模板管理器）
+     * @param templateId  模板 ID
+     * @param anchor      放置锚点
+     * @param rotation    旋转
+     * @param withTerrace 是否生成地形托盘
+     * @param noBasement  结构是否不带底座（影响地形高度计算）
+     * @param random      随机源
+     * @return 是否成功放置
+     */
+    public static boolean placeSimple(WorldGenLevel world,
+                                       ServerLevel server,
+                                       ResourceLocation templateId,
+                                       BlockPos anchor,
+                                       Rotation rotation,
+                                       boolean withTerrace,
+                                       boolean noBasement,
+                                       RandomSource random) {
+        // 获取模板
+        StructureTemplateManager mgr = server.getStructureManager();
+        Optional<StructureTemplate> opt = loadTemplate(mgr, templateId);
+        if (opt.isEmpty()) {
+            return false;
+        }
+        
+        StructureTemplate tpl = opt.get();
+        Vec3i size = tpl.getSize(rotation);
+        
+        // 生成地形托盘
+        if (withTerrace) {
+            // 对于不带底座的结构，地面应在 anchor.Y - 1
+            int targetY = noBasement ? anchor.getY() - 1 : anchor.getY();
+            buildTerraceInternal(world, anchor, size, targetY, random);
+        }
+        
+        // 放置模板
+        StructurePlaceSettings settings = new StructurePlaceSettings()
+                .setRotation(rotation)
+                .setMirror(Mirror.NONE)
+                .setIgnoreEntities(false);
+        tpl.placeInWorld(world, anchor, anchor, settings, random, 2);
+        
+        return true;
+    }
+    
+    /**
+     * 轻量级结构放置（ServerLevel 版本，用于运行时放置）
+     */
+    public static boolean placeSimple(ServerLevel level,
+                                       ResourceLocation templateId,
+                                       BlockPos anchor,
+                                       Rotation rotation,
+                                       boolean withTerrace,
+                                       boolean noBasement) {
+        StructureTemplateManager mgr = level.getStructureManager();
+        Optional<StructureTemplate> opt = loadTemplate(mgr, templateId);
+        if (opt.isEmpty()) {
+            return false;
+        }
+        
+        StructureTemplate tpl = opt.get();
+        Vec3i size = tpl.getSize(rotation);
+        
+        if (withTerrace) {
+            int targetY = noBasement ? anchor.getY() - 1 : anchor.getY();
+            buildTerraceInternal(level, anchor, size, targetY, level.getRandom());
+        }
+        
+        StructurePlaceSettings settings = new StructurePlaceSettings()
+                .setRotation(rotation)
+                .setMirror(Mirror.NONE)
+                .setIgnoreEntities(false);
+        tpl.placeInWorld(level, anchor, anchor, settings, level.getRandom(), 2);
+        
+        return true;
+    }
+    
+    // ==================== 内部工具方法 ====================
+    
+    /**
+     * 加载模板（尝试多种路径格式）
+     */
+    private static Optional<StructureTemplate> loadTemplate(StructureTemplateManager mgr, ResourceLocation templateId) {
+        // 尝试原始 ID
+        Optional<StructureTemplate> opt = mgr.get(templateId);
+        if (opt.isPresent()) {
+            return opt;
+        }
+        
+        // 尝试添加 structures/ 前缀
+        ResourceLocation altId = new ResourceLocation(templateId.getNamespace(), "structures/" + templateId.getPath());
+        opt = mgr.get(altId);
+        if (opt.isPresent()) {
+            return opt;
+        }
+        
+        // 尝试移除 structures/ 前缀
+        String path = templateId.getPath();
+        if (path.startsWith("structures/")) {
+            ResourceLocation cleanId = new ResourceLocation(templateId.getNamespace(), path.substring("structures/".length()));
+            return mgr.get(cleanId);
+        }
+        
+        return Optional.empty();
+    }
+    
+    /**
+     * 内部地形托盘生成（WorldGenLevel 版本）
+     */
+    private static void buildTerraceInternal(WorldGenLevel world, BlockPos anchor, Vec3i size, int targetY, RandomSource random) {
+        BeardedTerracePlacer.buildTerrace(world, new BlockPos(anchor.getX(), targetY + 1, anchor.getZ()), size, random);
+    }
+    
+    /**
+     * 内部地形托盘生成（LevelAccessor 版本）
+     */
+    private static void buildTerraceInternal(LevelAccessor level, BlockPos anchor, Vec3i size, int targetY, RandomSource random) {
+        int centerX = anchor.getX() + size.getX() / 2;
+        int centerZ = anchor.getZ() + size.getZ() / 2;
+        int structureRadius = Math.max(size.getX(), size.getZ()) / 2;
+        int innerRadius = structureRadius + DEFAULT_TERRACE_BUFFER;
+        int outerRadius = innerRadius + DEFAULT_TERRACE_TRANSITION;
+        
+        BeardedTerracePlacer.buildTerraceForLargeStructure(level, centerX, centerZ, targetY, 
+                                                            innerRadius, outerRadius, random);
+    }
 }

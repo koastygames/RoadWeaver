@@ -66,6 +66,11 @@ public final class ModConfig {
     private boolean bridgeKeepLamps;
     private int bridgeRampSegments;
 
+    // 路边结构配置
+    private boolean roadsideStructuresEnabled;
+    private int roadsideStructureInterval;
+    private float roadsideStructureChance;
+
     // A* 寻路成本权重
     private double orthoStepCost;
     private double diagStepCost;
@@ -131,6 +136,11 @@ public final class ModConfig {
         this.bridgePierMaxHeight = 20;
         this.bridgeKeepLamps = true;
         this.bridgeRampSegments = 4;
+
+        // 路边结构默认值
+        this.roadsideStructuresEnabled = true;
+        this.roadsideStructureInterval = 48;  // 每 48 个路段检查一次
+        this.roadsideStructureChance = 0.3f;  // 30% 概率放置
 
         // A* 寻路成本权重
         this.orthoStepCost = 1.0;
@@ -306,6 +316,16 @@ public final class ModConfig {
             heuristicWeight = 0;
         if (deviationWeight < 0)
             deviationWeight = 0;
+
+        // 路边结构配置校验
+        if (roadsideStructureInterval < 1)
+            roadsideStructureInterval = 1;
+        if (roadsideStructureInterval > 256)
+            roadsideStructureInterval = 256;
+        if (roadsideStructureChance < 0f)
+            roadsideStructureChance = 0f;
+        if (roadsideStructureChance > 1f)
+            roadsideStructureChance = 1f;
     }
 
     // 初始规划半径
@@ -686,5 +706,30 @@ public final class ModConfig {
 
     public void setDeviationWeight(double v) {
         this.deviationWeight = v;
+    }
+
+    // 路边结构配置存取
+    public boolean roadsideStructuresEnabled() {
+        return roadsideStructuresEnabled;
+    }
+
+    public void setRoadsideStructuresEnabled(boolean v) {
+        this.roadsideStructuresEnabled = v;
+    }
+
+    public int roadsideStructureInterval() {
+        return roadsideStructureInterval;
+    }
+
+    public void setRoadsideStructureInterval(int v) {
+        this.roadsideStructureInterval = v;
+    }
+
+    public float roadsideStructureChance() {
+        return roadsideStructureChance;
+    }
+
+    public void setRoadsideStructureChance(float v) {
+        this.roadsideStructureChance = v;
     }
 }

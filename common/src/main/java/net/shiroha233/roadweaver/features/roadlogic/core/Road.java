@@ -49,8 +49,10 @@ public final class Road {
             materials = java.util.List.of(Blocks.DIRT_PATH.defaultBlockState(), Blocks.GRAVEL.defaultBlockState());
         }
 
-        BlockPos start = connection.from();
-        BlockPos end = connection.to();
+        BlockPos rawStart = connection.from();
+        BlockPos rawEnd = connection.to();
+        BlockPos start = StructureRoadOffsetService.adjustEndpoint(level, rawStart, rawEnd);
+        BlockPos end = StructureRoadOffsetService.adjustEndpoint(level, rawEnd, rawStart);
         TerrainSamplingCache cache = new TerrainSamplingCache();
         List<Records.RoadSegmentPlacement> segments = RoadPathCalculator.calculateAStarRoadPath(start, end, width, level, maxSteps, cache);
         if (segments == null || segments.size() < 5) return;
