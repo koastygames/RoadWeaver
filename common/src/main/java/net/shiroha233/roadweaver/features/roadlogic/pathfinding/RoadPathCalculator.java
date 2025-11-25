@@ -128,15 +128,28 @@ public final class RoadPathCalculator {
             centers.add(seg.middlePos());
         }
 
+        // 读取配置：最小水深阈值
+        int minWaterDepth = ConfigService.get().bridgeMinWaterDepth();
+        int sea = level.getSeaLevel();
+
         boolean inWater = false;
         int waterStart = -1;
         for (int i = 0; i < centers.size(); i++) {
             BlockPos p = centers.get(i);
-            boolean water = isColumnWater(cache, p.getX(), p.getZ(), level);
+            // 检测是否是水体且水深达到阈值
+            boolean isWater = isColumnWater(cache, p.getX(), p.getZ(), level);
+            int waterDepth = 0;
+            if (isWater) {
+                int oceanFloor = oceanFloorSampler(cache, p.getX(), p.getZ(), level);
+                waterDepth = Math.max(0, sea - oceanFloor);
+            }
+            boolean water = isWater && waterDepth >= minWaterDepth;
+            
             if (water && !inWater) {
                 inWater = true;
                 waterStart = i;
             } else if (!water && inWater) {
+                // 离开水域，创建桥梁跨度
                 int startIdx = Math.max(0, waterStart - 1);
                 int endIdx = i;
                 BlockPos start = centers.get(startIdx);
@@ -145,6 +158,13 @@ public final class RoadPathCalculator {
                 inWater = false;
                 waterStart = -1;
             }
+        }
+        // 修复：如果道路在水中结束（最后一段仍在水上），需要补上这个 span
+        if (inWater && waterStart >= 0) {
+            int startIdx = Math.max(0, waterStart - 1);
+            BlockPos start = centers.get(startIdx);
+            BlockPos end = centers.get(centers.size() - 1);
+            spans.add(new Records.RoadSpan(start, end, Records.SpanType.BRIDGE));
         }
 
         final int SLOPE_ABS_THRESHOLD = 4;

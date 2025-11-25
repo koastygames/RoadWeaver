@@ -95,11 +95,16 @@ public final class BridgeSegmentPlanner {
                         f = Math.max(0.0, Math.min(1.0, f));
                         int rampBaseY = baseYForThis;
                         if (baseYArr != null && baseYArr.length > 0) {
+                            // 修复：坡道起点应该取桥梁区间外的点，确保与普通道路高度对接
+                            // r[0]-1 是桥梁入口前的最后一个普通路段
+                            // r[1]+1 是桥梁出口后的第一个普通路段
                             if (dStart < rampN) {
-                                int idx = Math.max(0, Math.min(baseYArr.length - 1, r[0]));
+                                int idx = Math.max(0, r[0] - 1);
+                                idx = Math.min(baseYArr.length - 1, idx);
                                 rampBaseY = baseYArr[idx];
                             } else {
-                                int idx = Math.max(0, Math.min(baseYArr.length - 1, r[1]));
+                                int idx = Math.min(baseYArr.length - 1, r[1] + 1);
+                                idx = Math.max(0, idx);
                                 rampBaseY = baseYArr[idx];
                             }
                         }

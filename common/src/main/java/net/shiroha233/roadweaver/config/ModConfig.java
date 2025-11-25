@@ -65,11 +65,17 @@ public final class ModConfig {
     private int bridgePierMaxHeight;
     private boolean bridgeKeepLamps;
     private int bridgeRampSegments;
+    private int bridgeMinWaterDepth;   // 最小水深，低于此值不建桥
+    private int bridgeMinLength;       // 最小桥梁长度（段数），太短的桥跳过
+    private int bridgeMergeGap;        // 桥梁区间合并间隔，间隔小于此值的区间合并
 
     // 路边结构配置
     private boolean roadsideStructuresEnabled;
     private int roadsideStructureInterval;
     private float roadsideStructureChance;
+
+    // 结构距离控制
+    private int structureRoadOffset; // 道路端点距结构中心的缩进距离（方块）
 
     // A* 寻路成本权重
     private double orthoStepCost;
@@ -136,11 +142,17 @@ public final class ModConfig {
         this.bridgePierMaxHeight = 20;
         this.bridgeKeepLamps = true;
         this.bridgeRampSegments = 4;
+        this.bridgeMinWaterDepth = 2;   // 水深至少2格才建桥
+        this.bridgeMinLength = 5;       // 桥至少5段才建，避免小水坑
+        this.bridgeMergeGap = 8;        // 间隔小于8段的桥梁区间合并
 
         // 路边结构默认值
         this.roadsideStructuresEnabled = true;
         this.roadsideStructureInterval = 48;  // 每 48 个路段检查一次
         this.roadsideStructureChance = 0.3f;  // 30% 概率放置
+
+        // 结构距离控制默认值
+        this.structureRoadOffset = 60; // 道路端点默认缩进 60 格
 
         // A* 寻路成本权重
         this.orthoStepCost = 1.0;
@@ -326,6 +338,12 @@ public final class ModConfig {
             roadsideStructureChance = 0f;
         if (roadsideStructureChance > 1f)
             roadsideStructureChance = 1f;
+
+        // 结构距离控制校验
+        if (structureRoadOffset < 0)
+            structureRoadOffset = 0;
+        if (structureRoadOffset > 256)
+            structureRoadOffset = 256;
     }
 
     // 初始规划半径
@@ -635,6 +653,30 @@ public final class ModConfig {
         this.bridgeRampSegments = v;
     }
 
+    public int bridgeMinWaterDepth() {
+        return bridgeMinWaterDepth;
+    }
+
+    public void setBridgeMinWaterDepth(int v) {
+        this.bridgeMinWaterDepth = v;
+    }
+
+    public int bridgeMinLength() {
+        return bridgeMinLength;
+    }
+
+    public void setBridgeMinLength(int v) {
+        this.bridgeMinLength = v;
+    }
+
+    public int bridgeMergeGap() {
+        return bridgeMergeGap;
+    }
+
+    public void setBridgeMergeGap(int v) {
+        this.bridgeMergeGap = v;
+    }
+
     // A* 寻路成本权重
     public double orthoStepCost() {
         return orthoStepCost;
@@ -731,5 +773,14 @@ public final class ModConfig {
 
     public void setRoadsideStructureChance(float v) {
         this.roadsideStructureChance = v;
+    }
+
+    // 结构距离控制存取
+    public int structureRoadOffset() {
+        return structureRoadOffset;
+    }
+
+    public void setStructureRoadOffset(int v) {
+        this.structureRoadOffset = v;
     }
 }

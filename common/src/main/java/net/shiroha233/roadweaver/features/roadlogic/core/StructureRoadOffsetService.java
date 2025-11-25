@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.features.roadlogic.core;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.search.StructurePredictor;
 
@@ -25,9 +26,6 @@ public final class StructureRoadOffsetService {
         OTHER,
         UNKNOWN
     }
-
-    // 村庄默认缩进：距离结构中心约 60 格以内不直接通到中心
-    private static final int VILLAGE_OFFSET_BLOCKS = 60;
 
     // 当坐标与预测结构点不完全重合时，允许的匹配容差（半径，单位：方块）
     private static final int MATCH_TOLERANCE_BLOCKS = 16;
@@ -61,8 +59,10 @@ public final class StructureRoadOffsetService {
 
     private static int getOffsetBlocksForEndpoint(ServerLevel level, BlockPos endpoint) {
         StructureCategory cat = detectCategory(level, endpoint);
+        // 从配置读取结构缩进距离（方块）
+        int configOffset = ConfigService.get().structureRoadOffset();
         return switch (cat) {
-            case VILLAGE -> VILLAGE_OFFSET_BLOCKS;
+            case VILLAGE -> configOffset;
             default -> 0;
         };
     }

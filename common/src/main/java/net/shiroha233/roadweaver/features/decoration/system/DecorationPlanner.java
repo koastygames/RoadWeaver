@@ -20,7 +20,6 @@ public final class DecorationPlanner {
 
     public enum Mode { ARTIFICIAL, NATURAL }
 
-    private static final int SIGN_INDEX_OFFSET = 65;
     private static final int SIDE_OFFSET = 2;
 
     public static void placeOnSurface(WorldGenLevel world, BlockPos placePos, List<BlockState> material, RandomSource random, ModConfig cfg, Mode mode) {
@@ -49,8 +48,14 @@ public final class DecorationPlanner {
         int halfWidth = Math.max(1, roadWidth / 2);
         int sideOffset = Math.max(SIDE_OFFSET, halfWidth + 1);
 
-        boolean isStart = (segmentIndex == SIGN_INDEX_OFFSET);
-        if (segmentIndex == SIGN_INDEX_OFFSET || segmentIndex == middlePositions.size() - SIGN_INDEX_OFFSET) {
+        // 只在离路口最近的可处理路段放置路牌
+        // 起点牌：segmentIndex == 8（第一个被处理的路段）
+        // 终点牌：segmentIndex == middlePositions.size() - 10（倒数第 8 段附近）
+        boolean isStartSign = (segmentIndex == 8);
+        boolean isEndSign = (segmentIndex == middlePositions.size() - 10);
+        
+        if (isStartSign || isEndSign) {
+            boolean isStart = isStartSign;
             BlockPos shifted = isStart ? placePos.offset(ortho.getX() * sideOffset, 0, ortho.getZ() * sideOffset)
                     : placePos.offset(-ortho.getX() * sideOffset, 0, -ortho.getZ() * sideOffset);
             int dist = computeApproxDistanceMeters(world, shifted, isStart, middlePositions);

@@ -53,6 +53,8 @@
   "config.roadweaver.slope_limit_enabled.tooltip": "开启后，道路与桥梁高度会根据“每两段最大高度步进”进行限坡平滑；关闭后允许更陡的高度变化。",
   "config.roadweaver.road_width": "道路宽度",
   "config.roadweaver.road_width.tooltip": "指定道路宽度（方块）",
+  "config.roadweaver.structure_road_offset": "道路-结构距离",
+  "config.roadweaver.structure_road_offset.tooltip": "道路端点距结构中心的缩进距离（方块）。道路不会直接连到村庄中心，而是在此距离外落地。",
   "config.roadweaver.lamp_interval": "路灯间隔（段）",
   "config.roadweaver.lamp_interval.tooltip": "指定路灯间隔（段）",
   "config.roadweaver.road_clear_height": "道路清障高度（方块）",
@@ -165,5 +167,11 @@
   "config.roadweaver.roadside_structure_interval": "放置间隔（段）",
   "config.roadweaver.roadside_structure_interval.tooltip": "每隔 N 个路段检查一次是否放置路边结构。数值越大，结构越稀疏。",
   "config.roadweaver.roadside_structure_chance": "放置概率",
-  "config.roadweaver.roadside_structure_chance.tooltip": "间隔检查通过时，放置路边结构的概率（0.0-1.0）。0.3 = 30%。"
+  "config.roadweaver.roadside_structure_chance.tooltip": "间隔检查通过时，放置路边结构的概率（0.0-1.0）。0.3 = 30%。",
+  "config.roadweaver.bridge_min_water_depth": "桥梁最小水深",
+  "config.roadweaver.bridge_min_water_depth.tooltip": "只有当水深（海平面高度减去海底高度）不少于该值时，才会考虑在其上架桥，用于忽略浅水坑。",
+  "config.roadweaver.bridge_min_length": "最小桥长（段）",
+  "config.roadweaver.bridge_min_length.tooltip": "桥梁跨度（按道路段计）至少达到该长度才会实际生成，否则视为普通地形处理。",
+  "config.roadweaver.bridge_merge_gap": "桥梁区间合并间隔（段）",
+  "config.roadweaver.bridge_merge_gap.tooltip": "若两个桥梁区间之间的空档不超过该段数，则自动合并为一整段桥梁，以避免在小沙洲/小岛上频繁起伏。"
 }

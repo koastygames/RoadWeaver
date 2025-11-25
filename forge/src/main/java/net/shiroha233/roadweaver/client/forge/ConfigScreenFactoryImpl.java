@@ -178,6 +178,16 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(conf::setRoadWidth)
                                                 .build());
 
+                // 结构距离控制
+                roadGen.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.structure_road_offset"),
+                                                conf.structureRoadOffset())
+                                                .setTooltip(Component
+                                                                .translatable("config.roadweaver.structure_road_offset.tooltip"))
+                                                .setMin(0).setMax(256)
+                                                .setSaveConsumer(conf::setStructureRoadOffset)
+                                                .build());
+
                 // 新增：路灯间隔（段）
                 roadGen.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.lamp_interval"),
@@ -344,6 +354,30 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.bridge_ramp_segments.tooltip"))
                                                 .setMin(0).setMax(12)
                                                 .setSaveConsumer(conf::setBridgeRampSegments)
+                                                .build());
+                bridge.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.bridge_min_water_depth"),
+                                                conf.bridgeMinWaterDepth())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.bridge_min_water_depth.tooltip"))
+                                                .setMin(1).setMax(10)
+                                                .setSaveConsumer(conf::setBridgeMinWaterDepth)
+                                                .build());
+                bridge.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.bridge_min_length"),
+                                                conf.bridgeMinLength())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.bridge_min_length.tooltip"))
+                                                .setMin(1).setMax(32)
+                                                .setSaveConsumer(conf::setBridgeMinLength)
+                                                .build());
+                bridge.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.bridge_merge_gap"),
+                                                conf.bridgeMergeGap())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.bridge_merge_gap.tooltip"))
+                                                .setMin(1).setMax(32)
+                                                .setSaveConsumer(conf::setBridgeMergeGap)
                                                 .build());
 
                 // 路边结构设置

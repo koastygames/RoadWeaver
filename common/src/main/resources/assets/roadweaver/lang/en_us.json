@@ -53,12 +53,13 @@
   "config.roadweaver.slope_limit_enabled.tooltip": "When enabled, apply slope limiting based on the max slope step setting for road and bridge height profiles. When disabled, roads may have sharper height changes.",
   "config.roadweaver.road_width": "Road Width",
   "config.roadweaver.road_width.tooltip": "Specify road width (in blocks).",
+  "config.roadweaver.structure_road_offset": "Road-Structure Distance",
+  "config.roadweaver.structure_road_offset.tooltip": "Distance (in blocks) from road endpoints to structure centers. Roads will start/end this far from village centers.",
   "config.roadweaver.lamp_interval": "Lamp Interval (segments)",
   "config.roadweaver.lamp_interval.tooltip": "Place a lamp/marker every N segments; larger values place fewer lamps.",
   "config.roadweaver.road_clear_height": "Road Clear Height (blocks)",
   "config.roadweaver.road_clear_height.tooltip": "Vertical space cleared above the road surface in non-tunnel mode. Higher values carve more headroom but may cut into nearby terrain or structures.",
   "config.roadweaver.causeway_max_depth": "Max Backfill Depth (blocks)",
-  "config.roadweaver.causeway_max_depth.tooltip": "When ground below is not sturdy, fill downward up to this many layers (0-12). Set 0 to disable backfill.",
   "config.roadweaver.remove_whole_tree_on_path": "Remove Whole Tree On Path",
   "config.roadweaver.remove_whole_tree_on_path.tooltip": "When the road column hits logs, remove the entire contiguous tree (logs/leaves) within limits to avoid floating trees.",
   "config.roadweaver.tree_removal_max_radius": "Tree Removal Max Radius",
@@ -169,5 +170,11 @@
   "config.roadweaver.roadside_structure_interval": "Placement Interval (segments)",
   "config.roadweaver.roadside_structure_interval.tooltip": "Check for roadside structure placement every N segments. Larger values result in sparser structures.",
   "config.roadweaver.roadside_structure_chance": "Placement Chance",
-  "config.roadweaver.roadside_structure_chance.tooltip": "Probability (0.0-1.0) of placing a roadside structure when the interval check passes. 0.3 = 30%."
+  "config.roadweaver.roadside_structure_chance.tooltip": "Probability (0.0-1.0) of placing a roadside structure when the interval check passes. 0.3 = 30%.",
+  "config.roadweaver.bridge_min_water_depth": "Minimum Water Depth for Bridges",
+  "config.roadweaver.bridge_min_water_depth.tooltip": "Only build bridges over water columns whose depth (sea level minus ocean floor) is at least this many blocks. Helps ignore shallow puddles.",
+  "config.roadweaver.bridge_min_length": "Minimum Bridge Length (segments)",
+  "config.roadweaver.bridge_min_length.tooltip": "Minimum span length (in road segments) required to actually place a bridge. Shorter water runs are treated as normal terrain.",
+  "config.roadweaver.bridge_merge_gap": "Bridge Span Merge Gap (segments)",
+  "config.roadweaver.bridge_merge_gap.tooltip": "Merge nearby bridge spans whose gap is at most this many segments to avoid frequent up-and-down decks over small islands or sand bars."
 }

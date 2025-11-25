@@ -96,19 +96,28 @@ public final class TerrainSamplingCache {
         if (cached != null)
             return cached;
 
-        // 修正：不再查询 FluidState，而是通过比较地形高度和海平面来推断
-        // 这种方法线程安全，且不需要加载区块
-        int of = oceanFloor(level, x, z); // OCEAN_FLOOR
+        // 使用多种方式检测水体，解决以下问题：
+        // 1. 浅滩(beach)不在 IS_RIVER/IS_OCEAN 群系标签中，但实际有水
+        // 2. 群系边界处噪声采样可能判断失误，导致跨海不建桥
+
+        int of = oceanFloor(level, x, z);  // OCEAN_FLOOR_WG：海底/河床高度
+        int h = height(level, x, z);        // MOTION_BLOCKING_NO_LEAVES：表面高度
         int sea = level.getSeaLevel();
 
-        // 如果“海底高度”远低于“海平面”，且“表面高度”接近海平面，通常意味着这是水体
-        // 或者简单地：如果 oceanFloor < seaLevel，且该位置属于水生群系，则基本是水
-
+        // 方法1：群系判断（原有逻辑）
+        // 适用于标准的河流/海洋群系
         boolean isWaterBiome = isWaterLike(level, x, z);
-        boolean isBelowSea = of < sea;
+        boolean biomeWater = isWaterBiome && of < sea;
 
-        // 逻辑：如果是海洋/河流群系，且海底在海平面下，那就是水
-        boolean res = isWaterBiome && isBelowSea;
+        // 方法2：高度差判断（新增逻辑）
+        // 核心原理：如果表面高度接近海平面，但海底明显更低，说明中间是水
+        // - h <= sea + 1：表面在海平面或略高（水面通常在 seaLevel）
+        // - of < h - 1：海底比表面低至少2格，说明有水深
+        // 这样可以检测到：浅滩、沼泽边缘、甚至非标准群系中的水体
+        boolean heightWater = (h <= sea + 1) && (of < h - 1);
+
+        // 任一方法检测到水体即可
+        boolean res = biomeWater || heightWater;
 
         columnWaterCache.put(key, res);
         return res;
