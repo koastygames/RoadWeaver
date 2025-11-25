@@ -182,6 +182,10 @@ public final class InitialGenManager {
                 }
             }
         }
+        // 确保道路数据刷新到存储，以便树木生成时可以查询
+        net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage.flushAll(level);
+        // 清除道路位置查询缓存，避免过时缓存导致树木阻止失效
+        net.shiroha233.roadweaver.persistence.RoadPositionQuery.clearCache(level);
         active = false;
     }
 

@@ -244,46 +244,13 @@ public class ConfigScreenFactoryImpl {
                                                 .setMin(0).setMax(12)
                                                 .setSaveConsumer(conf::setCausewayMaxDepth)
                                                 .build());
-
                 genSurface.addEntry(
                                 eb.startBooleanToggle(
-                                                Component.translatable("config.roadweaver.remove_whole_tree_on_path"),
-                                                conf.removeWholeTreeOnPath())
+                                                Component.translatable("config.roadweaver.prevent_trees_on_road"),
+                                                conf.preventTreesOnRoad())
                                                 .setTooltip(Component.translatable(
-                                                                "config.roadweaver.remove_whole_tree_on_path.tooltip"))
-                                                .setSaveConsumer(conf::setRemoveWholeTreeOnPath)
-                                                .build());
-                genSurface.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.tree_removal_max_radius"),
-                                                conf.treeRemovalMaxRadius())
-                                                .setTooltip(Component.translatable(
-                                                                "config.roadweaver.tree_removal_max_radius.tooltip"))
-                                                .setMin(2).setMax(12)
-                                                .setSaveConsumer(conf::setTreeRemovalMaxRadius)
-                                                .build());
-                genSurface.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.tree_removal_max_height"),
-                                                conf.treeRemovalMaxHeight())
-                                                .setTooltip(Component.translatable(
-                                                                "config.roadweaver.tree_removal_max_height.tooltip"))
-                                                .setMin(8).setMax(64)
-                                                .setSaveConsumer(conf::setTreeRemovalMaxHeight)
-                                                .build());
-                genSurface.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.tree_removal_max_blocks"),
-                                                conf.treeRemovalMaxBlocks())
-                                                .setTooltip(Component.translatable(
-                                                                "config.roadweaver.tree_removal_max_blocks.tooltip"))
-                                                .setMin(64).setMax(8192)
-                                                .setSaveConsumer(conf::setTreeRemovalMaxBlocks)
-                                                .build());
-                genSurface.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.tree_leaves_confirm"),
-                                                conf.treeLeavesConfirm())
-                                                .setTooltip(Component.translatable(
-                                                                "config.roadweaver.tree_leaves_confirm.tooltip"))
-                                                .setMin(0).setMax(128)
-                                                .setSaveConsumer(conf::setTreeLeavesConfirm)
+                                                                "config.roadweaver.prevent_trees_on_road.tooltip"))
+                                                .setSaveConsumer(conf::setPreventTreesOnRoad)
                                                 .build());
 
                 // 桥梁设置

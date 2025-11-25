@@ -7,6 +7,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
 
+/**
+ * 路面上方清障器。
+ * 清除路面上方的植被和障碍物，但保留木头和栅栏（防止破坏玩家建筑）。
+ * 注：树木通过 Mixin 在生成阶段就被阻止，此处仅处理残留植被。
+ */
 public final class AboveColumnClearer {
     private AboveColumnClearer() {}
 
@@ -16,41 +21,21 @@ public final class AboveColumnClearer {
         int maxH = tunnel
                 ? Math.max(2, Math.min(16, cfg.tunnelClearHeight()))
                 : Math.max(1, Math.min(16, defaultClear));
-        boolean allowCutLogsInThisColumn = false;
+
         for (int i = 0; i < maxH; i++) {
             BlockPos up = surfacePos.above(i);
             BlockState st = world.getBlockState(up);
             if (st.isAir()) continue;
+
+            // 保留木头和栅栏（防止破坏玩家建筑）
             boolean isLog = st.is(BlockTags.LOGS);
             boolean isFence = st.is(BlockTags.FENCES);
-            boolean isTreeCoreCandidate = isLog
-                    || st.is(Blocks.BAMBOO)
-                    || TreeRemovalUtil.isVineLike(st)
-                    || st.is(Blocks.COCOA)
-                    || TreeRemovalUtil.isMushroomLike(st);
-            if (cfg != null && cfg.removeWholeTreeOnPath() && isTreeCoreCandidate) {
-                if (TreeRemovalUtil.fellTreeAt(world, up, cfg)) {
-                    continue;
-                } else {
-                    if (isLog || TreeRemovalUtil.isMushroomLike(st)) {
-                        allowCutLogsInThisColumn = true;
-                    }
-                }
+            if (isLog || isFence) {
+                break;
             }
-            if (tunnel) {
-                // 隧道模式：允许挖掉除木头/栅栏以外的大部分方块（包括石头、冰等），高度由 tunnelClearHeight 控制
-                if ((!isLog || allowCutLogsInThisColumn) && !isFence) {
-                    world.setBlock(up, Blocks.AIR.defaultBlockState(), 3);
-                } else {
-                    break;
-                }
-            } else {
-                if ((!isLog || allowCutLogsInThisColumn) && !isFence) {
-                    world.setBlock(up, Blocks.AIR.defaultBlockState(), 3);
-                } else {
-                    break;
-                }
-            }
+
+            // 清除其他方块（草、花、藤蔓、雪等）
+            world.setBlock(up, Blocks.AIR.defaultBlockState(), 3);
         }
     }
 }

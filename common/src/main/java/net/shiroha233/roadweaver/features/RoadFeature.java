@@ -121,8 +121,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                 // 对非桥梁路段进行地形适配（填土/削坡/边缘平滑）
                 net.shiroha233.roadweaver.features.roadlogic.surface.RoadTerrainAdapter.adapt(world, middle, roadWidth, baseYForThis, random, cfg);
 
-                boolean useSlab = shouldUseSlabForSegment(baseYArr, i, roadType, slabMaterials);
-                SegmentPaver.paveSegment(world, seg, baseYForThis, roadType, materials, slabMaterials, useSlab, random, cfg);
+                SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials, random, cfg);
             }
 
             if (!isBridge[i] || cfg.bridgeKeepLamps()) {
@@ -150,29 +149,4 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             }
         }
     }
-
-    private static boolean shouldUseSlabForSegment(int[] baseYArr,
-                                                   int index,
-                                                   int roadType,
-                                                   java.util.List<BlockState> slabMaterials) {
-        // 只在人工道路且预设中配置了 slab 材质时考虑使用 slab
-        if (roadType != 0) return false;
-        if (slabMaterials == null || slabMaterials.isEmpty()) return false;
-        if (baseYArr == null) return false;
-        if (index <= 0 || index >= baseYArr.length - 1) return false;
-
-        int cur = baseYArr[index];
-        int prev = baseYArr[index - 1];
-        int next = baseYArr[index + 1];
-
-        // 逻辑：只要当前位置放置半砖（+0.5高度）能缓解一侧的落差（即该侧比当前高），
-        // 且不会导致另一侧“上不来”（即另一侧不比当前低，或者说是下坡/平路），就放置。
-        // 1. 前方有坎 (next > cur)，且后方能走过来 (prev >= cur)
-        boolean helpsNext = (next > cur) && (prev >= cur);
-        // 2. 后方有坎 (prev > cur)，且前方能走回去 (next >= cur) -> 相当于下坡时的缓冲
-        boolean helpsPrev = (prev > cur) && (next >= cur);
-
-        return helpsNext || helpsPrev;
-    }
-
 }
