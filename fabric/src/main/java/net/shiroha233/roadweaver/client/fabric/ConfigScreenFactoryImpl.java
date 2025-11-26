@@ -448,6 +448,14 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(conf::setMaxConcurrentGenerations)
                                                 .build());
 
+                genPerformance.addEntry(
+                                eb.startIntSlider(Component.translatable("config.roadweaver.thread_duty_cycle"),
+                                                conf.threadDutyCycle(), 1, 100)
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.thread_duty_cycle.tooltip"))
+                                                .setSaveConsumer(conf::setThreadDutyCycle)
+                                                .build());
+
                 ConfigCategory pathfindingCosts = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.pathfinding_costs"));
 

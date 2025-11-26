@@ -5,7 +5,6 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -173,7 +172,14 @@ public final class StructurePlacer {
         
         if (withTerrace) {
             int targetY = noBasement ? anchor.getY() - 1 : anchor.getY();
-            buildTerraceInternal(level, anchor, size, targetY, level.getRandom());
+            int centerX = anchor.getX() + size.getX() / 2;
+            int centerZ = anchor.getZ() + size.getZ() / 2;
+            int structureRadius = Math.max(size.getX(), size.getZ()) / 2;
+            int innerRadius = structureRadius + DEFAULT_TERRACE_BUFFER;
+            int outerRadius = innerRadius + DEFAULT_TERRACE_TRANSITION;
+
+            BeardedTerracePlacer.buildTerraceForLargeStructure(level, centerX, centerZ, targetY,
+                    innerRadius, outerRadius, level.getRandom());
         }
         
         StructurePlaceSettings settings = new StructurePlaceSettings()
@@ -219,19 +225,5 @@ public final class StructurePlacer {
      */
     private static void buildTerraceInternal(WorldGenLevel world, BlockPos anchor, Vec3i size, int targetY, RandomSource random) {
         BeardedTerracePlacer.buildTerrace(world, new BlockPos(anchor.getX(), targetY + 1, anchor.getZ()), size, random);
-    }
-    
-    /**
-     * 内部地形托盘生成（LevelAccessor 版本）
-     */
-    private static void buildTerraceInternal(LevelAccessor level, BlockPos anchor, Vec3i size, int targetY, RandomSource random) {
-        int centerX = anchor.getX() + size.getX() / 2;
-        int centerZ = anchor.getZ() + size.getZ() / 2;
-        int structureRadius = Math.max(size.getX(), size.getZ()) / 2;
-        int innerRadius = structureRadius + DEFAULT_TERRACE_BUFFER;
-        int outerRadius = innerRadius + DEFAULT_TERRACE_TRANSITION;
-        
-        BeardedTerracePlacer.buildTerraceForLargeStructure(level, centerX, centerZ, targetY, 
-                                                            innerRadius, outerRadius, random);
     }
 }

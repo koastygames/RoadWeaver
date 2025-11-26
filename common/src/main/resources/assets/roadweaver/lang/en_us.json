@@ -168,5 +168,7 @@
   "config.roadweaver.bridge_min_length": "Minimum Bridge Length (segments)",
   "config.roadweaver.bridge_min_length.tooltip": "Minimum span length (in road segments) required to actually place a bridge. Shorter water runs are treated as normal terrain.",
   "config.roadweaver.bridge_merge_gap": "Bridge Span Merge Gap (segments)",
-  "config.roadweaver.bridge_merge_gap.tooltip": "Merge nearby bridge spans whose gap is at most this many segments to avoid frequent up-and-down decks over small islands or sand bars."
+  "config.roadweaver.bridge_merge_gap.tooltip": "Merge nearby bridge spans whose gap is at most this many segments to avoid frequent up-and-down decks over small islands or sand bars.",
+  "config.roadweaver.thread_duty_cycle": "Thread Duty Cycle (%)",
+  "config.roadweaver.thread_duty_cycle.tooltip": "CPU usage ratio for worker threads (1-100%). 100% = full speed; 50% = work 20ms then rest 20ms, etc. Lower values reduce CPU load but slow down road generation."
 }

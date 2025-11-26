@@ -8,6 +8,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.helpers.Records;
 
 import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.*;
 
@@ -41,7 +42,9 @@ final class BasicAStarPathfinder {
         };
 
         int stepsBudget = Math.max(1, maxSteps);
+        ThreadPoolManager.resetThrottle(); // 重置节流计时器
         while (!openSet.isEmpty() && stepsBudget-- > 0) {
+            ThreadPoolManager.throttle(); // 根据占空比控制CPU使用率
             if (Thread.currentThread().isInterrupted()) {
                 return null;
             }

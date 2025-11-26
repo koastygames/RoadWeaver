@@ -38,6 +38,7 @@ public final class ModConfig {
     private int computeThreads; // 计算线程池大小（0=自动，>0=固定值）
     private int initialGenerationThreads; // 初始生成专用线程数
     private int maxConcurrentGenerations;
+    private int threadDutyCycle; // 线程占空比（1-100%），控制CPU使用率
     private int aStarStep; // A* 采样步长（方块）
     private int aStarMaxSteps; // A* 寻路最大步数上限
     private int causewayMaxDepth;
@@ -110,6 +111,7 @@ public final class ModConfig {
         this.computeThreads = 0;
         this.initialGenerationThreads = 6; // 初始生成默认6个线程
         this.maxConcurrentGenerations = Math.max(1, Math.min(3, this.generationThreads));
+        this.threadDutyCycle = 50; // 默认50%占空比，降低CPU占用
         this.aStarStep = 16;
         this.aStarMaxSteps = 10000;
         this.causewayMaxDepth = 1;
@@ -140,7 +142,7 @@ public final class ModConfig {
 
         // 路边结构默认值
         this.roadsideStructuresEnabled = true;
-        this.roadsideStructureInterval = 48;  // 每 48 个路段检查一次
+        this.roadsideStructureInterval = 128;  // 每 128 个路段检查一次
         this.roadsideStructureChance = 0.3f;  // 30% 概率放置
 
         // 结构距离控制默认值
@@ -239,6 +241,10 @@ public final class ModConfig {
             computeThreads = 0;
         if (computeThreads > 128)
             computeThreads = 128;
+
+        // 线程占空比校验：1-100，0 或异常值回退到 50%（推荐）
+        if (threadDutyCycle < 1 || threadDutyCycle > 100)
+            threadDutyCycle = 50;
 
         if (pathfindingAlgorithm == null) {
             // 迁移旧配置
@@ -362,6 +368,10 @@ public final class ModConfig {
 
     public int maxConcurrentGenerations() { return maxConcurrentGenerations; }
     public void setMaxConcurrentGenerations(int v) { this.maxConcurrentGenerations = v; }
+
+    // 线程占空比（1-100%），用于控制CPU使用率
+    public int threadDutyCycle() { return threadDutyCycle; }
+    public void setThreadDutyCycle(int v) { this.threadDutyCycle = Math.max(1, Math.min(100, v)); }
 
     // A* 采样步长
     public int aStarStep() { return aStarStep; }

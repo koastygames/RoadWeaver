@@ -7,6 +7,7 @@ import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.*;
 
@@ -58,8 +59,10 @@ final class GradientDescentPathfinder {
         // 但为了防止无解时的死循环，还是保留限制
         int stepsBudget = Math.max(5000, maxSteps * 3); 
 
+        ThreadPoolManager.resetThrottle(); // 重置节流计时器
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
+                ThreadPoolManager.throttle(); // 根据占空比控制CPU使用率
                 if (Thread.currentThread().isInterrupted()) return null;
                 
                 Node current = openSet.poll();
