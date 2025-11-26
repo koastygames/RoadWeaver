@@ -51,11 +51,19 @@ public final class Road {
 
         BlockPos rawStart = connection.from();
         BlockPos rawEnd = connection.to();
-        BlockPos start = StructureRoadOffsetService.adjustEndpoint(level, rawStart, rawEnd);
-        BlockPos end = StructureRoadOffsetService.adjustEndpoint(level, rawEnd, rawStart);
+        
+        // 直接用原始端点做 A* 寻路，不预设偏移方向
         TerrainSamplingCache cache = new TerrainSamplingCache();
-        List<Records.RoadSegmentPlacement> segments = RoadPathCalculator.calculateAStarRoadPath(start, end, width, level, maxSteps, cache);
+        List<Records.RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
+                rawStart, rawEnd, width, level, maxSteps, cache);
+        if (rawSegments == null || rawSegments.size() < 5) return;
+        
+        // 寻路完成后，根据实际路径方向裁剪掉进入结构保护区的路段
+        // 这样即使路径从意外方向绕过来，也不会穿过结构
+        List<Records.RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
+                level, rawSegments, rawStart, rawEnd);
         if (segments == null || segments.size() < 5) return;
+        
         List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache);
 
         List<Integer> targetY = computeTargetY(level, segments, spans, cache);

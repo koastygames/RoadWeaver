@@ -53,12 +53,16 @@ public final class RoadPathCalculator {
         return land;
     }
 
-    static int calculateTerrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level) {
+    /**
+     * 计算地形稳定性：检查四个方向的高度差。
+     * 使用 A* 步长采样，确保采样点与邻居网格对齐，提高缓存命中率。
+     */
+    static int calculateTerrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level, int step) {
         int cost = 0;
-        if (Math.abs(heightSampler(cache, pos.getX() + 1, pos.getZ(), level) - y) > 0) cost++;
-        if (Math.abs(heightSampler(cache, pos.getX() - 1, pos.getZ(), level) - y) > 0) cost++;
-        if (Math.abs(heightSampler(cache, pos.getX(), pos.getZ() + 1, level) - y) > 0) cost++;
-        if (Math.abs(heightSampler(cache, pos.getX(), pos.getZ() - 1, level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, pos.getX() + step, pos.getZ(), level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, pos.getX() - step, pos.getZ(), level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, pos.getX(), pos.getZ() + step, level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, pos.getX(), pos.getZ() - step, level) - y) > 0) cost++;
         return cost;
     }
 

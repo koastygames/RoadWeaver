@@ -16,6 +16,7 @@ public final class TerrainSamplingCache {
     private final Map<Long, Boolean> columnWaterCache = new HashMap<>();
     private final Map<Long, Integer> heightCache = new HashMap<>();
     private final Map<Long, Integer> oceanFloorCache = new HashMap<>();
+    private final Map<Long, Holder<Biome>> biomeCache = new HashMap<>();
 
     private static long hashXZ(int x, int z) {
         return ((long) x << 32) | (z & 0xffffffffL);
@@ -124,12 +125,16 @@ public final class TerrainSamplingCache {
     }
 
     Holder<Biome> getBiome(ServerLevel level, int x, int z) {
-        // 使用 BiomeSource 进行噪声采样，不加载区块
+        long key = hashXZ(x, z);
+        Holder<Biome> cached = biomeCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
         var chunkSource = level.getChunkSource();
         var randomState = chunkSource.getGeneratorState().randomState();
         var biomeSource = chunkSource.getGenerator().getBiomeSource();
-        // 注意：getNoiseBiome 需要夸脱坐标 (x >> 2, y >> 2, z >> 2)
-        // 这里取 Y=64 (海平面)
-        return biomeSource.getNoiseBiome(x >> 2, 16, z >> 2, randomState.sampler());
+        Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, 16, z >> 2, randomState.sampler());
+        biomeCache.put(key, biome);
+        return biome;
     }
 }

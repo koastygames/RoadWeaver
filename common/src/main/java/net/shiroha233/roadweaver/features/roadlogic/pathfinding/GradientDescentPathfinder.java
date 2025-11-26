@@ -91,20 +91,10 @@ final class GradientDescentPathfinder {
                     int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
                             || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
                     int elevation = Math.abs(y - current.pos.getY());
-                    
-                    // 中点采样
-                    int midX = (current.pos.getX() + np.getX()) / 2;
-                    int midZ = (current.pos.getZ() + np.getZ()) / 2;
-                    int midY = RoadPathCalculator.heightSampler(cache, midX, midZ, level);
-                    int midDiff = Math.max(Math.abs(midY - current.pos.getY()), Math.abs(midY - y));
-                    double midTerrainPenalty = 0.0;
-                    if (midDiff > 4) {
-                        midTerrainPenalty = midDiff * midDiff * cfg.elevationWeight() * 0.8;
-                    }
 
                     int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
                     double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
-                    int stabilityCost = RoadPathCalculator.calculateTerrainStability(cache, np, y, level);
+                    int stabilityCost = RoadPathCalculator.calculateTerrainStability(cache, np, y, level, d);
                     int sea = level.getSeaLevel();
                     boolean waterColumn = RoadPathCalculator.isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
                     boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
@@ -122,7 +112,6 @@ final class GradientDescentPathfinder {
                     double gCost = current.gCost
                             + stepCost
                             + elevationCost
-                            + midTerrainPenalty
                             + biomeCost * cfg.biomeWeight()
                             + stabilityCost * cfg.stabilityWeight()
                             + waterDepthCost
