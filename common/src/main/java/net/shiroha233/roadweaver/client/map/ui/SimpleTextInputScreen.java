@@ -12,14 +12,20 @@ public class SimpleTextInputScreen extends Screen {
     private final Component titleText;
     private final String initial;
     private final Consumer<String> onSubmit;
+    private final Screen parent;
 
     private EditBox box;
 
     public SimpleTextInputScreen(Component titleText, String initial, Consumer<String> onSubmit) {
+        this(titleText, initial, onSubmit, null);
+    }
+
+    public SimpleTextInputScreen(Component titleText, String initial, Consumer<String> onSubmit, Screen parent) {
         super(titleText);
         this.titleText = titleText;
         this.initial = initial != null ? initial : "";
         this.onSubmit = onSubmit;
+        this.parent = parent;
     }
 
     @Override
@@ -44,11 +50,11 @@ public class SimpleTextInputScreen extends Screen {
 
     private void submit() {
         if (onSubmit != null) onSubmit.accept(box.getValue());
-        Minecraft.getInstance().setScreen(null);
+        Minecraft.getInstance().setScreen(parent);
     }
 
     private void cancel() {
-        Minecraft.getInstance().setScreen(null);
+        Minecraft.getInstance().setScreen(parent);
     }
 
     @Override

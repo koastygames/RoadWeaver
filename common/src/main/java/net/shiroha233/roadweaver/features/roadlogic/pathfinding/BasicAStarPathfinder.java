@@ -42,81 +42,86 @@ final class BasicAStarPathfinder {
         };
 
         int stepsBudget = Math.max(1, maxSteps);
-        ThreadPoolManager.resetThrottle(); // 重置节流计时器
-        while (!openSet.isEmpty() && stepsBudget-- > 0) {
-            ThreadPoolManager.throttle(); // 根据占空比控制CPU使用率
-            if (Thread.currentThread().isInterrupted()) {
-                return null;
-            }
-            Node current = openSet.poll();
-            if (current == null)
-                break;
-
-            if (manhattan2d(current.pos, endGround) < d * 2) {
-                // 找到路径后，委托给 PostProcessor 处理
-                // 先把 Node 链表转成 List<BlockPos>
-                List<BlockPos> rawPath = new ArrayList<>();
-                Node c = current;
-                while (c != null) {
-                    rawPath.add(c.pos);
-                    c = c.parent;
-                }
-                Collections.reverse(rawPath);
-                return PathPostProcessor.process(rawPath, width, level, cache);
-            }
-
-            closed.add(current.pos);
-            allNodes.remove(current.pos);
-
-            for (int[] off : neighborOffsets) {
+        ThreadPoolManager.resetThrottle();
+        try {
+            while (!openSet.isEmpty() && stepsBudget-- > 0) {
+                ThreadPoolManager.throttle();
                 if (Thread.currentThread().isInterrupted()) {
                     return null;
                 }
-                BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
-                int y = RoadPathCalculator.heightSampler(cache, nxz.getX(), nxz.getZ(), level);
-                BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
-                if (closed.contains(np))
-                    continue;
+                Node current = openSet.poll();
+                if (current == null)
+                    break;
 
-                Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
-                int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
-                        || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
-                int elevation = Math.abs(y - current.pos.getY());
+                if (manhattan2d(current.pos, endGround) < d * 2) {
+                    List<BlockPos> rawPath = new ArrayList<>();
+                    Node c = current;
+                    while (c != null) {
+                        rawPath.add(c.pos);
+                        c = c.parent;
+                    }
+                    Collections.reverse(rawPath);
+                    return PathPostProcessor.process(rawPath, width, level, cache);
+                }
 
-                int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
-                double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
-                int stabilityCost = RoadPathCalculator.calculateTerrainStability(cache, np, y, level, d);
-                int sea = level.getSeaLevel();
-                boolean waterColumn = RoadPathCalculator.isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
-                boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
-                int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
-                int waterDepth = Math.max(0, sea - oceanFloor);
-                int waterDepthCost = waterColumn ? waterDepth * cfg.waterDepthWeight() : 0;
-                int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
+                closed.add(current.pos);
+                allNodes.remove(current.pos);
 
-                double deviation = deviation2d(np, startGround, endGround);
-                double deviationCost = deviation * cfg.deviationWeight() / Math.max(1.0, d);
+                for (int[] off : neighborOffsets) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        return null;
+                    }
+                    BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
+                    int y = RoadPathCalculator.heightSampler(cache, nxz.getX(), nxz.getZ(), level);
+                    BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
+                    if (closed.contains(np))
+                        continue;
 
-                double tentativeG = current.g
-                        + stepCost
-                        + elevation * cfg.elevationWeight()
-                        + biomeCost * cfg.biomeWeight()
-                        + stabilityCost * cfg.stabilityWeight()
-                        + waterDepthCost
-                        + nearWaterCost
-                        + deviationCost;
+                    Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+                    int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
+                            || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
+                    int elevation = Math.abs(y - current.pos.getY());
 
-                Node n = allNodes.get(np);
-                if (n == null || tentativeG < n.g) {
-                    double h = heuristic(np, endGround, cfg);
-                    double fWeighted = tentativeG + (1.0 + HEURISTIC_EPSILON) * h;
-                    n = new Node(np, current, tentativeG, fWeighted);
-                    allNodes.put(np, n);
-                    openSet.add(n);
+                    int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
+                    double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
+                    int stabilityCost = RoadPathCalculator.calculateTerrainStability(cache, np, y, level, d);
+                    int sea = level.getSeaLevel();
+                    boolean waterColumn = RoadPathCalculator.isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
+                    boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
+                    int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
+                    int waterDepth = Math.max(0, sea - oceanFloor);
+                    int waterDepthCost = waterColumn ? waterDepth * cfg.waterDepthWeight() : 0;
+                    int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
+
+                    double deviation = deviation2d(np, startGround, endGround);
+                    double deviationCost = deviation * cfg.deviationWeight() / Math.max(1.0, d);
+
+                    double tentativeG = current.g
+                            + stepCost
+                            + elevation * cfg.elevationWeight()
+                            + biomeCost * cfg.biomeWeight()
+                            + stabilityCost * cfg.stabilityWeight()
+                            + waterDepthCost
+                            + nearWaterCost
+                            + deviationCost;
+
+                    Node n = allNodes.get(np);
+                    if (n == null || tentativeG < n.g) {
+                        double h = heuristic(np, endGround, cfg);
+                        double fWeighted = tentativeG + (1.0 + HEURISTIC_EPSILON) * h;
+                        n = new Node(np, current, tentativeG, fWeighted);
+                        allNodes.put(np, n);
+                        openSet.add(n);
+                    }
                 }
             }
+            return null;
+        } finally {
+            // 显式清理，帮助 GC 回收 Node 链表
+            openSet.clear();
+            allNodes.clear();
+            closed.clear();
         }
-        return null;
     }
 
     private static int getNeighborDistance() {

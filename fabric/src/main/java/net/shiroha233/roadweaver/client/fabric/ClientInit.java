@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
+import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.network.fabric.MapNetworkFabric;
 import org.lwjgl.glfw.GLFW;
@@ -17,8 +18,14 @@ public class ClientInit implements ClientModInitializer {
     public void onInitializeClient() {
         MapNetworkFabric.registerClientReceivers();
         
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> MapSnapshotCache.clearNow());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> MapSnapshotCache.clearNow());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            MapSnapshotCache.clearNow();
+            ClientMapNotes.onWorldJoin();
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            MapSnapshotCache.clearNow();
+            ClientMapNotes.onWorldLeave();
+        });
 
         OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.roadweaver.open_map",

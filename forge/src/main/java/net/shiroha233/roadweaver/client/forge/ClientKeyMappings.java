@@ -5,11 +5,14 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
+import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import org.lwjgl.glfw.GLFW;
 
 @Mod.EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
@@ -34,6 +37,18 @@ public class ClientKeyMappings {
             while (OPEN_MAP.consumeClick()) {
                 mc.setScreen(new RoadMapScreen());
             }
+        }
+
+        @SubscribeEvent
+        public static void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
+            MapSnapshotCache.clearNow();
+            ClientMapNotes.onWorldJoin();
+        }
+
+        @SubscribeEvent
+        public static void onPlayerLoggedOut(ClientPlayerNetworkEvent.LoggingOut event) {
+            MapSnapshotCache.clearNow();
+            ClientMapNotes.onWorldLeave();
         }
     }
 }

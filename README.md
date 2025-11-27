@@ -6,66 +6,83 @@
 
 English | [简体中文](README_CN.md)
 
-### Overview
+A Minecraft mod that automatically generates beautiful roads between villages or custom structures.
 
-An automatic road generation mod based on [Countered's Settlement Roads](https://modrinth.com/mod/countereds-settlement-roads), supporting Fabric/Forge, currently targeting Minecraft version 1.20.1.
+## Key Features
 
-Compared to earlier versions, the structure predictor, road network planner, pathfinding core and road generator have all been refactored with a strong focus on performance and stability.
+### 1. Smart Road Generation
 
-### Project Status
+- **Intelligent Pathfinding**: Multiple pathfinding algorithms that avoid steep and dangerous areas; adjusts routes based on terrain height, biomes, and ground stability
+- **Bezier Curves**: Applies Bezier curve smoothing to polyline paths, creating natural smooth curves and avoiding sharp turns
+- **Multiple Road Types**:
+  - Artificial roads: (stone bricks, slabs), (dirt, mud bricks), etc., or customize your own in the preset editor
+  - Natural roads: Biome-adaptive road materials
+- **Obstacle Avoidance**: Cuts, fills terrain and removes trees to ensure road passability
+- **Tunnel & Bridge System**: Tunnels through mountains, bridges over water
+- **Slab System**: Fills slabs at elevation changes to improve passability
+- **Road Foundation**: Smoothly interpolates surrounding height field based on road elevation, fills foundation only when road is above original terrain, creating natural convex slopes that blend seamlessly with the landscape
 
-- Focus on stabilizing and polishing the **1.20.1** release.
-- Finalizing data formats and configuration layout.
-- Ports to **1.21.x** will happen **after** the 1.20.1 line is considered stable.
+### 2. Decoration System
 
-The mod is still under active development. Current versions should be seen as a solid foundation rather than a feature‑complete end state.
+- **Lamp System**: Redstone lamps with automatic day/night control
+- **Signpost System**: Distance markers and directional signs
+- **Roadside Structure Decorations**: Randomly generates benches, campfires and other decorative structures along roads
 
-### Key Features (English)
+### 3. Configuration Options
 
-- **Seed‑based structure predictor**
-  - Predicts many structure locations from the world seed and noise, instead of spamming `/locate` commands.
-  - Supports tag‑based whitelist/blacklist and biome pre‑filtering.
-- **Road network planners**
-  - KNN, Delaunay and RNG graph algorithms with different density and style:
-    - KNN: sparse, tree‑like networks.
-    - Delaunay: very dense, web‑like networks (can easily overlap in highly developed regions).
-    - RNG: in‑between, grid‑like networks – the default and generally recommended.
-- **Pathfinding (A* + bidirectional A*)**
-  - Configurable step size (4–128 blocks); smaller steps are more precise but slower – 8–16 is a good balance.
-  - Configurable concurrency: number of simultaneous generations and worker threads.
-  - Rich cost weights: elevation, biome, stability, water depth, near‑water cost, heuristic weight, deviation weight, etc.
-  - Optional **bidirectional A*** for more efficient long‑distance searches.
-  - During road generation, polyline paths are smoothed with **Bezier interpolation** to turn sharp angles into natural‑looking curves.
-- **Map UI**
-  - Default hotkey **`H`** opens a medieval‑style world map.
-  - Supports zooming, panning, grid display.
-  - Shows structure nodes and road states (planned / generating / completed / failed).
-  - Provides a context menu (for operators): safe teleportation and manual connection tools.
-- **Terrain‑aware road generation**
-  - Supports cutting and filling terrain to avoid broken roads across ravines or steep slopes.
-  - Configurable road width, clearance height, lamp placement and spacing.
-  - Bridges: clearance, railings, pier interval/width/max height, lamp preservation, ramps, etc.
-  - Tunnels and tunnel clearance settings.
-  - Whole‑tree removal around the road with strict limits on radius/height/block count to avoid over‑removal.
-- **Road material presets**
-  - All artificial road materials are driven by presets under `config/roadweaver/presets/*.json`.
-  - Multiple material combinations and weights are supported.
-  - An in‑game preset editor allows adding/removing/editing presets without manually writing JSON.
-- **Dynamic planning & persistence**
-  - Initial blocking plan around spawn with configurable radius.
-  - Dynamic, player‑centric incremental planning controlled by radius and stride.
-  - All planning results and generation states are persisted via `WorldDataProvider` and shard storage so they survive restarts.
+- **Performance Optimization**: Multi-threaded async generation with concurrency control; height and terrain caching to reduce redundant calculations
+- **Multiple Network Planning Algorithms**: KNN (sparsest) / Delaunay (densest) / RNG (balanced)
+- **Multiple Pathfinding Algorithms**: A* / Bidirectional A* / Fluid Simulation
+- **Road Block Customization**: Mix and match in the preset editor
 
-### Performance & Compatibility (English)
+### 4. Visualization Tools
 
-- RoadWeaver no longer relies on blocking `/locate` commands; structure prediction and planning run on worker threads, with minimal main‑thread impact.
-- Performance is mainly affected by terrain complexity, A* step size and configured concurrency.
-- Terrain mods **without height caching** (e.g. Tectonic, Terralith) can make height sampling extremely expensive, leading to **very slow** road generation and map rendering.
-- Terrain mods **with height caching**, such as **ReTerraForged**, are strongly recommended for best performance.
+- **Visual Debugging**: Road network map; status colors (planned/generating/completed/failed); interactions (drag, zoom, right-click teleport); statistics for road count, length and status
+- **Manual Link Mode**: Plan road networks according to your preferences
 
-### Basic Workflow (English)
+## Compatibility
 
-1. Install RoadWeaver plus required libraries (Cloth Config, Architectury).
-2. Create a new world. On first load, RoadWeaver performs a blocking initial planning pass around spawn within the configured radius. Do **not** set this radius too large, or world creation will take a long time.
-3. After entering the world, background threads keep planning and generating roads dynamically around players according to the configured dynamic radius and stride.
-4. Press **H** to open the map to inspect structures, planned edges and generated roads; operators can optionally teleport or manually connect nodes from this screen.
+- New versions (2.0.0+) completely abandon the old `/locate` command search mechanism, no longer blocking the game main thread
+- Structure prediction, road network planning and pathfinding all run in dedicated thread pools; main thread only handles driving and result application
+
+### Known Compatibility & Performance Issues
+
+- This mod (2.0.6+) is compatible with Tectonic-V2 / Epic Terrain / Terralith, but **incompatible with Tectonic-V3**
+- This mod relies on vanilla mechanics, so it's incompatible with mods that overhaul vanilla mechanics like TerraFirmaCraft: The Next Generation
+
+**Incompatibility symptoms:**
+- Extremely slow road generation
+- Very slow or blank map data loading
+- Map shows roads as generated but nothing appears when approaching
+
+**Performance factors:**
+- World terrain complexity
+- Pathfinding step size and weight configuration
+- Concurrent road generation count and thread pool size
+
+## Usage
+
+- **Auto Generation**: Roads automatically generate between structures after entering the world
+- **Road Network Map**: Press **H** to open the debug map and view the road network
+- **Configuration**: Cloth Config API settings screen (built-in since 2.0.2), accessible from the world creation screen or by pressing **H** in-game and clicking the top-right corner
+
+## Inspiration
+
+Based on [Countered's Settlement Roads](https://modrinth.com/mod/countereds-settlement-roads), map inspired by [RoadArchitect](https://github.com/FranckRJ/RoadArchitect).
+
+## Future Plans
+
+- [ ] More roadside decorations?
+- [x] Link multiple structure types
+- [ ] Link biomes?
+- [ ] More beautiful buildings?
+- [ ] Road events?
+- [x] Custom linking
+- [ ] Main road system?
+- [x] Slab transitions
+- [x] Bezier curve smoothing
+
+## Notes
+
+- The more structures configured to locate when loading a world, the longer world creation takes, but the more complete the road network
+- Roads cannot generate on already-loaded chunks, so don't approach road segments before they finish generating

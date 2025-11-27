@@ -149,6 +149,17 @@ public final class MapView {
         minZ += wz; maxZ += wz;
     }
 
+    /** 将视图居中到指定世界坐标，保持当前缩放级别 */
+    void centerOn(double worldX, double worldZ, int contentW, int contentH) {
+        double rx = maxX - minX;
+        double rz = maxZ - minZ;
+        minX = worldX - rx * 0.5;
+        maxX = worldX + rx * 0.5;
+        minZ = worldZ - rz * 0.5;
+        maxZ = worldZ + rz * 0.5;
+        lockAspect(contentW, contentH);
+    }
+
     double getMinX() { return minX; }
     double getMaxX() { return maxX; }
     double getMinZ() { return minZ; }
