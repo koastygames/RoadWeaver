@@ -1,39 +1,15 @@
 plugins {
 	id 'com.gradleup.shadow' version '8.3.6'
 }
+
 architectury {
     platformSetupLoomIde()
     neoForge()
 }
 
 loom {
-    // 访问转换器配置
-    accessWidenerPath = project(':common').loom.accessWidenerPath
-
-    // 数据生成运行配置（创建 :neoforge:runData 任务）
-    runs {
-        data {
-            data()
-            // 生成所有数据并指定模组ID
-            programArgs "--all", "--mod", "roadweaver"
-            // 输出目录与工作目录
-            programArgs "--output", file("src/generated/resources").absolutePath
-            programArgs "--existing", file("src/main/resources").absolutePath
-            runDir "run"
-            // 禁用 Loom 的 JPMS 模块路径，避免多个模块导出同一包造成的 ResolutionException
-            vmArgs "-Dloom.platform.disableModJpms=true"
-            vmArgs "-Dloom.disableModJpms=true"
-            // 合并 main 与 datagen 源集为同一个 mod，避免出现额外的 generated_* 模块导出重复包
-            mods {
-                roadweaver {
-                    source sourceSets.main
-                    def ds = project.sourceSets.findByName("datagen")
-                    if (ds != null) {
-                        source ds
-                    }
-                }
-            }
-        }
+    neoForge {
+        // mixinConfig "roadweaver.mixins.json"
     }
 }
 
@@ -41,10 +17,8 @@ configurations {
     common
     shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
     compileClasspath.extendsFrom common
-    // 在开发环境将 :common 作为 dev mod 注入，确保 IModConfig 等类在运行期可见
-    developmentNeoForge.extendsFrom common
-    // 同时保留在通用运行时类路径，避免某些任务缺少类
     runtimeClasspath.extendsFrom common
+    developmentNeoForge.extendsFrom common
 }
 
 shadowJar {
@@ -68,23 +42,28 @@ jar {
 	manifest {
 		attributes([
 			'Specification-Title'     : 'RoadWeaver',
-			'Specification-Vendor'    : 'Countered',
+			'Specification-Vendor'    : 'shiroha233',
 			'Specification-Version'   : '1',
 			'Implementation-Title'    : project.name,
 			'Implementation-Version'  : project.version,
-			'Implementation-Vendor'   : 'Countered',
+			'Implementation-Vendor'   : 'shiroha233'
 		])
 	}
 }
 
 repositories {
+    mavenCentral()
     maven {
         url "https://maven.shedaniel.me/"
         name "Shedaniel Maven"
     }
     maven {
-        url "https://maven.neoforged.net/releases"
-        name "NeoForged"
+        url "https://bmclapi2.bangbang93.com/maven/"
+        name "NeoForge Mirror"
+    }
+    maven {
+        url "https://maven.neoforged.net/releases/"
+        name "NeoForge"
     }
     maven {
         url "https://maven.architectury.dev/"
@@ -96,13 +75,13 @@ tasks.named('processResources', ProcessResources).configure {
     def replaceProperties = [
         minecraft_version: '1.21.1',
         minecraft_version_range: '[1.21.1,1.22)',
-        neoforge_version: '21.1',
-        neoforge_version_range: '[21.1,22)',
+        neoforge_version: project.neoforge_version,
+        neoforge_version_range: '[21.1,)',
         loader_version_range: '[4,)',
         mod_id: 'roadweaver',
         mod_name: 'RoadWeaver',
         mod_version: project.version,
-        mod_authors: 'Countered',
+        mod_authors: 'shiroha233',
         mod_description: 'Automatically generates roads between structures'
     ]
 
@@ -114,19 +93,20 @@ tasks.named('processResources', ProcessResources).configure {
 }
 
 dependencies {
-    // Common 模块
-    common(project(path: ":common", configuration: "namedElements")) { transitive = false }
-    shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive = false }
+    // Common 模块 - 添加源代码到编译路径
+    common(project(path: ":common", configuration: "namedElements")) { transitive false }
+    shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive false }
 
     // NeoForge 平台
-    neoForge "net.neoforged:neoforge:${project.neoforge_version}"
+    neoForge "net.neoforged:neoforge:${neoforge_version}"
 
-    // Architectury API
-    modImplementation "dev.architectury:architectury-neoforge:13.0.8"
+    // Architectury API - 使用 Jar-in-Jar 内嵌
+    modApi("dev.architectury:architectury-neoforge:${project.architectury_version}")
+    include("dev.architectury:architectury-neoforge:${project.architectury_version}")
 
-    // Cloth Config API for NeoForge (可选)
-    modCompileOnly "me.shedaniel.cloth:cloth-config-neoforge:15.0.140"
-    modRuntimeOnly "me.shedaniel.cloth:cloth-config-neoforge:15.0.140"
+    // Cloth Config API for NeoForge - Jar-in-Jar include
+    modApi("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
+    include("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
 }
  
 // Source JAR 组装（合并 common 源码）
@@ -147,37 +127,10 @@ components.java {
 sourceSets {
     main {
         java {
-            // 使用 common 中的 RoadFeatureConfig，避免重复类定义
-            exclude 'net/countered/settlementroads/features/config/RoadFeatureConfig.java'
-            exclude 'net/countered/settlementroads/features/RoadFeature.java'
-            // 使用 common 中的事件处理器
-            exclude 'net/countered/settlementroads/events/ModEventHandler.java'
-            // 使用 common 中的统一注册（避免与平台侧实现重复、方法签名不一致）
-            exclude 'net/countered/settlementroads/features/config/RoadFeatureRegistry.java'
-            // 平台侧提供 RoadFeatureRegistry（neoforge 需要 IEventBus）
-            // 保留 datagen 代码在主源集，避免注解扫描缺失导致不触发 GatherDataEvent
+            // Avoid JPMS split-package: keep top-level network package only in common
         }
         resources {
-            // 输出的数据目录
-            srcDir 'src/generated/resources'
-            // Use common data-driven configured/placed features to avoid duplication
-            exclude 'data/roadweaver/worldgen/configured_feature/road_feature.json'
-            exclude 'data/roadweaver/worldgen/placed_feature/road_feature_placed.json'
+            exclude 'assets/roadweaver/lang/*.json'
         }
     }
-}
-
-// 保持 runData 默认依赖 main 编译产物，无需额外 datagen 源集
-
-// Maven 发布
-publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = "${rootProject.name}-neoforge"
-			from components.java
-		}
-	}
-	repositories {
-		// 添加发布仓库
-	}
 }

@@ -1,40 +1,32 @@
 // 根项目配置 - 多模块项目
 plugins {
-	id 'java'
-	id 'dev.architectury.loom' version '1.11-SNAPSHOT' apply false
 	id 'architectury-plugin' version '3.4-SNAPSHOT'
+	id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
 }
 
-// Architectury 配置
 architectury {
 	minecraft = '1.21.1'
 }
 
-// 全局配置
 allprojects {
-	group = 'net.countered.settlementroads'
-	version = '1.0.3'
-}
-
-// 子项目通用配置
-subprojects {
 	apply plugin: 'java'
-	apply plugin: 'dev.architectury.loom'
 	apply plugin: 'architectury-plugin'
-	apply plugin: 'maven-publish'
 	
-	base {
-		archivesName = "${rootProject.name}-${project.name}"
-	}
+	group = 'net.shiroha233.roadweaver'
+	version = '2.0.7-1.21.1-beta'
 	
 	repositories {
+		maven { url = 'https://maven.architectury.dev/' }
+		maven { url = 'https://maven.fabricmc.net/' }
+		maven { url = 'https://maven.minecraftforge.net/' }
 		maven { url = 'https://maven.shedaniel.me/' }
 		maven { url = 'https://maven.terraformersmc.com/' }
+		mavenCentral()
 	}
 	
-	dependencies {
-		minecraft "com.mojang:minecraft:1.21.1"
-		mappings loom.officialMojangMappings()
+	tasks.withType(JavaCompile).configureEach {
+		options.encoding = 'UTF-8'
+		options.release = 21
 	}
 	
 	java {
@@ -43,9 +35,27 @@ subprojects {
 		}
 		withSourcesJar()
 	}
+}
+
+subprojects {
+	apply plugin: 'dev.architectury.loom'
 	
-	tasks.withType(JavaCompile).configureEach {
-		it.options.encoding = 'UTF-8'
-		it.options.release = 21
+	base {
+		archivesName = "${rootProject.name}-${project.name}"
 	}
+	
+	loom {
+		silentMojangMappingsLicense()
+	}
+	
+	dependencies {
+		minecraft "com.mojang:minecraft:1.21.1"
+		mappings loom.officialMojangMappings()
+	}
+
+    tasks.withType(JavaExec).configureEach {
+        javaLauncher.set(javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(21)
+        })
+    }
 }

@@ -1,9 +1,5 @@
-import net.darkhax.curseforgegradle.TaskPublishCurseForge
-
 plugins {
 	id 'com.gradleup.shadow' version '8.3.6'
-	id "com.modrinth.minotaur" version "2.+"
-	id 'net.darkhax.curseforgegradle' version '1.1.15'
 }
 
 architectury {
@@ -29,14 +25,7 @@ repositories {
 	}
 }
 
-fabricApi {
-	configureDataGeneration {
-		client = true
-	}
-}
-
 dependencies {
-	// Common 模块 - 添加源代码到编译路径
 	implementation project(":common")
 	common(project(path: ":common", configuration: "namedElements")) { transitive = false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive = false }
@@ -47,15 +36,17 @@ dependencies {
 	// Fabric API
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	
-	// Architectury API
-	modImplementation("dev.architectury:architectury-fabric:13.0.8") {
+	// Architectury API - 内嵌到模组中
+	modImplementation("dev.architectury:architectury-fabric:${project.architectury_version}") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
+	include("dev.architectury:architectury-fabric:${project.architectury_version}")
 	
 	// Cloth Config API for Fabric
-	modApi("me.shedaniel.cloth:cloth-config-fabric:15.0.140") {
+	modApi("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
+	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
 }
 
 processResources {
@@ -98,61 +89,14 @@ components.java {
     }
 }
 
-// Modrinth 发布配置
-modrinth {
-    token = System.getenv("MODRINTH_TOKEN")
-    projectId = "countereds-settlement-roads"
-    versionNumber = "${project.version}"
-    versionType = "release"
-    uploadFile = remapJar
-    gameVersions = ["1.21.1"]
-    loaders = ["fabric"]
-    changelog = file("${rootProject.projectDir}/changelog.md").text
-    versionName = "RoadWeaver ${project.version} (Fabric)"
-    dependencies {
-        embedded.project "midnightlib"
-    }
-}
-
-// CurseForge 发布配置
-tasks.register("curseforge", TaskPublishCurseForge) {
-	apiToken = System.getenv("CURSEFORGE_TOKEN")
-	def projectId = "1140708"
-	def mainFile = upload(projectId, remapJar)
-	mainFile.changelog = file("${rootProject.projectDir}/changelog.md")
-	mainFile.changelogType = "markdown"
-	mainFile.displayName = "RoadWeaver ${project.version} (Fabric)"
-	mainFile.addGameVersion("Fabric")
-	mainFile.addGameVersion("1.21.1")
-	mainFile.addEmbedded("midnightlib")
-}
-
-// Maven 发布
-publishing {
-    publications {
-        create("mavenJava", MavenPublication) {
-            artifactId = "${rootProject.name}-fabric"
-            from components.java
-        }
-    }
-    repositories {
-        // 添加发布仓库
-    }
-}
-
-// 使用 common 中的 roadFeature，避免重复类定义
 sourceSets {
     main {
         java {
-            exclude 'net/countered/settlementroads/features/RoadFeature.java'
-            exclude 'net/countered/settlementroads/events/ModEventHandler.java'
-            // Use common's unified registry instead of platform-specific one
-            exclude 'net/countered/settlementroads/features/config/RoadFeatureRegistry.java'
+            // Avoid JPMS split-package with shaded common (network package) in dev runtime
         }
         resources {
-            // Use common data-driven configured/placed features
-            exclude 'data/roadweaver/worldgen/configured_feature/road_feature.json'
-            exclude 'data/roadweaver/worldgen/placed_feature/road_feature_placed.json'
+            exclude 'assets/roadweaver/lang/*.json'
+            exclude 'pack.mcmeta'
         }
     }
 }

@@ -5,7 +5,10 @@
 	"name": "RoadWeaver",
 	"description": "A mod to generate roads between structures!",
 	"authors": [
-		"shiroha"
+		"shiroha233"
+	],
+	"contributors": [
+		"Countered (settlement-roads-new, CC0-1.0)"
 	],
 	"contact": {
 		"homepage": "https://github.com/shiroha-233/RoadWeaver",
@@ -16,24 +19,21 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"net.countered.settlementroads.SettlementRoads"
+			"net.shiroha233.roadweaver.RoadWeaver"
 		],
 		"client": [
-			"net.countered.settlementroads.client.SettlementRoadsClient"
-		],
-		"fabric-datagen": [
-			"net.countered.settlementroads.SettlementRoadsDataGenerator"
+			"net.shiroha233.roadweaver.client.fabric.ClientInit"
 		]
 	},
 	"mixins": [
 		"roadweaver.mixins.json"
 	],
 	"depends": {
-		"fabricloader": ">=0.16.9",
+		"fabricloader": ">=0.16.0",
 		"minecraft": "~1.21.1",
 		"java": ">=21",
 		"fabric-api": "*",
-		"architectury": ">=13.0.0"
+		"cloth-config2": "*"
 	},
 	"suggests": {
 		"another-mod": "*"
