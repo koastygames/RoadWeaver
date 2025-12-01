@@ -9,7 +9,6 @@ architectury {
 
 loom {
     neoForge {
-        // mixinConfig "roadweaver.mixins.json"
     }
 }
 

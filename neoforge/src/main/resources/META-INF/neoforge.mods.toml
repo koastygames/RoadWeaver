@@ -32,3 +32,7 @@ type = "optional"
 versionRange = "[15.0,)"
 ordering = "NONE"
 side = "CLIENT"
+
+# Mixin 配置
+[[mixins]]
+config = "roadweaver.mixins.json"
