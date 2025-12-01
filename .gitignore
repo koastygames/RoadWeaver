@@ -20,6 +20,11 @@ bin/
 /forge/bin/
 /forge/run/
 
+/neoforge/build/
+/neoforge/.gradle/
+/neoforge/bin/
+/neoforge/run/
+
 run/
 logs/
 *.log
@@ -67,6 +72,7 @@ gradle-local.properties
 
 /.claude/
 /MCP-Reborn-1.20
+/MCP-Reborn-1.21
 /.windsurf
 /1.0.0
 /tectonic
