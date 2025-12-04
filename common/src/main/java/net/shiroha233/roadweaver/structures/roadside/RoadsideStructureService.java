@@ -76,10 +76,10 @@ public final class RoadsideStructureService {
         // 获取当前位置的群系分类
         Holder<Biome> biome = world.getBiome(middlePos);
         BiomeCategory biomeCategory = BiomeCategory.fromBiome(biome);
-        
-        // 根据群系和道路长度过滤后，按权重选择结构类型
-        RoadsideType type = RoadsideType.chooseWeightedFiltered(random, biomeCategory, roadLength);
-        if (type == null) {
+
+        // 使用新的选择器：从注册中心按群系 + 道路长度过滤后，按权重选择装饰规格
+        RoadsideDecorationSpec spec = RoadsideSelector.choose(random, biomeCategory, roadLength);
+        if (spec == null) {
             return false;  // 当前条件下没有可放置的结构
         }
         
@@ -102,7 +102,7 @@ public final class RoadsideStructureService {
         
         // 根据结构规模获取配置的侧向偏移
         int halfWidth = Math.max(1, roadWidth / 2);
-        int sideOffset = halfWidth + getOffsetForScale(type.scale(), cfg) 
+        int sideOffset = halfWidth + getOffsetForScale(spec.scale(), cfg)
                        + random.nextInt(RANDOM_OFFSET_RANGE + 1);
         
         // 计算放置位置
@@ -110,14 +110,14 @@ public final class RoadsideStructureService {
         int placeZ = middlePos.getZ() + (int) Math.round(orthoZ * sideOffset * sideMultiplier);
         
         // 采样地面高度
-        Vec3i sizeHint = type.sizeHint();
+        Vec3i sizeHint = spec.sizeHint();
         int halfSizeX = sizeHint.getX() / 2;
         int halfSizeZ = sizeHint.getZ() / 2;
         int[] sampleHeights = sampleGroundHeights(world, placeX, placeZ, halfSizeX, halfSizeZ);
         int placeY = sampleHeights[0];
         int slopeHeight = sampleHeights[0] - sampleHeights[1];
         
-        StructureScale scale = type.scale();
+        StructureScale scale = spec.scale();
         
         // 地形检查
         if (slopeHeight > scale.maxSlope()) {
@@ -147,10 +147,10 @@ public final class RoadsideStructureService {
         }
         
         // 计算朝向
-        Rotation rotation = calculateRotation(dirX, dirZ, leftSide, type.faceRoad());
+        Rotation rotation = calculateRotation(dirX, dirZ, leftSide, spec.faceRoad());
         
         // 放置结构
-        ResourceLocation templateId = type.templateId();
+        ResourceLocation templateId = spec.templateId();
         boolean placed = StructurePlacer.placeSimple(world, server, templateId, placePos, rotation,
                                                       true, true, true, random);
         

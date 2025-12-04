@@ -186,5 +186,9 @@
   "config.roadweaver.bridge_merge_gap": "桥梁区间合并间隔（段）",
   "config.roadweaver.bridge_merge_gap.tooltip": "若两个桥梁区间之间的空档不超过该段数，则自动合并为一整段桥梁，以避免在小沙洲/小岛上频繁起伏。",
   "config.roadweaver.thread_duty_cycle": "线程占空比 (%)",
-  "config.roadweaver.thread_duty_cycle.tooltip": "工作线程的CPU占用比例（1-100%）。100% = 满载运行；50% = 工作20ms后休息20ms，以此类推。降低此值可减少CPU占用，但道路生成会变慢。"
+  "config.roadweaver.thread_duty_cycle.tooltip": "工作线程的CPU占用比例（1-100%）。100% = 满载运行；50% = 工作20ms后休息20ms，以此类推。降低此值可减少CPU占用，但道路生成会变慢。",
+  "config.roadweaver.open_roadside_browser": "打开路边结构浏览器",
+  "gui.roadweaver.roadside_browser.title": "路边结构浏览器",
+  "gui.roadweaver.roadside_browser.empty": "当前没有已注册的路边结构。",
+  "gui.roadweaver.roadside_browser.preview_unavailable": "无法预览（仅单机且模板存在时可用）。"
 }

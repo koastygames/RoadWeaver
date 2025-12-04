@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
+import net.shiroha233.roadweaver.client.forge.OpenRoadsideBrowserEntry;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -422,6 +423,9 @@ public class ConfigScreenFactoryImpl {
                                                 .setMin(1).setMax(64)
                                                 .setSaveConsumer(v -> { if (v != null) conf.setLargeStructureOffset(v); })
                                                 .build());
+
+                // 打开路边结构浏览器的入口
+                roadsideStructures.addEntry(new OpenRoadsideBrowserEntry());
 
                 ConfigCategory genPerformance = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.gen_performance"));

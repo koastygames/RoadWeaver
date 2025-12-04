@@ -136,5 +136,6 @@ public final class RoadsideBlueprints {
     public static synchronized void clearCache() {
         CACHE.clear();
         initialized = false;
+        RoadsideRegistry.clear();
     }
 }

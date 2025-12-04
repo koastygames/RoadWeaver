@@ -78,3 +78,4 @@ gradle-local.properties
 .gradle/
 /worldgen-roadweaver-analysis.md
 /nbt
+/AGENTS.md
