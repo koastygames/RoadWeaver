@@ -404,6 +404,9 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(v -> { if (v != null) conf.setLargeStructureOffset(v); })
                                                 .build());
 
+                // 打开路边结构浏览器的入口
+                roadsideStructures.addEntry(new OpenRoadsideBrowserEntry());
+
                 ConfigCategory genPerformance = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.gen_performance"));
 

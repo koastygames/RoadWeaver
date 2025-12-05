@@ -1,0 +1,79 @@
+package net.shiroha233.roadweaver.mixin.fabric;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
+import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
+import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+/**
+ * 通用 Feature 拦截器，阻止树木类 Feature 在道路上生成（1.21+ 版本）。
+ * 注入到 place(FeaturePlaceContext) 方法，通过类名和配置类型判断是否为树木相关的 Feature。
+ */
+@Mixin(Feature.class)
+public abstract class GenericFeatureMixin {
+
+    @Inject(method = "place(Lnet/minecraft/world/level/levelgen/feature/FeaturePlaceContext;)Z",
+            at = @At("HEAD"), cancellable = true)
+    private void roadweaver$skipTreeLikeFeaturesOnRoad(FeaturePlaceContext<?> context,
+                                                       CallbackInfoReturnable<Boolean> cir) {
+        FeatureConfiguration config = (FeatureConfiguration) context.config();
+        WorldGenLevel level = context.level();
+        BlockPos pos = context.origin();
+
+        if (roadweaver$isTreeLikeFeature(config)) {
+            if (RoadPositionQuery.isOnRoad(level, pos)) {
+                cir.setReturnValue(false);
+            }
+        }
+    }
+
+    /**
+     * 判断是否为树木类 Feature（通过类名和配置类型）
+     */
+    @Unique
+    private boolean roadweaver$isTreeLikeFeature(FeatureConfiguration config) {
+        // 检查 Feature 子类的类名
+        String className = this.getClass().getName().toLowerCase();
+        if (roadweaver$containsTreeKeyword(className)) {
+            return true;
+        }
+
+        // 检查配置类型
+        if (config != null) {
+            String configClassName = config.getClass().getName().toLowerCase();
+            if (roadweaver$containsTreeKeyword(configClassName)) {
+                return true;
+            }
+            // 原版 TreeConfiguration 及其子类
+            if (config instanceof TreeConfiguration) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查类名是否包含树木相关关键字
+     */
+    @Unique
+    private boolean roadweaver$containsTreeKeyword(String name) {
+        return name.contains("tree") ||
+               name.contains("fungus") ||
+               name.contains("mushroom") ||
+               name.contains("bamboo") ||
+               name.contains("chorus") ||
+               name.contains("cactus") ||
+               name.contains("nbt") ||  // 覆盖 NBT 结构树（如 OTBYG 等模组）
+               name.contains("templatefeature") ||
+               name.contains("bushfeature");
+    }
+}

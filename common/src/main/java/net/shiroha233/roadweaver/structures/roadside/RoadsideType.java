@@ -24,17 +24,17 @@ public enum RoadsideType {
     // ==================== 小型结构 ====================
     
     /** 长椅 - 温带群系，通用 */
-    BENCH("roadside/roadside_bench", 3, 2, 2, 10, true, StructureScale.SMALL,
+    BENCH("roadside/small/roadside_bench", 3, 2, 2, 10, true, StructureScale.SMALL,
           RoadsidePlacementRule.TEMPERATE),
     
     /** 营火 - 所有群系，通用 */
-    CAMPFIRE("roadside/small_campfire", 3, 3, 3, 8, false, StructureScale.SMALL,
+    CAMPFIRE("roadside/small/small_campfire", 3, 3, 3, 8, false, StructureScale.SMALL,
              RoadsidePlacementRule.UNIVERSAL),
     
     // ==================== 中型结构 ====================
     
     /** 樱花咖啡屋 - 仅樱花林，需要长道路 */
-    SAKURA_COFFEE_HOUSE("roadside/sakura_coffee_house", 12, 10, 12, 5, true, StructureScale.MEDIUM,
+    SAKURA_COFFEE_HOUSE("roadside/medium/sakura_coffee_house", 12, 10, 12, 5, true, StructureScale.MEDIUM,
                         RoadsidePlacementRule.builder()
                                 .allow(BiomeCategory.CHERRY_GROVE)
                                 .minRoadLength(50)

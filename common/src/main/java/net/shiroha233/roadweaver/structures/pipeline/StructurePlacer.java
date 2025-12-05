@@ -133,36 +133,41 @@ public final class StructurePlacer {
         if (opt.isEmpty()) {
             return false;
         }
-        
+
         StructureTemplate tpl = opt.get();
-        Vec3i size = tpl.getSize(rotation);
-        
-        // 计算实际锚点：如果是中心模式，需要偏移使结构中心对齐到 position
+        Vec3i rawSize = tpl.getSize();
+
+        // 计算锚点与结构中心
         BlockPos anchor;
+        int structureCenterX;
+        int structureCenterZ;
+
         if (centerMode) {
-            int offsetX = size.getX() / 2;
-            int offsetZ = size.getZ() / 2;
-            anchor = new BlockPos(position.getX() - offsetX, position.getY(), position.getZ() - offsetZ);
+            // 使用精确的中心对齐计算，保证旋转后几何中心落在 position
+            anchor = calculateAnchorForCenteredPlacement(position, rawSize, rotation);
+            structureCenterX = position.getX();
+            structureCenterZ = position.getZ();
         } else {
             anchor = position;
+            Vec3i rotatedSize = rotatedSize(rawSize, rotation);
+            structureCenterX = anchor.getX() + rotatedSize.getX() / 2;
+            structureCenterZ = anchor.getZ() + rotatedSize.getZ() / 2;
         }
-        
+
         // 生成地形托盘（以结构中心为圆心）
         if (withTerrace) {
-            int targetY = noBasement ? anchor.getY() - 1 : anchor.getY();
-            // 计算结构真正的中心点
-            int centerX = anchor.getX() + size.getX() / 2;
-            int centerZ = anchor.getZ() + size.getZ() / 2;
-            buildTerraceAtCenter(world, centerX, centerZ, size, targetY, random);
+            int targetY = noBasement ? position.getY() - 1 : position.getY();
+            Vec3i rotatedSize = rotatedSize(rawSize, rotation);
+            buildTerraceAtCenter(world, structureCenterX, structureCenterZ, rotatedSize, targetY, random);
         }
-        
+
         // 放置模板
         StructurePlaceSettings settings = new StructurePlaceSettings()
                 .setRotation(rotation)
                 .setMirror(Mirror.NONE)
                 .setIgnoreEntities(false);
         tpl.placeInWorld(world, anchor, anchor, settings, random, 2);
-        
+
         return true;
     }
     
@@ -246,6 +251,18 @@ public final class StructurePlacer {
         }
         
         return Optional.empty();
+    }
+    
+    private static BlockPos calculateAnchorForCenteredPlacement(BlockPos center, Vec3i rawSize, Rotation rotation) {
+        int sizeX = rawSize.getX();
+        int sizeZ = rawSize.getZ();
+
+        return switch (rotation) {
+            case NONE -> new BlockPos(center.getX() - sizeX / 2, center.getY(), center.getZ() - sizeZ / 2);
+            case CLOCKWISE_90 -> new BlockPos(center.getX() + sizeZ / 2, center.getY(), center.getZ() - sizeX / 2);
+            case CLOCKWISE_180 -> new BlockPos(center.getX() + sizeX / 2, center.getY(), center.getZ() + sizeZ / 2);
+            case COUNTERCLOCKWISE_90 -> new BlockPos(center.getX() - sizeZ / 2, center.getY(), center.getZ() + sizeX / 2);
+        };
     }
     
     /**
