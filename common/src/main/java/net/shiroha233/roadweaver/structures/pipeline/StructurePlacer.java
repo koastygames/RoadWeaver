@@ -107,6 +107,11 @@ public final class StructurePlacer {
     /**
      * 轻量级结构放置（用于 Feature 阶段，如路边结构）
      * 
+     * 重构说明：
+     * - 采用"先放置结构，托盘以结构实际包围盒为准"的策略
+     * - 使用 StructurePlaceSettings.setRotationPivot 让结构围绕中心旋转
+     * - 这样无论怎么旋转，结构中心始终对齐到 position
+     * 
      * @param world        WorldGenLevel
      * @param server       ServerLevel（用于获取模板管理器）
      * @param templateId   模板 ID
@@ -135,25 +140,38 @@ public final class StructurePlacer {
         }
         
         StructureTemplate tpl = opt.get();
-        Vec3i size = tpl.getSize(rotation);
+        Vec3i rawSize = tpl.getSize();
         
-        // 计算实际锚点：如果是中心模式，需要偏移使结构中心对齐到 position
+        // 计算锚点和结构中心
+        // Minecraft 结构放置：从锚点开始，向 +X/+Z 方向延伸
+        // 旋转时结构会围绕锚点旋转，导致实际位置偏移
+        // 
+        // 简化方案：直接计算让结构中心落在 position 的锚点位置
+        // 不依赖 getZeroPositionWithTransform，而是手动处理四种旋转情况
+        
         BlockPos anchor;
+        int structureCenterX, structureCenterZ;
+        
         if (centerMode) {
-            int offsetX = size.getX() / 2;
-            int offsetZ = size.getZ() / 2;
-            anchor = new BlockPos(position.getX() - offsetX, position.getY(), position.getZ() - offsetZ);
+            // 根据旋转计算锚点偏移，使结构中心对齐到 position
+            // 原始结构：锚点在 (0,0)，中心在 (sizeX/2, sizeZ/2)
+            // 旋转后中心位置会变化，需要反推锚点
+            anchor = calculateAnchorForCenteredPlacement(position, rawSize, rotation);
+            structureCenterX = position.getX();
+            structureCenterZ = position.getZ();
         } else {
             anchor = position;
+            // 非中心模式：结构从锚点向正方向延伸
+            Vec3i rotatedSize = rotatedSize(rawSize, rotation);
+            structureCenterX = anchor.getX() + rotatedSize.getX() / 2;
+            structureCenterZ = anchor.getZ() + rotatedSize.getZ() / 2;
         }
         
-        // 生成地形托盘（以结构中心为圆心）
+        // 先生成地形托盘（以结构中心为圆心）
         if (withTerrace) {
-            int targetY = noBasement ? anchor.getY() - 1 : anchor.getY();
-            // 计算结构真正的中心点
-            int centerX = anchor.getX() + size.getX() / 2;
-            int centerZ = anchor.getZ() + size.getZ() / 2;
-            buildTerraceAtCenter(world, centerX, centerZ, size, targetY, random);
+            int targetY = noBasement ? position.getY() - 1 : position.getY();
+            Vec3i rotatedSize = rotatedSize(rawSize, rotation);
+            buildTerraceAtCenter(world, structureCenterX, structureCenterZ, rotatedSize, targetY, random);
         }
         
         // 放置模板
@@ -164,6 +182,50 @@ public final class StructurePlacer {
         tpl.placeInWorld(world, anchor, anchor, settings, random, 2);
         
         return true;
+    }
+    
+    /**
+     * 计算让结构中心对齐到目标位置的锚点
+     * 
+     * Minecraft 结构放置行为：
+     * - 结构从锚点开始放置
+     * - 旋转围绕锚点进行
+     * - NONE: 结构占用 [anchor, anchor + size)
+     * - CLOCKWISE_90: X轴变Z轴，Z轴变-X轴
+     * - CLOCKWISE_180: X变-X，Z变-Z
+     * - COUNTERCLOCKWISE_90: X轴变-Z轴，Z轴变X轴
+     * 
+     * 为了让结构中心对齐到目标位置，需要计算正确的锚点偏移。
+     */
+    private static BlockPos calculateAnchorForCenteredPlacement(BlockPos center, Vec3i rawSize, Rotation rotation) {
+        int sizeX = rawSize.getX();
+        int sizeZ = rawSize.getZ();
+        
+        // 根据旋转计算锚点偏移
+        // 目标：让旋转后结构的几何中心落在 center
+        return switch (rotation) {
+            case NONE -> {
+                // 结构占用 [anchor, anchor+size)，中心在 anchor + size/2
+                yield new BlockPos(center.getX() - sizeX / 2, center.getY(), center.getZ() - sizeZ / 2);
+            }
+            case CLOCKWISE_90 -> {
+                // 旋转90度后，原来的 +X 方向变成 +Z，原来的 +Z 方向变成 -X
+                // 结构占用区域变成 [anchor.x - sizeZ + 1, anchor.x] x [anchor.z, anchor.z + sizeX)
+                // 中心在 (anchor.x - sizeZ/2, anchor.z + sizeX/2)
+                yield new BlockPos(center.getX() + sizeZ / 2, center.getY(), center.getZ() - sizeX / 2);
+            }
+            case CLOCKWISE_180 -> {
+                // 旋转180度后，结构占用 [anchor.x - sizeX + 1, anchor.x] x [anchor.z - sizeZ + 1, anchor.z]
+                // 中心在 (anchor.x - sizeX/2, anchor.z - sizeZ/2)
+                yield new BlockPos(center.getX() + sizeX / 2, center.getY(), center.getZ() + sizeZ / 2);
+            }
+            case COUNTERCLOCKWISE_90 -> {
+                // 旋转270度后，原来的 +X 方向变成 -Z，原来的 +Z 方向变成 +X
+                // 结构占用区域变成 [anchor.x, anchor.x + sizeZ) x [anchor.z - sizeX + 1, anchor.z]
+                // 中心在 (anchor.x + sizeZ/2, anchor.z - sizeX/2)
+                yield new BlockPos(center.getX() - sizeZ / 2, center.getY(), center.getZ() + sizeX / 2);
+            }
+        };
     }
     
     /**

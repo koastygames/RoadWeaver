@@ -76,6 +76,8 @@ public abstract class GenericFeatureMixin {
                name.contains("bamboo") ||
                name.contains("chorus") ||
                name.contains("cactus") ||
-               name.contains("nbt");  // 覆盖 NBT 结构树（如 Oh-The-Biomes-We've-Gone）
+               name.contains("nbt") ||  // 覆盖 NBT 结构树（如 Oh-The-Biomes-We've-Gone）
+               name.contains("templatefeature") ||
+               name.contains("bushfeature");
     }
 }
