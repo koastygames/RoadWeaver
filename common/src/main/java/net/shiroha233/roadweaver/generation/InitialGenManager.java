@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
@@ -63,8 +64,10 @@ public final class InitialGenManager {
         // 确保生成线程池已初始化
         RoadGenerationService.onServerStarted();
 
-        // 首开世界：尝试放置出生点小屋（幂等）
-        net.shiroha233.roadweaver.structures.spawn.SpawnCabinService.ensurePlaced(level);
+        // 首开世界：按配置尝试放置出生点小屋（幂等）
+        if (ConfigService.get().spawnCabinEnabled()) {
+            net.shiroha233.roadweaver.structures.spawn.SpawnCabinService.ensurePlaced(level);
+        }
 
         // 进行初始规划：写入结构连接（PLANNED）
         RoadPlanningService.initialPlan(level);

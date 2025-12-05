@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.model;
 
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceLocation;

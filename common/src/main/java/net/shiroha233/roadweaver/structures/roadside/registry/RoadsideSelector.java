@@ -1,6 +1,9 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.registry;
 
 import net.minecraft.util.RandomSource;
+import net.shiroha233.roadweaver.structures.roadside.model.BiomeCategory;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
+import net.shiroha233.roadweaver.structures.roadside.rules.RoadsidePlacementRule;
 
 import java.util.ArrayList;
 import java.util.List;

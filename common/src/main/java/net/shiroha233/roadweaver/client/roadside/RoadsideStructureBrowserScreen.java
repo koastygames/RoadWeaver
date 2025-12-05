@@ -4,8 +4,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideDecorationSpec;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideRegistry;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
+import net.shiroha233.roadweaver.structures.roadside.registry.RoadsideRegistry;
 
 import java.util.ArrayList;
 import java.util.Comparator;

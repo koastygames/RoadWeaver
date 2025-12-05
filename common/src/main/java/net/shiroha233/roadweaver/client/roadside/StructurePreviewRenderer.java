@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideDecorationSpec;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
 
 import java.lang.reflect.Field;
 import java.util.*;

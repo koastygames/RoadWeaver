@@ -25,7 +25,8 @@ import net.shiroha233.roadweaver.features.roadlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.roadlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.roadlogic.surface.BridgeTransitionAdjuster;
 import net.shiroha233.roadweaver.features.roadlogic.surface.HeightProfileService;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideStructureService;
+import net.shiroha233.roadweaver.structures.roadside.runtime.RoadPlacementContext;
+import net.shiroha233.roadweaver.structures.roadside.runtime.RoadsideStructureService;
 
 import java.util.*;
 
@@ -102,8 +103,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
         BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
         // 路边结构放置上下文：每条道路共享，用于限制最大结构数
         int roadLength = segments.size();
-        net.shiroha233.roadweaver.structures.roadside.RoadPlacementContext roadsideCtx = 
-                new net.shiroha233.roadweaver.structures.roadside.RoadPlacementContext(roadLength);
+        RoadPlacementContext roadsideCtx = new RoadPlacementContext(roadLength);
         // 计算路边结构检查间隔，使结构均匀分布
         int roadsideCheckInterval = calculateRoadsideCheckInterval(roadLength, cfg.maxStructuresPerRoad());
         for (int i = 2; i < segments.size() - 2; i++) {

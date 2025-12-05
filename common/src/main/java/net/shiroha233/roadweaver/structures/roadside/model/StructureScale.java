@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.model;
 
 /**
  * 路边结构规模枚举

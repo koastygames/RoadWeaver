@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.registry;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
@@ -8,6 +8,7 @@ import net.shiroha233.roadweaver.structures.api.SpawnRule;
 import net.shiroha233.roadweaver.structures.api.StructureBlueprint;
 import net.shiroha233.roadweaver.structures.api.StructureConnector;
 import net.shiroha233.roadweaver.structures.api.StructureVariant;
+import net.shiroha233.roadweaver.structures.roadside.model.StructureScale;
 
 import java.util.Collections;
 import java.util.EnumMap;

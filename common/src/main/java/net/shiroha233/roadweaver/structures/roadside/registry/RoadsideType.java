@@ -1,7 +1,10 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.registry;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.structures.roadside.model.BiomeCategory;
+import net.shiroha233.roadweaver.structures.roadside.model.StructureScale;
+import net.shiroha233.roadweaver.structures.roadside.rules.RoadsidePlacementRule;
 
 /**
  * 路边结构类型枚举
@@ -24,11 +27,11 @@ public enum RoadsideType {
     // ==================== 小型结构 ====================
     
     /** 长椅 - 温带群系，通用 */
-    BENCH("roadside/small/roadside_bench", 3, 2, 2, 10, true, StructureScale.SMALL,
+    BENCH("roadside/small/roadside_bench", 3, 2, 2, 5, true, StructureScale.SMALL,
           RoadsidePlacementRule.TEMPERATE),
     
     /** 营火 - 所有群系，通用 */
-    CAMPFIRE("roadside/small/small_campfire", 3, 3, 3, 8, false, StructureScale.SMALL,
+    CAMPFIRE("roadside/small/small_campfire", 3, 3, 3, 5, false, StructureScale.SMALL,
              RoadsidePlacementRule.UNIVERSAL),
     
     // ==================== 中型结构 ====================
@@ -38,7 +41,11 @@ public enum RoadsideType {
                         RoadsidePlacementRule.builder()
                                 .allow(BiomeCategory.CHERRY_GROVE)
                                 .minRoadLength(50)
-                                .build());
+                                .build()),
+    
+    /** 女仆小屋 - 全群系，权重低 */
+    MAID_HOUSE("roadside/medium/maid_house", 10, 10, 12, 1, true, StructureScale.MEDIUM,
+               RoadsidePlacementRule.UNIVERSAL);
     
     // ==================== 字段 ====================
     

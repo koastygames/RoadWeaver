@@ -33,6 +33,7 @@ public final class ModConfig {
     private boolean allowArtificial;
     private boolean allowNatural;
     private boolean placeWaypoints;
+    private boolean spawnCabinEnabled; // 是否启用出生点小屋
     private int averagingRadius;
     private int generationThreads;
     private int computeThreads; // 计算线程池大小（0=自动，>0=固定值）
@@ -110,6 +111,7 @@ public final class ModConfig {
         this.allowArtificial = true;
         this.allowNatural = true;
         this.placeWaypoints = false;
+        this.spawnCabinEnabled = true;
         this.averagingRadius = 8;
 
         this.generationThreads = Math.max(2, Math.min(3, Runtime.getRuntime().availableProcessors()));
@@ -233,6 +235,7 @@ public final class ModConfig {
             dynamicPlanStrideChunks = 256;
         if (planningAlgorithm == null)
             planningAlgorithm = PlanningAlgorithm.RNG;
+        // spawnCabinEnabled 默认为 true，如果反序列化缺失则维持默认
         if (aStarStep > 128)
             aStarStep = 128; // 步数上限
         if (aStarMaxSteps < 3000)
@@ -382,6 +385,10 @@ public final class ModConfig {
 
     public boolean placeWaypoints() { return placeWaypoints; }
     public void setPlaceWaypoints(boolean v) { this.placeWaypoints = v; }
+
+    // 出生点小屋开关
+    public boolean spawnCabinEnabled() { return spawnCabinEnabled; }
+    public void setSpawnCabinEnabled(boolean v) { this.spawnCabinEnabled = v; }
 
     public int averagingRadius() { return averagingRadius; }
     public void setAveragingRadius(int v) { this.averagingRadius = v; }

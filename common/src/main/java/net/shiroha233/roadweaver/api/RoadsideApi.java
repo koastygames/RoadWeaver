@@ -2,10 +2,10 @@ package net.shiroha233.roadweaver.api;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideDecorationSpec;
-import net.shiroha233.roadweaver.structures.roadside.RoadsidePlacementRule;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideRegistry;
-import net.shiroha233.roadweaver.structures.roadside.StructureScale;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
+import net.shiroha233.roadweaver.structures.roadside.model.StructureScale;
+import net.shiroha233.roadweaver.structures.roadside.registry.RoadsideRegistry;
+import net.shiroha233.roadweaver.structures.roadside.rules.RoadsidePlacementRule;
 
 /**
  * 路边装饰对外注册 API。

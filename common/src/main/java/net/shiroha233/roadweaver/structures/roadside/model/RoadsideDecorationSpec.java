@@ -1,7 +1,8 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.model;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.structures.roadside.rules.RoadsidePlacementRule;
 
 /**
  * 路边装饰规格（内部数据模型）

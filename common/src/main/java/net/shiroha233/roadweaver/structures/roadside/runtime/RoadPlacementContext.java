@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.runtime;
 
 import net.minecraft.core.BlockPos;
 

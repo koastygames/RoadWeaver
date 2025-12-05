@@ -79,3 +79,5 @@ gradle-local.properties
 /worldgen-roadweaver-analysis.md
 /nbt
 /AGENTS.md
+.cursor/rules/mc.mdc
+/assets/

@@ -1,4 +1,6 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.rules;
+
+import net.shiroha233.roadweaver.structures.roadside.model.BiomeCategory;
 
 import java.util.EnumSet;
 import java.util.Set;

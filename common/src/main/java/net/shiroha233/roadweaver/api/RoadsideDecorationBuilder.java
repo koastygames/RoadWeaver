@@ -2,9 +2,9 @@ package net.shiroha233.roadweaver.api;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
-import net.shiroha233.roadweaver.structures.roadside.RoadsideDecorationSpec;
-import net.shiroha233.roadweaver.structures.roadside.RoadsidePlacementRule;
-import net.shiroha233.roadweaver.structures.roadside.StructureScale;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
+import net.shiroha233.roadweaver.structures.roadside.model.StructureScale;
+import net.shiroha233.roadweaver.structures.roadside.rules.RoadsidePlacementRule;
 
 /**
  * 路边装饰构造器，便于附属模组以链式方式创建规格。

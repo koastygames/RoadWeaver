@@ -1,6 +1,7 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.registry;
 
 import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
 
 import java.util.Collection;
 import java.util.Map;

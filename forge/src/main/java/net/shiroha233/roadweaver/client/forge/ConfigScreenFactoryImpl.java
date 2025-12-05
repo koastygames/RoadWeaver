@@ -8,7 +8,6 @@ import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
-import net.shiroha233.roadweaver.client.forge.OpenRoadsideBrowserEntry;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -167,6 +166,14 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.place_waypoints.tooltip"))
                                                 .setSaveConsumer(v -> { if (v != null) conf.setPlaceWaypoints(v); })
+                                                .build());
+
+                roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.spawn_cabin_enabled"),
+                                                conf.spawnCabinEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.spawn_cabin_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setSpawnCabinEnabled(v); })
                                                 .build());
 
                 // 新增：道路宽度（0=自动）

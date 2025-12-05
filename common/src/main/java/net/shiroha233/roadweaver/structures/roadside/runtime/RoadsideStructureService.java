@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.structures.roadside;
+package net.shiroha233.roadweaver.structures.roadside.runtime;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -15,6 +15,11 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.structures.StructureSystem;
 import net.shiroha233.roadweaver.structures.pipeline.StructurePlacer;
+import net.shiroha233.roadweaver.structures.roadside.model.BiomeCategory;
+import net.shiroha233.roadweaver.structures.roadside.model.RoadsideDecorationSpec;
+import net.shiroha233.roadweaver.structures.roadside.model.StructureScale;
+import net.shiroha233.roadweaver.structures.roadside.registry.RoadsideSelector;
+import net.shiroha233.roadweaver.structures.roadside.spawn.RoadsideMobSpawner;
 
 import java.util.List;
 
@@ -156,6 +161,8 @@ public final class RoadsideStructureService {
         
         if (placed) {
             ctx.recordPlacement(placePos);
+            // 放置后尝试生成女仆实体（仅指定模板）
+            RoadsideMobSpawner.trySpawn(server, random, placePos, spec);
         }
         
         return placed;
