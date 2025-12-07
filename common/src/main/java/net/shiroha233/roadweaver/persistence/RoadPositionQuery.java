@@ -22,7 +22,9 @@ public final class RoadPositionQuery {
     private RoadPositionQuery() {}
 
     // 缓存：维度 -> 区块 -> 该区块内的道路点集合（空集合表示无道路）
+    // 使用轻量 LRU 限制单维度缓存规模，避免长时间运行内存上涨
     private static final Map<String, Map<Long, Set<Long>>> CHUNK_CACHE = new ConcurrentHashMap<>();
+    private static final int MAX_CHUNKS_PER_DIM = 1024;
     private static final int EXTRA_MARGIN = 1;
     private static final int Y_CHECK_ABOVE = 12;
     private static final int Y_CHECK_BELOW = 2;
@@ -34,7 +36,7 @@ public final class RoadPositionQuery {
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
         long chunkKey = chunkKey(cx, cz);
         String dimKey = dimKey(level);
-        Map<Long, Set<Long>> dimCache = CHUNK_CACHE.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>());
+        Map<Long, Set<Long>> dimCache = CHUNK_CACHE.computeIfAbsent(dimKey, k -> createDimCache());
 
         // 获取或构建该区块的道路点缓存
         Set<Long> roadPoints = dimCache.computeIfAbsent(chunkKey, k -> buildChunkRoadPoints(level, cx, cz));
@@ -111,5 +113,15 @@ public final class RoadPositionQuery {
 
     public static void clearAllCache() {
         CHUNK_CACHE.clear();
+    }
+
+    /** 为单个维度创建带上限的 LRU Map，防止缓存无限增长 */
+    private static Map<Long, Set<Long>> createDimCache() {
+        return java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>(128, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(java.util.Map.Entry<Long, Set<Long>> eldest) {
+                return size() > MAX_CHUNKS_PER_DIM;
+            }
+        });
     }
 }

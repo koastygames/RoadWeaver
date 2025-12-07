@@ -10,6 +10,7 @@ import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.util.ComputeService;
+import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.structures.StructureSystem;
 import net.shiroha233.roadweaver.structures.index.StructureIndexRestorer;
@@ -59,6 +60,7 @@ public final class ServerPlanningHooks {
                 RoadShardStorage.flushAll(lvl);
                 RoadShardStorage.clearAll(lvl);
             }
+            RoadPositionQuery.clearAllCache();
             RoadGenerationService.onServerStopping();
             StructureSystem.clearAll();
             ComputeService.shutdownNow();
