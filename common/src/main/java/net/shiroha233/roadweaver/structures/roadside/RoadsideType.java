@@ -38,7 +38,10 @@ public enum RoadsideType {
                         RoadsidePlacementRule.builder()
                                 .allow(BiomeCategory.CHERRY_GROVE)
                                 .minRoadLength(50)
-                                .build());
+                                .build()),
+    /** 女仆小屋 - 全群系，权重低 */
+    MAID_HOUSE("roadside/medium/maid_house", 10, 10, 12, 1, true, StructureScale.MEDIUM,
+               RoadsidePlacementRule.UNIVERSAL);
     
     // ==================== 字段 ====================
     
@@ -62,7 +65,7 @@ public enum RoadsideType {
     /**
      * 获取结构模板的 ResourceLocation
      * 路径格式: roadweaver:roadside/xxx
-     * 对应文件: data/roadweaver/structures/roadside/xxx.nbt
+     * 对应文件: data/roadweaver/structure/roadside/xxx.nbt
      */
     public ResourceLocation templateId() {
         return templateId;

@@ -168,7 +168,14 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(v -> { if (v != null) conf.setPlaceWaypoints(v); })
                                                 .build());
 
-                // 新增：道路宽度（0=自动）
+                roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.spawn_cabin_enabled"),
+                                                conf.spawnCabinEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.spawn_cabin_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setSpawnCabinEnabled(v); })
+                                                .build());
+
                 roadGen.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.road_width"),
                                                 conf.roadWidth())
@@ -178,14 +185,30 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(v -> { if (v != null) conf.setRoadWidth(v); })
                                                 .build());
 
-                // 结构距离控制
                 roadGen.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.structure_road_offset"),
-                                                conf.structureRoadOffset())
+                                eb.startIntField(Component.translatable("config.roadweaver.village_road_offset"),
+                                                conf.villageRoadOffset())
                                                 .setTooltip(Component
-                                                                .translatable("config.roadweaver.structure_road_offset.tooltip"))
+                                                                .translatable("config.roadweaver.village_road_offset.tooltip"))
                                                 .setMin(0).setMax(256)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setStructureRoadOffset(v); })
+                                                .setSaveConsumer(v -> { if (v != null) conf.setVillageRoadOffset(v); })
+                                                .build());
+
+                roadGen.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"),
+                                                conf.otherStructureRoadOffset())
+                                                .setTooltip(Component
+                                                                .translatable("config.roadweaver.other_structure_road_offset.tooltip"))
+                                                .setMin(0).setMax(256)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setOtherStructureRoadOffset(v); })
+                                                .build());
+
+                roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.structure_avoidance_enabled"),
+                                                conf.structureAvoidanceEnabled())
+                                                .setTooltip(Component
+                                                                .translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setStructureAvoidanceEnabled(v); })
                                                 .build());
 
                 // 新增：路灯间隔（段）

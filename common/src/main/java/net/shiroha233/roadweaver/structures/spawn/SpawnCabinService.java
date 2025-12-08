@@ -22,7 +22,7 @@ public final class SpawnCabinService {
     private SpawnCabinService() {}
 
     private static final ResourceLocation BLUEPRINT_ID = ResourceLocation.fromNamespaceAndPath("roadweaver", "spawn_cabin");
-    private static final ResourceLocation TEMPLATE_ID = ResourceLocation.fromNamespaceAndPath("roadweaver", "structures/starting_cabin");
+    private static final ResourceLocation TEMPLATE_ID = ResourceLocation.fromNamespaceAndPath("roadweaver", "starting_cabin");
 
     public static boolean ensurePlaced(ServerLevel level) {
         if (level == null) return false;

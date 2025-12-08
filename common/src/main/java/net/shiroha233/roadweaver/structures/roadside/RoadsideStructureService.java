@@ -156,6 +156,7 @@ public final class RoadsideStructureService {
         
         if (placed) {
             ctx.recordPlacement(placePos);
+            RoadsideMobSpawner.trySpawn(server, random, placePos, spec);
         }
         
         return placed;

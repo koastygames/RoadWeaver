@@ -89,6 +89,9 @@ public final class StructurePlacer {
 
     private static ResourceLocation normalizeTemplateId(ResourceLocation in) {
         String path = in.getPath();
+        if (path.startsWith("structure/")) {
+            return ResourceLocation.fromNamespaceAndPath(in.getNamespace(), path.substring("structure/".length()));
+        }
         if (path.startsWith("structures/")) {
             return ResourceLocation.fromNamespaceAndPath(in.getNamespace(), path.substring("structures/".length()));
         }
@@ -230,24 +233,27 @@ public final class StructurePlacer {
      * 加载模板（尝试多种路径格式）
      */
     private static Optional<StructureTemplate> loadTemplate(StructureTemplateManager mgr, ResourceLocation templateId) {
-        // 尝试原始 ID
+        // 先尝试原始 ID
         Optional<StructureTemplate> opt = mgr.get(templateId);
         if (opt.isPresent()) {
             return opt;
         }
         
-        // 尝试添加 structures/ 前缀
-        ResourceLocation altId = ResourceLocation.fromNamespaceAndPath(templateId.getNamespace(), "structures/" + templateId.getPath());
+        // 再尝试添加 "structure/" 前缀
+        ResourceLocation altId = ResourceLocation.fromNamespaceAndPath(templateId.getNamespace(), "structure/" + templateId.getPath());
         opt = mgr.get(altId);
         if (opt.isPresent()) {
             return opt;
         }
         
-        // 尝试移除 structures/ 前缀
+        // 最后尝试移除 "structure/" 前缀
         String path = templateId.getPath();
-        if (path.startsWith("structures/")) {
-            ResourceLocation cleanId = ResourceLocation.fromNamespaceAndPath(templateId.getNamespace(), path.substring("structures/".length()));
-            return mgr.get(cleanId);
+        if (path.startsWith("structure/")) {
+            ResourceLocation cleanId = ResourceLocation.fromNamespaceAndPath(templateId.getNamespace(), path.substring("structure/".length()));
+            opt = mgr.get(cleanId);
+            if (opt.isPresent()) {
+                return opt;
+            }
         }
         
         return Optional.empty();

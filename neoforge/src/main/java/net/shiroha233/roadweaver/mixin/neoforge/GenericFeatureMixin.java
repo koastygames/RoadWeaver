@@ -1,9 +1,10 @@
 package net.shiroha233.roadweaver.mixin.neoforge;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
@@ -19,13 +20,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Feature.class)
 public abstract class GenericFeatureMixin {
 
-    @Inject(method = "place(Lnet/minecraft/world/level/levelgen/feature/FeaturePlaceContext;)Z",
-            at = @At("HEAD"), cancellable = true)
-    private void roadweaver$skipTreeLikeFeaturesOnRoad(FeaturePlaceContext<?> context,
+    @Inject(
+            method = "place(Lnet/minecraft/world/level/levelgen/feature/configurations/FeatureConfiguration;Lnet/minecraft/world/level/WorldGenLevel;Lnet/minecraft/world/level/chunk/ChunkGenerator;Lnet/minecraft/util/RandomSource;Lnet/minecraft/core/BlockPos;)Z",
+            at = @At("HEAD"),
+            cancellable = true
+    )
+    private void roadweaver$skipTreeLikeFeaturesOnRoad(FeatureConfiguration config,
+                                                       WorldGenLevel level,
+                                                       ChunkGenerator chunkGenerator,
+                                                       RandomSource random,
+                                                       BlockPos pos,
                                                        CallbackInfoReturnable<Boolean> cir) {
-        FeatureConfiguration config = (FeatureConfiguration) context.config();
-        WorldGenLevel level = context.level();
-        BlockPos pos = context.origin();
 
         if (roadweaver$isTreeLikeFeature(config)) {
             if (RoadPositionQuery.isOnRoad(level, pos)) {

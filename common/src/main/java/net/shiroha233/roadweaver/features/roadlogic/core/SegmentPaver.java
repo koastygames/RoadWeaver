@@ -54,7 +54,9 @@ public final class SegmentPaver {
             BlockPos widthBlock = positions.get(i);
             int y = heights[i];
             BlockPos pos = new BlockPos(widthBlock.getX(), y, widthBlock.getZ());
-            
+            if (StructureAvoidanceService.shouldAvoid(world, pos)) {
+                continue;
+            }
             // 选择材质
             List<BlockState> baseMats;
             if (roadType == 1) {

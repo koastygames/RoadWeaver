@@ -33,6 +33,7 @@ public final class ModConfig {
     private boolean allowArtificial;
     private boolean allowNatural;
     private boolean placeWaypoints;
+    private boolean spawnCabinEnabled;
     private int averagingRadius;
     private int generationThreads;
     private int computeThreads; // 计算线程池大小（0=自动，>0=固定值）
@@ -75,7 +76,10 @@ public final class ModConfig {
     private int largeStructureOffset;      // 大型结构距道路中心的距离
 
     // 结构距离控制
-    private int structureRoadOffset; // 道路端点距结构中心的缩进距离（方块）
+    private int villageRoadOffset;   // 村庄类结构的道路缩进距离（方块）
+    private int otherStructureRoadOffset; // 其他结构的道路缩进距离（方块）
+    private boolean structureAvoidanceEnabled; // 放置阶段检测并跳过结构内的道路
+    private int structureRoadOffset; // 道路端点距结构中心的缩进距离（方块）（兼容旧配置）
 
     // A* 寻路成本权重
     private double orthoStepCost;
@@ -108,6 +112,7 @@ public final class ModConfig {
         this.allowArtificial = true;
         this.allowNatural = true;
         this.placeWaypoints = false;
+        this.spawnCabinEnabled = true;
         this.averagingRadius = 8;
 
         this.generationThreads = Math.max(2, Math.min(3, Runtime.getRuntime().availableProcessors()));
@@ -153,7 +158,10 @@ public final class ModConfig {
         this.largeStructureOffset = 16;       // 大型结构距道路16格
 
         // 结构距离控制默认值
-        this.structureRoadOffset = 60; // 道路端点默认缩进 60 格
+        this.villageRoadOffset = 60;        // 村庄默认缩进 60 格
+        this.otherStructureRoadOffset = 25; // 其他结构默认缩进 25 格
+        this.structureAvoidanceEnabled = true; // 默认开启结构避让
+        this.structureRoadOffset = 60; // 道路端点默认缩进 60 格（兼容旧配置）
 
         // A* 寻路成本权重
         this.orthoStepCost = 1.0;
@@ -344,6 +352,14 @@ public final class ModConfig {
             largeStructureOffset = 64;
 
         // 结构距离控制校验
+        if (villageRoadOffset < 0)
+            villageRoadOffset = 0;
+        if (villageRoadOffset > 256)
+            villageRoadOffset = 256;
+        if (otherStructureRoadOffset < 0)
+            otherStructureRoadOffset = 0;
+        if (otherStructureRoadOffset > 256)
+            otherStructureRoadOffset = 256;
         if (structureRoadOffset < 0)
             structureRoadOffset = 0;
         if (structureRoadOffset > 256)
@@ -374,6 +390,9 @@ public final class ModConfig {
 
     public boolean placeWaypoints() { return placeWaypoints; }
     public void setPlaceWaypoints(boolean v) { this.placeWaypoints = v; }
+
+    public boolean spawnCabinEnabled() { return spawnCabinEnabled; }
+    public void setSpawnCabinEnabled(boolean v) { this.spawnCabinEnabled = v; }
 
     public int averagingRadius() { return averagingRadius; }
     public void setAveragingRadius(int v) { this.averagingRadius = v; }
@@ -524,6 +543,14 @@ public final class ModConfig {
     public void setLargeStructureOffset(int v) { this.largeStructureOffset = Math.max(1, v); }
 
     // 结构距离控制存取
-    public int structureRoadOffset() { return structureRoadOffset; }
-    public void setStructureRoadOffset(int v) { this.structureRoadOffset = v; }
+    public int villageRoadOffset() { return villageRoadOffset; }
+    public void setVillageRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
+    public int otherStructureRoadOffset() { return otherStructureRoadOffset; }
+    public void setOtherStructureRoadOffset(int v) { this.otherStructureRoadOffset = Math.max(0, Math.min(256, v)); }
+    public boolean structureAvoidanceEnabled() { return structureAvoidanceEnabled; }
+    public void setStructureAvoidanceEnabled(boolean v) { this.structureAvoidanceEnabled = v; }
+    @Deprecated
+    public int structureRoadOffset() { return villageRoadOffset; }
+    @Deprecated
+    public void setStructureRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
 }

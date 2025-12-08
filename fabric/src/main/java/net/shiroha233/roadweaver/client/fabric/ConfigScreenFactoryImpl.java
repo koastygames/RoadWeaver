@@ -168,6 +168,14 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
 
                 roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.spawn_cabin_enabled"),
+                                                conf.spawnCabinEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.spawn_cabin_enabled.tooltip"))
+                                                .setSaveConsumer(conf::setSpawnCabinEnabled)
+                                                .build());
+
+                roadGen.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.road_width"),
                                                 conf.roadWidth())
                                                 .setTooltip(Component
@@ -177,12 +185,29 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
 
                 roadGen.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.structure_road_offset"),
-                                                conf.structureRoadOffset())
+                                eb.startIntField(Component.translatable("config.roadweaver.village_road_offset"),
+                                                conf.villageRoadOffset())
                                                 .setTooltip(Component
-                                                                .translatable("config.roadweaver.structure_road_offset.tooltip"))
+                                                                .translatable("config.roadweaver.village_road_offset.tooltip"))
                                                 .setMin(0).setMax(256)
-                                                .setSaveConsumer(conf::setStructureRoadOffset)
+                                                .setSaveConsumer(conf::setVillageRoadOffset)
+                                                .build());
+
+                roadGen.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"),
+                                                conf.otherStructureRoadOffset())
+                                                .setTooltip(Component
+                                                                .translatable("config.roadweaver.other_structure_road_offset.tooltip"))
+                                                .setMin(0).setMax(256)
+                                                .setSaveConsumer(conf::setOtherStructureRoadOffset)
+                                                .build());
+
+                roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.structure_avoidance_enabled"),
+                                                conf.structureAvoidanceEnabled())
+                                                .setTooltip(Component
+                                                                .translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
+                                                .setSaveConsumer(conf::setStructureAvoidanceEnabled)
                                                 .build());
 
                 roadGen.addEntry(
