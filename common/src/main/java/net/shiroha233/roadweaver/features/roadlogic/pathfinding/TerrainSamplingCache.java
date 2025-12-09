@@ -35,7 +35,7 @@ public final class TerrainSamplingCache {
         return h;
     }
 
-    boolean isWaterLike(ServerLevel level, int x, int z) {
+    public boolean isWaterLike(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Boolean cached = waterCache.get(key);
         if (cached != null)
@@ -55,7 +55,7 @@ public final class TerrainSamplingCache {
         return res;
     }
 
-    int oceanFloor(ServerLevel level, int x, int z) {
+    public int oceanFloor(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Integer cached = oceanFloorCache.get(key);
         if (cached != null) {
@@ -69,7 +69,7 @@ public final class TerrainSamplingCache {
         return h;
     }
 
-    boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
+    public boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
         long key = hashXZ(x, z);
         Boolean cached = nearWaterCache.get(key);
         if (cached != null)
@@ -91,7 +91,7 @@ public final class TerrainSamplingCache {
         return false;
     }
 
-    boolean isColumnWater(ServerLevel level, int x, int z) {
+    public boolean isColumnWater(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Boolean cached = columnWaterCache.get(key);
         if (cached != null)
@@ -124,7 +124,7 @@ public final class TerrainSamplingCache {
         return res;
     }
 
-    Holder<Biome> getBiome(ServerLevel level, int x, int z) {
+    public Holder<Biome> getBiome(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Holder<Biome> cached = biomeCache.get(key);
         if (cached != null) {

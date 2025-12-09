@@ -11,6 +11,8 @@ import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+
+import static net.shiroha233.roadweaver.planning.PlanningUtils.sameEdge;
 import net.shiroha233.roadweaver.config.ConfigService;
 
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ public final class RoadGenerationService {
         PROCESSED.clear();
         RUNNING_COUNT.clear();
         RoadPlanningService.resetAll();
+        InitialGenManager.reset(); // 重置初始化状态，确保下次启动正常
     }
 
     /**
@@ -314,12 +317,6 @@ public final class RoadGenerationService {
 
     private static RoadFeatureConfig defaultConfig() {
         return new RoadFeatureConfig();
-    }
-
-    private static boolean sameEdge(Records.StructureConnection a, Records.StructureConnection b) {
-        BlockPos af = a.from(), at = a.to();
-        BlockPos bf = b.from(), bt = b.to();
-        return (af.equals(bf) && at.equals(bt)) || (af.equals(bt) && at.equals(bf));
     }
 
     private static long dist2XZ(BlockPos a, BlockPos b) {

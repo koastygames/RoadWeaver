@@ -12,7 +12,6 @@ import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
@@ -116,17 +115,12 @@ public final class SpawnCabinPlacer {
     
     /**
      * 检查区块是否已经过了 STRUCTURE_STARTS 阶段
+     *
+     * 说明：
+     * 为避免在服务器启动和初始生成阶段触发额外的区块加载/等待，这里不再访问 Chunk 系统，
+     * 统一视为“尚未过 STRUCTURE_STARTS”，优先使用预计算 + 注入流程放置结构。
      */
     private static boolean isChunkPastStructureStarts(ServerLevel level, ChunkPos chunkPos) {
-        try {
-            ChunkAccess chunk = level.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.EMPTY, false);
-            if (chunk == null) {
-                return false; // 区块还没开始生成
-            }
-            ChunkStatus status = chunk.getPersistedStatus();
-            return status.isOrAfter(ChunkStatus.STRUCTURE_STARTS);
-        } catch (Exception e) {
-            return false;
-        }
+        return false;
     }
 }

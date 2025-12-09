@@ -8,6 +8,8 @@ import net.shiroha233.roadweaver.helpers.StructureConnector;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 
+import static net.shiroha233.roadweaver.planning.PlanningUtils.sameEdge;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -148,11 +150,5 @@ public final class RoadNetworkApi {
         if (level == null)
             return;
         RoadPlanningService.planRectAsync(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
-    }
-
-    private static boolean sameEdge(Records.StructureConnection c, BlockPos a, BlockPos b) {
-        BlockPos af = c.from();
-        BlockPos at = c.to();
-        return (af.equals(a) && at.equals(b)) || (af.equals(b) && at.equals(a));
     }
 }

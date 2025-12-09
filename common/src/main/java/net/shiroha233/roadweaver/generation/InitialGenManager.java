@@ -4,10 +4,25 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
+import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static net.shiroha233.roadweaver.planning.PlanningUtils.sameEdge;
 
 /**
  * 初始道路生成管理器：在服务器启动后，阻塞直到初始规划范围内的道路生成完成，并提供进度统计。
@@ -17,15 +32,13 @@ public final class InitialGenManager {
     }
 
     private static volatile boolean active;
-    private static final java.util.concurrent.atomic.AtomicInteger total = new java.util.concurrent.atomic.AtomicInteger(
-            0);
-    private static final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger(
-            0);
-
-    private static final java.util.concurrent.atomic.AtomicInteger generating = new java.util.concurrent.atomic.AtomicInteger(
-            0);
-    private static final java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger(
-            0);
+    // 幂等性标志：确保 begin() 只执行一次（防止 Mixin 和事件钩子重复调用）
+    private static volatile boolean initialized;
+    
+    private static final AtomicInteger total = new AtomicInteger(0);
+    private static final AtomicInteger done = new AtomicInteger(0);
+    private static final AtomicInteger generating = new AtomicInteger(0);
+    private static final AtomicInteger failed = new AtomicInteger(0);
 
     public static boolean isActive() {
         return active;
@@ -49,10 +62,16 @@ public final class InitialGenManager {
 
     /**
      * 在服务器启动时调用：执行初始规划并计算总任务数。
+     * 此方法是幂等的，多次调用只会执行一次。
      */
-    public static void begin(ServerLevel level) {
+    public static synchronized void begin(ServerLevel level) {
         if (level == null || !Level.OVERWORLD.equals(level.dimension()))
             return;
+        // 幂等性检查：防止 Mixin 和事件钩子重复调用
+        if (initialized) {
+            return;
+        }
+        initialized = true;
         // 清零状态
         active = true;
         total.set(0);
@@ -66,7 +85,7 @@ public final class InitialGenManager {
 
         // 首开世界：按配置尝试放置出生点小屋（幂等）
         if (ConfigService.get().spawnCabinEnabled()) {
-            net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer.ensurePlaced(level);
+            SpawnCabinPlacer.ensurePlaced(level);
         }
 
         // 进行初始规划：写入结构连接（PLANNED）
@@ -93,7 +112,7 @@ public final class InitialGenManager {
 
         if (list != null && !list.isEmpty()) {
             // 筛选出需要生成的任务
-            List<Records.StructureConnection> tasks = new java.util.ArrayList<>();
+            List<Records.StructureConnection> tasks = new ArrayList<>();
             for (Records.StructureConnection c : list) {
                 if (c.status() == Records.ConnectionStatus.PLANNED) {
                     tasks.add(c);
@@ -102,21 +121,18 @@ public final class InitialGenManager {
 
             if (!tasks.isEmpty()) {
                 // 提交任务到线程池 - 使用配置的初始生成线程数创建专用线程池
-                int nThreads = net.shiroha233.roadweaver.config.ConfigService.get().initialGenerationThreads();
-                java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
-                        nThreads,
-                        new java.util.concurrent.ThreadFactory() {
-                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(
-                                    1);
+                int nThreads = ConfigService.get().initialGenerationThreads();
+                ExecutorService executor = Executors.newFixedThreadPool(nThreads, new ThreadFactory() {
+                    private final AtomicInteger count = new AtomicInteger(1);
 
-                            @Override
-                            public Thread newThread(Runnable r) {
-                                Thread t = new Thread(r, "RoadWeaver-InitialGen-" + count.getAndIncrement());
-                                t.setDaemon(true);
-                                return t;
-                            }
-                        });
-                List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        Thread t = new Thread(r, "RoadWeaver-InitialGen-" + count.getAndIncrement());
+                        t.setDaemon(true);
+                        return t;
+                    }
+                });
+                List<Future<?>> futures = new ArrayList<>();
 
                 for (Records.StructureConnection task : tasks) {
                     futures.add(executor.submit(() -> {
@@ -131,17 +147,17 @@ public final class InitialGenManager {
                         } else {
                             failed.incrementAndGet();
                         }
-                        return new java.util.AbstractMap.SimpleEntry<>(task, success);
+                        return new AbstractMap.SimpleEntry<>(task, success);
                     }));
                 }
 
                 // 等待所有任务完成
                 // 收集结果用于批量更新
-                java.util.Map<Records.StructureConnection, Boolean> results = new java.util.HashMap<>();
-                for (java.util.concurrent.Future<?> f : futures) {
+                Map<Records.StructureConnection, Boolean> results = new HashMap<>();
+                for (Future<?> f : futures) {
                     try {
                         @SuppressWarnings("unchecked")
-                        var entry = (java.util.Map.Entry<Records.StructureConnection, Boolean>) f.get();
+                        var entry = (Map.Entry<Records.StructureConnection, Boolean>) f.get();
                         results.put(entry.getKey(), entry.getValue());
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -151,7 +167,7 @@ public final class InitialGenManager {
                 // 关闭专用线程池
                 executor.shutdown();
                 try {
-                    if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                    if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
                         executor.shutdownNow();
                     }
                 } catch (InterruptedException e) {
@@ -162,11 +178,11 @@ public final class InitialGenManager {
                 // 批量更新 WorldDataProvider
                 List<Records.StructureConnection> currentList = provider.getStructureConnections(level);
                 if (currentList != null) {
-                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentList);
+                    List<Records.StructureConnection> updatedList = new ArrayList<>(currentList);
                     boolean changed = false;
                     for (int i = 0; i < updatedList.size(); i++) {
                         Records.StructureConnection original = updatedList.get(i);
-                        for (java.util.Map.Entry<Records.StructureConnection, Boolean> entry : results.entrySet()) {
+                        for (Map.Entry<Records.StructureConnection, Boolean> entry : results.entrySet()) {
                             Records.StructureConnection task = entry.getKey();
                             if (sameEdge(original, task)) {
                                 Records.ConnectionStatus newStatus = entry.getValue()
@@ -186,16 +202,10 @@ public final class InitialGenManager {
             }
         }
         // 确保道路数据刷新到存储，以便树木生成时可以查询
-        net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage.flushAll(level);
+        RoadShardStorage.flushAll(level);
         // 清除道路位置查询缓存，避免过时缓存导致树木阻止失效
-        net.shiroha233.roadweaver.persistence.RoadPositionQuery.clearCache(level);
+        RoadPositionQuery.clearCache(level);
         active = false;
-    }
-
-    private static boolean sameEdge(Records.StructureConnection a, Records.StructureConnection b) {
-        net.minecraft.core.BlockPos af = a.from(), at = a.to();
-        net.minecraft.core.BlockPos bf = b.from(), bt = b.to();
-        return (af.equals(bf) && at.equals(bt)) || (af.equals(bt) && at.equals(bf));
     }
 
     /**
@@ -234,5 +244,17 @@ public final class InitialGenManager {
         generating.set(g);
         done.set(c);
         failed.set(f);
+    }
+
+    /**
+     * 重置初始化状态（服务器停止时调用，确保下次启动可以正常工作）
+     */
+    public static void reset() {
+        active = false;
+        initialized = false;
+        total.set(0);
+        done.set(0);
+        generating.set(0);
+        failed.set(0);
     }
 }

@@ -53,15 +53,9 @@ public final class RoadShardStorage {
         return (((long) rx) << 32) ^ (rz & 0xffffffffL);
     }
 
-    private static int floorDiv(int a, int b) {
-        int r = a / b;
-        if ((a ^ b) < 0 && (r * b != a)) r--;
-        return r;
-    }
-
     private static int blockToRegion(int block) {
-        int chunk = floorDiv(block, 16);
-        return floorDiv(chunk, SHARD_SIZE_CHUNKS);
+        int chunk = Math.floorDiv(block, 16);
+        return Math.floorDiv(chunk, SHARD_SIZE_CHUNKS);
     }
 
     private static Path shardPath(ServerLevel level, int rx, int rz) throws IOException {

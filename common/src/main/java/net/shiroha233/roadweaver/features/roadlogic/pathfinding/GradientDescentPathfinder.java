@@ -134,6 +134,8 @@ final class GradientDescentPathfinder {
             openSet.clear();
             allNodes.clear();
             closed.clear();
+            // 清理 ThreadLocal，防止线程池复用导致内存泄漏
+            ThreadPoolManager.clearThrottle();
         }
         return null;
     }

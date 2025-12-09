@@ -56,39 +56,51 @@ final class BidirectionalAStarPathfinder {
 
         int stepsBudget = Math.max(1, maxSteps);
         ThreadPoolManager.resetThrottle(); // 重置节流计时器
-        while (!openF.isEmpty() && !openB.isEmpty() && stepsBudget-- > 0) {
-            ThreadPoolManager.throttle(); // 根据占空比控制CPU使用率
-            if (Thread.currentThread().isInterrupted()) {
-                return null;
+        try {
+            while (!openF.isEmpty() && !openB.isEmpty() && stepsBudget-- > 0) {
+                ThreadPoolManager.throttle(); // 根据占空比控制CPU使用率
+                if (Thread.currentThread().isInterrupted()) {
+                    return null;
+                }
+
+                Node peekF = openF.peek();
+                Node peekB = openB.peek();
+                boolean expandForward;
+                if (peekF == null) {
+                    expandForward = false;
+                } else if (peekB == null) {
+                    expandForward = true;
+                } else {
+                    expandForward = peekF.f <= peekB.f;
+                }
+
+                Meet meet;
+                if (expandForward) {
+                    meet = expandOneSide(openF, nodesF, closedF, nodesB, closedB, nodesB,
+                            true, startGround, endGround, level, cache, neighborOffsets, d, cfg);
+                } else {
+                    meet = expandOneSide(openB, nodesB, closedB, nodesF, closedF, nodesF,
+                            false, endGround, startGround, level, cache, neighborOffsets, d, cfg);
+                }
+
+                if (meet != null) {
+                    // 会合后，将前向/反向节点链表合并为一条原始路径，交给 PathPostProcessor 统一处理
+                    return reconstructPath(meet.forward, meet.backward, width, level, cache);
+                }
             }
 
-            Node peekF = openF.peek();
-            Node peekB = openB.peek();
-            boolean expandForward;
-            if (peekF == null) {
-                expandForward = false;
-            } else if (peekB == null) {
-                expandForward = true;
-            } else {
-                expandForward = peekF.f <= peekB.f;
-            }
-
-            Meet meet;
-            if (expandForward) {
-                meet = expandOneSide(openF, nodesF, closedF, nodesB, closedB, nodesB,
-                        true, startGround, endGround, level, cache, neighborOffsets, d, cfg);
-            } else {
-                meet = expandOneSide(openB, nodesB, closedB, nodesF, closedF, nodesF,
-                        false, endGround, startGround, level, cache, neighborOffsets, d, cfg);
-            }
-
-            if (meet != null) {
-                // 会合后，将前向/反向节点链表合并为一条原始路径，交给 PathPostProcessor 统一处理
-                return reconstructPath(meet.forward, meet.backward, width, level, cache);
-            }
+            return null;
+        } finally {
+            // 显式清理，帮助 GC 回收 Node 链表
+            openF.clear();
+            openB.clear();
+            nodesF.clear();
+            nodesB.clear();
+            closedF.clear();
+            closedB.clear();
+            // 清理 ThreadLocal，防止线程池复用导致内存泄漏
+            ThreadPoolManager.clearThrottle();
         }
-
-        return null;
     }
 
     private static Meet expandOneSide(PriorityQueue<Node> open,

@@ -204,110 +204,21 @@ public final class StructurePredictor {
         return result;
     }
 
+    /**
+     * 预测出生点附近的结构位置（转发到 {@link #predictOverworldStructuresInRect}）
+     */
     public static List<Records.StructureInfo> predictOverworldStructuresAroundSpawn(ServerLevel level,
                                                                                    int radiusChunks,
                                                                                    boolean biomePrefilter,
                                                                                    List<String> whitelist,
                                                                                    List<String> blacklist) {
-        RegistryAccess access = level.registryAccess();
-        Registry<StructureSet> setRegistry = access.registryOrThrow(Registries.STRUCTURE_SET);
-
         BlockPos spawn = level.getSharedSpawnPos();
         int cx = spawn.getX() >> 4;
         int cz = spawn.getZ() >> 4;
-        int minX = cx - radiusChunks;
-        int maxX = cx + radiusChunks;
-        int minZ = cz - radiusChunks;
-        int maxZ = cz + radiusChunks;
-
-        ChunkGeneratorStructureState state = level.getChunkSource().getGeneratorState();
-        RandomState randomState = state.randomState();
-        BiomeSource biomeSource = level.getChunkSource().getGenerator().getBiomeSource();
-
-        Filters filters = Filters.of(whitelist, blacklist);
-
-        List<Records.StructureInfo> result = new ArrayList<>();
-
-        for (Holder.Reference<StructureSet> holder : setRegistry.holders().toList()) {
-            StructureSet set = holder.value();
-            StructurePlacement placement = set.placement();
-            if (!(placement instanceof RandomSpreadStructurePlacement rssp)) continue;
-
-            List<Holder<Structure>> matchedStructures = new ArrayList<>();
-            for (StructureSet.StructureSelectionEntry entry : set.structures()) {
-                Holder<Structure> structureHolder = entry.structure();
-                Optional<ResourceKey<Structure>> key = structureHolder.unwrapKey();
-                if (key.isEmpty()) continue;
-                ResourceLocation id = key.get().location();
-                if (filters.matches(structureHolder, id)) {
-                    matchedStructures.add(structureHolder);
-                }
-            }
-
-            if (matchedStructures.isEmpty()) {
-                if (filters.hasWhitelist()) continue;
-                for (StructureSet.StructureSelectionEntry entry : set.structures()) {
-                    Holder<Structure> structureHolder = entry.structure();
-                    Optional<ResourceKey<Structure>> key = structureHolder.unwrapKey();
-                    if (key.isEmpty()) continue;
-                    ResourceLocation id = key.get().location();
-                    if (!filters.isBlacklisted(structureHolder, id)) {
-                        matchedStructures.add(structureHolder);
-                    }
-                }
-                if (matchedStructures.isEmpty()) continue;
-            }
-
-            Set<Holder<Biome>> allowedBiomes = null;
-            if (biomePrefilter) {
-                allowedBiomes = new HashSet<>();
-                for (Holder<Structure> h : matchedStructures) {
-                    for (Holder<Biome> b : h.value().biomes()) {
-                        allowedBiomes.add(b);
-                    }
-                }
-            }
-
-            int spacing = rssp.spacing();
-            int startI = Math.floorDiv(minX, spacing);
-            int endI = Math.floorDiv(maxX, spacing);
-            int startJ = Math.floorDiv(minZ, spacing);
-            int endJ = Math.floorDiv(maxZ, spacing);
-
-            String labelId = matchedStructures.stream()
-                    .map(h -> h.unwrapKey().map(ResourceKey::location).map(ResourceLocation::toString).orElse("structure"))
-                    .findFirst().orElse("structure");
-
-            for (int i = startI; i <= endI; i++) {
-                for (int j = startJ; j <= endJ; j++) {
-                    int baseX = i * spacing;
-                    int baseZ = j * spacing;
-                    ChunkPos candidate = rssp.getPotentialStructureChunk(level.getSeed(), baseX, baseZ);
-                    int x = candidate.x;
-                    int z = candidate.z;
-                    if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
-                    if (!placement.isStructureChunk(state, x, z)) continue;
-                    BlockPos locatePos = placement.getLocatePos(candidate);
-                    int qx = QuartPos.fromBlock(locatePos.getX());
-                    int qy = QuartPos.fromBlock(64);
-                    int qz = QuartPos.fromBlock(locatePos.getZ());
-                    Holder<Biome> sample = biomeSource.getNoiseBiome(qx, qy, qz, randomState.sampler());
-                    if (biomePrefilter && allowedBiomes != null) {
-                        if (!allowedBiomes.contains(sample)) continue;
-                    }
-                    String chosenId = labelId;
-                    for (Holder<Structure> h : matchedStructures) {
-                        if (h.value().biomes().contains(sample)) {
-                            chosenId = h.unwrapKey().map(ResourceKey::location).map(ResourceLocation::toString).orElse(labelId);
-                            break;
-                        }
-                    }
-                    result.add(new Records.StructureInfo(locatePos, chosenId));
-                }
-            }
-        }
-
-        return result;
+        return predictOverworldStructuresInRect(level,
+                cx - radiusChunks, cz - radiusChunks,
+                cx + radiusChunks, cz + radiusChunks,
+                biomePrefilter, whitelist, blacklist);
     }
 
     private static final class Filters {

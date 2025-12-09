@@ -29,8 +29,26 @@ public final class RoadSpatialIndex {
     private static final int GRID_SIZE = 8;
     private static final int GRID_SHIFT = 3; // log2(8) = 3
 
+    // 每个维度最多缓存的区块数量（LRU 淘汰）
+    private static final int MAX_CACHED_CHUNKS_PER_DIM = 512;
+
     // 维度 -> 区块坐标 -> 该区块的网格索引（网格坐标 -> 道路点集合）
+    // 使用 LRU 缓存，避免无限增长
     private static final Map<String, Map<Long, ChunkGridIndex>> CHUNK_INDEX = new ConcurrentHashMap<>();
+
+    /**
+     * 创建带 LRU 淘汰的区块缓存
+     */
+    private static Map<Long, ChunkGridIndex> createLRUCache() {
+        return java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<>(64, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Long, ChunkGridIndex> eldest) {
+                    return size() > MAX_CACHED_CHUNKS_PER_DIM;
+                }
+            }
+        );
+    }
 
     // Y 轴检查范围
     private static final int Y_CHECK_ABOVE = 12;
@@ -67,10 +85,16 @@ public final class RoadSpatialIndex {
         int cz = pos.getZ() >> 4;
         String dimKey = dimKey(level);
 
-        // 获取或构建区块的网格索引
-        Map<Long, ChunkGridIndex> dimIndex = CHUNK_INDEX.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>());
+        // 获取或构建区块的网格索引（使用 LRU 缓存）
+        Map<Long, ChunkGridIndex> dimIndex = CHUNK_INDEX.computeIfAbsent(dimKey, k -> createLRUCache());
         long chunkKey = chunkKey(cx, cz);
-        ChunkGridIndex gridIndex = dimIndex.computeIfAbsent(chunkKey, k -> buildChunkGridIndex(level, cx, cz));
+        
+        // 先尝试获取，避免不必要的构建
+        ChunkGridIndex gridIndex = dimIndex.get(chunkKey);
+        if (gridIndex == null) {
+            gridIndex = buildChunkGridIndex(level, cx, cz);
+            dimIndex.put(chunkKey, gridIndex);
+        }
 
         if (gridIndex.isEmpty()) return false;
 

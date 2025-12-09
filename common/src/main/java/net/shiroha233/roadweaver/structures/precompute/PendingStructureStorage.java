@@ -26,8 +26,25 @@ public final class PendingStructureStorage {
     // Key: dimension -> chunkKey -> List<PendingRoadsideStructure>
     private static final ConcurrentHashMap<ResourceLocation, ConcurrentHashMap<Long, List<PendingRoadsideStructure>>> PENDING = new ConcurrentHashMap<>();
     
-    // 已注入的区块（避免重复注入）
+    // 已注入的区块（避免重复注入）- 使用 LRU 限制大小
+    private static final int MAX_INJECTED_PER_DIM = 4096;
     private static final ConcurrentHashMap<ResourceLocation, Set<Long>> INJECTED = new ConcurrentHashMap<>();
+    
+    /**
+     * 创建带大小限制的已注入区块集合
+     */
+    private static Set<Long> createLimitedSet() {
+        return java.util.Collections.newSetFromMap(
+            java.util.Collections.synchronizedMap(
+                new java.util.LinkedHashMap<>(256, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(java.util.Map.Entry<Long, Boolean> eldest) {
+                        return size() > MAX_INJECTED_PER_DIM;
+                    }
+                }
+            )
+        );
+    }
     
     /**
      * 添加待放置的结构
@@ -89,7 +106,7 @@ public final class PendingStructureStorage {
         ResourceLocation dimKey = level.dimension().location();
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
-        INJECTED.computeIfAbsent(dimKey, k -> ConcurrentHashMap.newKeySet())
+        INJECTED.computeIfAbsent(dimKey, k -> createLimitedSet())
                 .add(chunkKey);
         
         // 移除已处理的待放置结构（释放内存）

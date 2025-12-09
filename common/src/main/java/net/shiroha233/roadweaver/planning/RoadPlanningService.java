@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import net.shiroha233.roadweaver.util.ComputeService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -23,8 +22,6 @@ import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 public final class RoadPlanningService {
     private RoadPlanningService() {}
 
-    private static final ConcurrentHashMap<Level, Set<Long>> PLANNED_TILES = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Level, java.util.concurrent.ConcurrentHashMap<Long, Long>> PLANNED_TILE_CENTERS = new ConcurrentHashMap<>();
     private static final int MAX_PLANNED_KEYS = 200_000;
 
     private static void prunePlannedIfTooLarge(Level level) {
@@ -70,8 +67,8 @@ public final class RoadPlanningService {
         int tile = Math.max(8, Math.min(256, stride));
         int pcx = player.chunkPosition().x;
         int pcz = player.chunkPosition().z;
-        int kx = floorDiv(pcx, tile);
-        int kz = floorDiv(pcz, tile);
+        int kx = Math.floorDiv(pcx, tile);
+        int kz = Math.floorDiv(pcz, tile);
         long key = (((long) kx) << 32) ^ (kz & 0xffffffffL);
         WorldDataProvider provider0 = WorldDataProvider.getInstance();
         java.util.Set<Long> set = new java.util.HashSet<>(provider0.getPlannedTileKeys(level));
@@ -256,12 +253,6 @@ public final class RoadPlanningService {
         return out;
     }
 
-    private static int floorDiv(int a, int b) {
-        int r = a / b;
-        if ((a ^ b) < 0 && (r * b != a)) r--;
-        return r;
-    }
-
     public static Set<Long> getPlannedTiles(ServerLevel level) {
         java.util.Set<Long> s = WorldDataProvider.getInstance().getPlannedTileKeys(level);
         return s == null ? java.util.Set.of() : java.util.Set.copyOf(s);
@@ -285,7 +276,6 @@ public final class RoadPlanningService {
     }
 
     public static void resetAll() {
-        PLANNED_TILES.clear();
-        PLANNED_TILE_CENTERS.clear();
+        // 数据存储在 WorldDataProvider 中，无需清理本地缓存
     }
 }

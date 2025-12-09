@@ -152,6 +152,14 @@ public final class ThreadPoolManager {
         WORK_START.set(System.currentTimeMillis());
     }
 
+    /** 
+     * 清理当前线程的节流计时器（在任务完成时调用，防止 ThreadLocal 内存泄漏）
+     * 在线程池复用线程的场景下，任务结束时应调用此方法清理状态。
+     */
+    public static void clearThrottle() {
+        WORK_START.remove();
+    }
+
     // 从配置解析计算线程数，0=自动（CPU-1），异常时回退为1
     private static int resolveComputeThreadsFromConfig() {
         int configured = 0;

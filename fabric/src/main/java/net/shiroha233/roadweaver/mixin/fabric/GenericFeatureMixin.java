@@ -10,6 +10,7 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
+import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,10 +22,14 @@ import java.util.Set;
 /**
  * 通用 Feature 拦截器，阻止树木类 Feature 在道路上生成（1.21+ Fabric 版本）。
  * <p>
- * 重构后的判断策略：
+ * 重要优化：只在区块生成阶段（WorldGenRegion）阻拦树木，
+ * 生成完成后玩家种植的树木不受影响。
+ * </p>
+ * <p>
+ * 判断策略：
  * 1. 基于 Feature 的注册 ID（最可靠）
  * 2. 基于配置类型（TreeConfiguration 及其子类）
- * 3. 基于类名关键字（兜底方案）
+ * 3. 基于类名关键字（兖底方案）
  * </p>
  */
 @Mixin(Feature.class)
@@ -67,6 +72,11 @@ public abstract class GenericFeatureMixin {
                                                        RandomSource random,
                                                        BlockPos pos,
                                                        CallbackInfoReturnable<Boolean> cir) {
+        // 关键优化：只在区块生成阶段阻拦，玩家种植的树木不受影响
+        if (!ChunkGenTracker.isWorldGenPhase(level)) {
+            return; // 不是区块生成阶段，不阻拦
+        }
+        
         // 获取当前 Feature 实例
         Feature<?> feature = (Feature<?>) (Object) this;
 

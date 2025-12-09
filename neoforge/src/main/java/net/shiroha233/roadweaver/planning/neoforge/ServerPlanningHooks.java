@@ -12,11 +12,12 @@ import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.util.ComputeService;
-import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
-import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
+import net.shiroha233.roadweaver.runtime.CacheManager;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
+import java.util.List;
 import java.util.Objects;
 
 public final class ServerPlanningHooks {
@@ -32,8 +33,8 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
-        RoadsideStructureRegistry.clearCache();
-        net.shiroha233.roadweaver.runtime.ThreadPoolManager.onServerStarted(event.getServer());
+        CacheManager.onServerStarted(); // 统一初始化缓存
+        ThreadPoolManager.onServerStarted(event.getServer());
         ServerLevel level = event.getServer().getLevel(Objects.requireNonNull(Level.OVERWORLD));
         if (level == null) return;
         boolean dedicated = event.getServer().isDedicatedServer();
@@ -42,7 +43,7 @@ public final class ServerPlanningHooks {
             RoadPlanningService.initialPlanAsync(level);
             return;
         }
-        java.util.List<net.shiroha233.roadweaver.helpers.Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
+        List<Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) {
             InitialGenManager.begin(level);
             InitialGenManager.blockUntilDone(level);
@@ -66,14 +67,8 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerStopping(ServerStoppingEvent event) {
-        var server = event.getServer();
-        for (ServerLevel lvl : server.getAllLevels()) {
-            RoadShardStorage.flushAll(lvl);
-            RoadShardStorage.clearAll(lvl);
-        }
         RoadGenerationService.onServerStopping();
-        RoadsideStructureRegistry.clearCache();
-        PendingStructureStorage.clearAll();
+        CacheManager.onServerStopping(event.getServer().getAllLevels()); // 统一清理所有缓存
         ComputeService.shutdownNow();
     }
 }

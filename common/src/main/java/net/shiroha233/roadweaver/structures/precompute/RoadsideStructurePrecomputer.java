@@ -8,12 +8,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.roadlogic.pathfinding.TerrainSamplingCache;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.structures.data.BiomeCategory;
 import net.shiroha233.roadweaver.structures.data.StructureScale;
@@ -119,8 +116,8 @@ public final class RoadsideStructurePrecomputer {
             dirX /= len;
             dirZ /= len;
             
-            // 获取群系
-            Holder<Biome> biomeHolder = level.getBiome(middle);
+            // 获取群系（使用噪声采样，不触发区块加载）
+            Holder<Biome> biomeHolder = cache.getBiome(level, middle.getX(), middle.getZ());
             BiomeCategory category = BiomeCategory.fromBiome(biomeHolder);
             
             // 选择合适的结构
@@ -189,18 +186,13 @@ public final class RoadsideStructurePrecomputer {
     
     /**
      * 检查区块是否已经过了 STRUCTURE_STARTS 阶段
+     *
+     * 说明：
+     * 为避免在初始生成的多线程环境下触发区块加载或等待，这里不再访问 Chunk 系统，
+     * 统一视为“尚未过 STRUCTURE_STARTS”，交由预计算/注入流程处理。
      */
     private static boolean isChunkPastStructureStarts(ServerLevel level, ChunkPos chunkPos) {
-        try {
-            ChunkAccess chunk = level.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.EMPTY, false);
-            if (chunk == null) {
-                return false; // 区块还没开始生成
-            }
-            ChunkStatus status = chunk.getPersistedStatus();
-            return status.isOrAfter(ChunkStatus.STRUCTURE_STARTS);
-        } catch (Exception e) {
-            return false;
-        }
+        return false;
     }
     
     /**
@@ -260,16 +252,14 @@ public final class RoadsideStructurePrecomputer {
     
     /**
      * 检查地形条件
+     * 注意：使用 cache 的噪声采样方法，避免触发区块加载
      */
     private static boolean checkTerrainConditions(TerrainSamplingCache cache,
                                                   ServerLevel level,
                                                   BlockPos pos,
                                                   Vec3i size) {
-        // 检查是否在水中（通过比较两种高度图）
-        int motionBlocking = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
-        int oceanFloor = level.getHeight(Heightmap.Types.OCEAN_FLOOR, pos.getX(), pos.getZ());
-        if (motionBlocking > oceanFloor + 1) {
-            // 水面高于海底，说明有水
+        // 使用 cache 检查是否在水中，避免触发区块加载
+        if (cache.isColumnWater(level, pos.getX(), pos.getZ())) {
             return false;
         }
         
