@@ -21,6 +21,29 @@ allprojects {
 		maven { url = 'https://maven.minecraftforge.net/' }
 		maven { url = 'https://maven.shedaniel.me/' }
 		maven { url = 'https://maven.terraformersmc.com/' }
+        // curseforge与modrinth平台仓库
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'CurseMaven'
+                    url = 'https://cursemaven.com'
+                }
+            }
+            filter {
+                includeGroup 'curse.maven'
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = 'Modrinth'
+                    url = 'https://api.modrinth.com/maven'
+                }
+            }
+            filter {
+                includeGroup 'maven.modrinth'
+            }
+        }
 		mavenCentral()
 	}
 	
@@ -52,10 +75,4 @@ subprojects {
 		minecraft "com.mojang:minecraft:1.20.1"
 		mappings loom.officialMojangMappings()
 	}
-
-    tasks.withType(JavaExec).configureEach {
-        javaLauncher.set(javaToolchains.launcherFor {
-            languageVersion = JavaLanguageVersion.of(17)
-        })
-    }
 }
