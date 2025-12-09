@@ -390,15 +390,6 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
                 roadsideStructures.addEntry(
                                 eb.startIntField(
-                                                Component.translatable("config.roadweaver.min_structure_spacing"),
-                                                conf.minStructureSpacing())
-                                                .setTooltip(Component.translatable(
-                                                                "config.roadweaver.min_structure_spacing.tooltip"))
-                                                .setMin(1).setMax(256)
-                                                .setSaveConsumer(conf::setMinStructureSpacing)
-                                                .build());
-                roadsideStructures.addEntry(
-                                eb.startIntField(
                                                 Component.translatable("config.roadweaver.small_structure_offset"),
                                                 conf.smallStructureOffset())
                                                 .setTooltip(Component.translatable(
@@ -424,9 +415,6 @@ public class ConfigScreenFactoryImpl {
                                                 .setMin(1).setMax(64)
                                                 .setSaveConsumer(conf::setLargeStructureOffset)
                                                 .build());
-
-                // 打开路边结构浏览器的入口
-                roadsideStructures.addEntry(new OpenRoadsideBrowserEntry());
 
                 ConfigCategory genPerformance = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.gen_performance"));

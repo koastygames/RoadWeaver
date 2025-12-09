@@ -70,7 +70,6 @@ public final class ModConfig {
     // 路边结构配置
     private boolean roadsideStructuresEnabled;
     private int maxStructuresPerRoad;      // 每条道路最多放置的结构数
-    private int minStructureSpacing;       // 两个结构之间的最小间隔（方块）
     private int smallStructureOffset;      // 小型结构距道路中心的距离
     private int mediumStructureOffset;     // 中型结构距道路中心的距离
     private int largeStructureOffset;      // 大型结构距道路中心的距离
@@ -152,7 +151,6 @@ public final class ModConfig {
         // 路边结构默认值
         this.roadsideStructuresEnabled = true;
         this.maxStructuresPerRoad = 3;        // 每条道路最多3个结构
-        this.minStructureSpacing = 64;        // 结构间最小间隔64格
         this.smallStructureOffset = 8;        // 小型结构距道路8格
         this.mediumStructureOffset = 12;      // 中型结构距道路12格
         this.largeStructureOffset = 16;       // 大型结构距道路16格
@@ -334,10 +332,6 @@ public final class ModConfig {
             maxStructuresPerRoad = 0;
         if (maxStructuresPerRoad > 20)
             maxStructuresPerRoad = 20;
-        if (minStructureSpacing < 1)
-            minStructureSpacing = 1;
-        if (minStructureSpacing > 256)
-            minStructureSpacing = 256;
         if (smallStructureOffset < 1)
             smallStructureOffset = 1;
         if (smallStructureOffset > 64)
@@ -529,9 +523,6 @@ public final class ModConfig {
 
     public int maxStructuresPerRoad() { return maxStructuresPerRoad; }
     public void setMaxStructuresPerRoad(int v) { this.maxStructuresPerRoad = Math.max(0, v); }
-
-    public int minStructureSpacing() { return minStructureSpacing; }
-    public void setMinStructureSpacing(int v) { this.minStructureSpacing = Math.max(1, v); }
 
     public int smallStructureOffset() { return smallStructureOffset; }
     public void setSmallStructureOffset(int v) { this.smallStructureOffset = Math.max(1, v); }

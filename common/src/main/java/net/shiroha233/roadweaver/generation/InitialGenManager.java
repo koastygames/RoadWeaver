@@ -66,7 +66,7 @@ public final class InitialGenManager {
 
         // 首开世界：按配置尝试放置出生点小屋（幂等）
         if (ConfigService.get().spawnCabinEnabled()) {
-            net.shiroha233.roadweaver.structures.spawn.SpawnCabinService.ensurePlaced(level);
+            net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer.ensurePlaced(level);
         }
 
         // 进行初始规划：写入结构连接（PLANNED）

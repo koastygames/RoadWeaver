@@ -14,8 +14,8 @@ import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.util.ComputeService;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.structures.StructureSystem;
-import net.shiroha233.roadweaver.structures.index.StructureIndexRestorer;
+import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
+import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 
 import java.util.Objects;
 
@@ -32,12 +32,10 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
-        StructureSystem.clearAll();
+        RoadsideStructureRegistry.clearCache();
         net.shiroha233.roadweaver.runtime.ThreadPoolManager.onServerStarted(event.getServer());
         ServerLevel level = event.getServer().getLevel(Objects.requireNonNull(Level.OVERWORLD));
         if (level == null) return;
-        // 从持久化数据恢复结构索引
-        StructureIndexRestorer.restore(level);
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
@@ -74,7 +72,8 @@ public final class ServerPlanningHooks {
             RoadShardStorage.clearAll(lvl);
         }
         RoadGenerationService.onServerStopping();
-        StructureSystem.clearAll();
+        RoadsideStructureRegistry.clearCache();
+        PendingStructureStorage.clearAll();
         ComputeService.shutdownNow();
     }
 }

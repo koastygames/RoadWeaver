@@ -13,6 +13,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -70,6 +71,11 @@ public final class Road {
 
         Records.RoadData rd = new Records.RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
         RoadShardStorage.addRoad(level, rd);
+        
+        // 寻路完成后，预计算路边结构位置
+        // 如果区块还没生成，结构会在 STRUCTURE_STARTS 阶段注入，Beardifier 会自动处理地形
+        // 如果区块已经生成，则在 Feature 阶段通过 RoadsideStructurePlacer 放置（无地形适应）
+        RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random);
     }
 
     
