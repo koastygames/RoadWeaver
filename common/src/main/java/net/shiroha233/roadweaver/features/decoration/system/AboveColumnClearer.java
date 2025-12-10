@@ -2,7 +2,10 @@ package net.shiroha233.roadweaver.features.decoration.system;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.BushBlock;
+import net.minecraft.world.level.block.SnowLayerBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
 
@@ -13,6 +16,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 public final class AboveColumnClearer {
     private AboveColumnClearer() {}
 
+    @SuppressWarnings("deprecation")
     public static void clearAboveColumn(WorldGenLevel world, BlockPos surfacePos, ModConfig cfg) {
         boolean tunnel = cfg != null && cfg.tunnelEnabled();
         int defaultClear = (cfg != null ? cfg.roadClearHeight() : 3);
@@ -26,7 +30,10 @@ public final class AboveColumnClearer {
             if (st.isAir()) continue;
 
             // 清除路面上方所有障碍物（包括树木、植被等）
-            world.setBlock(up, Blocks.AIR.defaultBlockState(), 3);
+            world.setBlock(up, Blocks.AIR.defaultBlockState(), Block.UPDATE_NEIGHBORS | Block.UPDATE_CLIENTS | Block.UPDATE_SUPPRESS_DROPS);
         }
+        BlockState state = world.getBlockState(surfacePos.above(maxH));
+        if(state.getBlock() instanceof BushBlock || state.getBlock() instanceof SnowLayerBlock)
+            world.removeBlock(surfacePos.above(maxH),false);
     }
 }
