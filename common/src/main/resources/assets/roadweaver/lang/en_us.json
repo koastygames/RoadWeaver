@@ -15,10 +15,6 @@
   "config.roadweaver.biome_prefilter": "Enable Biome Prefilter",
   "config.roadweaver.biome_prefilter.tooltip": "Prefilter by allowed biomes of selected structures to reduce false positives and checks.",
   "config.roadweaver.category.structure_filters": "Structure Filters",
-  "config.roadweaver.whitelist": "Whitelist (structures/tags/wildcards)",
-  "config.roadweaver.whitelist.tooltip": "Allowed structures or tags. Supports direct IDs (minecraft:village_plains), tags (#minecraft:village), and wildcards (mvs:houses/*).",
-  "config.roadweaver.blacklist": "Blacklist (structures/tags/wildcards)",
-  "config.roadweaver.blacklist.tooltip": "Blocked structures or tags. Supports wildcards like namespace:path/*.",
   "gui.roadweaver.map.title": "Road Map",
   "gui.roadweaver.map.legend.structures": "Structures",
   "gui.roadweaver.map.legend.planned": "Planned",
@@ -197,5 +193,14 @@
   "config.roadweaver.open_roadside_browser": "Open Roadside Browser",
   "gui.roadweaver.roadside_browser.title": "Roadside Structures",
   "gui.roadweaver.roadside_browser.empty": "No roadside structures registered.",
-  "gui.roadweaver.roadside_browser.preview_unavailable": "Preview unavailable (singleplayer only or template missing)."
+  "gui.roadweaver.roadside_browser.preview_unavailable": "Preview unavailable (singleplayer only or template missing).",
+  "config.roadweaver.open_structure_selection": "Open Structure Selection",
+  "config.roadweaver.structure_selection.title": "Select Structures for Road Connections",
+  "config.roadweaver.structure_selection.search": "Search",
+  "config.roadweaver.structure_selection.search.hint": "Enter structure name or ID...",
+  "config.roadweaver.structure_selection.no_data": "No structure data found. Please enter a world first to discover structures.",
+  "config.roadweaver.structure_selection.other_structures": "Other Structures (not in any tag)",
+  "config.roadweaver.structure_selection.select_all": "Select All",
+  "config.roadweaver.structure_selection.deselect_all": "Deselect All",
+  "config.roadweaver.structure_selection.default": "Villages Only"
 }

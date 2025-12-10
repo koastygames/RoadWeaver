@@ -14,6 +14,8 @@ import net.shiroha233.roadweaver.planning.RoadPlanningService;
 
 import static net.shiroha233.roadweaver.planning.PlanningUtils.sameEdge;
 import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.RoadGenerationConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,26 +49,45 @@ public final class RoadGenerationService {
     /**
      * 执行单个生成任务（无副作用，不更新全局状态）。
      * 
+     * @param level 服务端世界
+     * @param conn  结构连接
      * @return true if success, false if failed
      */
     public static boolean generateTask(ServerLevel level, Records.StructureConnection conn) {
+        // 在入口层获取配置快照
+        ModConfig modCfg = ConfigService.get();
+        RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
+        return generateTask(level, conn, genCfg, modCfg.aStarMaxSteps());
+    }
+    
+    /**
+     * 执行单个生成任务（带配置快照）。
+     * 
+     * @param level    服务端世界
+     * @param conn     结构连接
+     * @param genCfg   道路生成配置快照
+     * @param maxSteps 最大寻路步数
+     * @return true if success, false if failed
+     */
+    public static boolean generateTask(ServerLevel level, Records.StructureConnection conn,
+                                        RoadGenerationConfig genCfg, int maxSteps) {
         if (level == null || conn == null)
             return false;
         try {
             if (Thread.currentThread().isInterrupted())
                 return false;
 
-            // 配置
+            // Feature 配置
             var reg = level.registryAccess()
                     .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
             ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
-            RoadFeatureConfig cfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
+            RoadFeatureConfig featureCfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
                     : defaultConfig();
 
             // 生成
             if (Thread.currentThread().isInterrupted())
                 return false;
-            new Road(level, conn, cfg).generateRoad(ConfigService.get().aStarMaxSteps());
+            new Road(level, conn, featureCfg, genCfg).generateRoad(maxSteps);
             return true;
         } catch (Throwable t) {
             return false;
@@ -232,7 +253,10 @@ public final class RoadGenerationService {
             ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
             RoadFeatureConfig cfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
                     : defaultConfig();
-            new Road(level, conn, cfg).generateRoad(ConfigService.get().aStarMaxSteps());
+            // 在入口层获取配置快照
+            ModConfig modCfg = ConfigService.get();
+            RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
+            new Road(level, conn, cfg, genCfg).generateRoad(modCfg.aStarMaxSteps());
             var server = level.getServer();
             if (server != null) {
                 server.execute(() -> {

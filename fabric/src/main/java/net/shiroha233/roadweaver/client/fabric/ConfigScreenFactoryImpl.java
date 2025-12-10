@@ -9,9 +9,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -64,24 +61,8 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(conf::setBiomePrefilter)
                                                 .build());
 
-                List<String> whitelist = new ArrayList<>(
-                                conf.structureWhitelist() == null ? List.of() : conf.structureWhitelist());
-                List<String> blacklist = new ArrayList<>(
-                                conf.structureBlacklist() == null ? List.of() : conf.structureBlacklist());
-
-                filters.addEntry(
-                                eb.startStrList(Component.translatable("config.roadweaver.whitelist"), whitelist)
-                                                .setTooltip(Component
-                                                                .translatable("config.roadweaver.whitelist.tooltip"))
-                                                .setSaveConsumer(list -> conf.setStructureWhitelist(normalize(list)))
-                                                .build());
-
-                filters.addEntry(
-                                eb.startStrList(Component.translatable("config.roadweaver.blacklist"), blacklist)
-                                                .setTooltip(Component
-                                                                .translatable("config.roadweaver.blacklist.tooltip"))
-                                                .setSaveConsumer(list -> conf.setStructureBlacklist(normalize(list)))
-                                                .build());
+                // 打开结构选择界面的按钮（替代旧的白名单/黑名单输入框）
+                filters.addEntry(new OpenStructureSelectionEntry());
 
                 ConfigCategory planning = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.road_planning"));
@@ -593,20 +574,5 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
 
                 return builder.build();
-        }
-
-        private static List<String> normalize(List<String> src) {
-                if (src == null)
-                        return List.of();
-                LinkedHashSet<String> set = new LinkedHashSet<>();
-                for (String s : src) {
-                        if (s == null)
-                                continue;
-                        String v = s.trim().toLowerCase(Locale.ROOT);
-                        if (v.isEmpty())
-                                continue;
-                        set.add(v);
-                }
-                return new ArrayList<>(set);
         }
 }

@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.search;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 
 import java.util.List;
@@ -25,7 +26,8 @@ public final class StructureIndexService {
     /**
      * 预测并验证「围绕出生点」的一圈结构。
      *
-     * - 使用配置中的 predictRadiusChunks / biomePrefilter / 白黑名单
+     * - 使用配置中的 predictRadiusChunks / biomePrefilter
+     * - 使用 StructureSelectionConfig 中的结构选择
      * - 若未开启结构预测开关，则返回空列表
      */
     public static List<Records.StructureInfo> predictAndVerifyAroundSpawn(ServerLevel level) {
@@ -36,12 +38,11 @@ public final class StructureIndexService {
         if (!cfg.villagePredictionEnabled()) {
             return List.of();
         }
+        // 使用新的 StructureSelectionConfig 获取白名单
         List<Records.StructureInfo> predicted = StructurePredictor.predictOverworldStructuresAroundSpawn(
                 level,
                 cfg.predictRadiusChunks(),
-                cfg.biomePrefilter(),
-                cfg.structureWhitelist(),
-                cfg.structureBlacklist()
+                cfg.biomePrefilter()
         );
         return StructureVerificationService.verifyPredictedStructures(level, predicted);
     }
@@ -51,6 +52,7 @@ public final class StructureIndexService {
      *
      * - 调用 predictOverworldStructuresInRect
      * - 然后用 StructureVerificationService 过滤伪结构点
+     * - 使用 StructureSelectionConfig 中的结构选择
      * - 若未开启结构预测开关，则返回空列表
      */
     public static List<Records.StructureInfo> predictAndVerifyInRect(ServerLevel level,
@@ -67,12 +69,15 @@ public final class StructureIndexService {
         int cminz = Math.floorDiv(minBlockZ, 16);
         int cmaxx = Math.floorDiv(maxBlockX, 16);
         int cmaxz = Math.floorDiv(maxBlockZ, 16);
+        
+        // 使用新的 StructureSelectionConfig 获取白名单
+        List<String> whitelist = StructureSelectionConfig.get().toWhitelist();
         List<Records.StructureInfo> predicted = StructurePredictor.predictOverworldStructuresInRect(
                 level,
                 cminx, cminz, cmaxx, cmaxz,
                 cfg.biomePrefilter(),
-                cfg.structureWhitelist(),
-                cfg.structureBlacklist()
+                whitelist,
+                List.of()  // 不再使用黑名单，结构选择由 GUI 控制
         );
         return StructureVerificationService.verifyPredictedStructures(level, predicted);
     }

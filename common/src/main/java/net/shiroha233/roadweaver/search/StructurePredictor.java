@@ -20,6 +20,7 @@ import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 
 import java.util.ArrayList;
@@ -205,8 +206,22 @@ public final class StructurePredictor {
     }
 
     /**
-     * 预测出生点附近的结构位置（转发到 {@link #predictOverworldStructuresInRect}）
+     * 预测出生点附近的结构位置（使用 StructureSelectionConfig）
      */
+    public static List<Records.StructureInfo> predictOverworldStructuresAroundSpawn(ServerLevel level,
+                                                                                   int radiusChunks,
+                                                                                   boolean biomePrefilter) {
+        // 从 StructureSelectionConfig 获取白名单
+        List<String> whitelist = StructureSelectionConfig.get().toWhitelist();
+        return predictOverworldStructuresAroundSpawn(level, radiusChunks, biomePrefilter, whitelist, List.of());
+    }
+    
+    /**
+     * 预测出生点附近的结构位置（转发到 {@link #predictOverworldStructuresInRect}）
+     * 
+     * @deprecated 使用 {@link #predictOverworldStructuresAroundSpawn(ServerLevel, int, boolean)} 代替
+     */
+    @Deprecated
     public static List<Records.StructureInfo> predictOverworldStructuresAroundSpawn(ServerLevel level,
                                                                                    int radiusChunks,
                                                                                    boolean biomePrefilter,

@@ -37,6 +37,10 @@ public final class ServerPlanningHooks {
         ThreadPoolManager.onServerStarted(event.getServer());
         ServerLevel level = event.getServer().getLevel(Objects.requireNonNull(Level.OVERWORLD));
         if (level == null) return;
+        
+        // 无论是新世界还是已存在的世界，都发现并缓存结构（供结构选择 GUI 使用）
+        net.shiroha233.roadweaver.config.structure.StructureDiscoveryService.discoverFromLevel(level);
+        
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
