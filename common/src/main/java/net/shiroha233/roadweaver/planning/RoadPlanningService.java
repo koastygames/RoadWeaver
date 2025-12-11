@@ -104,6 +104,8 @@ public final class RoadPlanningService {
             primaryEdges = DelaunayPlanner.planDelaunay(points, 2048);
         } else if (cfg0.planningAlgorithm() == ModConfig.PlanningAlgorithm.RNG) {
             primaryEdges = RNGPlanner.planRNG(points, 2048);
+        } else if (cfg0.planningAlgorithm() == ModConfig.PlanningAlgorithm.MST) {
+            primaryEdges = MSTPlanner.planMST(points, 2048);
         } else {
             primaryEdges = KNNPlanner.planKNN(points, 2, 2048, 1.8, 40.0, 2);
         }
@@ -196,6 +198,8 @@ public final class RoadPlanningService {
                 primaryEdges = DelaunayPlanner.planDelaunay(points, 2048);
             } else if (cfg0.planningAlgorithm() == ModConfig.PlanningAlgorithm.RNG) {
                 primaryEdges = RNGPlanner.planRNG(points, 2048);
+            } else if (cfg0.planningAlgorithm() == ModConfig.PlanningAlgorithm.MST) {
+                primaryEdges = MSTPlanner.planMST(points, 2048);
             } else {
                 primaryEdges = KNNPlanner.planKNN(points, 2, 2048, 1.8, 40.0, 2);
             }

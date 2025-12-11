@@ -7,7 +7,8 @@ public final class ModConfig {
     public enum PlanningAlgorithm {
         KNN,
         DELAUNAY,
-        RNG
+        RNG,
+        MST
     }
 
     public enum PathfindingAlgorithm {
