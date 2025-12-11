@@ -205,5 +205,8 @@
   "config.roadweaver.structure_selection.other_structures": "Other Structures (not in any tag)",
   "config.roadweaver.structure_selection.select_all": "Select All",
   "config.roadweaver.structure_selection.deselect_all": "Deselect All",
-  "config.roadweaver.structure_selection.default": "Villages Only"
+  "config.roadweaver.structure_selection.default": "Villages Only",
+  "config.roadweaver.structure_selection.folder": "Folder",
+  "config.roadweaver.structure_selection.folder.select_all": "Select all in this folder",
+  "config.roadweaver.structure_selection.folder.deselect_all": "Deselect all in this folder"
 }

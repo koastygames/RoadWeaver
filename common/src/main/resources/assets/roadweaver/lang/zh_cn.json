@@ -102,7 +102,7 @@
   "config.roadweaver.dynamic_plan_stride_chunks": "动态规划步进（区块）",
   "config.roadweaver.dynamic_plan_stride_chunks.tooltip": "用于触发动态规划的步进（单位：区块）；步进越大，触发频率越低。",
   "config.roadweaver.planning_algorithm": "规划算法",
-  "config.roadweaver.planning_algorithm.tooltip": "选择路网规划的主连边算法：KNN=局部稀疏、近似街区；Delaunay=较均匀、略稠密；RNG=更稀疏骨架；MST=以最小总边长连接所有结构（树状）。",
+  "config.roadweaver.planning_algorithm.tooltip": "选择路网规划的主连边算法：KNN =局部稀疏、近似街区；Delaunay=稠密路网；RNG=稀疏网状（最推荐）；MST=以最小总边长连接所有结构（树状）。",
   "config.roadweaver.planning_algorithm.option.knn": "K-最近邻",
   "config.roadweaver.planning_algorithm.option.delaunay": "Delaunay 三角剖分",
   "config.roadweaver.planning_algorithm.option.rng": "相对邻域图 (RNG)",
@@ -200,5 +200,8 @@
   "config.roadweaver.structure_selection.other_structures": "其他结构（不属于任何标签）",
   "config.roadweaver.structure_selection.select_all": "全选",
   "config.roadweaver.structure_selection.deselect_all": "取消全选",
-  "config.roadweaver.structure_selection.default": "仅村庄"
+  "config.roadweaver.structure_selection.default": "仅村庄",
+  "config.roadweaver.structure_selection.folder": "文件夹",
+  "config.roadweaver.structure_selection.folder.select_all": "全选此文件夹",
+  "config.roadweaver.structure_selection.folder.deselect_all": "取消全选此文件夹"
 }

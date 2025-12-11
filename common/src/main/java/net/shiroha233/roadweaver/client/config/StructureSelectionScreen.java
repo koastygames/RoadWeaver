@@ -32,6 +32,12 @@ public class StructureSelectionScreen extends Screen {
     private final Set<String> expandedTags = new HashSet<>();
     // 模组展开状态（按 namespace），默认展开；搜索时强制展开
     private final Set<String> expandedMods = new HashSet<>();
+    // 路径文件夹展开状态（fullPath 作为 key）
+    private final Set<String> expandedPaths = new HashSet<>();
+    
+    // 基础缩进常量
+    private static final int BASE_INDENT_TAG = 30;     // 标签下结构的基础缩进
+    private static final int BASE_INDENT_ORPHAN = 10;  // 孤立结构的基础缩进
     
     private static final int HEADER_HEIGHT = 50;
     private static final int FOOTER_HEIGHT = 40;
@@ -146,10 +152,6 @@ public class StructureSelectionScreen extends Screen {
             list.sort(Comparator.comparing(t -> t.displayName().toLowerCase(Locale.ROOT)));
         }
         
-        // 结构排序：按本地化名称首字母
-        Comparator<StructureEntry> structureSorter =
-                Comparator.comparing(s -> StructureListWidget.getLocalizedStructureName(s).toLowerCase(Locale.ROOT));
-        
         // 模组 ID 排序：先原版和本模组，其余按模组名首字母
         List<String> sortedModIds = new ArrayList<>(modIds);
         sortedModIds.sort((a, b) -> {
@@ -205,22 +207,22 @@ public class StructureSelectionScreen extends Screen {
                             this::onTagToggle, this::onTagExpandToggle
                     ));
                     
-                    // 如果展开，添加子结构（按名称首字母排序）
+                    // 如果展开，添加子结构（使用路径树组织）
                     if (isExpanded) {
-                        // 若搜索命中模组，则该模组下的所有结构都显示；否则保持原有“按搜索结果过滤结构”的行为
+                        // 若搜索命中模组，则该模组下的所有结构都显示；否则保持原有"按搜索结果过滤结构"的行为
                         List<StructureEntry> baseList;
                         if (!hasSearch || modMatchesFilter) {
-                            baseList = tag.structures();
+                            baseList = new ArrayList<>(tag.structures());
                         } else {
-                            baseList = matchingStructures;
+                            baseList = new ArrayList<>(matchingStructures);
                         }
-                        List<StructureEntry> toShow = new ArrayList<>(baseList);
-                        toShow.sort(structureSorter);
-                        for (StructureEntry structure : toShow) {
-                            boolean isEnabled = config.isStructureEnabled(structure.id().toString());
-                            modEntries.add(new StructureListWidget.StructureChildEntry(
-                                    listWidget, structure, isEnabled, this::onStructureToggle
-                            ));
+                        
+                        // 使用路径树来组织标签下的结构
+                        StructurePathNode pathTree = StructurePathNode.buildTree(baseList, tag.namespace());
+                        addPathNodeEntries(modEntries, pathTree, config, BASE_INDENT_TAG);
+                        
+                        // 记录已添加的结构
+                        for (StructureEntry structure : tag.structures()) {
                             addedStructures.add(structure.id().toString());
                         }
                     } else {
@@ -244,7 +246,7 @@ public class StructureSelectionScreen extends Screen {
                 if (addedStructures.contains(structure.id().toString())) continue;
                 
                 // 搜索命中模组时，显示该模组下所有孤立结构；
-                // 否则保持原有“仅显示与搜索关键字匹配的结构”的行为
+                // 否则保持原有"仅显示与搜索关键字匹配的结构"的行为
                 if (!modMatchesFilter
                         && !matchesFilter(structure.displayName())
                         && !matchesFilter(structure.id().toString())) {
@@ -255,17 +257,14 @@ public class StructureSelectionScreen extends Screen {
             if (!orphanStructures.isEmpty()) {
                 hasAnyForMod = true;
                 if (isModExpanded) {
-                    orphanStructures.sort(structureSorter);
                     modEntries.add(new StructureListWidget.HeaderEntry(
                             listWidget,
                             Component.translatable("config.roadweaver.structure_selection.other_structures")
                     ));
-                    for (StructureEntry structure : orphanStructures) {
-                        boolean isEnabled = config.isStructureEnabled(structure.id().toString());
-                        modEntries.add(new StructureListWidget.SingleStructureEntry(
-                                listWidget, structure, isEnabled, this::onStructureToggle
-                        ));
-                    }
+                    
+                    // 使用路径树来组织孤立结构
+                    StructurePathNode pathTree = StructurePathNode.buildTree(orphanStructures, modId);
+                    addPathNodeEntries(modEntries, pathTree, config, BASE_INDENT_ORPHAN);
                 }
             }
             
@@ -281,6 +280,105 @@ public class StructureSelectionScreen extends Screen {
                 }
             }
         }
+    }
+    
+    /**
+     * 递归添加路径节点条目
+     */
+    private void addPathNodeEntries(List<StructureListWidget.Entry> entries, 
+                                    StructurePathNode node, 
+                                    StructureSelectionConfig config,
+                                    int baseIndent) {
+        boolean hasSearch = !searchFilter.isEmpty();
+        
+        // 处理子文件夹
+        for (StructurePathNode child : node.children()) {
+            if (child.shouldShowAsFolder()) {
+                // 作为可折叠文件夹显示
+                boolean isExpanded = hasSearch || expandedPaths.contains(child.fullPath());
+                
+                // 计算该文件夹下的选中状态
+                Set<String> allIds = child.getAllStructureIds();
+                int enabledCount = 0;
+                for (String id : allIds) {
+                    if (config.isStructureEnabled(id)) {
+                        enabledCount++;
+                    }
+                }
+                boolean allEnabled = enabledCount == allIds.size() && !allIds.isEmpty();
+                boolean partialEnabled = enabledCount > 0 && enabledCount < allIds.size();
+                
+                entries.add(new StructureListWidget.PathFolderEntry(
+                        listWidget, child, isExpanded, allEnabled, partialEnabled,
+                        baseIndent, this::onPathExpandToggle, this::onPathSelectAllToggle
+                ));
+                
+                if (isExpanded) {
+                    // 递归添加子内容
+                    addPathNodeEntries(entries, child, config, baseIndent);
+                }
+            } else {
+                // 结构数量少，直接展开显示
+                addPathNodeEntries(entries, child, config, baseIndent);
+            }
+        }
+        
+        // 处理当前节点直接挂载的结构
+        for (StructureEntry structure : node.structures()) {
+            // 搜索过滤
+            if (hasSearch && !matchesFilter(structure.displayName()) 
+                    && !matchesFilter(structure.id().toString())) {
+                continue;
+            }
+            
+            boolean isEnabled = config.isStructureEnabled(structure.id().toString());
+            entries.add(new StructureListWidget.PathStructureEntry(
+                    listWidget, structure, isEnabled, baseIndent, node.depth(),
+                    this::onStructureToggle
+            ));
+        }
+    }
+    
+    /**
+     * 路径文件夹展开/折叠切换
+     */
+    private void onPathExpandToggle(StructurePathNode pathNode) {
+        String path = pathNode.fullPath();
+        if (expandedPaths.contains(path)) {
+            expandedPaths.remove(path);
+        } else {
+            expandedPaths.add(path);
+        }
+        rebuildList();
+    }
+    
+    /**
+     * 路径文件夹全选/取消全选
+     */
+    private void onPathSelectAllToggle(StructurePathNode pathNode) {
+        StructureSelectionConfig config = StructureSelectionConfig.get();
+        Set<String> allIds = pathNode.getAllStructureIds();
+        
+        // 检查是否全部已启用
+        boolean allEnabled = true;
+        for (String id : allIds) {
+            if (!config.isStructureEnabled(id)) {
+                allEnabled = false;
+                break;
+            }
+        }
+        
+        // 如果全部已启用，则全部禁用；否则全部启用
+        if (allEnabled) {
+            for (String id : allIds) {
+                config.disableStructure(id);
+            }
+        } else {
+            for (String id : allIds) {
+                config.enableStructure(id);
+            }
+        }
+        rebuildList();
     }
     
     private boolean matchesFilter(String text) {

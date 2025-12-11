@@ -413,6 +413,183 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
     
+    // ==================== 路径文件夹条目（可展开，带全选功能） ====================
+    
+    public static class PathFolderEntry extends Entry {
+        private final StructurePathNode pathNode;
+        private final boolean expanded;
+        private final boolean allEnabled;      // 该文件夹下所有结构是否全部启用
+        private final boolean partialEnabled;  // 该文件夹下是否部分启用
+        private final Consumer<StructurePathNode> onExpandToggle;
+        private final Consumer<StructurePathNode> onSelectAllToggle;
+        private final int baseIndent;          // 基础缩进（来自父级）
+        
+        private static final int CHECKBOX_SIZE = 16;
+        private static final int INDENT_PER_LEVEL = 15;
+        
+        public PathFolderEntry(StructureListWidget list, 
+                               StructurePathNode pathNode,
+                               boolean expanded,
+                               boolean allEnabled,
+                               boolean partialEnabled,
+                               int baseIndent,
+                               Consumer<StructurePathNode> onExpandToggle,
+                               Consumer<StructurePathNode> onSelectAllToggle) {
+            super(list);
+            this.pathNode = pathNode;
+            this.expanded = expanded;
+            this.allEnabled = allEnabled;
+            this.partialEnabled = partialEnabled;
+            this.baseIndent = baseIndent;
+            this.onExpandToggle = onExpandToggle;
+            this.onSelectAllToggle = onSelectAllToggle;
+        }
+        
+        @Override
+        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
+                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+            Minecraft mc = Minecraft.getInstance();
+            
+            // 计算缩进
+            int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
+            
+            // 展开/折叠按钮
+            String expandIcon = expanded ? "▼" : "▶";
+            int expandX = left + indent + 5;
+            graphics.drawString(mc.font, expandIcon, expandX, top + 5, 0xFFFFFF);
+            
+            // 复选框（用于全选/取消全选）
+            int checkboxX = left + indent + 22;
+            int checkboxY = top + 3;
+            graphics.fill(checkboxX, checkboxY, checkboxX + CHECKBOX_SIZE, checkboxY + CHECKBOX_SIZE, 0xFF666666);
+            graphics.fill(checkboxX + 1, checkboxY + 1, checkboxX + CHECKBOX_SIZE - 1, checkboxY + CHECKBOX_SIZE - 1, 0xFF222222);
+            
+            // 绘制选中状态：全选=绿色填充，部分选中=黄色边框
+            if (allEnabled) {
+                graphics.fill(checkboxX + 3, checkboxY + 3, checkboxX + CHECKBOX_SIZE - 3, checkboxY + CHECKBOX_SIZE - 3, 0xFF44FF44);
+            } else if (partialEnabled) {
+                // 部分选中：绘制黄色边框
+                graphics.fill(checkboxX + 2, checkboxY + 2, checkboxX + CHECKBOX_SIZE - 2, checkboxY + 3, 0xFFFFFF00);
+                graphics.fill(checkboxX + 2, checkboxY + CHECKBOX_SIZE - 3, checkboxX + CHECKBOX_SIZE - 2, checkboxY + CHECKBOX_SIZE - 2, 0xFFFFFF00);
+                graphics.fill(checkboxX + 2, checkboxY + 3, checkboxX + 3, checkboxY + CHECKBOX_SIZE - 3, 0xFFFFFF00);
+                graphics.fill(checkboxX + CHECKBOX_SIZE - 3, checkboxY + 3, checkboxX + CHECKBOX_SIZE - 2, checkboxY + CHECKBOX_SIZE - 3, 0xFFFFFF00);
+            }
+            
+            // 文件夹名称和结构数量
+            int textX = left + indent + 45;
+            String displayText = pathNode.name() + " §7(" + pathNode.getTotalStructureCount() + ")";
+            graphics.drawString(mc.font, displayText, textX, top + 5, 0xFFAA55);
+        }
+        
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (button == 0) {
+                int left = list.getRowLeft();
+                int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
+                int expandX = left + indent + 5;
+                int checkboxX = left + indent + 22;
+                
+                if (mouseX >= expandX && mouseX < expandX + 16) {
+                    // 点击展开按钮
+                    onExpandToggle.accept(pathNode);
+                    return true;
+                } else if (mouseX >= checkboxX && mouseX < checkboxX + CHECKBOX_SIZE) {
+                    // 点击复选框 - 全选/取消全选
+                    onSelectAllToggle.accept(pathNode);
+                    return true;
+                }
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+        
+        @Override
+        public java.util.List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children() {
+            return java.util.List.of();
+        }
+
+        @Override
+        public java.util.List<? extends net.minecraft.client.gui.narration.NarratableEntry> narratables() {
+            return java.util.List.of();
+        }
+    }
+    
+    // ==================== 路径下的结构条目（带深度缩进） ====================
+    
+    public static class PathStructureEntry extends Entry {
+        private final StructureEntry structure;
+        private final boolean enabled;
+        private final Consumer<StructureEntry> onToggle;
+        private final int baseIndent;
+        private final int depth;
+        
+        private static final int CHECKBOX_SIZE = 16;
+        private static final int INDENT_PER_LEVEL = 15;
+        
+        public PathStructureEntry(StructureListWidget list, 
+                                  StructureEntry structure, 
+                                  boolean enabled,
+                                  int baseIndent,
+                                  int depth,
+                                  Consumer<StructureEntry> onToggle) {
+            super(list);
+            this.structure = structure;
+            this.enabled = enabled;
+            this.baseIndent = baseIndent;
+            this.depth = depth;
+            this.onToggle = onToggle;
+        }
+        
+        @Override
+        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
+                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+            Minecraft mc = Minecraft.getInstance();
+            
+            // 计算缩进
+            int indent = baseIndent + depth * INDENT_PER_LEVEL;
+            
+            // 复选框
+            int checkboxX = left + indent + 5;
+            int checkboxY = top + 3;
+            graphics.fill(checkboxX, checkboxY, checkboxX + CHECKBOX_SIZE, checkboxY + CHECKBOX_SIZE, 0xFF666666);
+            graphics.fill(checkboxX + 1, checkboxY + 1, checkboxX + CHECKBOX_SIZE - 1, checkboxY + CHECKBOX_SIZE - 1, 0xFF222222);
+            if (enabled) {
+                graphics.fill(checkboxX + 3, checkboxY + 3, checkboxX + CHECKBOX_SIZE - 3, checkboxY + CHECKBOX_SIZE - 3, 0xFF44FF44);
+            }
+            
+            // 结构名称（只显示叶子名称）
+            String leafName = StructurePathNode.getLeafName(structure);
+            int textColor = structure.isVanilla() ? 0xAAAAAA : 0xFFAAAA;
+            graphics.drawString(mc.font, leafName, left + indent + 28, top + 5, textColor);
+            
+            // 完整 ID（较暗）
+            graphics.drawString(mc.font, structure.id().toString(), left + indent + 28, top + 15, 0x666666);
+        }
+        
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (button == 0) {
+                int left = list.getRowLeft();
+                int indent = baseIndent + depth * INDENT_PER_LEVEL;
+                int checkboxX = left + indent + 5;
+                if (mouseX >= checkboxX && mouseX < checkboxX + CHECKBOX_SIZE) {
+                    onToggle.accept(structure);
+                    return true;
+                }
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+        
+        @Override
+        public java.util.List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children() {
+            return java.util.List.of();
+        }
+
+        @Override
+        public java.util.List<? extends net.minecraft.client.gui.narration.NarratableEntry> narratables() {
+            return java.util.List.of();
+        }
+    }
+    
     // ==================== 独立结构条目（无缩进） ====================
     
     public static class SingleStructureEntry extends Entry {
