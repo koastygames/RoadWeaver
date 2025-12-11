@@ -5,7 +5,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
-import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.config.PathfindingConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
@@ -25,13 +25,24 @@ final class GradientDescentPathfinder {
     private static final int BIOME_BASE_COST = 12;
     private static final int SEARCH_BUFFER = 64; // 搜索边界缓冲
 
+    /**
+     * 梯度下降寻路算法
+     * 
+     * @param startGround 起点
+     * @param endGround   终点
+     * @param width       道路宽度
+     * @param level       服务端世界
+     * @param maxSteps    最大步数
+     * @param cache       地形采样缓存
+     * @param cfg         寻路配置快照（不可变）
+     */
     static List<Records.RoadSegmentPlacement> calculatePath(BlockPos startGround,
                                                            BlockPos endGround,
                                                            int width,
                                                            ServerLevel level,
                                                            int maxSteps,
-                                                           TerrainSamplingCache cache) {
-        var cfg = ConfigService.get();
+                                                           TerrainSamplingCache cache,
+                                                           PathfindingConfig cfg) {
         
         // 1. 定义搜索边界 (Bounding Box)
         // 即使有了启发式，保留边界检查也是个好习惯，防止跑太远
@@ -45,11 +56,11 @@ final class GradientDescentPathfinder {
         Map<BlockPos, Node> allNodes = new HashMap<>();
         Set<BlockPos> closed = new HashSet<>();
 
-        Node startNode = new Node(startGround, null, 0.0, heuristic(startGround, endGround) * cfg.heuristicWeight());
+        Node startNode = new Node(startGround, null, 0.0, heuristic(startGround, endGround, cfg));
         openSet.add(startNode);
         allNodes.put(startGround, startNode);
 
-        int d = RoadPathCalculator.getNeighborDistance();
+        int d = cfg.effectiveAStarStep();
         int[][] neighborOffsets = new int[][]{
                 {d, 0}, {-d, 0}, {0, d}, {0, -d},
                 {d, d}, {d, -d}, {-d, d}, {-d, -d}
@@ -59,10 +70,11 @@ final class GradientDescentPathfinder {
         // 但为了防止无解时的死循环，还是保留限制
         int stepsBudget = Math.max(5000, maxSteps * 3); 
 
+        int dutyCycle = cfg.threadDutyCycle();
         ThreadPoolManager.resetThrottle(); // 重置节流计时器
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
-                ThreadPoolManager.throttle(); // 根据占空比控制CPU使用率
+                ThreadPoolManager.throttle(dutyCycle); // 根据占空比控制CPU使用率
                 if (Thread.currentThread().isInterrupted()) return null;
                 
                 Node current = openSet.poll();
@@ -100,8 +112,8 @@ final class GradientDescentPathfinder {
                     boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
                     int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
                     int waterDepth = Math.max(0, sea - oceanFloor);
-                    int waterDepthCost = waterColumn ? waterDepth * cfg.waterDepthWeight() : 0;
-                    int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
+                    int waterDepthCost = waterColumn ? (int)(waterDepth * cfg.waterDepthWeight()) : 0;
+                    int nearWaterCost = nearWater ? (int)cfg.nearWaterCost() : 0;
 
                     double elevationCost = elevation * elevation * cfg.elevationWeight();
                     // 坡度阻断
@@ -118,7 +130,7 @@ final class GradientDescentPathfinder {
                             + nearWaterCost;
 
                     // 关键改动：加入启发式，但保持流体特性（无 deviation 惩罚）
-                    double hCost = heuristic(np, endGround) * cfg.heuristicWeight();
+                    double hCost = heuristic(np, endGround, cfg);
                     double fCost = gCost + hCost;
 
                     Node n = allNodes.get(np);
@@ -158,11 +170,11 @@ final class GradientDescentPathfinder {
         return Math.abs(a.getX() - b.getX()) + Math.abs(a.getZ() - b.getZ());
     }
 
-    private static double heuristic(BlockPos a, BlockPos b) {
+    private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {
         // 使用欧几里得距离，给予更平滑的方向指引
         double dx = a.getX() - b.getX();
         double dz = a.getZ() - b.getZ();
-        return Math.sqrt(dx * dx + dz * dz);
+        return Math.sqrt(dx * dx + dz * dz) * cfg.heuristicWeight();
     }
 
     private static final class Node {

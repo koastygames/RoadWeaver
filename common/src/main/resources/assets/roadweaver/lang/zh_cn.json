@@ -15,10 +15,6 @@
   "config.roadweaver.biome_prefilter": "启用群系预筛",
   "config.roadweaver.biome_prefilter.tooltip": "根据所选结构允许生成的群系列表进行预筛，减少海上等不可能位置的错误预测并降低检查次数。",
   "config.roadweaver.category.structure_filters": "结构筛选",
-  "config.roadweaver.whitelist": "白名单（结构/标签/通配符）",
-  "config.roadweaver.whitelist.tooltip": "允许的结构或标签。支持直接ID（minecraft:village_plains）、标签（#minecraft:village）与通配符（mvs:houses/*）。",
-  "config.roadweaver.blacklist": "黑名单（结构/标签/通配符）",
-  "config.roadweaver.blacklist.tooltip": "禁止的结构或标签。支持通配符，如 namespace:path/*。",
   "gui.roadweaver.map.title": "道路地图",
   "gui.roadweaver.map.legend.structures": "结构",
   "gui.roadweaver.map.legend.planned": "计划中",
@@ -195,5 +191,14 @@
   "config.roadweaver.open_roadside_browser": "打开路边结构浏览器",
   "gui.roadweaver.roadside_browser.title": "路边结构浏览器",
   "gui.roadweaver.roadside_browser.empty": "当前没有已注册的路边结构。",
-  "gui.roadweaver.roadside_browser.preview_unavailable": "无法预览（仅单机且模板存在时可用）。"
+  "gui.roadweaver.roadside_browser.preview_unavailable": "无法预览（仅单机且模板存在时可用）。",
+  "config.roadweaver.open_structure_selection": "打开结构选择界面",
+  "config.roadweaver.structure_selection.title": "选择要连接道路的结构",
+  "config.roadweaver.structure_selection.search": "搜索",
+  "config.roadweaver.structure_selection.search.hint": "输入结构名称或 ID...",
+  "config.roadweaver.structure_selection.no_data": "未发现结构数据。请先进入存档以获取结构列表。",
+  "config.roadweaver.structure_selection.other_structures": "其他结构（不属于任何标签）",
+  "config.roadweaver.structure_selection.select_all": "全选",
+  "config.roadweaver.structure_selection.deselect_all": "取消全选",
+  "config.roadweaver.structure_selection.default": "仅村庄"
 }

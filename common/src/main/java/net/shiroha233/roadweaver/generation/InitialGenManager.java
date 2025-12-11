@@ -10,16 +10,17 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
+import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.RoadGenerationConfig;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
+
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.shiroha233.roadweaver.planning.PlanningUtils.sameEdge;
@@ -83,6 +84,9 @@ public final class InitialGenManager {
         // 确保生成线程池已初始化
         RoadGenerationService.onServerStarted();
 
+        // 发现并缓存所有结构和标签（供结构选择 GUI 使用）
+        net.shiroha233.roadweaver.config.structure.StructureDiscoveryService.discoverFromLevel(level);
+
         // 首开世界：按配置尝试放置出生点小屋（幂等）
         if (ConfigService.get().spawnCabinEnabled()) {
             SpawnCabinPlacer.ensurePlaced(level);
@@ -120,18 +124,13 @@ public final class InitialGenManager {
             }
 
             if (!tasks.isEmpty()) {
-                // 提交任务到线程池 - 使用配置的初始生成线程数创建专用线程池
-                int nThreads = ConfigService.get().initialGenerationThreads();
-                ExecutorService executor = Executors.newFixedThreadPool(nThreads, new ThreadFactory() {
-                    private final AtomicInteger count = new AtomicInteger(1);
-
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        Thread t = new Thread(r, "RoadWeaver-InitialGen-" + count.getAndIncrement());
-                        t.setDaemon(true);
-                        return t;
-                    }
-                });
+                // 在入口层获取配置快照，避免在多线程中重复读取
+                ModConfig modCfg = ConfigService.get();
+                RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
+                int maxSteps = modCfg.aStarMaxSteps();
+                
+                // 使用统一线程池管理器
+                ExecutorService executor = ThreadPoolManager.initialGenExecutor();
                 List<Future<?>> futures = new ArrayList<>();
 
                 for (Records.StructureConnection task : tasks) {
@@ -139,7 +138,8 @@ public final class InitialGenManager {
                         // 更新状态为生成中
                         generating.incrementAndGet();
 
-                        boolean success = RoadGenerationService.generateTask(level, task);
+                        // 使用配置快照，避免在热路径中访问全局单例
+                        boolean success = RoadGenerationService.generateTask(level, task, genCfg, maxSteps);
 
                         generating.decrementAndGet();
                         if (success) {
@@ -162,17 +162,6 @@ public final class InitialGenManager {
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                }
-
-                // 关闭专用线程池
-                executor.shutdown();
-                try {
-                    if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                        executor.shutdownNow();
-                    }
-                } catch (InterruptedException e) {
-                    executor.shutdownNow();
-                    Thread.currentThread().interrupt();
                 }
 
                 // 批量更新 WorldDataProvider

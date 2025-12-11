@@ -19,7 +19,8 @@ public final class ConfigService {
     private static final String BASE_DIR = "roadweaver";
     private static final String FILE_NAME = "roadweaver.json";
 
-    private static ModConfig INSTANCE = new ModConfig();
+    // 使用 volatile 确保多线程可见性，但读取不需要同步锁
+    private static volatile ModConfig INSTANCE = new ModConfig();
 
     private ConfigService() {}
 
@@ -70,7 +71,12 @@ public final class ConfigService {
         }
     }
 
-    public static synchronized ModConfig get() {
+    /**
+     * 获取配置实例（无锁读取）。
+     * 由于 INSTANCE 是 volatile 的，读取是线程安全的。
+     * 配置修改通过 load()/save() 完成，它们是 synchronized 的。
+     */
+    public static ModConfig get() {
         return INSTANCE;
     }
 }

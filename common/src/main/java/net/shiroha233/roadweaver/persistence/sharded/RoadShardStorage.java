@@ -31,6 +31,13 @@ public final class RoadShardStorage {
     private static final DynamicOps<Tag> OPS = NbtOps.INSTANCE;
 
     private static final java.util.concurrent.ConcurrentHashMap<String, LinkedHashMap<Long, Shard>> CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    // 用于每个 Shard 的加载锁，避免重复加载同一分片
+    private static final java.util.concurrent.ConcurrentHashMap<String, Object> SHARD_LOCKS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static Object getShardLock(ServerLevel level, int rx, int rz) {
+        String key = cacheKey(level) + "|" + rx + "," + rz;
+        return SHARD_LOCKS.computeIfAbsent(key, k -> new Object());
+    }
 
     private static String dimKey(ServerLevel level) {
         ResourceLocation rl = level.dimension().location();
@@ -84,9 +91,24 @@ public final class RoadShardStorage {
     private static Shard loadShard(ServerLevel level, int rx, int rz) throws IOException {
         LinkedHashMap<Long, Shard> cache = cacheForDim(level);
         long sk = shardKey(rx, rz);
+        
+        // 第一次检查（无锁）：如果已在缓存，直接返回
         synchronized (cache) {
             Shard s = cache.get(sk);
             if (s != null) return s;
+        }
+        
+        // 获取该分片专属的加载锁，避免多线程重复加载同一分片
+        // 但不阻塞其他分片的加载
+        Object shardLock = getShardLock(level, rx, rz);
+        synchronized (shardLock) {
+            // 第二次检查：可能在等待锁期间其他线程已加载
+            synchronized (cache) {
+                Shard s = cache.get(sk);
+                if (s != null) return s;
+            }
+            
+            // 在分片锁内、缓存锁外执行文件 I/O（不阻塞其他分片）
             Path p = shardPath(level, rx, rz);
             List<Records.RoadData> roads = new ArrayList<>();
             if (Files.exists(p)) {
@@ -97,8 +119,15 @@ public final class RoadShardStorage {
                     res.result().ifPresent(roads::addAll);
                 }
             }
-            s = new Shard(rx, rz, roads);
-            cache.put(sk, s);
+            
+            Shard s = new Shard(rx, rz, roads);
+            // 只在写入缓存时加锁
+            synchronized (cache) {
+                // 再次检查，防止极端情况下的重复
+                Shard existing = cache.get(sk);
+                if (existing != null) return existing;
+                cache.put(sk, s);
+            }
             return s;
         }
     }

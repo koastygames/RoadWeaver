@@ -2,17 +2,37 @@ package net.shiroha233.roadweaver.runtime;
 
 import net.minecraft.server.MinecraftServer;
 import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.config.ModConfig;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * 统一线程池管理器。
+ * 
+ * 职责：
+ * 1. 管理所有线程池的生命周期（创建、关闭、调整大小）
+ * 2. 提供线程节流机制（占空比控制）
+ * 3. 统一的 Epoch 机制用于检测服务器重启
+ * 
+ * 设计原则：
+ * - 线程池只在这里创建和关闭，其他地方只获取引用
+ * - 节流方法接受参数，不依赖全局配置
+ */
 public final class ThreadPoolManager {
     private ThreadPoolManager() {}
 
+    // 计算线程池（用于 A* 寻路等 CPU 密集型任务）
     private static volatile ExecutorService COMPUTE_EXEC;
+    // 生成线程池（用于常规道路生成）
     private static volatile ExecutorService GENERATION_EXEC;
+    // 初始生成线程池（用于服务器启动时的初始道路生成）
+    private static volatile ExecutorService INITIAL_GEN_EXEC;
+    
+    // Epoch 机制：每次服务器启动/停止时递增，用于检测过期任务
     private static final AtomicLong EPOCH = new AtomicLong(0L);
 
     private static ThreadFactory namedFactory(String prefix) {
@@ -23,63 +43,87 @@ public final class ThreadPoolManager {
         };
     }
 
+    /**
+     * 服务器启动时调用：初始化所有线程池
+     */
     public static synchronized void onServerStarted(MinecraftServer server) {
         EPOCH.incrementAndGet();
+        ModConfig cfg = ConfigService.get();
+        
         // 计算池: 从配置（0=自动，自动模式为 CPU-1）
-        int computeThreads = resolveComputeThreadsFromConfig();
-        if (COMPUTE_EXEC != null && !COMPUTE_EXEC.isShutdown() && !COMPUTE_EXEC.isTerminated()) {
-            try { COMPUTE_EXEC.shutdownNow(); } catch (Throwable ignored) {}
-        }
+        int computeThreads = resolveComputeThreads(cfg.computeThreads());
+        shutdownQuietly(COMPUTE_EXEC);
         COMPUTE_EXEC = Executors.newFixedThreadPool(computeThreads, namedFactory("RW-Compute"));
 
         // 生成池: 从配置
-        int genThreads = Math.max(1, ConfigService.get().generationThreads());
-        if (GENERATION_EXEC != null && !GENERATION_EXEC.isShutdown() && !GENERATION_EXEC.isTerminated()) {
-            try { GENERATION_EXEC.shutdownNow(); } catch (Throwable ignored) {}
-        }
+        int genThreads = Math.max(1, cfg.generationThreads());
+        shutdownQuietly(GENERATION_EXEC);
         GENERATION_EXEC = Executors.newFixedThreadPool(genThreads, namedFactory("RW-Gen"));
+        
+        // 初始生成池: 从配置
+        int initialThreads = Math.max(1, cfg.initialGenerationThreads());
+        shutdownQuietly(INITIAL_GEN_EXEC);
+        INITIAL_GEN_EXEC = Executors.newFixedThreadPool(initialThreads, namedFactory("RW-InitGen"));
     }
 
+    /**
+     * 服务器停止时调用：关闭所有线程池
+     */
     public static synchronized void onServerStopping() {
         EPOCH.incrementAndGet();
-        if (COMPUTE_EXEC != null) {
-            try { COMPUTE_EXEC.shutdownNow(); } catch (Throwable ignored) {}
-            COMPUTE_EXEC = null;
-        }
-        if (GENERATION_EXEC != null) {
-            try { GENERATION_EXEC.shutdownNow(); } catch (Throwable ignored) {}
-            GENERATION_EXEC = null;
+        shutdownQuietly(COMPUTE_EXEC);
+        COMPUTE_EXEC = null;
+        shutdownQuietly(GENERATION_EXEC);
+        GENERATION_EXEC = null;
+        shutdownQuietly(INITIAL_GEN_EXEC);
+        INITIAL_GEN_EXEC = null;
+    }
+    
+    /**
+     * 安静地关闭线程池
+     */
+    private static void shutdownQuietly(ExecutorService exec) {
+        if (exec != null && !exec.isShutdown() && !exec.isTerminated()) {
+            try { exec.shutdownNow(); } catch (Throwable ignored) {}
         }
     }
 
+    /**
+     * 调整生成线程池大小
+     */
     public static synchronized void resizeGenerationPool(int threads) {
         int genThreads = Math.max(1, threads);
-        if (GENERATION_EXEC != null && !GENERATION_EXEC.isShutdown() && !GENERATION_EXEC.isTerminated()) {
-            try { GENERATION_EXEC.shutdownNow(); } catch (Throwable ignored) {}
-        }
+        shutdownQuietly(GENERATION_EXEC);
         GENERATION_EXEC = Executors.newFixedThreadPool(genThreads, namedFactory("RW-Gen"));
     }
 
-    // 计算池在运行时动态调整
+    /**
+     * 调整计算线程池大小
+     */
     public static synchronized void resizeComputePool(int threads) {
-        int computeThreads;
-        if (threads <= 0) {
-            computeThreads = resolveComputeThreadsFromConfig();
-        } else {
-            computeThreads = Math.max(1, threads);
-        }
-        if (COMPUTE_EXEC != null && !COMPUTE_EXEC.isShutdown() && !COMPUTE_EXEC.isTerminated()) {
-            try { COMPUTE_EXEC.shutdownNow(); } catch (Throwable ignored) {}
-        }
+        int computeThreads = resolveComputeThreads(threads);
+        shutdownQuietly(COMPUTE_EXEC);
         COMPUTE_EXEC = Executors.newFixedThreadPool(computeThreads, namedFactory("RW-Compute"));
     }
+    
+    /**
+     * 调整初始生成线程池大小
+     */
+    public static synchronized void resizeInitialGenPool(int threads) {
+        int initialThreads = Math.max(1, threads);
+        shutdownQuietly(INITIAL_GEN_EXEC);
+        INITIAL_GEN_EXEC = Executors.newFixedThreadPool(initialThreads, namedFactory("RW-InitGen"));
+    }
 
+    /**
+     * 获取计算线程池（懒初始化）
+     */
     public static ExecutorService computeExecutor() {
         ExecutorService e = COMPUTE_EXEC;
         if (e == null || e.isShutdown() || e.isTerminated()) {
             synchronized (ThreadPoolManager.class) {
                 if (COMPUTE_EXEC == null || COMPUTE_EXEC.isShutdown() || COMPUTE_EXEC.isTerminated()) {
-                    int computeThreads = resolveComputeThreadsFromConfig();
+                    int computeThreads = resolveComputeThreads(ConfigService.get().computeThreads());
                     COMPUTE_EXEC = Executors.newFixedThreadPool(computeThreads, namedFactory("RW-Compute"));
                 }
                 e = COMPUTE_EXEC;
@@ -88,6 +132,9 @@ public final class ThreadPoolManager {
         return e;
     }
 
+    /**
+     * 获取生成线程池（懒初始化）
+     */
     public static ExecutorService generationExecutor() {
         ExecutorService e = GENERATION_EXEC;
         if (e == null || e.isShutdown() || e.isTerminated()) {
@@ -100,6 +147,40 @@ public final class ThreadPoolManager {
             }
         }
         return e;
+    }
+    
+    /**
+     * 获取初始生成线程池（懒初始化）
+     */
+    public static ExecutorService initialGenExecutor() {
+        ExecutorService e = INITIAL_GEN_EXEC;
+        if (e == null || e.isShutdown() || e.isTerminated()) {
+            synchronized (ThreadPoolManager.class) {
+                if (INITIAL_GEN_EXEC == null || INITIAL_GEN_EXEC.isShutdown() || INITIAL_GEN_EXEC.isTerminated()) {
+                    int initialThreads = Math.max(1, ConfigService.get().initialGenerationThreads());
+                    INITIAL_GEN_EXEC = Executors.newFixedThreadPool(initialThreads, namedFactory("RW-InitGen"));
+                }
+                e = INITIAL_GEN_EXEC;
+            }
+        }
+        return e;
+    }
+    
+    /**
+     * 等待初始生成线程池完成所有任务
+     * @param timeoutSeconds 超时时间（秒）
+     * @return 是否在超时前完成
+     */
+    public static boolean awaitInitialGenCompletion(long timeoutSeconds) {
+        ExecutorService e = INITIAL_GEN_EXEC;
+        if (e == null) return true;
+        e.shutdown();
+        try {
+            return e.awaitTermination(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
     }
 
     public static long currentEpoch() {
@@ -117,18 +198,15 @@ public final class ThreadPoolManager {
     private static final ThreadLocal<Long> WORK_START = ThreadLocal.withInitial(System::currentTimeMillis);
 
     /**
-     * 节流检查点 - 在耗时任务的循环中周期性调用。
-     * 根据配置的 threadDutyCycle（占空比），工作一段时间后主动休眠。
+     * 节流检查点（参数化版本） - 在耗时任务的循环中周期性调用。
+     * 根据传入的占空比，工作一段时间后主动休眠。
      * 例如：50% 占空比 → 工作 20ms 后休眠 20ms；10% → 工作 20ms 后休眠 180ms。
+     * 
+     * @param dutyCycle 占空比 (1-100)，100 表示不节流
      */
-    public static void throttle() {
-        int duty;
-        try {
-            duty = ConfigService.get().threadDutyCycle();
-        } catch (Throwable t) {
-            return; // 配置未加载，不节流
-        }
-        if (duty >= 100) return; // 100% 不节流
+    public static void throttle(int dutyCycle) {
+        if (dutyCycle >= 100) return; // 100% 不节流
+        int duty = Math.max(1, Math.min(100, dutyCycle));
 
         long now = System.currentTimeMillis();
         long elapsed = now - WORK_START.get();
@@ -146,6 +224,21 @@ public final class ThreadPoolManager {
             WORK_START.set(System.currentTimeMillis());
         }
     }
+    
+    /**
+     * 节流检查点（兼容旧 API，从全局配置读取占空比）
+     * @deprecated 使用 {@link #throttle(int)} 传入占空比参数
+     */
+    @Deprecated
+    public static void throttle() {
+        int duty;
+        try {
+            duty = ConfigService.get().threadDutyCycle();
+        } catch (Throwable t) {
+            return; // 配置未加载，不节流
+        }
+        throttle(duty);
+    }
 
     /** 重置当前线程的节流计时器（在任务开始时调用） */
     public static void resetThrottle() {
@@ -160,12 +253,10 @@ public final class ThreadPoolManager {
         WORK_START.remove();
     }
 
-    // 从配置解析计算线程数，0=自动（CPU-1），异常时回退为1
-    private static int resolveComputeThreadsFromConfig() {
-        int configured = 0;
-        try {
-            configured = ConfigService.get().computeThreads();
-        } catch (Throwable ignored) {}
+    /**
+     * 解析计算线程数，0=自动（CPU-1），异常时回退为1
+     */
+    private static int resolveComputeThreads(int configured) {
         if (configured > 0) {
             return Math.max(1, configured);
         }
