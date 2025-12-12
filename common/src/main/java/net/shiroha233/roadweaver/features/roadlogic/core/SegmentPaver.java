@@ -46,10 +46,10 @@ public final class SegmentPaver {
                                    ModConfig cfg) {
         List<BlockPos> positions = seg.positions();
         if (positions.isEmpty()) return;
-        
+
         // 批量计算每个方块的插值高度
         int[] heights = RoadHeightInterpolator.batchInterpolate(positions, segmentIndex, centers, targetY);
-        
+
         for (int i = 0; i < positions.size(); i++) {
             BlockPos widthBlock = positions.get(i);
             int y = heights[i];
@@ -57,6 +57,7 @@ public final class SegmentPaver {
             if (StructureAvoidanceService.shouldAvoid(world, pos)) {
                 continue;
             }
+
             // 选择材质
             List<BlockState> baseMats;
             if (roadType == 1) {
@@ -64,10 +65,10 @@ public final class SegmentPaver {
             } else {
                 baseMats = materials;
             }
-            
+
             // 放置路面方块
             SurfacePlacementUtil.placeOnSurface(world, pos, baseMats, 0, random, cfg);
-            
+
             // 人工道路且配置了半砖：检查是否需要平滑过渡
             if (roadType == 0 && slabMaterials != null && !slabMaterials.isEmpty()) {
                 if (shouldPlaceSlab(widthBlock.getX(), widthBlock.getZ(), y, centers, targetY)) {

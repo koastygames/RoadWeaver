@@ -85,3 +85,5 @@ gradle-local.properties
 /worldgen-roadweaver-analysis.md
 /nbt
 AGENTS.md
+.doc
+doc/FIX.md
