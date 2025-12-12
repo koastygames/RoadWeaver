@@ -74,6 +74,8 @@
   "text.autoconfig.roadweaver.option.maxConcurrentGenerations": "最大并发生成数",
   "config.roadweaver.a_star_step": "A* 寻路采样步长（方块）",
   "config.roadweaver.a_star_step.tooltip": "A* 在网格上的邻居采样间距。数值越大节点越少，性能更好但路径精度降低。默认 16。",
+  "config.roadweaver.hierarchical_pathfinding_enabled": "启用分层寻路",
+  "config.roadweaver.hierarchical_pathfinding_enabled.tooltip": "开启后会先用固定粗步长（64）进行一次粗 A*，用于预热地形采样缓存（噪声高度/群系/水体）。粗路径不会参与道路生成；最终仍只运行一次所选寻路算法生成道路。",
   "config.roadweaver.max_concurrent_generations": "最大并发生成数",
   "config.roadweaver.max_concurrent_generations.tooltip": "同时进行道路生成的最大数量上限。",
   "config.roadweaver.a_star_max_steps": "A* 最大搜索步数",

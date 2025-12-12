@@ -36,6 +36,8 @@ public final class ModConfig {
     private boolean placeWaypoints;
     private boolean spawnCabinEnabled;
     private int averagingRadius;
+    // 是否启用分层寻路（粗步长引导 + 细步长精化）
+    private boolean hierarchicalPathfindingEnabled;
     private int generationThreads;
     private int computeThreads; // 计算线程池大小（0=自动，>0=固定值）
     private int initialGenerationThreads; // 初始生成专用线程数
@@ -114,6 +116,9 @@ public final class ModConfig {
         this.placeWaypoints = false;
         this.spawnCabinEnabled = true;
         this.averagingRadius = 8;
+
+        // 分层寻路默认关闭，避免改变旧世界的生成行为/性能特征
+        this.hierarchicalPathfindingEnabled = false;
 
         this.generationThreads = Math.max(2, Math.min(3, Runtime.getRuntime().availableProcessors()));
         // computeThreads=0 表示自动模式：在 ThreadPoolManager 中按 CPU-1 计算
@@ -266,6 +271,9 @@ public final class ModConfig {
             pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
         }
 
+        // 分层寻路新字段：缺省为 false
+        // 这里不做额外校验，仅保证反序列化时 null/缺失字段不会影响
+
         // 新增字段校验
         if (roadWidth < 0)
             roadWidth = 0; // 0=自动
@@ -391,6 +399,9 @@ public final class ModConfig {
 
     public int averagingRadius() { return averagingRadius; }
     public void setAveragingRadius(int v) { this.averagingRadius = v; }
+
+    public boolean hierarchicalPathfindingEnabled() { return hierarchicalPathfindingEnabled; }
+    public void setHierarchicalPathfindingEnabled(boolean v) { this.hierarchicalPathfindingEnabled = v; }
 
     public int generationThreads() { return generationThreads; }
     public void setGenerationThreads(int v) { this.generationThreads = v; }

@@ -447,7 +447,16 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.a_star_max_steps.tooltip"))
                                                 .setMin(100).setMax(100000)
-                                                .setSaveConsumer(conf::setAStarMaxSteps)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setAStarMaxSteps(v); })
+                                                .build());
+
+                genPerformance.addEntry(
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled"),
+                                                conf.hierarchicalPathfindingEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHierarchicalPathfindingEnabled(v); })
                                                 .build());
 
                 genPerformance.addEntry(

@@ -75,6 +75,8 @@
   "text.autoconfig.roadweaver.option.maxConcurrentGenerations": "Max Concurrent Generations",
   "config.roadweaver.a_star_step": "A* Sampling Step (blocks)",
   "config.roadweaver.a_star_step.tooltip": "Grid step between sampled neighbors for A*. Larger values reduce nodes and improve performance but may reduce path fidelity. Default 16.",
+  "config.roadweaver.hierarchical_pathfinding_enabled": "Enable Hierarchical Pathfinding",
+  "config.roadweaver.hierarchical_pathfinding_enabled.tooltip": "When enabled, the pathfinder will first run a coarse A* with a fixed large step (64) to prewarm terrain sampling cache (noise height/biome/water). The coarse path is NOT used for road generation; the final road still uses the selected algorithm once.",
   "config.roadweaver.max_concurrent_generations": "Max Concurrent Generations",
   "config.roadweaver.max_concurrent_generations.tooltip": "Cap the number of roads generating in parallel.",
   "config.roadweaver.a_star_max_steps": "A* Max Search Steps",

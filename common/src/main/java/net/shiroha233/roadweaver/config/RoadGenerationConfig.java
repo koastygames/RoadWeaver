@@ -12,6 +12,8 @@ package net.shiroha233.roadweaver.config;
 public record RoadGenerationConfig(
     // 寻路配置（组合）
     PathfindingConfig pathfinding,
+    // 是否启用分层寻路（粗步长引导 + 细步长精化）
+    boolean hierarchicalPathfindingEnabled,
     // 道路宽度（0 表示随机）
     int roadWidth,
     // 是否允许人工道路
@@ -43,6 +45,7 @@ public record RoadGenerationConfig(
     public static RoadGenerationConfig from(ModConfig cfg) {
         return new RoadGenerationConfig(
             PathfindingConfig.from(cfg),
+            cfg.hierarchicalPathfindingEnabled(),
             cfg.roadWidth(),
             cfg.allowArtificial(),
             cfg.allowNatural(),

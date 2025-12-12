@@ -82,7 +82,7 @@ final class GradientDescentPathfinder {
 
                 // 找到终点（或非常接近）
                 if (manhattan2d(current.pos, endGround) < d * 1.5) {
-                    return reconstructPath(current, width, level, cache);
+                    return reconstructPath(current, width, level, cache, cfg.bridgeMinWaterDepth());
                 }
 
                 closed.add(current.pos);
@@ -155,7 +155,8 @@ final class GradientDescentPathfinder {
     private static List<Records.RoadSegmentPlacement> reconstructPath(Node endNode,
                                                                       int width,
                                                                       ServerLevel level,
-                                                                      TerrainSamplingCache cache) {
+                                                                      TerrainSamplingCache cache,
+                                                                      int bridgeMinWaterDepth) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node c = endNode;
         while (c != null) {
@@ -163,7 +164,7 @@ final class GradientDescentPathfinder {
             c = c.parent;
         }
         Collections.reverse(rawPath);
-        return PathPostProcessor.process(rawPath, width, level, cache);
+        return PathPostProcessor.process(rawPath, width, level, cache, bridgeMinWaterDepth);
     }
 
     private static int manhattan2d(BlockPos a, BlockPos b) {

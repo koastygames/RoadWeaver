@@ -137,4 +137,13 @@ public final class TerrainSamplingCache {
         biomeCache.put(key, biome);
         return biome;
     }
+
+    public void clear() {
+        waterCache.clear();
+        nearWaterCache.clear();
+        columnWaterCache.clear();
+        heightCache.clear();
+        oceanFloorCache.clear();
+        biomeCache.clear();
+    }
 }

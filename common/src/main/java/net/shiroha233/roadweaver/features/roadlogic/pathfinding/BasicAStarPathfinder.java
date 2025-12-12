@@ -71,7 +71,7 @@ final class BasicAStarPathfinder {
                         c = c.parent;
                     }
                     Collections.reverse(rawPath);
-                    return PathPostProcessor.process(rawPath, width, level, cache);
+                    return PathPostProcessor.process(rawPath, width, level, cache, cfg.bridgeMinWaterDepth());
                 }
 
                 closed.add(current.pos);

@@ -43,9 +43,30 @@ public final class RoadPathCalculator {
         BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
         BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
+        if (cfg.hierarchicalPathfindingEnabled()) {
+            // 注意：粗预热仅用于填充 TerrainSamplingCache，不参与最终道路路径。
+            TerrainCachePrewarmer.prewarmAlongRoute(
+                    startGround,
+                    endGround,
+                    level,
+                    Math.max(500, maxSteps / 4),
+                    cache);
+        }
+
+        return calculateDirect(startGround, endGround, width, level, maxSteps, cache, cfg, pathCfg);
+    }
+
+    private static List<Records.RoadSegmentPlacement> calculateDirect(BlockPos startGround,
+                                                                      BlockPos endGround,
+                                                                      int width,
+                                                                      ServerLevel level,
+                                                                      int maxSteps,
+                                                                      TerrainSamplingCache cache,
+                                                                      RoadGenerationConfig cfg,
+                                                                      PathfindingConfig pathCfg) {
         List<Records.RoadSegmentPlacement> land;
         var algo = cfg.pathfindingAlgorithm();
-        
+
         if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.GRADIENT_DESCENT) {
             land = GradientDescentPathfinder.calculatePath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
         } else if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL) {

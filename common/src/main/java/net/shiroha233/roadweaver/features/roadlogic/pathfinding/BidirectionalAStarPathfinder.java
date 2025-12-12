@@ -97,7 +97,7 @@ final class BidirectionalAStarPathfinder {
 
                 if (meet != null) {
                     // 会合后，将前向/反向节点链表合并为一条原始路径，交给 PathPostProcessor 统一处理
-                    return reconstructPath(meet.forward, meet.backward, width, level, cache);
+                    return reconstructPath(meet.forward, meet.backward, width, level, cache, cfg.bridgeMinWaterDepth());
                 }
             }
 
@@ -212,7 +212,8 @@ final class BidirectionalAStarPathfinder {
             Node meetBackward,
             int width,
             ServerLevel level,
-            TerrainSamplingCache cache) {
+            TerrainSamplingCache cache,
+            int bridgeMinWaterDepth) {
         // 1. 从前向搜索链表回溯到起点，得到起点 -> 会合点 的路径
         List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
@@ -233,7 +234,7 @@ final class BidirectionalAStarPathfinder {
         }
 
         // 3. 交给 PathPostProcessor 做样条平滑和宽度填充
-        return PathPostProcessor.process(rawPath, width, level, cache);
+        return PathPostProcessor.process(rawPath, width, level, cache, bridgeMinWaterDepth);
     }
 
     private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {

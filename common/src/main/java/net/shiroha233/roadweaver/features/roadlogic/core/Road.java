@@ -90,27 +90,32 @@ public final class Road {
         
         // 直接用原始端点做 A* 寻路，不预设偏移方向
         TerrainSamplingCache cache = new TerrainSamplingCache();
-        List<Records.RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
-                rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
-        if (rawSegments == null || rawSegments.size() < 5) return;
-        
-        // 寻路完成后，根据实际路径方向裁剪掉进入结构保护区的路段
-        // 这样即使路径从意外方向绕过来，也不会穿过结构
-        List<Records.RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
-                level, rawSegments, rawStart, rawEnd);
-        if (segments == null || segments.size() < 5) return;
-        
-        List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.pathfinding());
+        try {
+            List<Records.RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
+                    rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
+            if (rawSegments == null || rawSegments.size() < 5) return;
+            
+            // 寻路完成后，根据实际路径方向裁剪掉进入结构保护区的路段
+            // 这样即使路径从意外方向绕过来，也不会穿过结构
+            List<Records.RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
+                    level, rawSegments, rawStart, rawEnd);
+            if (segments == null || segments.size() < 5) return;
+            
+            List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.pathfinding());
 
-        List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
+            List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
-        Records.RoadData rd = new Records.RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
-        RoadShardStorage.addRoad(level, rd);
-        
-        // 寻路完成后，预计算路边结构位置
-        // 如果区块还没生成，结构会在 STRUCTURE_STARTS 阶段注入，Beardifier 会自动处理地形
-        // 如果区块已经生成，则在 Feature 阶段通过 RoadsideStructurePlacer 放置（无地形适应）
-        RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random);
+            Records.RoadData rd = new Records.RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
+            RoadShardStorage.addRoad(level, rd);
+            
+            // 寻路完成后，预计算路边结构位置
+            // 如果区块还没生成，结构会在 STRUCTURE_STARTS 阶段注入，Beardifier 会自动处理地形
+            // 如果区块已经生成，则在 Feature 阶段通过 RoadsideStructurePlacer 放置（无地形适应）
+            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random);
+        } finally {
+            // 单条道路生成结束后清空噪声采样缓存，避免长时间占用内存
+            cache.clear();
+        }
     }
 
     
