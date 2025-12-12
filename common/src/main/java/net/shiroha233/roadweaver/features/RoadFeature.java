@@ -122,7 +122,9 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                 BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
             } else {
                 // 对非桥梁路段进行地形适配（填土/削坡/边缘平滑）
-                net.shiroha233.roadweaver.features.roadlogic.surface.RoadTerrainAdapter.adapt(world, middle, roadWidth, baseYForThis, random, cfg);
+                // 使用插值高度计算，确保与路面铺设的高度一致
+                net.shiroha233.roadweaver.features.roadlogic.surface.RoadTerrainAdapter.adaptWithInterpolation(
+                        world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
 
                 SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials, random, cfg);
             }
