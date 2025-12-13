@@ -19,6 +19,9 @@ import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.features.decoration.system.DecorationPlanner;
 import net.shiroha233.roadweaver.features.decoration.system.DecorationExecutor;
+import net.shiroha233.roadweaver.features.decoration.system.SkippedBridgeBankSignPlanner;
+import net.shiroha233.roadweaver.features.bridge.BuoyBuilder;
+import net.shiroha233.roadweaver.features.bridge.BuoyMarkerPlanner;
 import net.shiroha233.roadweaver.features.roadlogic.bridge.BridgeRangeCalculator;
 import net.shiroha233.roadweaver.features.roadlogic.bridge.BridgeSegmentPlanner;
 import net.shiroha233.roadweaver.features.roadlogic.core.SegmentPaver;
@@ -80,6 +83,14 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
         BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans());
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
+        boolean[] skipSegments = res.skipSegments();
+
+        boolean useBuoysInstead = cfg.bridgeEnabled() && cfg.bridgeUseBuoysInstead();
+        boolean useBuoysWhenSkipped = cfg.bridgeEnabled() && cfg.bridgeUseBuoysWhenSkipped();
+
+        int intervalBlocks = Math.max(4, cfg.buoyIntervalBlocks());
+        boolean[] buoyMarkersForBridge = (useBuoysInstead ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks) : null);
+        boolean[] buoyMarkersForSkipped = (useBuoysWhenSkipped ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks) : null);
 
         java.util.List<Integer> targetY = data.targetY();
         HeightProfileService.HeightProfile hp = HeightProfileService.build(world, middlePositions, currentChunk, averagingRadius, cfg, targetY);
@@ -92,7 +103,7 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             baseYArr = smoothedYArr;
         }
 
-        if (baseYArr != null && cfg.bridgeEnabled() && !bridgeRanges.isEmpty()) {
+        if (baseYArr != null && cfg.bridgeEnabled() && !useBuoysInstead && !bridgeRanges.isEmpty()) {
             baseYArr = BridgeTransitionAdjuster.adjust(baseYArr, bridgeRanges, cfg);
         }
 
@@ -121,6 +132,22 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             if (StructureAvoidanceService.shouldAvoid(world, middle)) {
                 continue;
             }
+            if (skipSegments != null && i >= 0 && i < skipSegments.length && skipSegments[i]) {
+                // 超长水域跨度：整段跳过生成
+                if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length && buoyMarkersForSkipped[i]) {
+                    BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
+                }
+                continue;
+            }
+
+            if (useBuoysInstead && isBridge != null && i >= 0 && i < isBridge.length && isBridge[i]) {
+                if (buoyMarkersForBridge != null && i < buoyMarkersForBridge.length && buoyMarkersForBridge[i]) {
+                    BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
+                }
+                // 浮标模式：水域跨度不放桥也不铺路，避免在水里生成“路堤”
+                continue;
+            }
+
             if (cfg.bridgeEnabled() && isBridge[i]) {
                 BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
             } else {
@@ -130,6 +157,19 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                         world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
 
                 SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials, random, cfg);
+
+                // 跨海被跳过（超长水域跨度）时：在两端岸边放置提示路牌
+                // 仅在“岸边正常路段”触发一次；真正落地仍由 Decoration.placeAllowed 做表面与禁放判断
+                SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
+                        world,
+                        decorations,
+                        averaged,
+                        next,
+                        prev,
+                        roadWidth,
+                        skipSegments,
+                        i
+                );
             }
 
             if (!isBridge[i] || cfg.bridgeKeepLamps()) {

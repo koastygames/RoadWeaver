@@ -5,14 +5,20 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ServerLevelAccessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
+import java.util.Set;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 结构生物生成规则（数据驱动）
@@ -35,18 +41,23 @@ import java.util.List;
  * }
  */
 public record MobSpawnRule(
-    EntityType<?> entityType,
+    ResourceLocation entityId,
     int countMin,
     int countMax,
     Vec3i offset,
     float chance
 ) {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("RoadWeaver/MobSpawnRule");
+
+    // 避免缺少前置时刷屏：同一个缺失实体只警告一次
+    private static final Set<ResourceLocation> MISSING_ENTITY_LOGGED = ConcurrentHashMap.newKeySet();
     
     public static final Codec<MobSpawnRule> CODEC = RecordCodecBuilder.create(instance ->
         instance.group(
-            BuiltInRegistries.ENTITY_TYPE.byNameCodec()
+            ResourceLocation.CODEC
                 .fieldOf("entity")
-                .forGetter(MobSpawnRule::entityType),
+                .forGetter(MobSpawnRule::entityId),
             Codec.INT.optionalFieldOf("count_min", 1)
                 .forGetter(MobSpawnRule::countMin),
             Codec.INT.optionalFieldOf("count_max", 1)
@@ -60,6 +71,24 @@ public record MobSpawnRule(
     
     /** 列表 Codec */
     public static final Codec<List<MobSpawnRule>> LIST_CODEC = CODEC.listOf();
+
+    /**
+     * 运行时解析实体类型。
+     * 
+     * 设计原因：
+     * - 结构 JSON 是数据包内容，会在资源加载阶段解码。
+     * - 若此时强制解析 EntityType（并要求注册表中存在），缺少前置模组会导致直接崩溃。
+     * - 因此改为存 ResourceLocation，并在真正需要生成生物时再解析；缺失则跳过。
+     */
+    public Optional<EntityType<?>> resolveEntityType() {
+        Optional<EntityType<?>> opt = BuiltInRegistries.ENTITY_TYPE.getOptional(entityId);
+        if (opt.isEmpty()) {
+            if (MISSING_ENTITY_LOGGED.add(entityId)) {
+                LOGGER.warn("未找到实体类型 {}（可能缺少前置模组），将跳过该生物生成规则", entityId);
+            }
+        }
+        return opt;
+    }
     
     /**
      * 在指定位置生成生物
@@ -72,6 +101,12 @@ public record MobSpawnRule(
     public int spawn(ServerLevelAccessor level, BlockPos anchorPos, RandomSource random) {
         // 概率检查
         if (chance < 1.0f && random.nextFloat() > chance) {
+            return 0;
+        }
+
+        // 软依赖：实体不存在时跳过
+        EntityType<?> resolvedType = resolveEntityType().orElse(null);
+        if (resolvedType == null) {
             return 0;
         }
         
@@ -91,7 +126,7 @@ public record MobSpawnRule(
             double y = spawnPos.getY();
             double z = spawnPos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 2;
             
-            Entity entity = entityType.create(level.getLevel());
+            Entity entity = resolvedType.create(level.getLevel());
             if (entity == null) {
                 continue;
             }
@@ -117,21 +152,21 @@ public record MobSpawnRule(
     
     /** 单个村民 */
     public static final MobSpawnRule SINGLE_VILLAGER = new MobSpawnRule(
-        EntityType.VILLAGER, 1, 1, new Vec3i(0, 1, 0), 1.0f
+        ResourceLocation.fromNamespaceAndPath("minecraft", "villager"), 1, 1, new Vec3i(0, 1, 0), 1.0f
     );
     
     /** 1-2 个村民 */
     public static final MobSpawnRule VILLAGERS = new MobSpawnRule(
-        EntityType.VILLAGER, 1, 2, new Vec3i(0, 1, 0), 1.0f
+        ResourceLocation.fromNamespaceAndPath("minecraft", "villager"), 1, 2, new Vec3i(0, 1, 0), 1.0f
     );
     
     /** 单只猫（50%概率） */
     public static final MobSpawnRule CAT = new MobSpawnRule(
-        EntityType.CAT, 1, 1, new Vec3i(0, 1, 0), 0.5f
+        ResourceLocation.fromNamespaceAndPath("minecraft", "cat"), 1, 1, new Vec3i(0, 1, 0), 0.5f
     );
     
     /** 铁傀儡（用于大型结构） */
     public static final MobSpawnRule IRON_GOLEM = new MobSpawnRule(
-        EntityType.IRON_GOLEM, 1, 1, new Vec3i(0, 1, 0), 0.3f
+        ResourceLocation.fromNamespaceAndPath("minecraft", "iron_golem"), 1, 1, new Vec3i(0, 1, 0), 0.3f
     );
 }

@@ -11,7 +11,7 @@
   "scale": "medium",
   "placement_rule": {
     "allowed_biomes": [],
-    "min_road_length": 0
+    "min_road_length": 300
   },
   "mob_spawns": [
     {

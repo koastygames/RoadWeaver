@@ -306,13 +306,40 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(v -> { if (v != null) conf.setBridgeDeckClearance(v); })
                                                 .build());
                 bridge.addEntry(
-                                eb.startBooleanToggle(
-                                                Component.translatable("config.roadweaver.bridge_railing_enabled"),
-                                                conf.bridgeRailingEnabled())
-                                                .setDefaultValue(defaultConf.bridgeRailingEnabled())
+                                eb.startIntField(Component.translatable("config.roadweaver.bridge_max_length_blocks"),
+                                                conf.bridgeMaxLengthBlocks())
+                                                .setDefaultValue(defaultConf.bridgeMaxLengthBlocks())
                                                 .setTooltip(Component.translatable(
-                                                                "config.roadweaver.bridge_railing_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeRailingEnabled(v); })
+                                                                "config.roadweaver.bridge_max_length_blocks.tooltip"))
+                                                .setMin(0).setMax(10000)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeMaxLengthBlocks(v); })
+                                                .build());
+                bridge.addEntry(
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.bridge_use_buoys_instead"),
+                                                conf.bridgeUseBuoysInstead())
+                                                .setDefaultValue(defaultConf.bridgeUseBuoysInstead())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.bridge_use_buoys_instead.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeUseBuoysInstead(v); })
+                                                .build());
+                bridge.addEntry(
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.bridge_use_buoys_when_skipped"),
+                                                conf.bridgeUseBuoysWhenSkipped())
+                                                .setDefaultValue(defaultConf.bridgeUseBuoysWhenSkipped())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.bridge_use_buoys_when_skipped.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeUseBuoysWhenSkipped(v); })
+                                                .build());
+                bridge.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.buoy_interval_blocks"),
+                                                conf.buoyIntervalBlocks())
+                                                .setDefaultValue(defaultConf.buoyIntervalBlocks())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.buoy_interval_blocks.tooltip"))
+                                                .setMin(4).setMax(256)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setBuoyIntervalBlocks(v); })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_pier_interval"),

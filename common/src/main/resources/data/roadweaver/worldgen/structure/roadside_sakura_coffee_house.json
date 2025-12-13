@@ -11,6 +11,6 @@
   "scale": "medium",
   "placement_rule": {
     "allowed_biomes": ["cherry_grove"],
-    "min_road_length": 50
+    "min_road_length": 10
   }
 }

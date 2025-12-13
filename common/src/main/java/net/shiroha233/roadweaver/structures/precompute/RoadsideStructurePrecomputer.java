@@ -105,10 +105,14 @@ public final class RoadsideStructurePrecomputer {
             }
             
             BlockPos middle = segments.get(i).middlePos();
-            BlockPos prev = i > 0 ? segments.get(i - 1).middlePos() : middle;
-            BlockPos next = i < roadLength - 1 ? segments.get(i + 1).middlePos() : middle;
             
-            // 计算道路方向
+            // 使用较大窗口（±10 segments，约10格）计算稳定的切线方向
+            // segment 间距约1格，所以 ±10 覆盖约20格，足以平滑局部抖动
+            int windowSize = 10;
+            BlockPos prev = segments.get(Math.max(0, i - windowSize)).middlePos();
+            BlockPos next = segments.get(Math.min(roadLength - 1, i + windowSize)).middlePos();
+            
+            // 计算道路方向（切线）
             double dirX = next.getX() - prev.getX();
             double dirZ = next.getZ() - prev.getZ();
             double len = Math.sqrt(dirX * dirX + dirZ * dirZ);
@@ -131,16 +135,72 @@ public final class RoadsideStructurePrecomputer {
             
             // 计算放置位置（道路两侧）
             boolean leftSide = random.nextBoolean();
-            int offset = getOffsetForScale(structure.scale(), cfg) + width / 2;
+            int offset = getOffsetForScale(structure.scale(), cfg);
+
+            // 先计算旋转（需要知道旋转才能正确补偿锚点偏移）
+            Rotation rotation = calculateRotation(dirX, dirZ, leftSide, structure.faceRoad());
             
+            // 使用道路方向的法线（perpendicular）进行侧向偏移
+            // 2D 向量旋转90°：左侧 (-dirZ, dirX)，右侧 (dirZ, -dirX)
             double perpX = leftSide ? -dirZ : dirZ;
             double perpZ = leftSide ? dirX : -dirX;
+
+            // 计算结构中心点应该在的位置
+            // offset 是结构边缘到道路中心的距离，所以结构中心需要再偏移半个结构尺寸
+            // 根据旋转，结构在法线方向上的"半径"不同
+            int sizeX = sizeHint.getX();
+            int sizeZ = sizeHint.getZ();
             
-            int placeX = middle.getX() + (int) Math.round(perpX * offset);
-            int placeZ = middle.getZ() + (int) Math.round(perpZ * offset);
+            // 计算旋转后结构在法线方向上的半尺寸
+            // 法线方向 (perpX, perpZ) 是单位向量
+            double halfExtentInPerpDir;
+            switch (rotation) {
+                case NONE, CLOCKWISE_180 -> {
+                    // 结构沿原始 X/Z 轴
+                    halfExtentInPerpDir = (Math.abs(perpX) * sizeX + Math.abs(perpZ) * sizeZ) / 2.0;
+                }
+                case CLOCKWISE_90, COUNTERCLOCKWISE_90 -> {
+                    // 结构旋转90°，X/Z 互换
+                    halfExtentInPerpDir = (Math.abs(perpX) * sizeZ + Math.abs(perpZ) * sizeX) / 2.0;
+                }
+                default -> halfExtentInPerpDir = Math.max(sizeX, sizeZ) / 2.0;
+            }
+            
+            // 结构中心到道路中心的距离 = 边缘距离 + 结构半尺寸
+            double centerOffset = offset + halfExtentInPerpDir;
+            
+            int placeX = middle.getX() + (int) Math.round(perpX * centerOffset);
+            int placeZ = middle.getZ() + (int) Math.round(perpZ * centerOffset);
             int placeY = cache.height(level, placeX, placeZ);
             
-            BlockPos placePos = new BlockPos(placeX, placeY, placeZ);
+            // 锚点在结构角落，需要从中心点反推锚点位置
+            // 旋转后结构的延伸方向不同，需要相应调整
+            int anchorX = placeX;
+            int anchorZ = placeZ;
+            switch (rotation) {
+                case NONE -> {
+                    // 结构向 +X, +Z 延伸，锚点在西北角（中心偏移 -halfX, -halfZ）
+                    anchorX -= sizeX / 2;
+                    anchorZ -= sizeZ / 2;
+                }
+                case CLOCKWISE_90 -> {
+                    // 结构向 +Z, -X 延伸（原 X 变 Z，原 Z 变 -X）
+                    anchorX += sizeZ / 2;
+                    anchorZ -= sizeX / 2;
+                }
+                case CLOCKWISE_180 -> {
+                    // 结构向 -X, -Z 延伸
+                    anchorX += sizeX / 2;
+                    anchorZ += sizeZ / 2;
+                }
+                case COUNTERCLOCKWISE_90 -> {
+                    // 结构向 -Z, +X 延伸
+                    anchorX -= sizeZ / 2;
+                    anchorZ += sizeX / 2;
+                }
+            }
+            
+            BlockPos placePos = new BlockPos(anchorX, placeY, anchorZ);
             
             // 检查区块是否已有结构
             ChunkPos chunkPos = new ChunkPos(placePos);
@@ -154,10 +214,7 @@ public final class RoadsideStructurePrecomputer {
                 continue;
             }
             
-            // 计算旋转
-            Rotation rotation = calculateRotation(dirX, dirZ, leftSide, structure.faceRoad());
-            
-            // 添加到待放置存储
+            // 添加到待放置存储（rotation 已在前面计算）
             PendingStructureStorage.addPendingStructure(
                 level,
                 entry.id(),

@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
@@ -277,6 +278,12 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         if (rule.chance() < 1.0f && random.nextFloat() > rule.chance()) {
             return;
         }
+
+        // 软依赖：实体不存在时跳过（例如未安装对应前置模组）
+        EntityType<?> resolvedType = rule.resolveEntityType().orElse(null);
+        if (resolvedType == null) {
+            return;
+        }
         
         // 计算生成数量
         int count = rule.countMin();
@@ -293,7 +300,7 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
              double z = spawnPos.getZ() + 0.5 + (random.nextDouble() - 0.5) * spread * 2;
              
             
-             Entity entity = rule.entityType().create(level.getLevel());
+             Entity entity = resolvedType.create(level.getLevel());
              if (entity == null) {
                  continue;
              }
@@ -308,7 +315,7 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
             }
             
              if (level.addFreshEntity(entity)) {
-                 LOGGER.debug("生成生物 {} at ({}, {}, {})", rule.entityType(), x, y, z);
+                 LOGGER.debug("生成生物 {} at ({}, {}, {})", rule.entityId(), x, y, z);
              }
          }
      }

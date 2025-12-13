@@ -60,7 +60,10 @@ public final class ModConfig {
     // 桥梁配置
     private boolean bridgeEnabled;
     private int bridgeDeckClearance;
-    private boolean bridgeRailingEnabled;
+    private int bridgeMaxLengthBlocks; // 超过该长度的水域跨度将跳过（0=不限制）
+    private boolean bridgeUseBuoysInstead; // 用浮标代替桥梁
+    private boolean bridgeUseBuoysWhenSkipped; // 当桥梁因超长跳过时，用浮标代替
+    private int buoyIntervalBlocks; // 浮标间隔（方块）
     private int bridgePierInterval;
     private int bridgePierWidth;
     private int bridgePierMaxHeight;
@@ -131,7 +134,7 @@ public final class ModConfig {
         this.causewayMaxDepth = 1;
         this.maxSlopeStepPerTwoSegments = 1;
         this.slopeLimitEnabled = true;
-        this.pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
+        this.pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
 
         // 新增默认值
         this.roadWidth = 3;
@@ -144,7 +147,10 @@ public final class ModConfig {
         // 桥梁默认值
         this.bridgeEnabled = true;
         this.bridgeDeckClearance = 2;
-        this.bridgeRailingEnabled = true;
+        this.bridgeMaxLengthBlocks = 100;
+        this.bridgeUseBuoysInstead = false;
+        this.bridgeUseBuoysWhenSkipped = false;
+        this.buoyIntervalBlocks = 32;
         this.bridgePierInterval = 6;
         this.bridgePierWidth = 1;
         this.bridgePierMaxHeight = 20;
@@ -297,6 +303,14 @@ public final class ModConfig {
             bridgeDeckClearance = 1;
         if (bridgeDeckClearance > 8)
             bridgeDeckClearance = 8;
+        if (bridgeMaxLengthBlocks < 0)
+            bridgeMaxLengthBlocks = 0;
+        if (bridgeMaxLengthBlocks > 10000)
+            bridgeMaxLengthBlocks = 10000;
+        if (buoyIntervalBlocks < 4)
+            buoyIntervalBlocks = 4;
+        if (buoyIntervalBlocks > 256)
+            buoyIntervalBlocks = 256;
         if (bridgePierInterval < 3)
             bridgePierInterval = 3;
         if (bridgePierInterval > 32)
@@ -471,8 +485,17 @@ public final class ModConfig {
     public int bridgeDeckClearance() { return bridgeDeckClearance; }
     public void setBridgeDeckClearance(int v) { this.bridgeDeckClearance = v; }
 
-    public boolean bridgeRailingEnabled() { return bridgeRailingEnabled; }
-    public void setBridgeRailingEnabled(boolean v) { this.bridgeRailingEnabled = v; }
+    public int bridgeMaxLengthBlocks() { return bridgeMaxLengthBlocks; }
+    public void setBridgeMaxLengthBlocks(int v) { this.bridgeMaxLengthBlocks = v; }
+
+    public boolean bridgeUseBuoysInstead() { return bridgeUseBuoysInstead; }
+    public void setBridgeUseBuoysInstead(boolean v) { this.bridgeUseBuoysInstead = v; }
+
+    public boolean bridgeUseBuoysWhenSkipped() { return bridgeUseBuoysWhenSkipped; }
+    public void setBridgeUseBuoysWhenSkipped(boolean v) { this.bridgeUseBuoysWhenSkipped = v; }
+
+    public int buoyIntervalBlocks() { return buoyIntervalBlocks; }
+    public void setBuoyIntervalBlocks(int v) { this.buoyIntervalBlocks = v; }
 
     public int bridgePierInterval() { return bridgePierInterval; }
     public void setBridgePierInterval(int v) { this.bridgePierInterval = v; }
