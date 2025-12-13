@@ -24,6 +24,9 @@ final class GradientDescentPathfinder {
 
     private static final int BIOME_BASE_COST = 12;
     private static final int SEARCH_BUFFER = 64; // 搜索边界缓冲
+    private static final double WATER_COLUMN_BASE_PENALTY = 800.0;
+    private static final double WATER_DEPTH_SQUARED_WEIGHT = 2.0;
+    private static final double NEAR_WATER_COST_MULTIPLIER = 4.0;
 
     /**
      * 梯度下降寻路算法
@@ -46,10 +49,12 @@ final class GradientDescentPathfinder {
         
         // 1. 定义搜索边界 (Bounding Box)
         // 即使有了启发式，保留边界检查也是个好习惯，防止跑太远
-        int minX = Math.min(startGround.getX(), endGround.getX()) - SEARCH_BUFFER;
-        int maxX = Math.max(startGround.getX(), endGround.getX()) + SEARCH_BUFFER;
-        int minZ = Math.min(startGround.getZ(), endGround.getZ()) - SEARCH_BUFFER;
-        int maxZ = Math.max(startGround.getZ(), endGround.getZ()) + SEARCH_BUFFER;
+        int manhattan = manhattan2d(startGround, endGround);
+        int dynamicBuffer = Math.min(512, Math.max(SEARCH_BUFFER, manhattan / 4));
+        int minX = Math.min(startGround.getX(), endGround.getX()) - dynamicBuffer;
+        int maxX = Math.max(startGround.getX(), endGround.getX()) + dynamicBuffer;
+        int minZ = Math.min(startGround.getZ(), endGround.getZ()) - dynamicBuffer;
+        int maxZ = Math.max(startGround.getZ(), endGround.getZ()) + dynamicBuffer;
 
         // A* 需要比较 f_cost = g_cost + h_cost
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(n -> n.fCost));
@@ -101,7 +106,7 @@ final class GradientDescentPathfinder {
                     // --- 代价计算 ---
                     Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
                     int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
-                            || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
+                            || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? (BIOME_BASE_COST * 4) : 0;
                     int elevation = Math.abs(y - current.pos.getY());
 
                     int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
@@ -112,8 +117,13 @@ final class GradientDescentPathfinder {
                     boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
                     int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
                     int waterDepth = Math.max(0, sea - oceanFloor);
-                    int waterDepthCost = waterColumn ? (int)(waterDepth * cfg.waterDepthWeight()) : 0;
-                    int nearWaterCost = nearWater ? (int)cfg.nearWaterCost() : 0;
+                    double waterDepthPenalty = 0.0;
+                    if (waterColumn) {
+                        double w = Math.max(0.0, cfg.waterDepthWeight());
+                        waterDepthPenalty = WATER_COLUMN_BASE_PENALTY
+                                + (waterDepth * (double) waterDepth) * w * WATER_DEPTH_SQUARED_WEIGHT;
+                    }
+                    double nearWaterPenalty = nearWater ? (cfg.nearWaterCost() * NEAR_WATER_COST_MULTIPLIER) : 0.0;
 
                     double elevationCost = elevation * elevation * cfg.elevationWeight();
                     // 坡度阻断
@@ -126,8 +136,8 @@ final class GradientDescentPathfinder {
                             + elevationCost
                             + biomeCost * cfg.biomeWeight()
                             + stabilityCost * cfg.stabilityWeight()
-                            + waterDepthCost
-                            + nearWaterCost;
+                            + waterDepthPenalty
+                            + nearWaterPenalty;
 
                     // 关键改动：加入启发式，但保持流体特性（无 deviation 惩罚）
                     double hCost = heuristic(np, endGround, cfg);
