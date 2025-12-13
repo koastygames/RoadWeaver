@@ -20,11 +20,14 @@ import net.minecraft.world.level.levelgen.structure.StructureType;
 import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+import net.shiroha233.roadweaver.structures.data.LootConfig;
+import net.shiroha233.roadweaver.structures.data.MobSpawnRule;
 import net.shiroha233.roadweaver.structures.data.RoadsidePlacementRule;
 import net.shiroha233.roadweaver.structures.data.StructureScale;
 import net.shiroha233.roadweaver.structures.pieces.SimpleTemplatePiece;
 import net.shiroha233.roadweaver.structures.registry.ModStructureTypes;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -48,7 +51,9 @@ public class RoadsideStructure extends Structure {
             Codec.INT.optionalFieldOf("weight", 10).forGetter(s -> s.weight),
             Codec.BOOL.optionalFieldOf("face_road", true).forGetter(s -> s.faceRoad),
             StructureScale.CODEC.optionalFieldOf("scale", StructureScale.SMALL).forGetter(s -> s.scale),
-            RoadsidePlacementRule.CODEC.optionalFieldOf("placement_rule", RoadsidePlacementRule.UNIVERSAL).forGetter(s -> s.placementRule)
+            RoadsidePlacementRule.CODEC.optionalFieldOf("placement_rule", RoadsidePlacementRule.UNIVERSAL).forGetter(s -> s.placementRule),
+            MobSpawnRule.LIST_CODEC.optionalFieldOf("mob_spawns", List.of()).forGetter(s -> s.mobSpawns),
+            LootConfig.LIST_CODEC.optionalFieldOf("loot_configs", List.of()).forGetter(s -> s.lootConfigs)
         ).apply(instance, RoadsideStructure::new)
     );
     
@@ -58,6 +63,8 @@ public class RoadsideStructure extends Structure {
     private final boolean faceRoad;
     private final StructureScale scale;
     private final RoadsidePlacementRule placementRule;
+    private final List<MobSpawnRule> mobSpawns;
+    private final List<LootConfig> lootConfigs;
     
     public RoadsideStructure(StructureSettings settings,
                             ResourceLocation templateId,
@@ -65,7 +72,9 @@ public class RoadsideStructure extends Structure {
                             int weight,
                             boolean faceRoad,
                             StructureScale scale,
-                            RoadsidePlacementRule placementRule) {
+                            RoadsidePlacementRule placementRule,
+                            List<MobSpawnRule> mobSpawns,
+                            List<LootConfig> lootConfigs) {
         super(settings);
         this.templateId = templateId;
         this.sizeHint = sizeHint;
@@ -73,6 +82,8 @@ public class RoadsideStructure extends Structure {
         this.faceRoad = faceRoad;
         this.scale = scale;
         this.placementRule = placementRule;
+        this.mobSpawns = mobSpawns;
+        this.lootConfigs = lootConfigs;
     }
     
     /**
@@ -114,6 +125,14 @@ public class RoadsideStructure extends Structure {
         return placementRule;
     }
     
+    public List<MobSpawnRule> mobSpawns() {
+        return mobSpawns;
+    }
+    
+    public List<LootConfig> lootConfigs() {
+        return lootConfigs;
+    }
+    
     // ==================== 手动放置方法 ====================
     
     /**
@@ -144,7 +163,9 @@ public class RoadsideStructure extends Structure {
             templateId,
             pos,
             rotation,
-            Mirror.NONE
+            Mirror.NONE,
+            mobSpawns,
+            lootConfigs
         );
         builder.addPiece(piece);
         

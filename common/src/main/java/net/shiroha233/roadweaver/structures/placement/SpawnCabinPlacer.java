@@ -2,20 +2,13 @@ package net.shiroha233.roadweaver.structures.placement;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
-import net.minecraft.core.SectionPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.StructureStart;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
@@ -25,10 +18,8 @@ import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
  * 
  * 职责：
  * 1. 在世界首开时在出生点附近预计算初始小屋位置
- * 2. 如果区块未生成，存储到 PendingStructureStorage，让 Beardifier 自动处理地形
- * 3. 如果区块已生成，直接放置（无地形适应）
- * 4. 幂等性检查（避免重复放置）
- * 5. 将 StructureStart 保存到区块数据
+ * 2. 存储到 PendingStructureStorage，让 Beardifier 自动处理地形适应
+ * 3. 幂等性检查（避免重复放置）
  */
 public final class SpawnCabinPlacer {
     private SpawnCabinPlacer() {}
@@ -67,60 +58,20 @@ public final class SpawnCabinPlacer {
         int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, spawn.getX(), spawn.getZ());
         BlockPos anchor = new BlockPos(spawn.getX(), y, spawn.getZ());
         Vec3i sizeHint = spawnCabin.sizeHint();
-        ChunkPos chunkPos = new ChunkPos(anchor);
-        
-        // 检查区块状态：如果还没过 STRUCTURE_STARTS 阶段，使用预计算系统
-        if (!isChunkPastStructureStarts(level, chunkPos)) {
-            // 存储到预计算系统，让 Beardifier 自动处理地形适应
-            PendingStructureStorage.addPendingStructure(
-                level,
-                STRUCTURE_ID,
-                anchor,
-                Rotation.NONE,
-                sizeHint.getX(),
-                sizeHint.getY(),
-                sizeHint.getZ()
-            );
-            
-            // 记录到世界数据（用于幂等性检查）
-            provider.addStructureLocation(level, anchor);
-            
-            return true;
-        }
-        
-        // 区块已生成，直接放置（无法享受 Beardifier 地形适应）
-        StructureManager structureManager = level.structureManager();
-        StructureTemplateManager templateManager = level.getStructureManager();
-        ChunkGenerator generator = level.getChunkSource().getGenerator();
-        
-        StructureStart start = spawnCabin.placeAt(
-            level, structureManager, templateManager, generator,
-            anchor, Rotation.NONE, level.getRandom()
+        // 存储到预计算系统，让 Beardifier 自动处理地形适应
+        PendingStructureStorage.addPendingStructure(
+            level,
+            STRUCTURE_ID,
+            anchor,
+            Rotation.NONE,
+            sizeHint.getX(),
+            sizeHint.getY(),
+            sizeHint.getZ()
         );
-        
-        if (start == null || !start.isValid()) {
-            return false;
-        }
-        
-        // 保存到区块数据
-        ChunkAccess chunk = level.getChunk(anchor);
-        SectionPos sectionPos = SectionPos.of(chunkPos, 0);
-        structureManager.setStartForStructure(sectionPos, spawnCabin, start, chunk);
         
         // 记录到世界数据（用于幂等性检查）
         provider.addStructureLocation(level, anchor);
         
         return true;
-    }
-    
-    /**
-     * 检查区块是否已经过了 STRUCTURE_STARTS 阶段
-     *
-     * 说明：
-     * 为避免在服务器启动和初始生成阶段触发额外的区块加载/等待，这里不再访问 Chunk 系统，
-     * 统一视为“尚未过 STRUCTURE_STARTS”，优先使用预计算 + 注入流程放置结构。
-     */
-    private static boolean isChunkPastStructureStarts(ServerLevel level, ChunkPos chunkPos) {
-        return false;
     }
 }

@@ -52,11 +52,13 @@ public final class CacheManager {
         for (ServerLevel level : levels) {
             try {
                 RoadShardStorage.flushAll(level);
-                RoadShardStorage.clearAll(level);
             } catch (Exception e) {
                 LOGGER.warn("清理 RoadShardStorage 缓存失败: {}", e.getMessage());
             }
         }
+        
+        // 1.5 关闭异步写盘线程，确保队列中剩余数据写完
+        RoadShardStorage.shutdown();
         
         // 2. 清理内存缓存
         RoadsideStructureRegistry.clearCache();
@@ -75,8 +77,7 @@ public final class CacheManager {
         if (level == null) return;
         
         try {
-            RoadShardStorage.flushAll(level);
-            RoadShardStorage.clearAll(level);
+            RoadShardStorage.closeConnection(level);
         } catch (Exception e) {
             LOGGER.warn("清理维度 {} 的 RoadShardStorage 缓存失败: {}", 
                 level.dimension().location(), e.getMessage());

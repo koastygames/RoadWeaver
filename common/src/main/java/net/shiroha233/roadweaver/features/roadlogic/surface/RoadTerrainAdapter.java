@@ -170,7 +170,10 @@ public final class RoadTerrainAdapter {
                 int targetY = RoadHeightInterpolator.getInterpolatedY(x, z, centers, targetYArr);
 
                 // 当前原始地表高度
-                int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                int sea = level.getLevel().getSeaLevel();
+                int motion = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                int surface = level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
+                int surfaceY = (motion > sea + 2) ? motion : surface;
 
                 // 只在"路高地低"的情况下做路基，避免把山坡挖成沟
                 if (targetY - 1 <= surfaceY) {

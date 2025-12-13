@@ -47,6 +47,17 @@ dependencies {
 		exclude group: "net.fabricmc.fabric-api"
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
+	
+	modRuntimeOnly "maven.modrinth:VSNURh3q:${project.c2me_version}"
+	
+	modCompileOnly "maven.modrinth:mOgUt4GM:${project.modmenu_version}"
+	modRuntimeOnly "maven.modrinth:mOgUt4GM:${project.modmenu_version}"
+	modCompileOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
+	modRuntimeOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
+	
+	// SQLite JDBC - 道路数据持久化（内嵌到模组）
+	implementation("org.xerial:sqlite-jdbc:3.45.1.0")
+	include("org.xerial:sqlite-jdbc:3.45.1.0")
 }
 
 processResources {

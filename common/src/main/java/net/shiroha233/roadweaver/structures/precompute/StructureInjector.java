@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver.structures.precompute;
 
 import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -67,25 +66,32 @@ public final class StructureInjector {
                     continue;
                 }
                 
-                // 获取模板 ID（支持 RoadsideStructure 和 SpawnCabinStructure）
-                ResourceLocation templateId;
+                // 创建结构片段（支持 RoadsideStructure 和 SpawnCabinStructure）
+                SimpleTemplatePiece piece;
                 if (structure instanceof RoadsideStructure roadsideStructure) {
-                    templateId = roadsideStructure.templateId();
+                    // 路边结构：包含生物生成和战利品配置
+                    piece = new SimpleTemplatePiece(
+                        templateManager,
+                        roadsideStructure.templateId(),
+                        pendingStructure.anchor(),
+                        pendingStructure.rotation(),
+                        Mirror.NONE,
+                        roadsideStructure.mobSpawns(),
+                        roadsideStructure.lootConfigs()
+                    );
                 } else if (structure instanceof SpawnCabinStructure spawnCabin) {
-                    templateId = spawnCabin.templateId();
+                    // 初始小屋：暂不支持生物/战利品
+                    piece = new SimpleTemplatePiece(
+                        templateManager,
+                        spawnCabin.templateId(),
+                        pendingStructure.anchor(),
+                        pendingStructure.rotation(),
+                        Mirror.NONE
+                    );
                 } else {
                     LOGGER.warn("Structure {} is not a supported type, skipping", pendingStructure.structureId());
                     continue;
                 }
-                
-                // 创建结构片段
-                SimpleTemplatePiece piece = new SimpleTemplatePiece(
-                    templateManager,
-                    templateId,
-                    pendingStructure.anchor(),
-                    pendingStructure.rotation(),
-                    Mirror.NONE
-                );
                 
                 // 创建 StructureStart
                 StructureStart start = new StructureStart(

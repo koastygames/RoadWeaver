@@ -87,3 +87,4 @@ gradle-local.properties
 AGENTS.md
 .doc
 doc/FIX.md
+/.gradle-user-home

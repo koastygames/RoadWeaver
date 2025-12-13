@@ -47,6 +47,7 @@ public abstract class GenericFeatureMixin {
             // Oh-The-Trees-You'll-Grow (TYG) - BWG 使用的 NBT 树库
             "oh_the_trees_youll_grow:tree_from_nbt_v1",
             "ohthetreesyoullgrow:tree_from_nbt_v1"
+            // 注意：DynamicTrees 不走 Feature#place 流程，需要单独的 DynamicTreeFeatureMixin 拦截
     );
 
     // 已知的树木类 Feature 命名空间前缀

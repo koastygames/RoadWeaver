@@ -6,6 +6,9 @@ dependencies {
     // Architectury API（作为 mod 依赖以启用 Loom 重映射）
     modImplementation("dev.architectury:architectury:${project.architectury_version}")
     compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
+    
+    // SQLite JDBC - 道路数据持久化
+    implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 }
  
 sourceSets {

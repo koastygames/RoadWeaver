@@ -110,7 +110,10 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
 
-            int topYCenter = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, middle.getX(), middle.getZ());
+            int sea = server.getSeaLevel();
+            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, middle.getX(), middle.getZ());
+            int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, middle.getX(), middle.getZ());
+            int topYCenter = (motion > sea + 2) ? motion : surface;
             BlockPos averaged = new BlockPos(middle.getX(), topYCenter, middle.getZ());
             int baseYForThis = (baseYArr != null ? baseYArr[i] : topYCenter);
 

@@ -148,7 +148,7 @@
   "gui.roadweaver.preset_editor.delete": "删除",
   "gui.roadweaver.preset_editor.default_name": "预设",
   "config.roadweaver.open_preset_editor": "打开预设编辑器",
-  "config.roadweaver.category.pathfinding_costs": "寻路成本",
+  "config.roadweaver.category.pathfinding_costs": "寻路算法与成本",
   "config.roadweaver.ortho_step_cost": "正交步进成本",
   "config.roadweaver.ortho_step_cost.tooltip": "正交移动的基础成本。数值越高，越不倾向于正交移动。",
   "config.roadweaver.diag_step_cost": "对角步进成本",

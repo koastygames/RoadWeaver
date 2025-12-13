@@ -54,6 +54,17 @@ public final class SegmentPaver {
             BlockPos widthBlock = positions.get(i);
             int y = heights[i];
             BlockPos pos = new BlockPos(widthBlock.getX(), y, widthBlock.getZ());
+            if (!world.getFluidState(pos).isEmpty()) {
+                pos = pos.above();
+            } else if (!world.getFluidState(pos.above()).isEmpty()) {
+                BlockPos cursor = pos.above();
+                int climb = 0;
+                while (climb < 32 && !world.getFluidState(cursor).isEmpty()) {
+                    cursor = cursor.above();
+                    climb++;
+                }
+                pos = cursor;
+            }
             if (StructureAvoidanceService.shouldAvoid(world, pos)) {
                 continue;
             }

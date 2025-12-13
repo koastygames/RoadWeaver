@@ -57,6 +57,10 @@ repositories {
         name "Shedaniel Maven"
     }
     maven {
+        url = "https://api.modrinth.com/maven"
+        name = "Modrinth Maven"
+    }
+    maven {
         url "https://bmclapi2.bangbang93.com/maven/"
         name "NeoForge Mirror"
     }
@@ -106,8 +110,20 @@ dependencies {
     // Cloth Config API for NeoForge - Jar-in-Jar include
     modApi("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
     include("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
+    
+    // DynamicTrees - 可选依赖，用于 Mixin 兼容
+    modCompileOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
+    modRuntimeOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
+
+    // Touhou Little Maid (车万女仆)
+    modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
+
+    // SQLite JDBC - 道路数据持久化（内嵌到模组）
+    developmentNeoForge("org.xerial:sqlite-jdbc:3.45.1.0") { transitive = false }
+    implementation("org.xerial:sqlite-jdbc:3.45.1.0") { transitive = false }
+    include("org.xerial:sqlite-jdbc:3.45.1.0") { transitive = false }
 }
- 
+
 // Source JAR 组装（合并 common 源码）
 sourcesJar {
     // Avoid duplicate entries when merging common sources

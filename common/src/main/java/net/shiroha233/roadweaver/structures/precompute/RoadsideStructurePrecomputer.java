@@ -149,12 +149,6 @@ public final class RoadsideStructurePrecomputer {
                 continue;
             }
             
-            // 检查区块状态 - 如果已经过了 STRUCTURE_STARTS 阶段，跳过预计算
-            // （这些结构将在 Feature 阶段通过 RoadsideStructurePlacer 放置，但无法享受地形适应）
-            if (isChunkPastStructureStarts(level, chunkPos)) {
-                continue;
-            }
-            
             // 检查地形条件
             if (!checkTerrainConditions(cache, level, placePos, sizeHint)) {
                 continue;
@@ -182,17 +176,6 @@ public final class RoadsideStructurePrecomputer {
         }
         
         return placedCount;
-    }
-    
-    /**
-     * 检查区块是否已经过了 STRUCTURE_STARTS 阶段
-     *
-     * 说明：
-     * 为避免在初始生成的多线程环境下触发区块加载或等待，这里不再访问 Chunk 系统，
-     * 统一视为“尚未过 STRUCTURE_STARTS”，交由预计算/注入流程处理。
-     */
-    private static boolean isChunkPastStructureStarts(ServerLevel level, ChunkPos chunkPos) {
-        return false;
     }
     
     /**

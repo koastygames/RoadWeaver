@@ -31,7 +31,10 @@ public final class HeightProfileService {
                 if (jj >= 0 && jj < n) {
                     BlockPos sp = middlePositions.get(jj);
                     if (new ChunkPos(sp).equals(currentChunk)) {
-                        int yTop = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sp.getX(), sp.getZ());
+                        int sea = world.getLevel().getSeaLevel();
+                        int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, sp.getX(), sp.getZ());
+                        int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, sp.getX(), sp.getZ());
+                        int yTop = (motion > sea + 2) ? motion : surface;
                         hs.add(yTop);
                     }
                 }
@@ -39,7 +42,10 @@ public final class HeightProfileService {
             if (hs.isEmpty()) {
                 BlockPos mid = middlePositions.get(ii);
                 if (new ChunkPos(mid).equals(currentChunk)) {
-                    baseYArr[ii] = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, mid.getX(), mid.getZ());
+                    int sea = world.getLevel().getSeaLevel();
+                    int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, mid.getX(), mid.getZ());
+                    int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, mid.getX(), mid.getZ());
+                    baseYArr[ii] = (motion > sea + 2) ? motion : surface;
                 } else {
                     baseYArr[ii] = middlePositions.get(ii).getY();
                 }

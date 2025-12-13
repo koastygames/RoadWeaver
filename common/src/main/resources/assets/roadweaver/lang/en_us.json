@@ -153,7 +153,7 @@
   "gui.roadweaver.preset_editor.delete": "Delete",
   "gui.roadweaver.preset_editor.default_name": "Preset",
   "config.roadweaver.open_preset_editor": "Open Preset Editor",
-  "config.roadweaver.category.pathfinding_costs": "Pathfinding Costs",
+  "config.roadweaver.category.pathfinding_costs": "Pathfinding",
   "config.roadweaver.ortho_step_cost": "Orthogonal Step Cost",
   "config.roadweaver.ortho_step_cost.tooltip": "Base cost for orthogonal steps. Higher values discourage orthogonal movement.",
   "config.roadweaver.diag_step_cost": "Diagonal Step Cost",

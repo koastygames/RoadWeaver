@@ -30,7 +30,18 @@ public final class TerrainSamplingCache {
         }
         var generator = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().getGeneratorState().randomState();
-        int h = generator.getBaseHeight(x, z, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, level, rs);
+        int sea = level.getSeaLevel();
+        int motion = generator.getBaseHeight(x, z, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, level, rs);
+        if (motion > sea + 2) {
+            heightCache.put(key, motion);
+            return motion;
+        }
+
+        int surface = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+        boolean waterBiome = isWaterLike(level, x, z);
+        boolean shouldUseSurface = waterBiome || (surface <= sea + 2 && oceanFloor(level, x, z) < sea);
+        int h = shouldUseSurface ? surface : motion;
+
         heightCache.put(key, h);
         return h;
     }

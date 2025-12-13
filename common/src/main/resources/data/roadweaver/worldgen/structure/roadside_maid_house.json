@@ -12,5 +12,26 @@
   "placement_rule": {
     "allowed_biomes": [],
     "min_road_length": 0
-  }
+  },
+  "mob_spawns": [
+    {
+      "entity": "touhou_little_maid:maid",
+      "count_min": 1,
+      "count_max": 1,
+      "offset": [5, 1, 6],
+      "chance": 1.0
+    }
+  ],
+  "loot_configs": [
+    {
+      "loot_table": "roadweaver:chests/maid_house",
+      "offset": [9, 5, 9],
+      "chance": 1.0
+    },
+    {
+      "loot_table": "roadweaver:chests/maid_house",
+      "offset": [2, 1, 7],
+      "chance": 1.0
+    }
+  ]
 }
