@@ -142,7 +142,7 @@ public final class RoadSpatialIndex {
         int maxZ = minZ + 15;
 
         // 查询范围扩大，确保覆盖边缘道路
-        List<Records.RoadData> roads = RoadShardStorage.queryRect(level, minX - 8, minZ - 8, maxX + 8, maxZ + 8);
+        List<Records.RoadData> roads = RoadShardStorage.queryRect(level, minX - GRID_SIZE, minZ - GRID_SIZE, maxX + GRID_SIZE, maxZ + GRID_SIZE);
         if (roads.isEmpty()) {
             return ChunkGridIndex.EMPTY;
         }
@@ -176,7 +176,7 @@ public final class RoadSpatialIndex {
 
         int x = p.getX(), z = p.getZ();
         // 扩展边界检查
-        if (x >= minX - 8 && x <= maxX + 8 && z >= minZ - 8 && z <= maxZ + 8) {
+        if (x >= minX - GRID_SIZE && x <= maxX + GRID_SIZE && z >= minZ - GRID_SIZE && z <= maxZ + GRID_SIZE) {
             int gridX = x >> GRID_SHIFT;
             int gridZ = z >> GRID_SHIFT;
             long gridKey = gridKey(gridX, gridZ);

@@ -59,6 +59,8 @@
   "config.roadweaver.structure_avoidance_enabled.tooltip": "启用后，在道路放置阶段会自动检测并跳过位于结构（如村庄建筑）边界框内的路段，避免道路破坏建筑。",
   "config.roadweaver.structure_road_offset": "道路-结构距离",
   "config.roadweaver.structure_road_offset.tooltip": "道路端点距结构中心的缩进距离（方块）。道路不会直接连到村庄中心，而是在此距离外落地。",
+  "config.roadweaver.road_signs_enabled": "启用路牌系统",
+  "config.roadweaver.road_signs_enabled.tooltip": "开启后，会在道路两端放置距离路牌，并在跨海被跳过时放置提示路牌。",
   "config.roadweaver.lamp_interval": "路灯间隔（段）",
   "config.roadweaver.lamp_interval.tooltip": "指定路灯间隔（段）",
   "config.roadweaver.road_clear_height": "道路清障高度（方块）",

@@ -54,7 +54,7 @@ public final class DecorationPlanner {
         boolean isStartSign = (segmentIndex == 8);
         boolean isEndSign = (segmentIndex == middlePositions.size() - 10);
         
-        if (isStartSign || isEndSign) {
+        if (cfg.roadSignsEnabled() && (isStartSign || isEndSign)) {
             boolean isStart = isStartSign;
             BlockPos shifted = isStart ? placePos.offset(ortho.getX() * sideOffset, 0, ortho.getZ() * sideOffset)
                     : placePos.offset(-ortho.getX() * sideOffset, 0, -ortho.getZ() * sideOffset);

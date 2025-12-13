@@ -37,7 +37,7 @@ public class LamppostDecoration extends OrientedDecoration implements BiomeWoodA
         world.setBlock(pos.above(4), Blocks.STONE_BRICK_WALL.defaultBlockState(), 3);
 
         BlockPos lampPos = pos.above(5);
-        world.setBlock(lampPos, Blocks.REDSTONE_LAMP.defaultBlockState(), 3);
+        world.setBlock(lampPos, Blocks.REDSTONE_LAMP.defaultBlockState().setValue(BlockStateProperties.LIT, true), 3);
 
         world.setBlock(lampPos.above(), Blocks.DAYLIGHT_DETECTOR.defaultBlockState()
                 .setValue(BlockStateProperties.INVERTED, true), 3);

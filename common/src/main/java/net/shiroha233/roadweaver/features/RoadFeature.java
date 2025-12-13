@@ -160,16 +160,18 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
 
                 // 跨海被跳过（超长水域跨度）时：在两端岸边放置提示路牌
                 // 仅在“岸边正常路段”触发一次；真正落地仍由 Decoration.placeAllowed 做表面与禁放判断
-                SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
-                        world,
-                        decorations,
-                        averaged,
-                        next,
-                        prev,
-                        roadWidth,
-                        skipSegments,
-                        i
-                );
+                if (cfg.roadSignsEnabled()) {
+                    SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
+                            world,
+                            decorations,
+                            averaged,
+                            next,
+                            prev,
+                            roadWidth,
+                            skipSegments,
+                            i
+                    );
+                }
             }
 
             if (!isBridge[i] || cfg.bridgeKeepLamps()) {

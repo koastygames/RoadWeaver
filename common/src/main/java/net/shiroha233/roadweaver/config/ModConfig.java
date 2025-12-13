@@ -51,6 +51,8 @@ public final class ModConfig {
     private PathfindingAlgorithm pathfindingAlgorithm; // 具体寻路算法策略
 
     private int roadWidth;
+    // 是否启用道路路牌（距离牌/跨海提示牌）
+    private boolean roadSignsEnabled;
     private int lampInterval;
     private int roadClearHeight;
     private boolean tunnelEnabled;
@@ -138,6 +140,7 @@ public final class ModConfig {
 
         // 新增默认值
         this.roadWidth = 3;
+        this.roadSignsEnabled = false;
         this.lampInterval = 32;
         this.roadClearHeight = 4;
         this.tunnelEnabled = false;
@@ -457,6 +460,10 @@ public final class ModConfig {
     // 新增：道路宽度（0=自动）
     public int roadWidth() { return roadWidth; }
     public void setRoadWidth(int v) { this.roadWidth = v; }
+
+    // 新增：路牌系统开关
+    public boolean roadSignsEnabled() { return roadSignsEnabled; }
+    public void setRoadSignsEnabled(boolean v) { this.roadSignsEnabled = v; }
 
     // 新增：路灯间隔（段）
     public int lampInterval() { return lampInterval; }

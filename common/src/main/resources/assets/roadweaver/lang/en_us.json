@@ -59,6 +59,8 @@
   "config.roadweaver.structure_avoidance_enabled.tooltip": "When enabled, roads will automatically skip segments that fall within structure bounding boxes (e.g., village buildings), preventing roads from damaging structures.",
   "config.roadweaver.structure_road_offset": "Road-Structure Distance",
   "config.roadweaver.structure_road_offset.tooltip": "Distance (in blocks) from road endpoints to structure centers. Roads will start/end this far from village centers.",
+  "config.roadweaver.road_signs_enabled": "Enable Road Signs",
+  "config.roadweaver.road_signs_enabled.tooltip": "When enabled, place distance signs near both ends of a road and place warning signs when an over-long sea crossing is skipped.",
   "config.roadweaver.lamp_interval": "Lamp Interval (segments)",
   "config.roadweaver.lamp_interval.tooltip": "Place a lamp/marker every N segments; larger values place fewer lamps.",
   "config.roadweaver.road_clear_height": "Road Clear Height (blocks)",

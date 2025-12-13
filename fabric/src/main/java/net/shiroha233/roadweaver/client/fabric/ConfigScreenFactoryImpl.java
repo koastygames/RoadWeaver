@@ -209,6 +209,15 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
 
                 roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.road_signs_enabled"),
+                                                conf.roadSignsEnabled())
+                                                .setDefaultValue(defaultConf.roadSignsEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.road_signs_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadSignsEnabled(v); })
+                                                .build());
+
+                roadGen.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.lamp_interval"),
                                                 conf.lampInterval())
                                                 .setDefaultValue(defaultConf.lampInterval())

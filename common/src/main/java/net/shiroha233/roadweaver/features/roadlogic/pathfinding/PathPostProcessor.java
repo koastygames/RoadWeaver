@@ -282,6 +282,19 @@ public final class PathPostProcessor {
 
     private static List<BlockPos> relaxPathSkippingBridge(List<BlockPos> nodes, boolean[] bridgeMask) {
         if (nodes.size() < 3) return new ArrayList<>(nodes);
+
+        boolean hasBridge = false;
+        if (bridgeMask != null) {
+            for (boolean b : bridgeMask) {
+                if (b) {
+                    hasBridge = true;
+                    break;
+                }
+            }
+        }
+        if (!hasBridge) {
+            return relaxPath(nodes);
+        }
         List<BlockPos> relaxed = new ArrayList<>();
         relaxed.add(nodes.get(0));
 
