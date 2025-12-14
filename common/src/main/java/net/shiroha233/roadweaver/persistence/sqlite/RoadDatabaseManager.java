@@ -123,8 +123,20 @@ public final class RoadDatabaseManager {
                 // 初始化表结构
                 initTables(conn);
                 
+                // 先放入连接池，避免迁移过程中递归调用 getConnection 时重复创建
                 CONNECTIONS.put(key, conn);
                 LOGGER.debug("RoadDatabaseManager: 已创建维度 {} 的数据库连接", dimKey(level));
+                
+                // 检查并执行旧数据迁移（从分片 NBT 到 SQLite）
+                // 注意：必须在连接放入 CONNECTIONS 之后调用，因为迁移过程会调用 addRoad
+                try {
+                    int migrated = LegacyShardMigration.migrateIfNeeded(level);
+                    if (migrated > 0) {
+                        LOGGER.info("RoadDatabaseManager: 维度 {} 已迁移 {} 条旧道路数据", dimKey(level), migrated);
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("RoadDatabaseManager: 旧数据迁移失败，不影响正常使用", e);
+                }
                 
                 return conn;
                 

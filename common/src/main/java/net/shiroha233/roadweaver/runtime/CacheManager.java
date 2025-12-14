@@ -4,6 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.persistence.sqlite.LegacyShardMigration;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
@@ -66,6 +67,8 @@ public final class CacheManager {
         RoadSpatialIndex.clearAllCache();
         RoadPlanningService.resetAll();
         ChunkGenTracker.clearAll();
+
+        LegacyShardMigration.reset();
         
         LOGGER.debug("CacheManager: 所有缓存已清理");
     }
