@@ -6,6 +6,7 @@ import net.shiroha233.roadweaver.datagen.RoadWeaverDataGenerator;
 import net.shiroha233.roadweaver.network.forge.MapNetworkForge;
 import net.shiroha233.roadweaver.planning.forge.ServerPlanningHooks;
 import net.shiroha233.roadweaver.features.forge.RoadFeaturesForge;
+import net.shiroha233.roadweaver.structures.forge.StructureRegistryForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -35,6 +36,9 @@ public class RoadWeaver {
         // 注册数据生成事件（确保 runData 时 provider 被加入）
         modEventBus.addListener(RoadWeaverDataGenerator::gatherData);
 
+        // 注册结构类型（需要在特性注册之前）
+        StructureRegistryForge.register(modEventBus);
+        
         // 注册 Feature
         RoadFeaturesForge.register(modEventBus);
         

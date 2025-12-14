@@ -140,18 +140,20 @@ public final class RoadHeightInterpolator {
         
         int[] results = new int[positions.size()];
         int n = centers.size();
-        
-        // 局部搜索范围：以当前路段为中心，向两侧扩展
-        int searchRadius = 5;
-        int searchStart = Math.max(0, segmentIndex - searchRadius);
-        int searchEnd = Math.min(n - 2, segmentIndex + searchRadius);
-        
+
+        // 性能优化：使用扩展的搜索范围而非全局搜索
+        // 道路宽度通常不超过15，所以搜索范围扩展到 segmentIndex ± 20 应该足够
+        // 这比全局搜索快得多，同时能覆盖宽道路在弯道处的情况
+        int extendedRadius = 20;
+        int searchStart = Math.max(0, segmentIndex - extendedRadius);
+        int searchEnd = Math.min(n - 2, segmentIndex + extendedRadius);
+
         for (int i = 0; i < positions.size(); i++) {
             BlockPos pos = positions.get(i);
             int x = pos.getX();
             int z = pos.getZ();
-            
-            // 在局部范围内搜索最近投影
+
+            // 在扩展范围内搜索最近投影
             int bestSeg = segmentIndex;
             double bestT = 0.5;
             double bestDistSq = Double.MAX_VALUE;

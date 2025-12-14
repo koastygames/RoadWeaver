@@ -19,14 +19,15 @@ import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.features.decoration.system.DecorationPlanner;
 import net.shiroha233.roadweaver.features.decoration.system.DecorationExecutor;
+import net.shiroha233.roadweaver.features.bridge.BuoyBuilder;
+import net.shiroha233.roadweaver.features.bridge.BuoyMarkerPlanner;
+import net.shiroha233.roadweaver.features.decoration.system.SkippedBridgeBankSignPlanner;
 import net.shiroha233.roadweaver.features.roadlogic.bridge.BridgeRangeCalculator;
 import net.shiroha233.roadweaver.features.roadlogic.bridge.BridgeSegmentPlanner;
 import net.shiroha233.roadweaver.features.roadlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.roadlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.roadlogic.surface.BridgeTransitionAdjuster;
 import net.shiroha233.roadweaver.features.roadlogic.surface.HeightProfileService;
-import net.shiroha233.roadweaver.structures.roadside.runtime.RoadPlacementContext;
-import net.shiroha233.roadweaver.structures.roadside.runtime.RoadsideStructureService;
 
 import java.util.*;
 
@@ -82,6 +83,14 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
         BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans());
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
+        boolean[] skipSegments = res.skipSegments();
+
+        boolean useBuoysInstead = cfg.bridgeEnabled() && cfg.bridgeUseBuoysInstead();
+        boolean useBuoysWhenSkipped = cfg.bridgeEnabled() && cfg.bridgeUseBuoysWhenSkipped();
+
+        int intervalBlocks = Math.max(4, cfg.buoyIntervalBlocks());
+        boolean[] buoyMarkersForBridge = (useBuoysInstead ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks) : null);
+        boolean[] buoyMarkersForSkipped = (useBuoysWhenSkipped ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks) : null);
 
         java.util.List<Integer> targetY = data.targetY();
         HeightProfileService.HeightProfile hp = HeightProfileService.build(world, middlePositions, currentChunk, averagingRadius, cfg, targetY);
@@ -94,18 +103,13 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             baseYArr = smoothedYArr;
         }
 
-        if (baseYArr != null && cfg.bridgeEnabled() && !bridgeRanges.isEmpty()) {
+        if (baseYArr != null && cfg.bridgeEnabled() && !useBuoysInstead && !bridgeRanges.isEmpty()) {
             baseYArr = BridgeTransitionAdjuster.adjust(baseYArr, bridgeRanges, cfg);
         }
 
         int deckY = server.getSeaLevel() + cfg.bridgeDeckClearance();
         int segmentIndex = 0;
         BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
-        // 路边结构放置上下文：每条道路共享，用于限制最大结构数
-        int roadLength = segments.size();
-        RoadPlacementContext roadsideCtx = new RoadPlacementContext(roadLength);
-        // 计算路边结构检查间隔，使结构均匀分布
-        int roadsideCheckInterval = calculateRoadsideCheckInterval(roadLength, cfg.maxStructuresPerRoad());
         for (int i = 2; i < segments.size() - 2; i++) {
             BlockPos middle = middlePositions.get(i);
             if (!processedMiddle.add(middle)) continue;
@@ -117,24 +121,57 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
 
-            int topYCenter = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, middle.getX(), middle.getZ());
+            int sea = server.getSeaLevel();
+            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, middle.getX(), middle.getZ());
+            int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, middle.getX(), middle.getZ());
+            int topYCenter = (motion > sea + 2) ? motion : surface;
             BlockPos averaged = new BlockPos(middle.getX(), topYCenter, middle.getZ());
             int baseYForThis = (baseYArr != null ? baseYArr[i] : topYCenter);
 
             Records.RoadSegmentPlacement seg = segments.get(i);
-            
-            // 结构避让：检测路段中心点是否在结构内，如果是则跳过整个路段
             if (StructureAvoidanceService.shouldAvoid(world, middle)) {
                 continue;
             }
-            
+            if (skipSegments != null && i >= 0 && i < skipSegments.length && skipSegments[i]) {
+                // 超长水域跨度：整段跳过生成
+                if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length && buoyMarkersForSkipped[i]) {
+                    BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
+                }
+                continue;
+            }
+
+            if (useBuoysInstead && isBridge != null && i >= 0 && i < isBridge.length && isBridge[i]) {
+                if (buoyMarkersForBridge != null && i < buoyMarkersForBridge.length && buoyMarkersForBridge[i]) {
+                    BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
+                }
+                // 浮标模式：水域跨度不放桥也不铺路，避免在水里生成"路堤"
+                continue;
+            }
+
             if (cfg.bridgeEnabled() && isBridge[i]) {
                 BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
             } else {
                 // 对非桥梁路段进行地形适配（填土/削坡/边缘平滑）
-                net.shiroha233.roadweaver.features.roadlogic.surface.RoadTerrainAdapter.adapt(world, middle, roadWidth, baseYForThis, random, cfg);
+                // 使用插值高度计算，确保与路面铺设的高度一致
+                net.shiroha233.roadweaver.features.roadlogic.surface.RoadTerrainAdapter.adaptWithInterpolation(
+                        world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
 
                 SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials, random, cfg);
+
+                // 跨海被跳过（超长水域跨度）时：在两端岸边放置提示路牌
+                // 仅在"岸边正常路段"触发一次；真正落地仍由 Decoration.placeAllowed 做表面与禁放判断
+                if (cfg.roadSignsEnabled()) {
+                    SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
+                            world,
+                            decorations,
+                            averaged,
+                            next,
+                            prev,
+                            roadWidth,
+                            skipSegments,
+                            i
+                    );
+                }
             }
 
             if (!isBridge[i] || cfg.bridgeKeepLamps()) {
@@ -152,28 +189,8 @@ public class RoadFeature extends Feature<RoadFeatureConfig> {
                         (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL)
                 );
             }
-
-            // 尝试放置路边结构（只在非桥梁段，且在检查间隔点）
-            if (!isBridge[i] && segmentIndex % roadsideCheckInterval == 0) {
-                // 已达到最大数量则跳过
-                if (!roadsideCtx.isMaxReached(cfg.maxStructuresPerRoad())) {
-                    RoadsideStructureService.tryPlace(
-                            world, server, middle, prev, next,
-                            roadWidth, roadLength, roadsideCtx, random, cfg
-                    );
-                }
-            }
+            // 路边结构现在通过预计算系统在 STRUCTURE_STARTS 阶段注入
+            // 参见 RoadsideStructurePrecomputer 和 StructureInjector
         }
-    }
-    
-    /**
-     * 计算路边结构检查间隔，使结构均匀分布
-     */
-    private static int calculateRoadsideCheckInterval(int roadLength, int maxStructures) {
-        if (maxStructures <= 0 || roadLength <= 0) {
-            return Integer.MAX_VALUE;
-        }
-        // 将道路分成 maxStructures+1 段，在每段检查放置
-        return Math.max(1, roadLength / (maxStructures + 1));
     }
 }

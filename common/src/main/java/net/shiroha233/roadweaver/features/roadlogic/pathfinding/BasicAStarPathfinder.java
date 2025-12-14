@@ -5,9 +5,8 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
+import net.shiroha233.roadweaver.config.PathfindingConfig;
 import net.shiroha233.roadweaver.helpers.Records;
-
-import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.*;
@@ -19,33 +18,44 @@ final class BasicAStarPathfinder {
     private static final int BIOME_BASE_COST = 12; // 特定生物群系基础成本（河流/海洋/深海）
     private static final double HEURISTIC_EPSILON = 0.2; // 启发式 epsilon
 
+    /**
+     * 基础 A* 寻路算法
+     * 
+     * @param startGround 起点
+     * @param endGround   终点
+     * @param width       道路宽度
+     * @param level       服务端世界
+     * @param maxSteps    最大步数
+     * @param cache       地形采样缓存
+     * @param cfg         寻路配置快照（不可变）
+     */
     public static List<Records.RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
             BlockPos endGround,
             int width,
             ServerLevel level,
             int maxSteps,
-            TerrainSamplingCache cache) {
+            TerrainSamplingCache cache,
+            PathfindingConfig cfg) {
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<BlockPos, Node> allNodes = new HashMap<>();
         Set<BlockPos> closed = new HashSet<>();
-
-        var cfg = ConfigService.get();
 
         Node startNode = new Node(startGround, null, 0.0, heuristic(startGround, endGround, cfg));
         openSet.add(startNode);
         allNodes.put(startGround, startNode);
 
-        int d = getNeighborDistance();
+        int d = cfg.effectiveAStarStep();
         int[][] neighborOffsets = new int[][] {
                 { d, 0 }, { -d, 0 }, { 0, d }, { 0, -d },
                 { d, d }, { d, -d }, { -d, d }, { -d, -d }
         };
 
         int stepsBudget = Math.max(1, maxSteps);
+        int dutyCycle = cfg.threadDutyCycle();
         ThreadPoolManager.resetThrottle();
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
-                ThreadPoolManager.throttle();
+                ThreadPoolManager.throttle(dutyCycle);
                 if (Thread.currentThread().isInterrupted()) {
                     return null;
                 }
@@ -61,7 +71,7 @@ final class BasicAStarPathfinder {
                         c = c.parent;
                     }
                     Collections.reverse(rawPath);
-                    return PathPostProcessor.process(rawPath, width, level, cache);
+                    return PathPostProcessor.process(rawPath, width, level, cache, cfg.bridgeMinWaterDepth());
                 }
 
                 closed.add(current.pos);
@@ -90,8 +100,8 @@ final class BasicAStarPathfinder {
                     boolean nearWater = RoadPathCalculator.isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
                     int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
                     int waterDepth = Math.max(0, sea - oceanFloor);
-                    int waterDepthCost = waterColumn ? waterDepth * cfg.waterDepthWeight() : 0;
-                    int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
+                    int waterDepthCost = waterColumn ? (int)(waterDepth * cfg.waterDepthWeight()) : 0;
+                    int nearWaterCost = nearWater ? (int)cfg.nearWaterCost() : 0;
 
                     double deviation = deviation2d(np, startGround, endGround);
                     double deviationCost = deviation * cfg.deviationWeight() / Math.max(1.0, d);
@@ -124,24 +134,11 @@ final class BasicAStarPathfinder {
         }
     }
 
-    private static int getNeighborDistance() {
-        try {
-            int v = ConfigService.get().aStarStep();
-            if (v < 4)
-                return 16;
-            if (v > 128)
-                return 128;
-            return v;
-        } catch (Throwable ignore) {
-            return 16;
-        }
-    }
-
     private static int manhattan2d(BlockPos a, BlockPos b) {
         return Math.abs(a.getX() - b.getX()) + Math.abs(a.getZ() - b.getZ());
     }
 
-    private static double heuristic(BlockPos a, BlockPos b, net.shiroha233.roadweaver.config.ModConfig cfg) {
+    private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {
         int dx = a.getX() - b.getX();
         int dz = a.getZ() - b.getZ();
         double dxzApprox = Math.abs(dx) + Math.abs(dz) - 0.6 * Math.min(Math.abs(dx), Math.abs(dz));

@@ -30,12 +30,23 @@ public final class TerrainSamplingCache {
         }
         var generator = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().getGeneratorState().randomState();
-        int h = generator.getBaseHeight(x, z, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, level, rs);
+        int sea = level.getSeaLevel();
+        int motion = generator.getBaseHeight(x, z, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, level, rs);
+        if (motion > sea + 2) {
+            heightCache.put(key, motion);
+            return motion;
+        }
+
+        int surface = generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, rs);
+        boolean waterBiome = isWaterLike(level, x, z);
+        boolean shouldUseSurface = waterBiome || (surface <= sea + 2 && oceanFloor(level, x, z) < sea);
+        int h = shouldUseSurface ? surface : motion;
+
         heightCache.put(key, h);
         return h;
     }
 
-    boolean isWaterLike(ServerLevel level, int x, int z) {
+    public boolean isWaterLike(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Boolean cached = waterCache.get(key);
         if (cached != null)
@@ -55,7 +66,7 @@ public final class TerrainSamplingCache {
         return res;
     }
 
-    int oceanFloor(ServerLevel level, int x, int z) {
+    public int oceanFloor(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Integer cached = oceanFloorCache.get(key);
         if (cached != null) {
@@ -69,7 +80,7 @@ public final class TerrainSamplingCache {
         return h;
     }
 
-    boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
+    public boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
         long key = hashXZ(x, z);
         Boolean cached = nearWaterCache.get(key);
         if (cached != null)
@@ -91,7 +102,7 @@ public final class TerrainSamplingCache {
         return false;
     }
 
-    boolean isColumnWater(ServerLevel level, int x, int z) {
+    public boolean isColumnWater(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Boolean cached = columnWaterCache.get(key);
         if (cached != null)
@@ -124,7 +135,7 @@ public final class TerrainSamplingCache {
         return res;
     }
 
-    Holder<Biome> getBiome(ServerLevel level, int x, int z) {
+    public Holder<Biome> getBiome(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Holder<Biome> cached = biomeCache.get(key);
         if (cached != null) {
@@ -136,5 +147,14 @@ public final class TerrainSamplingCache {
         Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, 16, z >> 2, randomState.sampler());
         biomeCache.put(key, biome);
         return biome;
+    }
+
+    public void clear() {
+        waterCache.clear();
+        nearWaterCache.clear();
+        columnWaterCache.clear();
+        heightCache.clear();
+        oceanFloorCache.clear();
+        biomeCache.clear();
     }
 }

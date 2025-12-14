@@ -47,6 +47,9 @@ dependencies {
 		exclude group: "net.fabricmc.fabric-api"
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:11.1.106")
+
+	implementation("org.xerial:sqlite-jdbc:3.45.3.0")
+	include("org.xerial:sqlite-jdbc:3.45.3.0")
 }
 
 processResources {

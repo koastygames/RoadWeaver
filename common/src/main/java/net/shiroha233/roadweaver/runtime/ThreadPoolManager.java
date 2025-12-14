@@ -120,15 +120,12 @@ public final class ThreadPoolManager {
      * 节流检查点 - 在耗时任务的循环中周期性调用。
      * 根据配置的 threadDutyCycle（占空比），工作一段时间后主动休眠。
      * 例如：50% 占空比 → 工作 20ms 后休眠 20ms；10% → 工作 20ms 后休眠 180ms。
+     * 
+     * @param duty 占空比（优先使用传入的值）
      */
-    public static void throttle() {
-        int duty;
-        try {
-            duty = ConfigService.get().threadDutyCycle();
-        } catch (Throwable t) {
-            return; // 配置未加载，不节流
-        }
+    public static void throttle(int duty) {
         if (duty >= 100) return; // 100% 不节流
+        if (duty <= 0) duty = 50; // 默认 50%
 
         long now = System.currentTimeMillis();
         long elapsed = now - WORK_START.get();
@@ -147,9 +144,28 @@ public final class ThreadPoolManager {
         }
     }
 
+    /**
+     * 节流检查点（使用配置中的占空比）
+     * @deprecated 使用 throttle(int duty) 代替
+     */
+    @Deprecated
+    public static void throttle() {
+        int duty;
+        try {
+            duty = ConfigService.get().threadDutyCycle();
+        } catch (Throwable t) {
+            return; // 配置未加载，不节流
+        }
+        throttle(duty);
+    }
+
     /** 重置当前线程的节流计时器（在任务开始时调用） */
     public static void resetThrottle() {
         WORK_START.set(System.currentTimeMillis());
+    }
+
+    public static void clearThrottle() {
+        WORK_START.remove();
     }
 
     // 从配置解析计算线程数，0=自动（CPU-1），异常时回退为1

@@ -7,7 +7,8 @@ public final class ModConfig {
     public enum PlanningAlgorithm {
         KNN,
         DELAUNAY,
-        RNG
+        RNG,
+        MST
     }
 
     public enum PathfindingAlgorithm {
@@ -33,8 +34,10 @@ public final class ModConfig {
     private boolean allowArtificial;
     private boolean allowNatural;
     private boolean placeWaypoints;
-    private boolean spawnCabinEnabled; // 是否启用出生点小屋
+    private boolean spawnCabinEnabled;
     private int averagingRadius;
+    // 是否启用分层寻路（粗步长引导 + 细步长精化）
+    private boolean hierarchicalPathfindingEnabled;
     private int generationThreads;
     private int computeThreads; // 计算线程池大小（0=自动，>0=固定值）
     private int initialGenerationThreads; // 初始生成专用线程数
@@ -48,6 +51,8 @@ public final class ModConfig {
     private PathfindingAlgorithm pathfindingAlgorithm; // 具体寻路算法策略
 
     private int roadWidth;
+    // 是否启用道路路牌（距离牌/跨海提示牌）
+    private boolean roadSignsEnabled;
     private int lampInterval;
     private int roadClearHeight;
     private boolean tunnelEnabled;
@@ -57,7 +62,10 @@ public final class ModConfig {
     // 桥梁配置
     private boolean bridgeEnabled;
     private int bridgeDeckClearance;
-    private boolean bridgeRailingEnabled;
+    private int bridgeMaxLengthBlocks; // 超过该长度的水域跨度将跳过（0=不限制）
+    private boolean bridgeUseBuoysInstead; // 用浮标代替桥梁
+    private boolean bridgeUseBuoysWhenSkipped; // 当桥梁因超长跳过时，用浮标代替
+    private int buoyIntervalBlocks; // 浮标间隔（方块）
     private int bridgePierInterval;
     private int bridgePierWidth;
     private int bridgePierMaxHeight;
@@ -70,7 +78,6 @@ public final class ModConfig {
     // 路边结构配置
     private boolean roadsideStructuresEnabled;
     private int maxStructuresPerRoad;      // 每条道路最多放置的结构数
-    private int minStructureSpacing;       // 两个结构之间的最小间隔（方块）
     private int smallStructureOffset;      // 小型结构距道路中心的距离
     private int mediumStructureOffset;     // 中型结构距道路中心的距离
     private int largeStructureOffset;      // 大型结构距道路中心的距离
@@ -79,6 +86,7 @@ public final class ModConfig {
     private int villageRoadOffset;   // 村庄类结构的道路缩进距离（方块）
     private int otherStructureRoadOffset; // 其他结构的道路缩进距离（方块）
     private boolean structureAvoidanceEnabled; // 放置阶段检测并跳过结构内的道路
+    private int structureRoadOffset; // 道路端点距结构中心的缩进距离（方块）（兼容旧配置）
 
     // A* 寻路成本权重
     private double orthoStepCost;
@@ -114,6 +122,9 @@ public final class ModConfig {
         this.spawnCabinEnabled = true;
         this.averagingRadius = 8;
 
+        // 分层寻路默认关闭，避免改变旧世界的生成行为/性能特征
+        this.hierarchicalPathfindingEnabled = false;
+
         this.generationThreads = Math.max(2, Math.min(3, Runtime.getRuntime().availableProcessors()));
         // computeThreads=0 表示自动模式：在 ThreadPoolManager 中按 CPU-1 计算
         this.computeThreads = 0;
@@ -125,10 +136,11 @@ public final class ModConfig {
         this.causewayMaxDepth = 1;
         this.maxSlopeStepPerTwoSegments = 1;
         this.slopeLimitEnabled = true;
-        this.pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
+        this.pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
 
         // 新增默认值
         this.roadWidth = 3;
+        this.roadSignsEnabled = false;
         this.lampInterval = 32;
         this.roadClearHeight = 4;
         this.tunnelEnabled = false;
@@ -138,7 +150,10 @@ public final class ModConfig {
         // 桥梁默认值
         this.bridgeEnabled = true;
         this.bridgeDeckClearance = 2;
-        this.bridgeRailingEnabled = true;
+        this.bridgeMaxLengthBlocks = 100;
+        this.bridgeUseBuoysInstead = false;
+        this.bridgeUseBuoysWhenSkipped = false;
+        this.buoyIntervalBlocks = 32;
         this.bridgePierInterval = 6;
         this.bridgePierWidth = 1;
         this.bridgePierMaxHeight = 20;
@@ -151,7 +166,6 @@ public final class ModConfig {
         // 路边结构默认值
         this.roadsideStructuresEnabled = true;
         this.maxStructuresPerRoad = 3;        // 每条道路最多3个结构
-        this.minStructureSpacing = 64;        // 结构间最小间隔64格
         this.smallStructureOffset = 8;        // 小型结构距道路8格
         this.mediumStructureOffset = 12;      // 中型结构距道路12格
         this.largeStructureOffset = 16;       // 大型结构距道路16格
@@ -160,6 +174,7 @@ public final class ModConfig {
         this.villageRoadOffset = 60;        // 村庄默认缩进 60 格
         this.otherStructureRoadOffset = 25; // 其他结构默认缩进 25 格
         this.structureAvoidanceEnabled = true; // 默认开启结构避让
+        this.structureRoadOffset = 60; // 道路端点默认缩进 60 格（兼容旧配置）
 
         // A* 寻路成本权重
         this.orthoStepCost = 1.0;
@@ -235,7 +250,6 @@ public final class ModConfig {
             dynamicPlanStrideChunks = 256;
         if (planningAlgorithm == null)
             planningAlgorithm = PlanningAlgorithm.RNG;
-        // spawnCabinEnabled 默认为 true，如果反序列化缺失则维持默认
         if (aStarStep > 128)
             aStarStep = 128; // 步数上限
         if (aStarMaxSteps < 3000)
@@ -266,6 +280,9 @@ public final class ModConfig {
             pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
         }
 
+        // 分层寻路新字段：缺省为 false
+        // 这里不做额外校验，仅保证反序列化时 null/缺失字段不会影响
+
         // 新增字段校验
         if (roadWidth < 0)
             roadWidth = 0; // 0=自动
@@ -289,6 +306,14 @@ public final class ModConfig {
             bridgeDeckClearance = 1;
         if (bridgeDeckClearance > 8)
             bridgeDeckClearance = 8;
+        if (bridgeMaxLengthBlocks < 0)
+            bridgeMaxLengthBlocks = 0;
+        if (bridgeMaxLengthBlocks > 10000)
+            bridgeMaxLengthBlocks = 10000;
+        if (buoyIntervalBlocks < 4)
+            buoyIntervalBlocks = 4;
+        if (buoyIntervalBlocks > 256)
+            buoyIntervalBlocks = 256;
         if (bridgePierInterval < 3)
             bridgePierInterval = 3;
         if (bridgePierInterval > 32)
@@ -333,10 +358,6 @@ public final class ModConfig {
             maxStructuresPerRoad = 0;
         if (maxStructuresPerRoad > 20)
             maxStructuresPerRoad = 20;
-        if (minStructureSpacing < 1)
-            minStructureSpacing = 1;
-        if (minStructureSpacing > 256)
-            minStructureSpacing = 256;
         if (smallStructureOffset < 1)
             smallStructureOffset = 1;
         if (smallStructureOffset > 64)
@@ -359,6 +380,10 @@ public final class ModConfig {
             otherStructureRoadOffset = 0;
         if (otherStructureRoadOffset > 256)
             otherStructureRoadOffset = 256;
+        if (structureRoadOffset < 0)
+            structureRoadOffset = 0;
+        if (structureRoadOffset > 256)
+            structureRoadOffset = 256;
     }
 
     // 初始规划半径
@@ -386,12 +411,14 @@ public final class ModConfig {
     public boolean placeWaypoints() { return placeWaypoints; }
     public void setPlaceWaypoints(boolean v) { this.placeWaypoints = v; }
 
-    // 出生点小屋开关
     public boolean spawnCabinEnabled() { return spawnCabinEnabled; }
     public void setSpawnCabinEnabled(boolean v) { this.spawnCabinEnabled = v; }
 
     public int averagingRadius() { return averagingRadius; }
     public void setAveragingRadius(int v) { this.averagingRadius = v; }
+
+    public boolean hierarchicalPathfindingEnabled() { return hierarchicalPathfindingEnabled; }
+    public void setHierarchicalPathfindingEnabled(boolean v) { this.hierarchicalPathfindingEnabled = v; }
 
     public int generationThreads() { return generationThreads; }
     public void setGenerationThreads(int v) { this.generationThreads = v; }
@@ -434,6 +461,10 @@ public final class ModConfig {
     public int roadWidth() { return roadWidth; }
     public void setRoadWidth(int v) { this.roadWidth = v; }
 
+    // 新增：路牌系统开关
+    public boolean roadSignsEnabled() { return roadSignsEnabled; }
+    public void setRoadSignsEnabled(boolean v) { this.roadSignsEnabled = v; }
+
     // 新增：路灯间隔（段）
     public int lampInterval() { return lampInterval; }
     public void setLampInterval(int v) { this.lampInterval = v; }
@@ -461,8 +492,17 @@ public final class ModConfig {
     public int bridgeDeckClearance() { return bridgeDeckClearance; }
     public void setBridgeDeckClearance(int v) { this.bridgeDeckClearance = v; }
 
-    public boolean bridgeRailingEnabled() { return bridgeRailingEnabled; }
-    public void setBridgeRailingEnabled(boolean v) { this.bridgeRailingEnabled = v; }
+    public int bridgeMaxLengthBlocks() { return bridgeMaxLengthBlocks; }
+    public void setBridgeMaxLengthBlocks(int v) { this.bridgeMaxLengthBlocks = v; }
+
+    public boolean bridgeUseBuoysInstead() { return bridgeUseBuoysInstead; }
+    public void setBridgeUseBuoysInstead(boolean v) { this.bridgeUseBuoysInstead = v; }
+
+    public boolean bridgeUseBuoysWhenSkipped() { return bridgeUseBuoysWhenSkipped; }
+    public void setBridgeUseBuoysWhenSkipped(boolean v) { this.bridgeUseBuoysWhenSkipped = v; }
+
+    public int buoyIntervalBlocks() { return buoyIntervalBlocks; }
+    public void setBuoyIntervalBlocks(int v) { this.buoyIntervalBlocks = v; }
 
     public int bridgePierInterval() { return bridgePierInterval; }
     public void setBridgePierInterval(int v) { this.bridgePierInterval = v; }
@@ -526,9 +566,6 @@ public final class ModConfig {
     public int maxStructuresPerRoad() { return maxStructuresPerRoad; }
     public void setMaxStructuresPerRoad(int v) { this.maxStructuresPerRoad = Math.max(0, v); }
 
-    public int minStructureSpacing() { return minStructureSpacing; }
-    public void setMinStructureSpacing(int v) { this.minStructureSpacing = Math.max(1, v); }
-
     public int smallStructureOffset() { return smallStructureOffset; }
     public void setSmallStructureOffset(int v) { this.smallStructureOffset = Math.max(1, v); }
 
@@ -540,16 +577,13 @@ public final class ModConfig {
 
     // 结构距离控制存取
     public int villageRoadOffset() { return villageRoadOffset; }
-    public void setVillageRoadOffset(int v) { this.villageRoadOffset = v; }
+    public void setVillageRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
     public int otherStructureRoadOffset() { return otherStructureRoadOffset; }
-    public void setOtherStructureRoadOffset(int v) { this.otherStructureRoadOffset = v; }
+    public void setOtherStructureRoadOffset(int v) { this.otherStructureRoadOffset = Math.max(0, Math.min(256, v)); }
     public boolean structureAvoidanceEnabled() { return structureAvoidanceEnabled; }
     public void setStructureAvoidanceEnabled(boolean v) { this.structureAvoidanceEnabled = v; }
-    
-    /** @deprecated 使用 {@link #villageRoadOffset()} 代替 */
     @Deprecated
     public int structureRoadOffset() { return villageRoadOffset; }
-    /** @deprecated 使用 {@link #setVillageRoadOffset(int)} 代替 */
     @Deprecated
-    public void setStructureRoadOffset(int v) { this.villageRoadOffset = v; }
+    public void setStructureRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
 }

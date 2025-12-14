@@ -34,4 +34,29 @@ public final class SignTextService {
             }
         });
     }
+
+    public static void writeSeaQuestionSign(WorldGenLevel level, BlockPos pos) {
+        net.minecraft.world.level.Level l = level.getLevel();
+        if (!(l instanceof net.minecraft.server.level.ServerLevel sLevel)) return;
+        sLevel.getServer().execute(() -> {
+            BlockEntity be = sLevel.getBlockEntity(pos);
+            if (be instanceof HangingSignBlockEntity sign) {
+                SignText front = sign.getText(true);
+                front = front.setMessage(0, Component.translatable("gui.roadweaver.sign.sea_question.line1"));
+                front = front.setMessage(1, Component.translatable("gui.roadweaver.sign.sea_question.line2"));
+                front = front.setMessage(2, Component.literal(""));
+                front = front.setMessage(3, Component.literal(""));
+                sign.setText(front, true);
+
+                SignText back = sign.getText(false);
+                back = back.setMessage(0, Component.literal(""));
+                back = back.setMessage(1, Component.literal(""));
+                back = back.setMessage(2, Component.literal(""));
+                back = back.setMessage(3, Component.literal(""));
+                sign.setText(back, false);
+
+                sign.setChanged();
+            }
+        });
+    }
 }

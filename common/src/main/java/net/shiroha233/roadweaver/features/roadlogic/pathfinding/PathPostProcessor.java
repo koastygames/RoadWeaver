@@ -13,10 +13,20 @@ public final class PathPostProcessor {
      * 将原始寻路节点列表转换为平滑的、具有宽度的路段列表。
      * 使用 Catmull-Rom 样条曲线生成平滑路径，并通过距离场光栅化生成路面。
      */
+    /**
+     * 将原始寻路节点列表转换为平滑的、具有宽度的路段列表
+     * 
+     * @param rawPath          原始路径节点
+     * @param width            道路宽度
+     * @param level            服务端世界
+     * @param cache            地形采样缓存
+     * @param bridgeMinWaterDepth 桥梁最小水深（未使用，保留以保持 API 兼容）
+     */
     public static List<Records.RoadSegmentPlacement> process(List<BlockPos> rawPath,
                                                              int width,
                                                              ServerLevel level,
-                                                             TerrainSamplingCache cache) {
+                                                             TerrainSamplingCache cache,
+                                                             int bridgeMinWaterDepth) {
         if (rawPath == null || rawPath.size() < 2) return new ArrayList<>();
 
         // 1. 路径简化
@@ -79,6 +89,8 @@ public final class PathPostProcessor {
         }
 
         // 4. 距离场光栅化 & 归仓
+        // 固定使用「到线段的投影距离」归仓（与高度插值一致）
+        
         Map<Integer, Set<BlockPos>> segmentedBlocks = new HashMap<>();
         for (int i = 0; i < centers.size(); i++) segmentedBlocks.put(i, new HashSet<>());
 
@@ -112,18 +124,34 @@ public final class PathPostProcessor {
                         
                         int bestIdx = currentCenterIdx;
                         double bestDistSq = Double.MAX_VALUE;
-                        
-                        int searchStart = Math.max(0, currentCenterIdx - 5);
-                        int searchEnd = Math.min(centers.size() - 1, currentCenterIdx + 5);
-                        
-                        for (int k = searchStart; k <= searchEnd; k++) {
-                            BlockPos c = centers.get(k);
-                            double dx = x - c.getX();
-                            double dz = z - c.getZ();
-                            double cDistSq = dx*dx + dz*dz;
-                            if (cDistSq < bestDistSq) {
-                                bestDistSq = cDistSq;
-                                bestIdx = k;
+
+                        // 扩展到 ±20 以覆盖宽道路在弯道处的情况
+                        int extendedRadius = 20;
+                        int searchStart = Math.max(0, currentCenterIdx - extendedRadius);
+                        int searchEnd = Math.min(centers.size() - 2, currentCenterIdx + extendedRadius);
+
+                        // 使用到线段的投影距离（与 RoadHeightInterpolator 一致）
+                        for (int seg = searchStart; seg <= searchEnd; seg++) {
+                            BlockPos a = centers.get(seg);
+                            BlockPos b = centers.get(seg + 1);
+
+                            double ax = a.getX(), az = a.getZ();
+                            double bx = b.getX(), bz = b.getZ();
+                            double dx = bx - ax, dz = bz - az;
+                            double lenSq = dx * dx + dz * dz;
+
+                            double t = (lenSq < 1e-9) ? 0.0
+                                    : Math.max(0.0, Math.min(1.0, ((x - ax) * dx + (z - az) * dz) / lenSq));
+
+                            double projX = ax + t * dx;
+                            double projZ = az + t * dz;
+                            double projDistSq = (x - projX) * (x - projX) + (z - projZ) * (z - projZ);
+
+                            if (projDistSq < bestDistSq) {
+                                bestDistSq = projDistSq;
+                                // 归仓到插值位置更近的那个 center
+                                // 如果 t < 0.5，归到 seg；否则归到 seg+1
+                                bestIdx = (t < 0.5) ? seg : Math.min(seg + 1, centers.size() - 1);
                             }
                         }
                         

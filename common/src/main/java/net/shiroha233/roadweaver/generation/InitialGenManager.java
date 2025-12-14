@@ -6,6 +6,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
 import java.util.List;
 
@@ -66,7 +67,7 @@ public final class InitialGenManager {
 
         // 首开世界：按配置尝试放置出生点小屋（幂等）
         if (ConfigService.get().spawnCabinEnabled()) {
-            net.shiroha233.roadweaver.structures.spawn.SpawnCabinService.ensurePlaced(level);
+            SpawnCabinPlacer.ensurePlaced(level);
         }
 
         // 进行初始规划：写入结构连接（PLANNED）

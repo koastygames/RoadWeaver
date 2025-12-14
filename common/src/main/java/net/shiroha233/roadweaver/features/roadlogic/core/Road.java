@@ -12,37 +12,73 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.config.RoadGenerationConfig;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 道路生成器
+ * 
+ * 职责：根据结构连接生成一条道路，包括寻路、路面生成、路边结构预计算
+ * 
+ * 设计原则：
+ * - 接受配置快照，不依赖全局单例
+ * - 所有配置在入口层读取，通过参数传递
+ */
 public final class Road {
     private final ServerLevel level;
     private final Records.StructureConnection connection;
-    private final RoadFeatureConfig config;
+    private final RoadFeatureConfig featureConfig;
+    private final RoadGenerationConfig genConfig;
 
-    public Road(ServerLevel level, Records.StructureConnection connection, RoadFeatureConfig config) {
+    /**
+     * 创建道路生成器
+     * 
+     * @param level          服务端世界
+     * @param connection     结构连接
+     * @param featureConfig  Feature 配置
+     * @param genConfig      道路生成配置快照
+     */
+    public Road(ServerLevel level, Records.StructureConnection connection, 
+                RoadFeatureConfig featureConfig, RoadGenerationConfig genConfig) {
         this.level = level;
         this.connection = connection;
-        this.config = config;
+        this.featureConfig = featureConfig;
+        this.genConfig = genConfig;
+    }
+    
+    /**
+     * 兼容旧 API：从全局配置创建
+     * @deprecated 使用带 RoadGenerationConfig 参数的构造函数
+     */
+    @Deprecated
+    public Road(ServerLevel level, Records.StructureConnection connection, RoadFeatureConfig config) {
+        this(level, connection, config, RoadGenerationConfig.from(ConfigService.get()));
     }
 
+    /**
+     * 生成道路
+     * 
+     * @param maxSteps 最大寻路步数
+     */
     public void generateRoad(int maxSteps) {
         RandomSource random = RandomSource.create();
-        int width = ConfigService.get().roadWidth() > 0 ? ConfigService.get().roadWidth() : getRandomWidth(random, config);
-        ModConfig cfg = ConfigService.get();
-        boolean allowA = cfg.allowArtificial();
-        boolean allowN = cfg.allowNatural();
+        int width = genConfig.effectiveRoadWidth(getRandomWidth(random, featureConfig));
+        boolean allowA = genConfig.allowArtificial();
+        boolean allowN = genConfig.allowNatural();
         if (!allowA && !allowN) return;
         int type = allowA && allowN ? (random.nextBoolean() ? 0 : 1) : (allowA ? 0 : 1);
         List<BlockState> materials;
         List<BlockState> slabMaterials = java.util.List.of();
         if (type == 0) {
             // 人工道路始终从 JSON 预设系统中选择一套材质
-            PresetService.PresetDef preset = PresetService.choosePresetForArtificial(random, cfg);
+            ModConfig modCfg = ConfigService.get(); // 预设服务仍需要访问全局配置
+            PresetService.PresetDef preset = PresetService.choosePresetForArtificial(random, modCfg);
             materials = PresetService.toBlockStatesFromIds(preset.materials());
             slabMaterials = PresetService.toBlockStatesFromIds(preset.slabMaterials());
         } else {
@@ -54,22 +90,32 @@ public final class Road {
         
         // 直接用原始端点做 A* 寻路，不预设偏移方向
         TerrainSamplingCache cache = new TerrainSamplingCache();
-        List<Records.RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
-                rawStart, rawEnd, width, level, maxSteps, cache);
-        if (rawSegments == null || rawSegments.size() < 5) return;
-        
-        // 寻路完成后，根据实际路径方向裁剪掉进入结构保护区的路段
-        // 这样即使路径从意外方向绕过来，也不会穿过结构
-        List<Records.RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
-                level, rawSegments, rawStart, rawEnd);
-        if (segments == null || segments.size() < 5) return;
-        
-        List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache);
+        try {
+            List<Records.RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
+                    rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
+            if (rawSegments == null || rawSegments.size() < 5) return;
+            
+            // 寻路完成后，根据实际路径方向裁剪掉进入结构保护区的路段
+            // 这样即使路径从意外方向绕过来，也不会穿过结构
+            List<Records.RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
+                    level, rawSegments, rawStart, rawEnd);
+            if (segments == null || segments.size() < 5) return;
+            
+            List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.pathfinding());
 
-        List<Integer> targetY = computeTargetY(level, segments, spans, cache);
+            List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
-        Records.RoadData rd = new Records.RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
-        RoadShardStorage.addRoad(level, rd);
+            Records.RoadData rd = new Records.RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
+            RoadShardStorage.addRoad(level, rd);
+            
+            // 寻路完成后，预计算路边结构位置
+            // 如果区块还没生成，结构会在 STRUCTURE_STARTS 阶段注入，Beardifier 会自动处理地形
+            // 如果区块已经生成，则在 Feature 阶段通过 RoadsideStructurePlacer 放置（无地形适应）
+            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random);
+        } finally {
+            // 单条道路生成结束后清空噪声采样缓存，避免长时间占用内存
+            cache.clear();
+        }
     }
 
     
@@ -78,7 +124,9 @@ public final class Road {
         return 3;
     }
     
-    private static List<Integer> computeTargetY(ServerLevel level, List<Records.RoadSegmentPlacement> segments, List<Records.RoadSpan> spans, TerrainSamplingCache cache) {
+    private static List<Integer> computeTargetY(ServerLevel level, List<Records.RoadSegmentPlacement> segments, 
+                                                   List<Records.RoadSpan> spans, TerrainSamplingCache cache,
+                                                   RoadGenerationConfig cfg) {
         int n = segments.size();
         List<BlockPos> centers = new ArrayList<>(n);
         for (Records.RoadSegmentPlacement s : segments) centers.add(s.middlePos());
@@ -99,7 +147,7 @@ public final class Road {
             }
         }
 
-        int avg = Math.max(0, ConfigService.get().averagingRadius());
+        int avg = Math.max(0, cfg.averagingRadius());
         int[] base = new int[n];
         for (int i = 0; i < n; i++) {
             int sum = 0, cnt = 0;
@@ -114,7 +162,7 @@ public final class Road {
         }
 
         // 如果关闭限坡平滑，则直接使用基础平均高度，不再进行每两段步进限制
-        if (!ConfigService.get().slopeLimitEnabled()) {
+        if (!cfg.slopeLimitEnabled()) {
             List<Integer> out = new ArrayList<>(n);
             for (int v : base) out.add(v);
             return out;
@@ -130,7 +178,7 @@ public final class Road {
             while (i < n && !isBridge[i]) i++;
             int e = i - 1; // inclusive
             if (s <= e) {
-                int step2 = Math.max(0, Math.min(8, ConfigService.get().maxSlopeStepPerTwoSegments()));
+                int step2 = Math.max(0, Math.min(8, cfg.maxSlopeStepPerTwoSegments()));
                 int halfLow = Math.max(0, step2 / 2);
                 int halfHigh = Math.max(0, (step2 + 1) / 2);
                 for (int ii = s + 1; ii <= e; ii++) {

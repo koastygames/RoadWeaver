@@ -11,12 +11,12 @@ import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.util.ComputeService;
-import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
-import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.structures.StructureSystem;
-import net.shiroha233.roadweaver.structures.index.StructureIndexRestorer;
+import net.shiroha233.roadweaver.runtime.CacheManager;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
+import java.util.List;
 import java.util.Objects;
 
 public final class ServerPlanningHooks {
@@ -31,19 +31,21 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
-        StructureSystem.clearAll();
-        net.shiroha233.roadweaver.runtime.ThreadPoolManager.onServerStarted(event.getServer());
+        CacheManager.onServerStarted(); // 统一初始化缓存
+        ThreadPoolManager.onServerStarted(event.getServer());
         ServerLevel level = event.getServer().getLevel(Objects.requireNonNull(Level.OVERWORLD));
         if (level == null) return;
-        // 从持久化数据恢复结构索引
-        StructureIndexRestorer.restore(level);
+        
+        // 无论是新世界还是已存在的世界，都发现并缓存结构（供结构选择 GUI 使用）
+        net.shiroha233.roadweaver.config.structure.StructureDiscoveryService.discoverFromLevel(level);
+        
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
             RoadPlanningService.initialPlanAsync(level);
             return;
         }
-        java.util.List<net.shiroha233.roadweaver.helpers.Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
+        List<Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) {
             InitialGenManager.begin(level);
             InitialGenManager.blockUntilDone(level);
@@ -68,14 +70,8 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerStopping(ServerStoppingEvent event) {
-        var server = event.getServer();
-        for (ServerLevel lvl : server.getAllLevels()) {
-            RoadShardStorage.flushAll(lvl);
-            RoadShardStorage.clearAll(lvl);
-        }
-        RoadPositionQuery.clearAllCache();
         RoadGenerationService.onServerStopping();
-        StructureSystem.clearAll();
+        CacheManager.onServerStopping(event.getServer().getAllLevels()); // 统一清理所有缓存
         ComputeService.shutdownNow();
     }
 }

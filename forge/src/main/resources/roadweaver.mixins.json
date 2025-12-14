@@ -3,13 +3,16 @@
   "minVersion": "0.8",
   "package": "net.shiroha233.roadweaver.mixin.forge",
   "compatibilityLevel": "JAVA_17",
+  "plugin": "net.shiroha233.roadweaver.mixin.MixinConfigPlugin",
   "mixins": [
     "MinecraftServerMixin",
     "GenericFeatureMixin",
-    "dynamictree.DynamicTreeFeatureMixin"
+    "dynamictree.DynamicTreeFeatureMixin",
+    "ServerLevelStructureMixin"
   ],
   "client": [
     "CreateWorldScreenMixin",
+    "CreateWorldScreenInitMixin",
     "LevelLoadingScreenMixin"
   ],
   "injectors": {

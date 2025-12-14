@@ -2,8 +2,9 @@ package net.shiroha233.roadweaver.features.roadlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.shiroha233.roadweaver.config.PathfindingConfig;
+import net.shiroha233.roadweaver.config.RoadGenerationConfig;
 import net.shiroha233.roadweaver.helpers.Records;
-import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.features.roadlogic.core.RoadDirection;
 
 import java.util.*;
@@ -11,24 +12,26 @@ import java.util.*;
 public final class RoadPathCalculator {
     private RoadPathCalculator() {}
 
-    static int getNeighborDistance() {
-        try {
-            int v = ConfigService.get().aStarStep();
-            if (v < 4) return 16;
-            if (v > 128) return 128;
-            return v;
-        } catch (Throwable ignore) {
-            return 16;
-        }
-    }
-
+    /**
+     * 计算 A* 道路路径（带配置参数）
+     * 
+     * @param startIn   起点
+     * @param endIn     终点
+     * @param width     道路宽度
+     * @param level     服务端世界
+     * @param maxSteps  最大步数
+     * @param cache     地形采样缓存
+     * @param cfg       道路生成配置快照
+     */
     public static List<Records.RoadSegmentPlacement> calculateAStarRoadPath(BlockPos startIn,
                                                                             BlockPos endIn,
                                                                             int width,
                                                                             ServerLevel level,
                                                                             int maxSteps,
-                                                                            TerrainSamplingCache cache) {
-        int dGrid = getNeighborDistance();
+                                                                            TerrainSamplingCache cache,
+                                                                            RoadGenerationConfig cfg) {
+        PathfindingConfig pathCfg = cfg.pathfinding();
+        int dGrid = pathCfg.effectiveAStarStep();
         int sx = snapToGrid(startIn.getX(), dGrid);
         int sz = snapToGrid(startIn.getZ(), dGrid);
         int ex = snapToGrid(endIn.getX(), dGrid);
@@ -40,15 +43,36 @@ public final class RoadPathCalculator {
         BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
         BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
+        if (cfg.hierarchicalPathfindingEnabled()) {
+            // 注意：粗预热仅用于填充 TerrainSamplingCache，不参与最终道路路径。
+            TerrainCachePrewarmer.prewarmAlongRoute(
+                    startGround,
+                    endGround,
+                    level,
+                    Math.max(500, maxSteps / 4),
+                    cache);
+        }
+
+        return calculateDirect(startGround, endGround, width, level, maxSteps, cache, cfg, pathCfg);
+    }
+
+    private static List<Records.RoadSegmentPlacement> calculateDirect(BlockPos startGround,
+                                                                      BlockPos endGround,
+                                                                      int width,
+                                                                      ServerLevel level,
+                                                                      int maxSteps,
+                                                                      TerrainSamplingCache cache,
+                                                                      RoadGenerationConfig cfg,
+                                                                      PathfindingConfig pathCfg) {
         List<Records.RoadSegmentPlacement> land;
-        var algo = ConfigService.get().pathfindingAlgorithm();
-        
+        var algo = cfg.pathfindingAlgorithm();
+
         if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.GRADIENT_DESCENT) {
-            land = GradientDescentPathfinder.calculatePath(startGround, endGround, width, level, maxSteps, cache);
+            land = GradientDescentPathfinder.calculatePath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
         } else if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL) {
-            land = BidirectionalAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);
+            land = BidirectionalAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
         } else {
-            land = BasicAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache);
+            land = BasicAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
         }
         return land;
     }
@@ -79,8 +103,7 @@ public final class RoadPathCalculator {
     }
 
     static boolean isNearWaterLike(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
-        int d = getNeighborDistance();
-        return cache.isNearWaterLike(level, x, z, d);
+        return cache.isNearWaterLike(level, x, z, 16); // 默认步长
     }
 
     static boolean isColumnWater(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
@@ -123,7 +146,18 @@ public final class RoadPathCalculator {
         return set;
     }
 
-    public static List<Records.RoadSpan> extractSpans(List<Records.RoadSegmentPlacement> segments, ServerLevel level, TerrainSamplingCache cache) {
+    /**
+     * 提取道路跨度（桥梁、隧道等）
+     * 
+     * @param segments 道路段落
+     * @param level    服务端世界
+     * @param cache    地形采样缓存
+     * @param cfg      寻路配置快照
+     */
+    public static List<Records.RoadSpan> extractSpans(List<Records.RoadSegmentPlacement> segments, 
+                                                       ServerLevel level, 
+                                                       TerrainSamplingCache cache,
+                                                       PathfindingConfig cfg) {
         List<Records.RoadSpan> spans = new ArrayList<>();
         if (segments == null || segments.isEmpty()) return spans;
 
@@ -132,8 +166,8 @@ public final class RoadPathCalculator {
             centers.add(seg.middlePos());
         }
 
-        // 读取配置：最小水深阈值
-        int minWaterDepth = ConfigService.get().bridgeMinWaterDepth();
+        // 从配置快照读取最小水深阈值
+        int minWaterDepth = cfg.bridgeMinWaterDepth();
         int sea = level.getSeaLevel();
 
         boolean inWater = false;
