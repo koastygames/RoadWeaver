@@ -16,7 +16,6 @@ import net.shiroha233.roadweaver.config.ModConfig;
 public final class AboveColumnClearer {
     private AboveColumnClearer() {}
 
-    @SuppressWarnings("deprecation")
     public static void clearAboveColumn(WorldGenLevel world, BlockPos surfacePos, ModConfig cfg) {
         boolean tunnel = cfg != null && cfg.tunnelEnabled();
         int defaultClear = (cfg != null ? cfg.roadClearHeight() : 3);

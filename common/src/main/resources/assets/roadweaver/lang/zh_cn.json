@@ -116,6 +116,7 @@
   "gui.roadweaver.initgen.title": "RoadWeaver 初始生成",
   "gui.roadweaver.initgen.summary": "总数: %s  生成中: %s  已完成: %s  失败: %s",
   "gui.roadweaver.initgen.progress": "进度: %s/%s (%s%%)",
+  "gui.roadweaver.initgen.debug": "缓存命中: %s%% | 噪声采样: %s/秒 | 总计: %s",
   "config.roadweaver.category.bridge": "桥梁",
   "config.roadweaver.bridge_enabled": "启用桥梁",
   "config.roadweaver.bridge_enabled.tooltip": "在路径分析标记的水域跨越区段上架设高架桥面。",

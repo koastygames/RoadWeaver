@@ -46,6 +46,7 @@ final class GradientDescentPathfinder {
                                                            int maxSteps,
                                                            TerrainSamplingCache cache,
                                                            PathfindingConfig cfg) {
+        
         // 1. 定义搜索边界 (Bounding Box)
         // 即使有了启发式，保留边界检查也是个好习惯，防止跑太远
         int manhattan = manhattan2d(startGround, endGround);
@@ -73,8 +74,8 @@ final class GradientDescentPathfinder {
         // 既然有了启发式，步数预算可以稍微收紧，或者保持不变以支持长距离绕行
         // 但为了防止无解时的死循环，还是保留限制
         int stepsBudget = Math.max(5000, maxSteps * 3); 
-        int dutyCycle = cfg.threadDutyCycle();
 
+        int dutyCycle = cfg.threadDutyCycle();
         ThreadPoolManager.resetThrottle(); // 重置节流计时器
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
@@ -155,6 +156,7 @@ final class GradientDescentPathfinder {
             openSet.clear();
             allNodes.clear();
             closed.clear();
+            // 清理 ThreadLocal，防止线程池复用导致内存泄漏
             ThreadPoolManager.clearThrottle();
         }
         return null;

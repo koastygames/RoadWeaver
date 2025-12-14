@@ -20,7 +20,7 @@ public final class PathPostProcessor {
      * @param width            道路宽度
      * @param level            服务端世界
      * @param cache            地形采样缓存
-     * @param bridgeMinWaterDepth 桥梁最小水深（未使用，保留以保持 API 兼容）
+     * @param bridgeMinWaterDepth 桥梁最小水深
      */
     public static List<Records.RoadSegmentPlacement> process(List<BlockPos> rawPath,
                                                              int width,
@@ -31,7 +31,9 @@ public final class PathPostProcessor {
 
         // 1. 路径简化
         List<BlockPos> simplified = simplifyPath(rawPath);
-        List<BlockPos> controlPoints = relaxPath(simplified);
+        boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, bridgeMinWaterDepth);
+        // 桥梁段不做曲线松弛/样条平滑，否则会出现弯桥
+        List<BlockPos> controlPoints = relaxPathSkippingBridge(simplified, bridgeMask);
         if (controlPoints.size() < 2) return new ArrayList<>();
 
         // 2. 生成高密度样条曲线点集
@@ -52,9 +54,13 @@ public final class PathPostProcessor {
             int steps = (int) Math.ceil(dist * 4.0); // 极高密度采样
             if (steps < 1) steps = 1;
 
+            boolean bridgeSeg = (i >= 0 && i < bridgeMask.length - 1) && (bridgeMask[i] || bridgeMask[i + 1]);
+
             for (int s = 0; s < steps; s++) {
                 double t = (double) s / steps;
-                Vec2d pt = catmullRomSplineDouble(p0, p1, p2, p3, t);
+                Vec2d pt = bridgeSeg
+                        ? lerp2d(p1, p2, t)
+                        : catmullRomSplineDouble(p0, p1, p2, p3, t);
                 splinePoints.add(pt);
             }
         }
@@ -176,6 +182,37 @@ public final class PathPostProcessor {
         double distSqr(Vec2d o) { return (x-o.x)*(x-o.x) + (z-o.z)*(z-o.z); }
     }
 
+    private static Vec2d lerp2d(BlockPos a, BlockPos b, double t) {
+        double x = a.getX() + (b.getX() - a.getX()) * t;
+        double z = a.getZ() + (b.getZ() - a.getZ()) * t;
+        return new Vec2d(x, z);
+    }
+
+    /**
+     * 识别“桥梁段”节点：用于让桥梁段跳过曲线平滑，避免弯桥。
+     */
+    private static boolean[] detectBridgeMask(List<BlockPos> nodes,
+                                              ServerLevel level,
+                                              TerrainSamplingCache cache,
+                                              int bridgeMinWaterDepth) {
+        int n = nodes.size();
+        boolean[] mask = new boolean[n];
+        int minDepth = Math.max(1, bridgeMinWaterDepth);
+        int sea = level.getSeaLevel();
+        for (int i = 0; i < n; i++) {
+            BlockPos p = nodes.get(i);
+            boolean isWater = RoadPathCalculator.isColumnWater(cache, p.getX(), p.getZ(), level);
+            if (!isWater) {
+                mask[i] = false;
+                continue;
+            }
+            int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, p.getX(), p.getZ(), level);
+            int waterDepth = Math.max(0, sea - oceanFloor);
+            mask[i] = waterDepth >= minDepth;
+        }
+        return mask;
+    }
+
     private static double distToSegmentSq(double px, double pz, Vec2d v, Vec2d w) {
         double l2 = v.distSqr(w);
         if (l2 == 0) return (px - v.x)*(px - v.x) + (pz - v.z)*(pz - v.z);
@@ -252,6 +289,46 @@ public final class PathPostProcessor {
         }
         
         relaxed.add(nodes.get(nodes.size() - 1)); // 终点不动
+        return relaxed;
+    }
+
+    private static List<BlockPos> relaxPathSkippingBridge(List<BlockPos> nodes, boolean[] bridgeMask) {
+        if (nodes.size() < 3) return new ArrayList<>(nodes);
+
+        boolean hasBridge = false;
+        if (bridgeMask != null) {
+            for (boolean b : bridgeMask) {
+                if (b) {
+                    hasBridge = true;
+                    break;
+                }
+            }
+        }
+        if (!hasBridge) {
+            return relaxPath(nodes);
+        }
+
+        List<BlockPos> relaxed = new ArrayList<>();
+        relaxed.add(nodes.get(0));
+
+        for (int i = 1; i < nodes.size() - 1; i++) {
+            boolean isBridge = i < bridgeMask.length && bridgeMask[i];
+            boolean nearBridge = (i - 1 >= 0 && i - 1 < bridgeMask.length && bridgeMask[i - 1])
+                    || (i + 1 >= 0 && i + 1 < bridgeMask.length && bridgeMask[i + 1]);
+            if (isBridge || nearBridge) {
+                relaxed.add(nodes.get(i));
+                continue;
+            }
+
+            BlockPos prev = nodes.get(i - 1);
+            BlockPos curr = nodes.get(i);
+            BlockPos next = nodes.get(i + 1);
+            int nx = (prev.getX() + curr.getX() * 2 + next.getX()) / 4;
+            int nz = (prev.getZ() + curr.getZ() * 2 + next.getZ()) / 4;
+            relaxed.add(new BlockPos(nx, curr.getY(), nz));
+        }
+
+        relaxed.add(nodes.get(nodes.size() - 1));
         return relaxed;
     }
 }

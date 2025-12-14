@@ -1,6 +1,5 @@
 package net.shiroha233.roadweaver.mixin;
 
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
@@ -9,10 +8,17 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Mixin 配置插件，用于条件加载可选模组的 Mixin。
+ * <p>
+ * 当目标模组（如 DynamicTrees）未安装时，跳过对应的 Mixin，避免类加载失败。
+ * </p>
+ * <p>
+ * 注意：MixinConfigPlugin 在 Mixin 子系统启动时非常早期就被加载，
+ * 此时 ModList 还未初始化，只能使用 LoadingModList。
+ * </p>
+ */
 public class MixinConfigPlugin implements IMixinConfigPlugin {
-
-    private static ModList modList = ModList.get();
-    private static LoadingModList loadingModList = LoadingModList.get();
 
     @Override
     public void onLoad(String mixinPackage) {}
@@ -24,17 +30,26 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.contains("DynamicTree")) // 有这个名称的mixin类，需要相应模组加载才会生效
+        // DynamicTrees 相关的 Mixin 只在模组存在时加载
+        if (mixinClassName.contains("DynamicTree")) {
             return isModLoaded("dynamictrees");
+        }
         return true;
     }
 
+    /**
+     * 检查模组是否已加载。
+     * <p>
+     * 在 Mixin 加载阶段，ModList 还未初始化，只能使用 LoadingModList。
+     * </p>
+     */
     private boolean isModLoaded(String modid) {
-        if (modList != null) {
-            return modList.isLoaded(modid);
-        } else {
+        // 在 Mixin 加载阶段，只有 LoadingModList 可用
+        LoadingModList loadingModList = LoadingModList.get();
+        if (loadingModList != null) {
             return loadingModList.getModFileById(modid) != null;
         }
+        return false;
     }
 
     @Override

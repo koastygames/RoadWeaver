@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+import net.shiroha233.roadweaver.config.RoadGenerationConfig;
 import net.shiroha233.roadweaver.features.config.RoadFeatureConfig;
 import net.shiroha233.roadweaver.features.roadlogic.core.Road;
 import net.shiroha233.roadweaver.helpers.Records;
@@ -63,7 +64,9 @@ public final class RoadGenerationService {
             // 生成
             if (Thread.currentThread().isInterrupted())
                 return false;
-            new Road(level, conn, cfg).generateRoad(ConfigService.get().aStarMaxSteps());
+            var modCfg = ConfigService.get();
+            RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
+            new Road(level, conn, cfg, genCfg).generateRoad(modCfg.aStarMaxSteps());
             return true;
         } catch (Throwable t) {
             return false;
@@ -229,7 +232,9 @@ public final class RoadGenerationService {
             ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
             RoadFeatureConfig cfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
                     : defaultConfig();
-            new Road(level, conn, cfg).generateRoad(ConfigService.get().aStarMaxSteps());
+            var modCfg = ConfigService.get();
+            RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
+            new Road(level, conn, cfg, genCfg).generateRoad(modCfg.aStarMaxSteps());
             var server = level.getServer();
             if (server != null) {
                 server.execute(() -> {

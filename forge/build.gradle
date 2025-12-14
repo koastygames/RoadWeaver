@@ -31,22 +31,16 @@ loom {
 configurations {
     common
     shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
-    shadowLib // 用于打包第三方库（如 sqlite-jdbc）
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
-    runtimeClasspath.extendsFrom shadowLib // 开发环境运行时需要
     developmentForge.extendsFrom common
 }
 
 shadowJar {
     exclude "architectury.common.json"
     exclude "fabric.mod.json"
-    // 同时打包 common 模块和第三方库
-    configurations = [project.configurations.shadowCommon, project.configurations.shadowLib]
+    configurations = [project.configurations.shadowCommon]
     archiveClassifier.set("dev-shadow")
-    
-    // 注意：sqlite-jdbc 不做 relocate，因为 JDBC 驱动通过 Class.forName 加载
-    // 如果与其他 mod 冲突，可以考虑添加：relocate 'org.sqlite', 'net.shiroha233.roadweaver.shadow.sqlite'
 }
 
 remapJar {
@@ -125,9 +119,11 @@ dependencies {
     modApi("me.shedaniel.cloth:cloth-config-forge:11.1.136")
     include("me.shedaniel.cloth:cloth-config-forge:11.1.136")
 
-    // SQLite JDBC - 通过 shadow 打包到 mod 中，同时添加到开发环境运行时
-    shadowLib("org.xerial:sqlite-jdbc:3.45.3.0")
-    forgeRuntimeLibrary("org.xerial:sqlite-jdbc:3.45.3.0") // 开发环境 ModuleClassLoader 需要
+    // SQLite JDBC - 道路数据持久化（内嵌到模组）
+    // developmentForge 确保开发环境下驱动可用
+    developmentForge("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
+    implementation("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
+    include("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees
     // 换成modCompileOnly可以临时关闭此mod的运行以测试非联动状态
