@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.tips.LoadingTipsRenderer;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
+import net.shiroha233.roadweaver.features.roadlogic.pathfinding.TerrainSamplingStats;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -50,5 +51,15 @@ public abstract class LevelLoadingScreenMixin {
 
         x = (sw - font.width(progress)) / 2;
         graphics.drawString(font, progress, x, y, 0xA0FFA0, false);
+        y += 12;
+
+        // 显示缓存命中率和每秒噪声采样数
+        int hitRate = TerrainSamplingStats.getCacheHitRatePercent();
+        double samplesPerSec = TerrainSamplingStats.updateAndGetSamplesPerSecond();
+        long totalSamples = TerrainSamplingStats.getTotalNoiseSamples();
+        Component debug = Objects.requireNonNull(Component.translatable("gui.roadweaver.initgen.debug",
+                hitRate, String.format("%.0f", samplesPerSec), totalSamples));
+        x = (sw - font.width(debug)) / 2;
+        graphics.drawString(font, debug, x, y, 0x80C0FF, false);
     }
 }

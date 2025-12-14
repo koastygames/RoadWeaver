@@ -129,6 +129,7 @@
   "gui.roadweaver.initgen.title": "RoadWeaver Initial Generation",
   "gui.roadweaver.initgen.summary": "Total: %s  Generating: %s  Done: %s  Failed: %s",
   "gui.roadweaver.initgen.progress": "Progress: %s/%s (%s%%)",
+  "gui.roadweaver.initgen.debug": "Cache: %s%% | Noise: %s/s | Total: %s",
   "config.roadweaver.category.bridge": "Bridges",
   "config.roadweaver.bridge_enabled": "Enable Bridges",
   "config.roadweaver.bridge_enabled.tooltip": "Build elevated decks over water spans identified by the path analyzer.",

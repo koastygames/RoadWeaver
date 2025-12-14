@@ -1,6 +1,5 @@
 package net.shiroha233.roadweaver.mixin;
 
-import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
@@ -14,11 +13,12 @@ import java.util.Set;
  * <p>
  * 当目标模组（如 DynamicTrees）未安装时，跳过对应的 Mixin，避免类加载失败。
  * </p>
+ * <p>
+ * 注意：MixinConfigPlugin 在 Mixin 子系统启动时非常早期就被加载，
+ * 此时 ModList 还未初始化，只能使用 LoadingModList。
+ * </p>
  */
 public class MixinConfigPlugin implements IMixinConfigPlugin {
-
-    private static final ModList modList = ModList.get();
-    private static final LoadingModList loadingModList = LoadingModList.get();
 
     @Override
     public void onLoad(String mixinPackage) {}
@@ -38,12 +38,15 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
     }
 
     /**
-     * 检查模组是否已加载
+     * 检查模组是否已加载。
+     * <p>
+     * 在 Mixin 加载阶段，ModList 还未初始化，只能使用 LoadingModList。
+     * </p>
      */
     private boolean isModLoaded(String modid) {
-        if (modList != null) {
-            return modList.isLoaded(modid);
-        } else if (loadingModList != null) {
+        // 在 Mixin 加载阶段，只有 LoadingModList 可用
+        LoadingModList loadingModList = LoadingModList.get();
+        if (loadingModList != null) {
             return loadingModList.getModFileById(modid) != null;
         }
         return false;

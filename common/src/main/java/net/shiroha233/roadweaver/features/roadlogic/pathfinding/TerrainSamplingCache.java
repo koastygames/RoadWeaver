@@ -26,8 +26,10 @@ public final class TerrainSamplingCache {
         long key = hashXZ(x, z);
         Integer cached = heightCache.get(key);
         if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
             return cached;
         }
+        TerrainSamplingStats.recordCacheMiss();
         var generator = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().getGeneratorState().randomState();
         int sea = level.getSeaLevel();
@@ -49,8 +51,11 @@ public final class TerrainSamplingCache {
     public boolean isWaterLike(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Boolean cached = waterCache.get(key);
-        if (cached != null)
+        if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
             return cached;
+        }
+        TerrainSamplingStats.recordCacheMiss();
 
         // 修正：使用 BiomeSource 进行噪声采样，不加载区块
         // 注意：getNoiseBiome 需要夸脱坐标 (x >> 2, y >> 2, z >> 2)
@@ -70,8 +75,10 @@ public final class TerrainSamplingCache {
         long key = hashXZ(x, z);
         Integer cached = oceanFloorCache.get(key);
         if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
             return cached;
         }
+        TerrainSamplingStats.recordCacheMiss();
         var generator = level.getChunkSource().getGenerator();
         RandomState rs = level.getChunkSource().getGeneratorState().randomState();
         // 修正：使用对应的 Heightmap 类型进行噪声采样
@@ -83,8 +90,11 @@ public final class TerrainSamplingCache {
     public boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
         long key = hashXZ(x, z);
         Boolean cached = nearWaterCache.get(key);
-        if (cached != null)
+        if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
             return cached;
+        }
+        TerrainSamplingStats.recordCacheMiss();
         int d = neighborDistance;
         int[][] neighborOffsets = new int[][] {
                 { d, 0 }, { -d, 0 }, { 0, d }, { 0, -d },
@@ -105,8 +115,11 @@ public final class TerrainSamplingCache {
     public boolean isColumnWater(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
         Boolean cached = columnWaterCache.get(key);
-        if (cached != null)
+        if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
             return cached;
+        }
+        TerrainSamplingStats.recordCacheMiss();
 
         // 使用多种方式检测水体，解决以下问题：
         // 1. 浅滩(beach)不在 IS_RIVER/IS_OCEAN 群系标签中，但实际有水
@@ -139,8 +152,10 @@ public final class TerrainSamplingCache {
         long key = hashXZ(x, z);
         Holder<Biome> cached = biomeCache.get(key);
         if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
             return cached;
         }
+        TerrainSamplingStats.recordCacheMiss();
         var chunkSource = level.getChunkSource();
         var randomState = chunkSource.getGeneratorState().randomState();
         var biomeSource = chunkSource.getGenerator().getBiomeSource();
