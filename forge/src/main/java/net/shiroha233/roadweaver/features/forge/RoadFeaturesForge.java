@@ -6,8 +6,8 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import net.shiroha233.roadweaver.RoadWeaver;
-import net.shiroha233.roadweaver.features.RoadFeature;
-import net.shiroha233.roadweaver.features.config.RoadFeatureConfig;
+import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
+import net.shiroha233.roadweaver.features.path.PathFeature;
 
 public final class RoadFeaturesForge {
     private RoadFeaturesForge() {}
@@ -15,9 +15,9 @@ public final class RoadFeaturesForge {
     public static final DeferredRegister<Feature<?>> FEATURES =
             DeferredRegister.create(Registries.FEATURE, RoadWeaver.MOD_ID);
 
-    public static final RegistryObject<Feature<RoadFeatureConfig>> ROAD_FEATURE = FEATURES.register(
+    public static final RegistryObject<Feature<PathFeatureConfig>> ROAD_FEATURE = FEATURES.register(
             "road_feature",
-            () -> new RoadFeature(RoadFeatureConfig.CODEC)
+            () -> new PathFeature(PathFeatureConfig.CODEC)
     );
 
     public static void register(IEventBus modBus) {
