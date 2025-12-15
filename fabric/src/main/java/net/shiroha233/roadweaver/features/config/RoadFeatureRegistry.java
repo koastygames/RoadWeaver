@@ -11,13 +11,14 @@ import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.shiroha233.roadweaver.RoadWeaver;
-import net.shiroha233.roadweaver.features.RoadFeature;
+import net.shiroha233.roadweaver.features.path.PathFeature;
+import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 
 public final class RoadFeatureRegistry {
     private RoadFeatureRegistry() {}
 
     public static void register() {
-        Feature<RoadFeatureConfig> feature = new RoadFeature(RoadFeatureConfig.CODEC);
+        Feature<PathFeatureConfig> feature = new PathFeature(PathFeatureConfig.CODEC);
         Registry.register(BuiltInRegistries.FEATURE, ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), feature);
 
         // 使用现有数据包中的 placed_feature 键完成注入（该 JSON 仅作为 Hook，不承载预设）

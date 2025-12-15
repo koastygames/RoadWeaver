@@ -6,8 +6,8 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.shiroha233.roadweaver.RoadWeaver;
-import net.shiroha233.roadweaver.features.RoadFeature;
-import net.shiroha233.roadweaver.features.config.RoadFeatureConfig;
+import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
+import net.shiroha233.roadweaver.features.path.PathFeature;
 
 public final class RoadFeaturesForge {
     private RoadFeaturesForge() {}
@@ -15,9 +15,9 @@ public final class RoadFeaturesForge {
     public static final DeferredRegister<Feature<?>> FEATURES =
             DeferredRegister.create(Registries.FEATURE, RoadWeaver.MOD_ID);
 
-    public static final DeferredHolder<Feature<?>, Feature<RoadFeatureConfig>> ROAD_FEATURE = FEATURES.register(
+    public static final DeferredHolder<Feature<?>, Feature<PathFeatureConfig>> ROAD_FEATURE = FEATURES.register(
             "road_feature",
-            () -> new RoadFeature(RoadFeatureConfig.CODEC)
+            () -> new PathFeature(PathFeatureConfig.CODEC)
     );
 
     public static void register(IEventBus modBus) {

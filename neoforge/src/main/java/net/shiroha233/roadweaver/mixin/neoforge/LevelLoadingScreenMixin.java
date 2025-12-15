@@ -6,7 +6,7 @@ import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.tips.LoadingTipsRenderer;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
-import net.shiroha233.roadweaver.features.roadlogic.pathfinding.TerrainSamplingStats;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

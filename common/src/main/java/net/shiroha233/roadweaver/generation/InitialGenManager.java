@@ -82,7 +82,7 @@ public final class InitialGenManager {
         failed.set(0);
 
         // 重置地形采样统计（用于 GUI 显示缓存命中率和每秒采样数）
-        net.shiroha233.roadweaver.features.roadlogic.pathfinding.TerrainSamplingStats.reset();
+        net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats.reset();
 
         // 确保生成线程池已初始化
         RoadGenerationService.onServerStarted();

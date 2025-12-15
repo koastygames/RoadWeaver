@@ -10,7 +10,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Rotation;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.features.roadlogic.pathfinding.TerrainSamplingCache;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingCache;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.structures.data.BiomeCategory;
 import net.shiroha233.roadweaver.structures.data.StructureScale;

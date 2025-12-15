@@ -5,8 +5,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
-import net.shiroha233.roadweaver.features.config.RoadFeatureConfig;
-import net.shiroha233.roadweaver.features.roadlogic.core.Road;
+import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
+import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
@@ -81,7 +81,7 @@ public final class RoadGenerationService {
             var reg = level.registryAccess()
                     .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
             ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
-            RoadFeatureConfig featureCfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
+            PathFeatureConfig featureCfg = (cf != null && cf.config() instanceof PathFeatureConfig rfc) ? rfc
                     : defaultConfig();
 
             // 生成
@@ -251,7 +251,7 @@ public final class RoadGenerationService {
             var reg = level.registryAccess()
                     .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
             ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
-            RoadFeatureConfig cfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
+            PathFeatureConfig cfg = (cf != null && cf.config() instanceof PathFeatureConfig rfc) ? rfc
                     : defaultConfig();
             // 在入口层获取配置快照
             ModConfig modCfg = ConfigService.get();
@@ -339,8 +339,8 @@ public final class RoadGenerationService {
         }
     }
 
-    private static RoadFeatureConfig defaultConfig() {
-        return new RoadFeatureConfig();
+    private static PathFeatureConfig defaultConfig() {
+        return new PathFeatureConfig();
     }
 
     private static long dist2XZ(BlockPos a, BlockPos b) {
