@@ -1,8 +1,9 @@
 package net.shiroha233.roadweaver.search;
 
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
@@ -86,12 +87,12 @@ public final class StructureVerificationService {
                 server.getFixerUpper()
         );
 
-        Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
-        Registry<StructureSet> structureSetRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE_SET);
+        HolderLookup.RegistryLookup<Structure> structureLookup = registryAccess.lookupOrThrow(Registries.STRUCTURE);
+        HolderLookup.RegistryLookup<StructureSet> structureSetLookup = registryAccess.lookupOrThrow(Registries.STRUCTURE_SET);
 
         // 构建 Structure -> StructurePlacement 的映射缓存
         Map<Structure, StructurePlacement> placementCache = new HashMap<>();
-        for (Holder.Reference<StructureSet> setHolder : structureSetRegistry.holders().toList()) {
+        structureSetLookup.listElements().forEach(setHolder -> {
             StructureSet set = setHolder.value();
             StructurePlacement placement = set.placement();
             for (StructureSet.StructureSelectionEntry entry : set.structures()) {
@@ -99,7 +100,7 @@ public final class StructureVerificationService {
                 // 一个 Structure 可能属于多个 Set，这里取第一个找到的 placement
                 placementCache.putIfAbsent(structure, placement);
             }
-        }
+        });
 
         ArrayList<Records.StructureInfo> result = new ArrayList<>();
 
@@ -116,11 +117,13 @@ public final class StructureVerificationService {
                 continue;
             }
 
-            Structure structure = structureRegistry.get(rl);
-            if (structure == null) {
+            ResourceKey<Structure> structureKey = ResourceKey.create(Registries.STRUCTURE, rl);
+            Holder<Structure> structureHolder = structureLookup.get(structureKey).orElse(null);
+            if (structureHolder == null) {
                 result.add(info);
                 continue;
             }
+            Structure structure = structureHolder.value();
 
             // 获取对应的 StructurePlacement
             StructurePlacement placement = placementCache.get(structure);

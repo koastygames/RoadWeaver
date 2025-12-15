@@ -2,9 +2,6 @@ package net.shiroha233.roadweaver.datagen;
 
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
-import net.neoforged.bus.api.SubscribeEvent;
-
-import net.neoforged.fml.common.EventBusSubscriber;
 
 /**
  * Forge 数据生成器
@@ -13,10 +10,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
  * Forge 只需要 biome_modifier 来注入这些特性到生物群系
  * biome_modifier 文件位于: forge/src/main/resources/data/roadweaver/forge/biome_modifier/road_feature.json
  */
-@EventBusSubscriber(modid = RoadWeaver.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
 public class RoadWeaverDataGenerator {
     
-    @SubscribeEvent
     public static void gatherData(GatherDataEvent event) {
         // Forge 版本不需要代码生成 configured/placed features
         // 这些已经在 Common 模块的 JSON 文件中定义

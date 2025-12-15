@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -113,23 +113,23 @@ public final class StructureDiscoveryService {
         }
         
         try {
-            Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
+            HolderLookup.RegistryLookup<Structure> structureLookup = registryAccess.lookupOrThrow(Registries.STRUCTURE);
             
             // 收集所有结构
             Map<ResourceLocation, StructureEntry> structureMap = new LinkedHashMap<>();
-            for (var entry : structureRegistry.entrySet()) {
-                ResourceLocation id = entry.getKey().location();
+            structureLookup.listElements().forEach(holder -> {
+                ResourceLocation id = holder.key().location();
                 boolean isVanilla = "minecraft".equals(id.getNamespace());
                 String displayName = formatDisplayName(id);
                 structureMap.put(id, new StructureEntry(id, displayName, isVanilla));
-            }
+            });
             
             // 收集所有标签及其包含的结构
             List<StructureTagEntry> tagEntries = new ArrayList<>();
             Set<ResourceLocation> processedTags = new HashSet<>();
             
             // 遍历所有结构的标签
-            for (Holder.Reference<Structure> holder : structureRegistry.holders().toList()) {
+            structureLookup.listElements().forEach(holder -> {
                 holder.tags().forEach(tagKey -> {
                     ResourceLocation tagId = tagKey.location();
                     if (processedTags.contains(tagId)) return;
@@ -137,7 +137,7 @@ public final class StructureDiscoveryService {
                     
                     // 收集此标签下的所有结构
                     List<StructureEntry> tagStructures = new ArrayList<>();
-                    for (Holder.Reference<Structure> h : structureRegistry.holders().toList()) {
+                    structureLookup.listElements().forEach(h -> {
                         if (h.is(tagKey)) {
                             ResourceLocation structId = h.key().location();
                             StructureEntry se = structureMap.get(structId);
@@ -145,14 +145,14 @@ public final class StructureDiscoveryService {
                                 tagStructures.add(se);
                             }
                         }
-                    }
+                    });
                     
                     if (!tagStructures.isEmpty()) {
                         String displayName = formatTagDisplayName(tagId);
                         tagEntries.add(new StructureTagEntry(tagId, displayName, tagStructures));
                     }
                 });
-            }
+            });
             
             cachedResult = new DiscoveryResult(tagEntries, new ArrayList<>(structureMap.values()));
             hasDiscovered = true;

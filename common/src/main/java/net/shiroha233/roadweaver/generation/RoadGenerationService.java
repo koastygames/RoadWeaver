@@ -1,6 +1,10 @@
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -78,9 +82,10 @@ public final class RoadGenerationService {
                 return false;
 
             // Feature 配置
-            var reg = level.registryAccess()
-                    .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
-            ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
+            HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> cfLookup = level.registryAccess()
+                    .lookupOrThrow(Registries.CONFIGURED_FEATURE);
+            ResourceKey<ConfiguredFeature<?, ?>> cfKey = ResourceKey.create(Registries.CONFIGURED_FEATURE, ROAD_CF_ID);
+            ConfiguredFeature<?, ?> cf = cfLookup.get(cfKey).map(Holder::value).orElse(null);
             RoadFeatureConfig featureCfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
                     : defaultConfig();
 
@@ -183,7 +188,7 @@ public final class RoadGenerationService {
         AtomicInteger cnt = RUNNING_COUNT.computeIfAbsent(level, l -> new AtomicInteger(0));
         java.util.List<ServerPlayer> players = new java.util.ArrayList<>();
         for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
-            if (p != null && p.serverLevel() == level)
+            if (p != null && p.level() == level)
                 players.add(p);
         }
         int sample = Math.max(64, limit * 8);
@@ -248,9 +253,10 @@ public final class RoadGenerationService {
             if (!net.shiroha233.roadweaver.runtime.ThreadPoolManager.isEpoch(epoch))
                 return;
             WorldDataProvider provider = WorldDataProvider.getInstance();
-            var reg = level.registryAccess()
-                    .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
-            ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
+            HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> cfLookup2 = level.registryAccess()
+                    .lookupOrThrow(Registries.CONFIGURED_FEATURE);
+            ResourceKey<ConfiguredFeature<?, ?>> cfKey2 = ResourceKey.create(Registries.CONFIGURED_FEATURE, ROAD_CF_ID);
+            ConfiguredFeature<?, ?> cf = cfLookup2.get(cfKey2).map(Holder::value).orElse(null);
             RoadFeatureConfig cfg = (cf != null && cf.config() instanceof RoadFeatureConfig rfc) ? rfc
                     : defaultConfig();
             // 在入口层获取配置快照

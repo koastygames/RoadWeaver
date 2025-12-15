@@ -2,8 +2,8 @@ package net.shiroha233.roadweaver.search;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.QuartPos;
-import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
@@ -21,6 +21,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.helpers.Records;
 
 import java.util.ArrayList;
@@ -35,14 +36,14 @@ public final class StructurePredictor {
 
     public static List<Records.StructureInfo> predictOverworldVillagesAroundSpawn(ServerLevel level, int radiusChunks, boolean biomePrefilter) {
         RegistryAccess registryAccess = level.registryAccess();
-        Registry<StructureSet> setRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE_SET);
-        Optional<Holder.Reference<StructureSet>> optVillages = setRegistry.getHolder(BuiltinStructureSets.VILLAGES);
+        HolderLookup.RegistryLookup<StructureSet> setLookup = registryAccess.lookupOrThrow(Registries.STRUCTURE_SET);
+        Optional<Holder.Reference<StructureSet>> optVillages = setLookup.get(BuiltinStructureSets.VILLAGES);
         if (optVillages.isEmpty()) return List.of();
         StructureSet set = optVillages.get().value();
         StructurePlacement placement = set.placement();
         if (!(placement instanceof RandomSpreadStructurePlacement rssp)) return List.of();
 
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int cx = spawn.getX() >> 4;
         int cz = spawn.getZ() >> 4;
         int minX = cx - radiusChunks;
@@ -109,7 +110,7 @@ public final class StructurePredictor {
                                                                                List<String> whitelist,
                                                                                List<String> blacklist) {
         RegistryAccess access = level.registryAccess();
-        Registry<StructureSet> setRegistry = access.registryOrThrow(Registries.STRUCTURE_SET);
+        HolderLookup.RegistryLookup<StructureSet> setLookup = access.lookupOrThrow(Registries.STRUCTURE_SET);
 
         ChunkGeneratorStructureState state = level.getChunkSource().getGeneratorState();
         RandomState randomState = state.randomState();
@@ -119,10 +120,10 @@ public final class StructurePredictor {
 
         List<Records.StructureInfo> result = new ArrayList<>();
 
-        for (Holder.Reference<StructureSet> holder : setRegistry.holders().toList()) {
+        setLookup.listElements().forEach(holder -> {
             StructureSet set = holder.value();
             StructurePlacement placement = set.placement();
-            if (!(placement instanceof RandomSpreadStructurePlacement rssp)) continue;
+            if (!(placement instanceof RandomSpreadStructurePlacement rssp)) return;
 
             // 计算该集合中“被允许”的结构（根据白/黑名单筛选）
             List<Holder<Structure>> matchedStructures = new ArrayList<>();
@@ -137,7 +138,7 @@ public final class StructurePredictor {
             }
 
             if (matchedStructures.isEmpty()) {
-                if (filters.hasWhitelist()) continue;
+                if (filters.hasWhitelist()) return;
                 for (StructureSet.StructureSelectionEntry entry : set.structures()) {
                     Holder<Structure> structureHolder = entry.structure();
                     Optional<ResourceKey<Structure>> key = structureHolder.unwrapKey();
@@ -147,7 +148,7 @@ public final class StructurePredictor {
                         matchedStructures.add(structureHolder);
                     }
                 }
-                if (matchedStructures.isEmpty()) continue;
+                if (matchedStructures.isEmpty()) return;
             }
 
             Set<Holder<Biome>> allowedBiomes = null;
@@ -200,7 +201,7 @@ public final class StructurePredictor {
                     result.add(new Records.StructureInfo(locatePos, chosenId));
                 }
             }
-        }
+        });
 
         return result;
     }
@@ -227,7 +228,7 @@ public final class StructurePredictor {
                                                                                    boolean biomePrefilter,
                                                                                    List<String> whitelist,
                                                                                    List<String> blacklist) {
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int cx = spawn.getX() >> 4;
         int cz = spawn.getZ() >> 4;
         return predictOverworldStructuresInRect(level,

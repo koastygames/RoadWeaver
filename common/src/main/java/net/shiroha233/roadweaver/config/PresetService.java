@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
@@ -57,7 +58,7 @@ public final class PresetService {
                     for (String s : mats) {
                         try {
                             ResourceLocation rl = ResourceLocation.parse(s);
-                            Block b = BuiltInRegistries.BLOCK.get(rl);
+                            Block b = BuiltInRegistries.BLOCK.get(rl).map(Holder::value).orElse(null);
                             if (b != null && b != Blocks.AIR) valid.add(s);
                         } catch (Throwable ignored) {}
                     }
@@ -66,7 +67,7 @@ public final class PresetService {
                     for (String s : slabIds) {
                         try {
                             ResourceLocation rl = ResourceLocation.parse(s);
-                            Block b = BuiltInRegistries.BLOCK.get(rl);
+                            Block b = BuiltInRegistries.BLOCK.get(rl).map(Holder::value).orElse(null);
                             if (b != null && b != Blocks.AIR) validSlabs.add(s);
                         } catch (Throwable ignored) {}
                     }
@@ -201,7 +202,7 @@ public final class PresetService {
         for (String s : ids) {
             try {
                 ResourceLocation rl = ResourceLocation.parse(s);
-                Block b = BuiltInRegistries.BLOCK.get(rl);
+                Block b = BuiltInRegistries.BLOCK.get(rl).map(Holder::value).orElse(null);
                 if (b != null && b != Blocks.AIR) out.add(b.defaultBlockState());
             } catch (Throwable ignored) {}
         }

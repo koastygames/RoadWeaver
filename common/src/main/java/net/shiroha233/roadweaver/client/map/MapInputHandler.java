@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.client.map;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import org.lwjgl.glfw.GLFW;
@@ -159,11 +160,14 @@ public final class MapInputHandler {
 
     // ========== 键盘输入 ==========
 
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers, Minecraft mc) {
+    public boolean keyPressed(KeyEvent event, Minecraft mc) {
+        int keyCode = event.key();
+        int scanCode = event.scancode();
+        
         // 检查是否是打开地图的快捷键（按下关闭地图）
         if (mc != null) {
             for (KeyMapping mapping : mc.options.keyMappings) {
-                if ("key.roadweaver.open_map".equals(mapping.getName()) && mapping.matches(keyCode, scanCode)) {
+                if ("key.roadweaver.open_map".equals(mapping.getName()) && mapping.matches(event)) {
                     while (mapping.consumeClick()) {
                         // 清空残留点击
                     }

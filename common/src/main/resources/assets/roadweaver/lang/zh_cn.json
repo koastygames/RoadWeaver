@@ -24,6 +24,7 @@
   "message.roadweaver.migration.start": "[RoadWeaver] 检测到旧道路数据，正在迁移到 SQLite，请稍候...",
   "message.roadweaver.migration.done": "[RoadWeaver] 旧道路数据迁移完成：%s 条。",
   "key.categories.roadweaver": "RoadWeaver",
+  "key.categories.roadweaver.roadweaver": "RoadWeaver",
   "key.roadweaver.open_map": "打开地图",
   "gui.roadweaver.map.grid.scale.chunks_blocks": "每格：%s 区块（%s 方块）",
   "gui.roadweaver.map.grid.scale.blocks": "每格：%s 方块",

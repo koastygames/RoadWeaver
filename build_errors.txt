@@ -1,0 +1,40 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.11/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+.\gradlew.bat : 
+所在位置 行:1 字符: 1
++ .\gradlew.bat :common:compileJava --no-daemon 2>&1 | Out-File -FilePa ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Unable to start the daemon process.
+This problem might be caused by incorrect configuration of the daemon.
+For example, an unrecognized jvm option is used.For more details on the daemon, please refer to https://docs.gradle.org/8.11/userguide
+/gradle_daemon.html in the Gradle documentation.
+Process command line: C:\Program Files\Zulu\zulu-21\bin\java.exe --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/jav
+a.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports
+=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.bas
+e/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-op
+ens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namesp
+ace=ALL-UNNAMED -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=CN -Duser.language=zh -Duser.variant -cp C:\Users\shiroha\scoop\apps\gradl
+e\current\.gradle\wrapper\dists\gradle-8.11-bin\2eu93z43d2ii82czw0cxl9we6\gradle-8.11\lib\gradle-daemon-main-8.11.jar -javaagent:C:\Us
+ers\shiroha\scoop\apps\gradle\current\.gradle\wrapper\dists\gradle-8.11-bin\2eu93z43d2ii82czw0cxl9we6\gradle-8.11\lib\agents\gradle-in
+strumentation-agent-8.11.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.11
+Please read the following process output to find out more:
+-----------------------
+OpenJDK 64-Bit Server VM warning: INFO: os::commit_memory(0x0000000080000000, 530579456, 0) failed; error='页锟斤拷锟侥硷拷太小锟斤拷锟睫凤拷锟斤拷刹锟斤拷锟斤拷
+锟? (DOS error/errno=1455)
+#
+# There is insufficient memory for the Java Runtime Environment to continue.
+# Native memory allocation (mmap) failed to map 530579456 bytes. Error detail: G1 virtual space
+# An error report file with more information is saved as:
+# C:\Users\shiroha\scoop\apps\gradle\current\.gradle\daemon\8.11\hs_err_pid22240.log
+
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.

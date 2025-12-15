@@ -7,6 +7,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.network.chat.Component;
@@ -15,6 +16,7 @@ import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -56,7 +58,7 @@ public class MapNetworkFabric {
             }
             int radiusBlocks = Math.max(1, radiusChunks) * 16;
             CompletableFuture
-                .supplyAsync(() -> MapDataCollector.build(sp.serverLevel(), minX, minZ, maxX, maxZ, cx, cz, radiusBlocks), ComputeService.executor())
+                .supplyAsync(() -> MapDataCollector.build(LevelCompat.getServerLevel(sp), minX, minZ, maxX, maxZ, cx, cz, radiusBlocks), ComputeService.executor())
                 .thenAccept(snapshot -> context.server().execute(() -> ServerPlayNetworking.send(sp, new MapSnapshotS2C(snapshot))));
         });
 
@@ -68,21 +70,21 @@ public class MapNetworkFabric {
                     ServerPlayNetworking.send(sp, new TeleportAckS2C(false, 0, 0, 0));
                     return;
                 }
-                var level = sp.serverLevel();
+                ServerLevel level = LevelCompat.getServerLevel(sp);
                 int x = payload.x;
                 int z = payload.z;
                 level.getChunk(x >> 4, z >> 4);
                 int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
-                sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
-                ServerPlayNetworking.send(sp, new TeleportAckS2C(true, x, ty, z));
+                if (ty <= level.getMinY()) ty = level.getSeaLevel() + 1; else ty += 1;
+                boolean okTp = LevelCompat.teleport(sp, level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
+                ServerPlayNetworking.send(sp, new TeleportAckS2C(okTp, x, ty, z));
             });
         });
 
         ServerPlayNetworking.registerGlobalReceiver(ManualConnectC2S.TYPE, (payload, context) -> {
             ServerPlayer sp = context.player();
             context.server().execute(() -> {
-                var level = sp.serverLevel();
+                ServerLevel level = LevelCompat.getServerLevel(sp);
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 java.util.List<Records.StructureConnection> origin = provider.getStructureConnections(level);
                 java.util.List<Records.StructureConnection> list = origin != null ? new ArrayList<>(origin) : new ArrayList<>();

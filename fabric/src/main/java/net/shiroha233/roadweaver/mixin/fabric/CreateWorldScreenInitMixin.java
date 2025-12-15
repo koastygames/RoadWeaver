@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.mixin.fabric;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.worldselection.CreateWorldCallback;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationContext;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
@@ -37,8 +38,8 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void onInitEnd(
-            Minecraft minecraft, Screen screen, WorldCreationContext worldCreationContext,
-            Optional<ResourceKey<WorldPreset>> optional, OptionalLong optionalLong, CallbackInfo ci
+            Minecraft minecraft, Runnable runnable, WorldCreationContext worldCreationContext,
+            Optional<ResourceKey<WorldPreset>> optional, OptionalLong optionalLong, CreateWorldCallback createWorldCallback, CallbackInfo ci
     ) {
         // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
         try {

@@ -14,7 +14,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.fml.ModLoadingContext;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,22 +44,13 @@ public class RoadWeaver {
         // 注册服务器规划钩子：初始与动态增量规划
         ServerPlanningHooks.register(modEventBus);
 
-        if (FMLEnvironment.dist == Dist.CLIENT) {
+        if (FMLEnvironment.getDist() == Dist.CLIENT) {
             ModLoadingContext.get().registerExtensionPoint(
                     IConfigScreenFactory.class,
                     () -> (mc, screen) -> net.shiroha233.roadweaver.client.neoforge.ConfigScreenFactoryImpl.createConfigScreen(screen)
             );
-            NeoForge.EVENT_BUS.addListener(RoadWeaver::onClientLoggingIn);
-            NeoForge.EVENT_BUS.addListener(RoadWeaver::onClientLoggingOut);
+            net.shiroha233.roadweaver.client.neoforge.ClientKeyMappings.register(modEventBus);
         }
-    }
-    
-    private static void onClientLoggingIn(ClientPlayerNetworkEvent.LoggingIn e) {
-        net.shiroha233.roadweaver.client.map.data.MapSnapshotCache.clearNow();
-    }
-    
-    private static void onClientLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
-        net.shiroha233.roadweaver.client.map.data.MapSnapshotCache.clearNow();
     }
     
     public static Logger getLogger() {

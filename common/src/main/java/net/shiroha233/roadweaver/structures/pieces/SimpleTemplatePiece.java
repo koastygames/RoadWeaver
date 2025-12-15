@@ -13,8 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.StructureManager;
@@ -121,10 +121,10 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
               tag, 
               manager, 
               id -> createPlaceSettings(
-                  Rotation.valueOf(tag.getString("Rot")),
-                  Mirror.valueOf(tag.getString("Mir"))
+                  Rotation.valueOf(tag.getString("Rot").orElse(Rotation.NONE.name())),
+                  Mirror.valueOf(tag.getString("Mir").orElse(Mirror.NONE.name()))
               ));
-        this.templateId = ResourceLocation.parse(tag.getString("Template"));
+        this.templateId = ResourceLocation.parse(tag.getString("Template").orElse("minecraft:empty"));
         
         // 反序列化生物生成规则
         this.mobSpawns = deserializeMobSpawns(tag);
@@ -300,17 +300,17 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
              double z = spawnPos.getZ() + 0.5 + (random.nextDouble() - 0.5) * spread * 2;
              
             
-             Entity entity = resolvedType.create(level.getLevel());
+             Entity entity = resolvedType.create(level.getLevel(), EntitySpawnReason.STRUCTURE);
              if (entity == null) {
                  continue;
              }
             
-            entity.moveTo(x, y, z, random.nextFloat() * 360.0f, 0.0f);
+            entity.snapTo(x, y, z, random.nextFloat() * 360.0f, 0.0f);
             
             // 如果是 Mob，调用 finalizeSpawn 进行初始化
             if (entity instanceof Mob mob) {
                 mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), 
-                    MobSpawnType.STRUCTURE, null);
+                    EntitySpawnReason.STRUCTURE, null);
                 mob.setPersistenceRequired();
             }
             
@@ -367,9 +367,11 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         if (!tag.contains("MobSpawns")) return List.of();
         
         List<MobSpawnRule> result = new ArrayList<>();
-        ListTag listTag = tag.getList("MobSpawns", Tag.TAG_COMPOUND);
+        ListTag listTag = tag.getList("MobSpawns").orElse(null);
+        if (listTag == null) return List.of();
         for (int i = 0; i < listTag.size(); i++) {
-            CompoundTag ruleTag = listTag.getCompound(i);
+            CompoundTag ruleTag = listTag.getCompound(i).orElse(null);
+            if (ruleTag == null) continue;
             DataResult<MobSpawnRule> parseResult = MobSpawnRule.CODEC.parse(NbtOps.INSTANCE, ruleTag);
             parseResult.result().ifPresent(result::add);
         }
@@ -380,9 +382,11 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         if (!tag.contains("LootConfigs")) return List.of();
         
         List<LootConfig> result = new ArrayList<>();
-        ListTag listTag = tag.getList("LootConfigs", Tag.TAG_COMPOUND);
+        ListTag listTag = tag.getList("LootConfigs").orElse(null);
+        if (listTag == null) return List.of();
         for (int i = 0; i < listTag.size(); i++) {
-            CompoundTag configTag = listTag.getCompound(i);
+            CompoundTag configTag = listTag.getCompound(i).orElse(null);
+            if (configTag == null) continue;
             DataResult<LootConfig> parseResult = LootConfig.CODEC.parse(NbtOps.INSTANCE, configTag);
             parseResult.result().ifPresent(result::add);
         }

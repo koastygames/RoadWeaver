@@ -9,8 +9,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ServerLevelAccessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,17 +126,17 @@ public record MobSpawnRule(
             double y = spawnPos.getY();
             double z = spawnPos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 2;
             
-            Entity entity = resolvedType.create(level.getLevel());
+            Entity entity = resolvedType.create(level.getLevel(), EntitySpawnReason.STRUCTURE);
             if (entity == null) {
                 continue;
             }
             
-            entity.moveTo(x, y, z, random.nextFloat() * 360.0f, 0.0f);
+            entity.snapTo(x, y, z, random.nextFloat() * 360.0f, 0.0f);
             
             // 如果是 Mob，调用 finalizeSpawn 进行初始化
             if (entity instanceof Mob mob) {
                 mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), 
-                    MobSpawnType.STRUCTURE, null);
+                    EntitySpawnReason.STRUCTURE, null);
                 mob.setPersistenceRequired();
             }
             

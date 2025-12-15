@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver.structures.registry;
 
 import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -113,18 +113,17 @@ public final class RoadsideStructureRegistry {
     private static List<RoadsideStructureEntry> loadFromRegistry(RegistryAccess registryAccess) {
         List<RoadsideStructureEntry> result = new ArrayList<>();
         
-        Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
+        HolderLookup.RegistryLookup<Structure> structureLookup = registryAccess.lookupOrThrow(Registries.STRUCTURE);
         
-        for (var entry : structureRegistry.entrySet()) {
-            ResourceLocation id = entry.getKey().location();
-            Structure structure = entry.getValue();
+        structureLookup.listElements().forEach(holder -> {
+            ResourceLocation id = holder.key().location();
+            Structure structure = holder.value();
             
             // 只收集 RoadsideStructure 类型
             if (structure instanceof RoadsideStructure roadsideStructure) {
-                Holder<Structure> holder = structureRegistry.getHolderOrThrow(entry.getKey());
                 result.add(new RoadsideStructureEntry(id, holder, roadsideStructure));
             }
-        }
+        });
         
         return result;
     }

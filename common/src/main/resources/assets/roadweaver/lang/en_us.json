@@ -24,6 +24,7 @@
   "message.roadweaver.migration.start": "[RoadWeaver] Detected legacy road data. Migrating to SQLite...",
   "message.roadweaver.migration.done": "[RoadWeaver] Legacy road data migration completed: %s roads.",
   "key.categories.roadweaver": "RoadWeaver",
+  "key.categories.roadweaver.roadweaver": "RoadWeaver",
   "key.roadweaver.open_map": "Open Map",
   "gui.roadweaver.map.grid.scale.chunks_blocks": "Per cell: %s chunks (%s blocks)",
   "gui.roadweaver.map.grid.scale.blocks": "Per cell: %s blocks",

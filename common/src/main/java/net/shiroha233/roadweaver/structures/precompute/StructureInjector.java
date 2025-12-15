@@ -1,8 +1,10 @@
 package net.shiroha233.roadweaver.structures.precompute;
 
-import net.minecraft.core.Registry;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
@@ -51,7 +53,7 @@ public final class StructureInjector {
         }
         
         // 获取必要的管理器
-        Registry<Structure> structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        HolderLookup.RegistryLookup<Structure> structureLookup = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         StructureManager structureManager = level.structureManager();
         StructureTemplateManager templateManager = level.getStructureManager();
         
@@ -60,11 +62,13 @@ public final class StructureInjector {
         for (PendingRoadsideStructure pendingStructure : pending) {
             try {
                 // 获取结构定义
-                Structure structure = structureRegistry.get(pendingStructure.structureId());
-                if (structure == null) {
+                ResourceKey<Structure> structureKey = ResourceKey.create(Registries.STRUCTURE, pendingStructure.structureId());
+                Holder<Structure> structureHolder = structureLookup.get(structureKey).orElse(null);
+                if (structureHolder == null) {
                     LOGGER.warn("Structure {} not found in registry, skipping", pendingStructure.structureId());
                     continue;
                 }
+                Structure structure = structureHolder.value();
                 
                 // 创建结构片段（支持 RoadsideStructure 和 SpawnCabinStructure）
                 SimpleTemplatePiece piece;

@@ -6,6 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.core.BlockPos;
@@ -17,6 +18,7 @@ import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -48,15 +50,36 @@ public class MapNetworkForge {
     }
 
     public static void requestSnapshot(int minX, int minZ, int maxX, int maxZ) {
-        PacketDistributor.sendToServer(new RequestMapSnapshotC2S(minX, minZ, maxX, maxZ));
+        sendToServer(new RequestMapSnapshotC2S(minX, minZ, maxX, maxZ));
     }
 
     public static void requestTeleport(int x, int y, int z) {
-        PacketDistributor.sendToServer(new TeleportC2S(x, y, z));
+        sendToServer(new TeleportC2S(x, y, z));
     }
 
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
-        PacketDistributor.sendToServer(new ManualConnectC2S(ax, az, bx, bz));
+        sendToServer(new ManualConnectC2S(ax, az, bx, bz));
+    }
+
+    private static void sendToServer(CustomPacketPayload payload) {
+        try {
+            var m = PacketDistributor.class.getMethod("sendToServer", CustomPacketPayload.class);
+            m.invoke(null, payload);
+            return;
+        } catch (Throwable ignored) {
+        }
+
+        try {
+            // Newer PacketDistributor APIs may expose a SERVER target with a noArg() distributor.
+            var serverField = PacketDistributor.class.getField("SERVER");
+            Object server = serverField.get(null);
+            var noArg = server.getClass().getMethod("noArg");
+            Object distributor = noArg.invoke(server);
+            var send = distributor.getClass().getMethod("send", CustomPacketPayload.class);
+            send.invoke(distributor, payload);
+        } catch (Throwable t) {
+            RoadWeaver.getLogger().warn("Failed to send payload to server: {}", payload.type().id(), t);
+        }
     }
 
     // Payloads
@@ -82,7 +105,7 @@ public class MapNetworkForge {
             }
             int radiusBlocks = Math.max(1, radiusChunks) * 16;
             CompletableFuture
-                .supplyAsync(() -> MapDataCollector.build(sp.serverLevel(), payload.minX, payload.minZ, payload.maxX, payload.maxZ, cx, cz, radiusBlocks), ComputeService.executor())
+                .supplyAsync(() -> MapDataCollector.build(LevelCompat.getServerLevel(sp), payload.minX, payload.minZ, payload.maxX, payload.maxZ, cx, cz, radiusBlocks), ComputeService.executor())
                 .thenAccept(snapshot -> context.enqueueWork(() -> PacketDistributor.sendToPlayer(sp, new MapSnapshotS2C(snapshot))));
         }
     }
@@ -121,12 +144,12 @@ public class MapNetworkForge {
                     PacketDistributor.sendToPlayer(sp, new TeleportAckS2C(false, 0, 0, 0));
                     return;
                 }
-                var level = sp.serverLevel();
+                ServerLevel level = LevelCompat.getServerLevel(sp);
                 level.getChunk(payload.x >> 4, payload.z >> 4);
                 int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, payload.x, payload.z);
-                if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
-                sp.teleportTo(level, payload.x + 0.5, ty, payload.z + 0.5, sp.getYRot(), sp.getXRot());
-                PacketDistributor.sendToPlayer(sp, new TeleportAckS2C(true, payload.x, ty, payload.z));
+                if (ty <= level.getMinY()) ty = level.getSeaLevel() + 1; else ty += 1;
+                boolean okTp = LevelCompat.teleport(sp, level, payload.x + 0.5, ty, payload.z + 0.5, sp.getYRot(), sp.getXRot());
+                PacketDistributor.sendToPlayer(sp, new TeleportAckS2C(okTp, payload.x, ty, payload.z));
             });
         }
     }
@@ -160,7 +183,7 @@ public class MapNetworkForge {
         public static void handle(ManualConnectC2S payload, net.neoforged.neoforge.network.handling.IPayloadContext context) {
             context.enqueueWork(() -> {
                 ServerPlayer sp = (ServerPlayer) context.player();
-                var level = sp.serverLevel();
+                ServerLevel level = LevelCompat.getServerLevel(sp);
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 java.util.List<Records.StructureConnection> origin = provider.getStructureConnections(level);
                 java.util.List<Records.StructureConnection> list = origin != null ? new ArrayList<>(origin) : new ArrayList<>();

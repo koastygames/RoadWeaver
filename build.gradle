@@ -1,11 +1,11 @@
 // 根项目配置 - 多模块项目
 plugins {
 	id 'architectury-plugin' version '3.4-SNAPSHOT'
-	id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
+	id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
 }
 
 architectury {
-	minecraft = '1.21.1'
+	minecraft = '1.21.10'
 }
 
 allprojects {
@@ -13,7 +13,7 @@ allprojects {
 	apply plugin: 'architectury-plugin'
 	
 	group = 'net.shiroha233.roadweaver'
-	version = '2.0.9-1.21.1'
+	version = '2.0.9-1.21.10'
 	
 	repositories {
 		maven { url = 'https://maven.architectury.dev/' }
@@ -49,7 +49,7 @@ subprojects {
 	}
 	
 	dependencies {
-		minecraft "com.mojang:minecraft:1.21.1"
+		minecraft "com.mojang:minecraft:1.21.10"
 		mappings loom.officialMojangMappings()
 	}
 

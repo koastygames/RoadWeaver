@@ -36,7 +36,7 @@ public abstract class CreateWorldScreenMixin extends GridLayoutTab {
                 })
                 .width(210)
                 .build();
-        int row = net.minecraft.SharedConstants.getCurrentVersion().isStable() ? 4 : 5;
+        int row = net.minecraft.SharedConstants.getCurrentVersion().stable() ? 4 : 5;
         this.layout.addChild(Objects.requireNonNull(configButton), row, 0, Objects.requireNonNull(this.layout.newCellSettings().alignHorizontallyCenter()));
     }
 }

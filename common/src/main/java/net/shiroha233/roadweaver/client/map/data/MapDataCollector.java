@@ -2,14 +2,17 @@ package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.shiroha233.roadweaver.helpers.Records;
-import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.shiroha233.roadweaver.search.StructureIndexService;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
+import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.search.StructureIndexService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +34,7 @@ public final class MapDataCollector {
         List<Records.StructureInfo> infos = (loc != null) ? new ArrayList<>(loc.structureInfos()) : new ArrayList<>();
         List<List<BlockPos>> roads = new ArrayList<>();
         ModConfig cfg = ConfigService.get();
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int radiusChunks = Math.max(1, cfg.initialPlanRadiusChunks());
         int minX = (((spawn.getX() >> 4) - radiusChunks) * 16);
         int maxX = (((spawn.getX() >> 4) + radiusChunks) * 16);
@@ -172,7 +175,7 @@ public final class MapDataCollector {
         int dynRadiusChunks = RoadPlanningService.getDynamicPlanRadiusChunks();
         int dynRadiusBlocks = Math.max(1, dynRadiusChunks) * 16;
         long initialR2 = (long) initialRadiusBlocks * (long) initialRadiusBlocks;
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
 
         // 预计算已规划 tiles 对应的近似矩形（块坐标）
         java.util.List<int[]> plannedRects = new java.util.ArrayList<>();

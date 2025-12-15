@@ -1,18 +1,14 @@
 package net.shiroha233.roadweaver.persistence.neoforge;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.Dynamic;
-import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +30,27 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
      * 保存结构位置、结构连接。
      */
     public static class Data extends SavedData {
+        private static final Codec<java.util.Set<Long>> LONG_SET_CODEC = Codec.list(Codec.LONG)
+                .xmap(list -> new java.util.HashSet<>(list), set -> new java.util.ArrayList<>(set));
+
+        private static final Codec<Data> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Records.StructureLocationData.CODEC.optionalFieldOf("structureLocations", new Records.StructureLocationData(new ArrayList<>()))
+                        .forGetter(d -> d.structureLocations),
+                Codec.list(Records.StructureConnection.CODEC).optionalFieldOf("connections", java.util.List.of())
+                        .forGetter(d -> d.connections),
+                LONG_SET_CODEC.optionalFieldOf("plannedTileKeys", new java.util.HashSet<>())
+                        .forGetter(d -> d.plannedTileKeys),
+                Codec.unboundedMap(Codec.LONG, Codec.LONG).optionalFieldOf("plannedTileCenters", new java.util.HashMap<>())
+                        .forGetter(d -> d.plannedTileCenters)
+        ).apply(instance, (locs, conns, keys, centers) -> {
+            Data d = new Data();
+            d.structureLocations = locs;
+            d.connections = new ArrayList<>(conns);
+            d.plannedTileKeys = keys;
+            d.plannedTileCenters = centers;
+            return d;
+        }));
+
         private Records.StructureLocationData structureLocations = new Records.StructureLocationData(new ArrayList<>());
         private List<Records.StructureConnection> connections = new ArrayList<>();
         private Set<Long> plannedTileKeys = new HashSet<>();
@@ -46,69 +63,6 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
         private static final String KEY_PLANNED_TILE_CENTERS = "planned_tile_centers";
 
         public Data() {}
-
-        public static Data load(CompoundTag tag, HolderLookup.Provider provider) {
-            Data data = new Data();
-            DynamicOps<Tag> ops = NbtOps.INSTANCE;
-
-            // 结构位置（从 CompoundTag 读取）
-            if (tag.contains(KEY_LOCATIONS)) {
-                Tag locTag = tag.get(KEY_LOCATIONS);
-                DataResult<Records.StructureLocationData> res = Records.StructureLocationData.CODEC.parse(new Dynamic<>(ops, locTag));
-                res.result().ifPresent(val -> data.structureLocations = val);
-            }
-
-            // 结构连接（从 ListTag 读取）
-            if (tag.contains(KEY_CONNECTIONS)) {
-                Tag conTag = tag.get(KEY_CONNECTIONS);
-                DataResult<List<Records.StructureConnection>> res = Codec.list(Records.StructureConnection.CODEC).parse(new Dynamic<>(ops, conTag));
-                res.result().ifPresent(val -> data.connections = val);
-            }
-
-            // 遗留道路数据列表不再加载
-
-            if (tag.contains(KEY_PLANNED_TILES)) {
-                Tag t = tag.get(KEY_PLANNED_TILES);
-                DataResult<List<Long>> res = Codec.list(Codec.LONG).parse(new Dynamic<>(ops, t));
-                res.result().ifPresent(list -> data.plannedTileKeys = new HashSet<>(list));
-            }
-
-            if (tag.contains(KEY_PLANNED_TILE_CENTERS)) {
-                Tag t = tag.get(KEY_PLANNED_TILE_CENTERS);
-                DataResult<Map<Long, Long>> res = Codec.unboundedMap(Codec.LONG, Codec.LONG).parse(new Dynamic<>(ops, t));
-                res.result().ifPresent(map -> data.plannedTileCenters = map);
-            }
-
-            return data;
-        }
-
-        @Override
-        public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-            Objects.requireNonNull(tag);
-            DynamicOps<Tag> ops = NbtOps.INSTANCE;
-
-            // 结构位置（Record 编码为 CompoundTag）
-            Records.StructureLocationData.CODEC.encodeStart(ops, structureLocations)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_LOCATIONS, Objects.requireNonNull(nbt)));
-
-            // 结构连接（List 编码为 ListTag）
-            Codec.list(Records.StructureConnection.CODEC).encodeStart(ops, connections)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_CONNECTIONS, Objects.requireNonNull(nbt)));
-
-            // 遗留道路数据列表不再保存
-
-            Codec.list(Codec.LONG).encodeStart(ops, new java.util.ArrayList<>(plannedTileKeys))
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_PLANNED_TILES, Objects.requireNonNull(nbt)));
-
-            Codec.unboundedMap(Codec.LONG, Codec.LONG).encodeStart(ops, plannedTileCenters)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_PLANNED_TILE_CENTERS, Objects.requireNonNull(nbt)));
-
-            return tag;
-        }
 
         // getters/setters
         public Records.StructureLocationData getStructureLocations() {
@@ -148,10 +102,15 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
         }
     }
 
-    private static final SavedData.Factory<Data> FACTORY = new SavedData.Factory<>(Data::new, Data::load, DataFixTypes.LEVEL);
+    private static final SavedDataType<Data> TYPE = new SavedDataType<>(
+            DATA_NAME,
+            (SavedData.Context ctx) -> new Data(),
+            (SavedData.Context ctx) -> Data.CODEC,
+            DataFixTypes.LEVEL
+    );
 
     private Data getOrCreate(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        return (Data) level.getDataStorage().computeIfAbsent(TYPE);
     }
 
     @Override

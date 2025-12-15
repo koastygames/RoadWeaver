@@ -3,6 +3,8 @@ package net.shiroha233.roadweaver.client.map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -20,6 +22,7 @@ import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
 import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -113,8 +116,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         this.renderBackground(g, mouseX, mouseY, partialTick);
         
         // 地图纹理
-        g.blit(MAP_TEXTURE, mapX, mapY, mapW, mapH, 0, 0, 
-               MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT, MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT);
+        g.blit(MAP_TEXTURE, mapX, mapY, mapW, mapH, 0.0f, 0.0f, 1.0f, 1.0f);
 
         // 标题
         int titleY = mapY - 8;
@@ -299,7 +301,11 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+        
         // 右键菜单点击
         if (contextMenu.isOpen()) {
             if (contextMenu.mouseClicked(mouseX, mouseY, button)) {
@@ -336,25 +342,34 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 computeConfigBtnBounds()[2], computeConfigBtnBounds()[3],
                 computeManualBtnBounds()[0], computeManualBtnBounds()[1],
                 computeManualBtnBounds()[2], computeManualBtnBounds()[3])
-               || super.mouseClicked(mouseX, mouseY, button);
+               || super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         return inputHandler.mouseDragged(mouseX, mouseY, button, dragX, dragY)
-               || super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+               || super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         return inputHandler.mouseReleased(mouseX, mouseY, button)
-               || super.mouseReleased(mouseX, mouseY, button);
+               || super.mouseReleased(event);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return inputHandler.keyPressed(keyCode, scanCode, modifiers, this.minecraft)
-               || super.keyPressed(keyCode, scanCode, modifiers);
+    public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
+        int scanCode = event.scancode();
+        int modifiers = event.modifiers();
+        return inputHandler.keyPressed(event, this.minecraft)
+               || super.keyPressed(event);
     }
 
     // ========== 回调实现 ==========
@@ -445,11 +460,11 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         if (server != null) {
             ServerLevel level = server.getLevel(Level.OVERWORLD);
             if (level != null) {
-                spawn = level.getSharedSpawnPos();
+                spawn = LevelCompat.getWorldSpawnPos(level);
             }
         }
         if (spawn == null && mc.level != null) {
-            spawn = mc.level.getSharedSpawnPos();
+            spawn = LevelCompat.getWorldSpawnPos(mc.level);
         }
         if (spawn == null) return;
         

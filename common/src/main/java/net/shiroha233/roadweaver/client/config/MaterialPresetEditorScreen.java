@@ -5,6 +5,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -421,7 +423,7 @@ public class MaterialPresetEditorScreen extends Screen {
 
     private void addBlocksFromTab(Set<Block> out, String tabId) {
         ResourceKey<CreativeModeTab> key = ResourceKey.create(Registries.CREATIVE_MODE_TAB, ResourceLocation.parse(tabId));
-        CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.get(key);
+        CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.get(key).map(Holder::value).orElse(null);
         if (tab == null) {
             return;
         }
@@ -501,9 +503,12 @@ public class MaterialPresetEditorScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (super.mouseClicked(mouseX, mouseY, button)) return true;
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (super.mouseClicked(event, doubleClick)) return true;
 
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         int centerX = this.width / 2;
         int leftAreaX = centerX - 140;
         int rightAreaX = centerX - 10;
@@ -614,7 +619,7 @@ public class MaterialPresetEditorScreen extends Screen {
     private Block blockFromId(String id) {
         try {
             ResourceLocation rl = ResourceLocation.parse(id);
-            return BuiltInRegistries.BLOCK.get(rl);
+            return BuiltInRegistries.BLOCK.get(rl).map(Holder::value).orElse(Blocks.AIR);
         } catch (Exception e) {
             return Blocks.AIR;
         }

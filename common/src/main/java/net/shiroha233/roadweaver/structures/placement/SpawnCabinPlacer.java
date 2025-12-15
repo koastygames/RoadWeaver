@@ -1,14 +1,17 @@
 package net.shiroha233.roadweaver.structures.placement;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
@@ -35,8 +38,8 @@ public final class SpawnCabinPlacer {
     public static boolean ensurePlaced(ServerLevel level) {
         if (level == null) return false;
         
-        // 获取出生点
-        BlockPos spawn = level.getSharedSpawnPos();
+        // 获取出生点 - 使用ServerLevel的getSharedSpawnPos方法
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         
         // 幂等性检查：查看世界数据中是否已有结构记录
         var provider = WorldDataProvider.getInstance();
@@ -46,8 +49,10 @@ public final class SpawnCabinPlacer {
         }
         
         // 从注册表获取结构定义
-        Registry<Structure> structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
-        Structure structure = structureRegistry.get(STRUCTURE_ID);
+        HolderLookup.RegistryLookup<Structure> structureLookup = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        ResourceKey<Structure> structureKey = ResourceKey.create(Registries.STRUCTURE, STRUCTURE_ID);
+        Holder<Structure> structureHolder = structureLookup.get(structureKey).orElse(null);
+        Structure structure = structureHolder != null ? structureHolder.value() : null;
         
         if (!(structure instanceof SpawnCabinStructure spawnCabin)) {
             // 结构未注册或类型不匹配

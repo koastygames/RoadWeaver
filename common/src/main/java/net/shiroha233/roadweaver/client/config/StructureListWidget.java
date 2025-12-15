@@ -4,6 +4,7 @@ import dev.architectury.platform.Platform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.config.structure.StructureEntry;
@@ -26,7 +27,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     }
     
     public void clearEntries() {
-        super.children().clear();
+        super.clearEntries();
     }
     
     public int doAddEntry(Entry entry) {
@@ -39,7 +40,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     }
     
     @Override
-    protected int getScrollbarPosition() {
+    protected int scrollBarX() {
         return width - 10;
     }
     
@@ -161,9 +162,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
+            int width = list.getRowWidth();
             
             // 展开/折叠按钮
             String expandIcon = expanded ? "▼" : "▶";
@@ -184,7 +185,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
             if (button == 0) {
                 int left = list.getRowLeft();
                 int arrowX = left + 5;
@@ -195,7 +199,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
         
         @Override
@@ -220,8 +224,8 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
+            int width = list.getRowWidth();
             graphics.drawCenteredString(Minecraft.getInstance().font, message, 
                     left + width / 2, top + 5, 0xAAAAAA);
         }
@@ -248,8 +252,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             graphics.drawString(Minecraft.getInstance().font, title, left + 5, top + 5, 0xFFFF00);
         }
         
@@ -287,8 +290,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             
             // 展开/折叠按钮
@@ -316,7 +318,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
             if (button == 0) {
                 // 计算点击区域
                 int left = list.getRowLeft();
@@ -333,7 +338,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
         
         @Override
@@ -367,8 +372,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             
             // 缩进的复选框
@@ -390,7 +394,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
             if (button == 0) {
                 int left = list.getRowLeft();
                 int checkboxX = left + INDENT;
@@ -399,7 +406,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
         
         @Override
@@ -446,8 +453,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             
             // 计算缩进
@@ -482,7 +488,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
             if (button == 0) {
                 int left = list.getRowLeft();
                 int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
@@ -499,7 +508,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
         
         @Override
@@ -540,8 +549,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             
             // 计算缩进
@@ -566,7 +574,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
             if (button == 0) {
                 int left = list.getRowLeft();
                 int indent = baseIndent + depth * INDENT_PER_LEVEL;
@@ -576,7 +587,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
         
         @Override
@@ -609,8 +620,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             
             // 复选框
@@ -632,7 +642,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
         
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            double mouseY = event.y();
+            int button = event.button();
             if (button == 0) {
                 int left = list.getRowLeft();
                 int checkboxX = left + 5;
@@ -641,7 +654,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
         
         @Override

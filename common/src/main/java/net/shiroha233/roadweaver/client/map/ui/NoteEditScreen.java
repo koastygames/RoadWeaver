@@ -3,6 +3,9 @@ package net.shiroha233.roadweaver.client.map.ui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -73,7 +76,7 @@ public class NoteEditScreen extends Screen {
         g.fill(0, 0, this.width, this.height, 0x90000000);
         
         // 绘制书本背景
-        g.blit(BOOK_TEXTURE, bookX, bookY, 0, 0, BOOK_WIDTH, BOOK_HEIGHT);
+        g.blit(BOOK_TEXTURE, bookX, bookY, BOOK_WIDTH, BOOK_HEIGHT, 0.0f, 0.0f, 1.0f, 1.0f);
         
         // 标题（优先显示别名，否则显示坐标）
         String alias = ClientMapNotes.getAlias(targetPos);
@@ -112,7 +115,8 @@ public class NoteEditScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
         // ESC 取消
         if (keyCode == 256) {
             this.minecraft.setScreen(parent);
@@ -208,25 +212,29 @@ public class NoteEditScreen extends Screen {
             return true;
         }
         
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public boolean charTyped(char c, int modifiers) {
-        if (Character.isISOControl(c)) return false;
+    public boolean charTyped(CharacterEvent event) {
+        int codepoint = event.codepoint();
+        if (Character.isISOControl(codepoint)) return false;
+        String insert = new String(Character.toChars(codepoint));
         
         String current = lines.get(cursorLine);
         // 检查行宽度限制
-        String newLine = current.substring(0, cursorPos) + c + current.substring(cursorPos);
+        String newLine = current.substring(0, cursorPos) + insert + current.substring(cursorPos);
         if (this.font.width(newLine) <= TEXT_WIDTH) {
             lines.set(cursorLine, newLine);
-            cursorPos++;
+            cursorPos += insert.length();
         }
         return true;
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         // 点击文本区域定位光标
         int textX = bookX + TEXT_X_OFFSET;
         int textY = bookY + TEXT_Y_OFFSET;
@@ -252,7 +260,7 @@ public class NoteEditScreen extends Screen {
             return true;
         }
         
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     private void save() {

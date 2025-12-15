@@ -32,7 +32,7 @@ public final class RoadBlockPlacer {
             BlockPos cursor = below2;
             int depth = 0;
             BlockPos base = null;
-            while (cursor.getY() > world.getMinBuildHeight() && depth < MAX_CAUSEWAY_DEPTH) {
+            while (cursor.getY() > world.getMinY() && depth < MAX_CAUSEWAY_DEPTH) {
                 if (world.getBlockState(cursor).isFaceSturdy(world, cursor, Direction.UP)) {
                     base = cursor;
                     break;
@@ -41,9 +41,9 @@ public final class RoadBlockPlacer {
                 depth++;
             }
 
-            BlockPos fillStart = (base != null) ? base.above() : below1.below(Math.min(MAX_CAUSEWAY_DEPTH - 1, Math.max(0, below1.getY() - world.getMinBuildHeight())));
-            if (fillStart.getY() < world.getMinBuildHeight()) {
-                fillStart = new BlockPos(fillStart.getX(), world.getMinBuildHeight(), fillStart.getZ());
+            BlockPos fillStart = (base != null) ? base.above() : below1.below(Math.min(MAX_CAUSEWAY_DEPTH - 1, Math.max(0, below1.getY() - world.getMinY())));
+            if (fillStart.getY() < world.getMinY()) {
+                fillStart = new BlockPos(fillStart.getX(), world.getMinY(), fillStart.getZ());
             }
             BlockPos pos = fillStart;
             while (pos.getY() <= below1.getY()) {

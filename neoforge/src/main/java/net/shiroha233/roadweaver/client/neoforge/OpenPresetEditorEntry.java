@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.config.MaterialPresetEditorScreen;
@@ -52,15 +53,15 @@ public class OpenPresetEditorEntry extends AbstractConfigListEntry<Void> {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && lastArea != null && lastArea.contains(mouseX, mouseY)) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.button() == 0 && lastArea != null && lastArea.contains(event.x(), event.y())) {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null) {
                 mc.setScreen(new MaterialPresetEditorScreen(mc.screen));
             }
             return true;
         }
-        return false;
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override

@@ -48,10 +48,9 @@ dependencies {
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
 	
-	modRuntimeOnly "maven.modrinth:VSNURh3q:${project.c2me_version}"
+	modImplementation("io.github.llamalad7:mixinextras-fabric:0.5.0")
 	
-	modCompileOnly "maven.modrinth:mOgUt4GM:${project.modmenu_version}"
-	modRuntimeOnly "maven.modrinth:mOgUt4GM:${project.modmenu_version}"
+	
 	modCompileOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
 	modRuntimeOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
 	
