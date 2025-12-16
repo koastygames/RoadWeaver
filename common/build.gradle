@@ -1,8 +1,14 @@
- architectury {
+plugins {
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+architectury {
     common("fabric", "neoforge")
 }
 
 dependencies {
+    // Kotlin 标准库
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}"
     // Architectury API（作为 mod 依赖以启用 Loom 重映射）
     modImplementation("dev.architectury:architectury:${project.architectury_version}")
     compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
@@ -10,14 +16,32 @@ dependencies {
     // SQLite JDBC - 道路数据持久化
     implementation("org.xerial:sqlite-jdbc:3.45.1.0")
 }
- 
+
 sourceSets {
     main {
         java {
             exclude 'net/shiroha233/roadweaver/client/gui/**'
         }
+        kotlin {
+            // 兼容：当前 Kotlin 源文件与 Java 源文件同放在 src/main/java
+            // 这样 IDE 与 Gradle 都能稳定识别这些 .kt 文件
+            srcDir 'src/main/java'
+        }
         resources {
             exclude 'pack.mcmeta'
         }
+    }
+}
+
+// Kotlin 编译配置
+kotlin {
+    jvmToolchain(21)
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+        // 允许 Kotlin 调用 Java，Java 调用 Kotlin
+        freeCompilerArgs.addAll(['-Xjvm-default=all'])
     }
 }
