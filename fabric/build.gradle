@@ -31,6 +31,10 @@ dependencies {
 	common(project(path: ":common", configuration: "namedElements")) { transitive = false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive = false }
 	
+	// Kotlin stdlib - Fabric 运行时不会自动提供，需内嵌以确保 Kotlin 类可被加载
+	implementation "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}"
+	include("org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}")
+	
 	// Fabric Loader
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	

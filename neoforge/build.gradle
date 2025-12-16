@@ -101,6 +101,11 @@ dependencies {
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive false }
 
+    // Kotlin stdlib - NeoForge 运行时不会自动提供，需内嵌以确保 Kotlin 类可被 ModLauncher 加载
+    developmentNeoForge "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}"
+    include("org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_version}")
+
     // NeoForge 平台
     neoForge "net.neoforged:neoforge:${neoforge_version}"
 

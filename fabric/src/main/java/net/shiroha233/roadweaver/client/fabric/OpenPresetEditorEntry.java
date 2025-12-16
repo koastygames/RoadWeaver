@@ -8,7 +8,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.network.chat.Component;
-import net.shiroha233.roadweaver.client.config.MaterialPresetEditorScreen;
+import net.shiroha233.roadweaver.client.config.RoadPresetEditorScreen;
 
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +54,7 @@ public class OpenPresetEditorEntry extends AbstractConfigListEntry<Void> {
         if (button == 0 && lastArea != null && lastArea.contains(mouseX, mouseY)) {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null) {
-                mc.setScreen(new MaterialPresetEditorScreen(mc.screen));
+                mc.setScreen(new RoadPresetEditorScreen(mc.screen));
             }
             return true;
         }
