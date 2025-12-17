@@ -154,8 +154,8 @@ object KNNPlanner {
         val keys = HashSet<Long>()
         if (base != null) {
             for (c in base) {
-                val ia = index[c.from()]
-                val ib = index[c.to()]
+                val ia = index[c.from]
+                val ib = index[c.to]
                 if (ia == null || ib == null) continue
 
                 val a = min(ia, ib)

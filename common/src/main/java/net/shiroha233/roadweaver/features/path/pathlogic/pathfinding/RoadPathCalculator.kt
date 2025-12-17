@@ -180,7 +180,7 @@ object RoadPathCalculator {
         val spans = ArrayList<Records.RoadSpan>()
         if (segments.isNullOrEmpty()) return spans
 
-        val centers = segments.map { it.middlePos() }
+        val centers = segments.map { it.middlePos }
 
         // 从配置快照读取最小水深阈值
         val minWaterDepth = cfg.bridgeMinWaterDepth()

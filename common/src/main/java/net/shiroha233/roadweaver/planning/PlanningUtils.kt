@@ -24,17 +24,17 @@ object PlanningUtils {
 
     @JvmStatic
     fun sameEdge(a: Records.StructureConnection, b: Records.StructureConnection): Boolean {
-        val af = a.from()
-        val at = a.to()
-        val bf = b.from()
-        val bt = b.to()
+        val af = a.from
+        val at = a.to
+        val bf = b.from
+        val bt = b.to
         return (af == bf && at == bt) || (af == bt && at == bf)
     }
 
     @JvmStatic
     fun sameEdge(c: Records.StructureConnection, a: BlockPos, b: BlockPos): Boolean {
-        val cf = c.from()
-        val ct = c.to()
+        val cf = c.from
+        val ct = c.to
         return (cf == a && ct == b) || (cf == b && ct == a)
     }
 }

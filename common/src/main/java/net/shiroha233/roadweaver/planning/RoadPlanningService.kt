@@ -136,7 +136,7 @@ object RoadPlanningService {
         val existingInRect = ArrayList<Records.StructureConnection>()
         if (existing != null) {
             for (c in existing) {
-                if (inRect.contains(c.from()) && inRect.contains(c.to())) existingInRect.add(c)
+                if (inRect.contains(c.from) && inRect.contains(c.to)) existingInRect.add(c)
             }
         }
 
@@ -198,8 +198,8 @@ object RoadPlanningService {
             }
 
             for (c in existingSnapshot) {
-                val f = BlockPos(c.from().x, 0, c.from().z)
-                val t = BlockPos(c.to().x, 0, c.to().z)
+                val f = BlockPos(c.from.x, 0, c.from.z)
+                val t = BlockPos(c.to.x, 0, c.to.z)
                 val kf = PlanningUtils.pos2dKey(f)
                 val kt = PlanningUtils.pos2dKey(t)
                 if (seenPos.add(kf)) points.add(f)
@@ -214,11 +214,11 @@ object RoadPlanningService {
 
             for (c in existingSnapshot) {
                 if (
-                    inRect.contains(BlockPos(c.from().x, 0, c.from().z)) &&
-                    inRect.contains(BlockPos(c.to().x, 0, c.to().z))
+                    inRect.contains(BlockPos(c.from.x, 0, c.from.z)) &&
+                    inRect.contains(BlockPos(c.to.x, 0, c.to.z))
                 ) {
                     existingInRect.add(c)
-                    existingEdgeKeys.add(PlanningUtils.edgeKey(c.from(), c.to()))
+                    existingEdgeKeys.add(PlanningUtils.edgeKey(c.from, c.to))
                 }
             }
 
@@ -235,7 +235,7 @@ object RoadPlanningService {
 
             val filteredPrimary = ArrayList<Records.StructureConnection>()
             for (c in primaryEdges) {
-                val ek = PlanningUtils.edgeKey(c.from(), c.to())
+                val ek = PlanningUtils.edgeKey(c.from, c.to)
                 if (!existingEdgeKeys.contains(ek)) filteredPrimary.add(c)
             }
 
@@ -275,14 +275,14 @@ object RoadPlanningService {
 
         if (existing != null) {
             for (c in existing) {
-                val k = PlanningUtils.edgeKey(c.from(), c.to())
+                val k = PlanningUtils.edgeKey(c.from, c.to)
                 if (seen.add(k)) out.add(c)
             }
         }
 
         for (c in incoming) {
-            val k = PlanningUtils.edgeKey(c.from(), c.to())
-            if (seen.add(k)) out.add(Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.PLANNED))
+            val k = PlanningUtils.edgeKey(c.from, c.to)
+            if (seen.add(k)) out.add(Records.StructureConnection(c.from, c.to, Records.ConnectionStatus.PLANNED))
         }
 
         return out

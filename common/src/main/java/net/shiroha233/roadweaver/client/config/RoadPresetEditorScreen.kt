@@ -50,7 +50,8 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
 
     private data class UiNaturalEntry(
         var biomeId: String,
-        var materials: MutableList<String> = mutableListOf()
+        var materials: MutableList<String> = mutableListOf(),
+        var slabMaterials: MutableList<String> = mutableListOf()
     )
 
     private var currentTab: Tab = Tab.ARTIFICIAL
@@ -126,7 +127,10 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
 
         // 左侧列表
         val listTop = contentTop + 24
-        val listHeight = contentBottom - listTop
+        // 底部按钮固定放在列表区域下方：给按钮预留高度，避免列表过长时遮挡
+        val leftFooterH = 24
+        val listHeight = (contentBottom - listTop - leftFooterH).coerceAtLeast(44)
+        val leftFooterTop = listTop + listHeight
         val lw = RoadPresetListWidget(minecraft!!, leftPanelW, listHeight, listTop) { idx ->
             onSelectLeftRow(idx)
         }
@@ -143,7 +147,7 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
             nameBox = box
             addRenderableWidget(box)
 
-            val btnY = contentBottom - 22
+            val btnY = leftFooterTop + 2
             addRenderableWidget(
                 Button.builder(Component.translatable("gui.roadweaver.preset_editor.new")) { _: Button -> onNewArtificial() }
                     .bounds(leftPanelX, btnY, 58, 18).build()
@@ -163,7 +167,7 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
             biomeIdBox = box
             addRenderableWidget(box)
 
-            val btnY = contentBottom - 22
+            val btnY = leftFooterTop + 2
             addRenderableWidget(
                 Button.builder(Component.translatable("gui.roadweaver.preset_editor.add_biome")) { _: Button -> onAddBiome() }
                     .bounds(leftPanelX, btnY, 62, 18).build()
@@ -255,12 +259,8 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         val slabTop = midGridY + 4 * 18 + 22
         graphics.drawString(font, Component.translatable("gui.roadweaver.preset_editor.slab_materials"), midGridX, slabTop - 14, 0xFFFFFF, false)
 
-        if (currentTab == Tab.ARTIFICIAL) {
-            renderMaterialGrid(graphics, midGridX, slabTop, activeSlabMaterials, activeList == TargetList.SLAB)
-        } else {
-            // 自然道路不使用半砖：绘制灰色占位
-            renderDisabledGrid(graphics, midGridX, slabTop)
-        }
+        // 人工道路和自然道路都支持半砖编辑
+        renderMaterialGrid(graphics, midGridX, slabTop, activeSlabMaterials, activeList == TargetList.SLAB)
 
         // 右侧：方块选择网格
         val rightGridTop = contentTop + 24
@@ -284,19 +284,6 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
                         g.renderFakeItem(ItemStack(b), x + 1, y + 1)
                     }
                 }
-                idx++
-            }
-        }
-    }
-
-    private fun renderDisabledGrid(g: GuiGraphics, startX: Int, startY: Int) {
-        var idx = 0
-        for (row in 0 until 4) {
-            for (col in 0 until 4) {
-                val x = startX + col * 18
-                val y = startY + row * 18
-                val bg = if (idx % 2 == 0) 0xFF1A1A1A.toInt() else 0xFF101010.toInt()
-                g.fill(x, y, x + 18, y + 18, bg)
                 idx++
             }
         }
@@ -343,11 +330,9 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         val baseGridY = contentTop + 28
         val slabGridY = baseGridY + 4 * 18 + 22
 
-        // 点击材质格子：左键删除，并设置当前编辑目标
+        // 点击材质格子：左键删除，并设置当前编辑目标（人工和自然道路都支持半砖）
         if (handleClickMaterialGrid(mouseX, mouseY, midGridX, baseGridY, TargetList.BASE, activeMaterials, button)) return true
-        if (currentTab == Tab.ARTIFICIAL) {
-            if (handleClickMaterialGrid(mouseX, mouseY, midGridX, slabGridY, TargetList.SLAB, activeSlabMaterials, button)) return true
-        }
+        if (handleClickMaterialGrid(mouseX, mouseY, midGridX, slabGridY, TargetList.SLAB, activeSlabMaterials, button)) return true
 
         // 点击右侧方块网格：添加到当前目标列表
         val rightGridTop = contentTop + 24
@@ -404,9 +389,10 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         val b = filteredBlocks[index]
         val id = BuiltInRegistries.BLOCK.getKey(b) ?: return true
 
+        // 人工和自然道路都支持半砖编辑
         when (activeList) {
             TargetList.BASE -> if (activeMaterials.size < 16) activeMaterials.add(id.toString())
-            TargetList.SLAB -> if (currentTab == Tab.ARTIFICIAL && activeSlabMaterials.size < 16) activeSlabMaterials.add(id.toString())
+            TargetList.SLAB -> if (activeSlabMaterials.size < 16) activeSlabMaterials.add(id.toString())
         }
         return true
     }
@@ -465,7 +451,11 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
 
     private fun getActiveNatural(): UiNaturalEntry {
         if (naturalEntries.isEmpty()) {
-            naturalEntries.add(UiNaturalEntry("minecraft:plains", mutableListOf("minecraft:dirt_path", "minecraft:gravel")))
+            naturalEntries.add(UiNaturalEntry(
+                "minecraft:plains",
+                mutableListOf("minecraft:dirt_path", "minecraft:gravel"),
+                mutableListOf("minecraft:oak_slab")
+            ))
             activeNaturalIndex = 0
         }
         val idx = activeNaturalIndex.coerceIn(0, naturalEntries.size - 1)
@@ -497,12 +487,20 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         naturalEntries.clear()
         NaturalPresetService.reload()
         val nat = NaturalPresetService.getAllEntries()
-        nat.entries.forEach { (biomeId, mats) ->
-            naturalEntries.add(UiNaturalEntry(biomeId, mats.toMutableList()))
+        nat.forEach { entry ->
+            naturalEntries.add(UiNaturalEntry(
+                entry.biomeId,
+                entry.materials.toMutableList(),
+                entry.slabMaterials.toMutableList()
+            ))
         }
         naturalEntries.sortBy { it.biomeId.lowercase(Locale.ROOT) }
         if (naturalEntries.isEmpty()) {
-            naturalEntries.add(UiNaturalEntry("minecraft:plains", mutableListOf("minecraft:dirt_path", "minecraft:gravel")))
+            naturalEntries.add(UiNaturalEntry(
+                "minecraft:plains",
+                mutableListOf("minecraft:dirt_path", "minecraft:gravel"),
+                mutableListOf("minecraft:oak_slab")
+            ))
         }
 
         activeArtificialIndex = activeArtificialIndex.coerceIn(0, artificialPresets.size - 1)
@@ -517,8 +515,10 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
             activeMaterials.addAll(p.materials.take(16))
             activeSlabMaterials.addAll(p.slabMaterials.take(16))
         } else {
+            // 自然道路也支持半砖
             val e = getActiveNatural()
             activeMaterials.addAll(e.materials.take(16))
+            activeSlabMaterials.addAll(e.slabMaterials.take(16))
         }
     }
 
@@ -530,10 +530,12 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
             p.materials = activeMaterials.take(16).toMutableList()
             p.slabMaterials = activeSlabMaterials.take(16).toMutableList()
         } else {
+            // 自然道路也保存半砖
             val e = getActiveNatural()
             val biome = biomeIdBox?.value?.trim().orEmpty().ifBlank { e.biomeId }
             e.biomeId = biome
             e.materials = activeMaterials.take(16).toMutableList()
+            e.slabMaterials = activeSlabMaterials.take(16).toMutableList()
         }
     }
 
@@ -606,7 +608,11 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         val id = biomeIdBox?.value?.trim().orEmpty()
         if (id.isEmpty()) return
         if (naturalEntries.any { it.biomeId == id }) return
-        naturalEntries.add(UiNaturalEntry(id, mutableListOf("minecraft:dirt_path", "minecraft:gravel")))
+        naturalEntries.add(UiNaturalEntry(
+            id,
+            mutableListOf("minecraft:dirt_path", "minecraft:gravel"),
+            mutableListOf("minecraft:oak_slab")
+        ))
         naturalEntries.sortBy { it.biomeId.lowercase(Locale.ROOT) }
         activeNaturalIndex = naturalEntries.indexOfFirst { it.biomeId == id }.coerceAtLeast(0)
         init()
@@ -629,7 +635,11 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         if (naturalEntries.isEmpty()) return
         naturalEntries.removeAt(activeNaturalIndex)
         if (naturalEntries.isEmpty()) {
-            naturalEntries.add(UiNaturalEntry("minecraft:plains", mutableListOf("minecraft:dirt_path", "minecraft:gravel")))
+            naturalEntries.add(UiNaturalEntry(
+                "minecraft:plains",
+                mutableListOf("minecraft:dirt_path", "minecraft:gravel"),
+                mutableListOf("minecraft:oak_slab")
+            ))
             activeNaturalIndex = 0
         } else {
             activeNaturalIndex = activeNaturalIndex.coerceIn(0, naturalEntries.size - 1)
@@ -653,16 +663,16 @@ class RoadPresetEditorScreen(private val parent: Screen?) : Screen(Component.tra
         }
         PresetService.reload()
 
-        // 保存自然预设：单文件
-        val natMap = linkedMapOf<String, List<String>>()
-        naturalEntries.forEach { e ->
+        // 保存自然预设：单文件（包含半砖材质）
+        val natEntries = naturalEntries.mapNotNull { e ->
             val biome = e.biomeId.trim()
-            if (biome.isBlank()) return@forEach
+            if (biome.isBlank()) return@mapNotNull null
             val mats = e.materials.map { it.trim() }.filter { it.isNotBlank() }
-            if (mats.isEmpty()) return@forEach
-            natMap[biome] = mats
+            if (mats.isEmpty()) return@mapNotNull null
+            val slabs = e.slabMaterials.map { it.trim() }.filter { it.isNotBlank() }
+            NaturalPresetService.BiomeEntry(biome, mats, slabs)
         }
-        NaturalPresetService.save(natMap)
+        NaturalPresetService.save(natEntries)
         NaturalPresetService.reload()
 
         minecraft?.setScreen(parent)
