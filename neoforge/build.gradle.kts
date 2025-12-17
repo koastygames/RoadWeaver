@@ -143,8 +143,9 @@ tasks.named<Jar>("sourcesJar") {
     from(commonSources.map { zipTree((it as Jar).archiveFile.get().asFile) })
 }
 
-components.withType<AdhocComponentWithVariants>().configureEach {
-    withVariantsFromConfiguration(project.configurations.getByName("shadowRuntimeElements")) {
+components.named("java") {
+    this as AdhocComponentWithVariants
+    withVariantsFromConfiguration(configurations.getByName("shadowRuntimeElements")) {
         skip()
     }
 }

@@ -112,11 +112,17 @@ tasks.named<Jar>("sourcesJar") {
     from(commonSources.map { zipTree((it as Jar).archiveFile.get().asFile) })
 }
 
-// Gradle/插件版本差异会导致 AdhocComponentWithVariants 的 variants/skip DSL 在 IDE 同步期不可用。
-// 这里改为直接禁止 shadowRuntimeElements 对外发布，避免 shadow 相关变体被发布到 Maven。
+// 禁止发布 Shadow 的运行时变体，避免 IDE 同步期因 DSL/API 差异报错。
+// 这不会影响开发环境运行，只是避免把 shadowRuntimeElements 暴露给外部消费者。
 configurations.named("shadowRuntimeElements") {
     isCanBeConsumed = false
-    outgoing.artifacts.clear()
+}
+
+components.named("java") {
+    this as AdhocComponentWithVariants
+    withVariantsFromConfiguration(configurations.getByName("shadowRuntimeElements")) {
+        skip()
+    }
 }
 
 sourceSets {

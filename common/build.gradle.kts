@@ -21,12 +21,8 @@ dependencies {
 
 sourceSets {
     named("main") {
-        java {
-            exclude("net/shiroha233/roadweaver/client/gui/**")
-        }
         kotlin {
-            // 兼容：当前 Kotlin 源文件与 Java 源文件同放在 src/main/java
-            srcDir("src/main/java")
+            exclude("net/shiroha233/roadweaver/client/gui/**")
         }
         resources {
             exclude("pack.mcmeta")
