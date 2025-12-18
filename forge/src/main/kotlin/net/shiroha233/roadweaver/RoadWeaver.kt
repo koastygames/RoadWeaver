@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.loading.FMLEnvironment
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent
 import net.minecraftforge.common.MinecraftForge
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
 import net.minecraftforge.fml.config.ModConfig
 import net.shiroha233.roadweaver.config.ConfigService
 import net.shiroha233.roadweaver.datagen.RoadWeaverDataGenerator
@@ -18,7 +19,9 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 @Mod(RoadWeaver.MOD_ID)
-class RoadWeaver(modEventBus: IEventBus) {
+class RoadWeaver() {
+    private val modEventBus: IEventBus = FMLJavaModLoadingContext.get().modEventBus
+
     init {
         LOGGER.info("Initializing RoadWeaver (Forge)...")
 

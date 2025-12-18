@@ -110,6 +110,9 @@ tasks.named('processResources', ProcessResources).configure {
 dependencies {
     // Kotlin runtime（开发运行时需要，否则会在启动时找不到 kotlin.jvm.internal.Intrinsics）
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    common("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    shadowCommon("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    include("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
 
     // Common 模块 - 添加源代码到编译路径
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
