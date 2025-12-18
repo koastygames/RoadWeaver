@@ -482,9 +482,17 @@ class RoadMapScreen : Screen(Component.translatable("gui.roadweaver.map.title"))
 
     override fun onOpenConfig() {
         val mc = this.minecraft ?: return
+        val p = mc.player
+        if (p !== null && mc.singleplayerServer === null) {
+            // 多人游戏：配置修改应限制为 OP（服务端权限等级 2+）
+            if (!p.hasPermissions(2)) {
+                p.displayClientMessage(Component.translatable("gui.roadweaver.map.config.denied"), true)
+                return
+            }
+        }
         try {
             val next = net.shiroha233.roadweaver.client.ConfigScreenFactory.createConfigScreen(this)
-            if (next != null) {
+            if (next !== null) {
                 mc.setScreen(next)
             }
         } catch (_: Throwable) {

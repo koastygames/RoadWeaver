@@ -216,6 +216,13 @@ object MapNetworkForge {
                 val context = ctx.get()
                 context.enqueueWork {
                     val sp = context.sender ?: return@enqueueWork
+
+                    val allowed = sp.hasPermissions(2)
+                    if (!allowed) {
+                        sp.displayClientMessage(Component.translatable("gui.roadweaver.map.manual_connect.denied"), true)
+                        return@enqueueWork
+                    }
+
                     val level = sp.serverLevel()
                     val provider = WorldDataProvider.getInstance()
                     val origin = provider.getStructureConnections(level)

@@ -114,7 +114,10 @@ class StructureListWidget(
         private val modId: String,
         private val title: Component,
         private val expanded: Boolean,
-        private val onToggle: Consumer<String>
+        private val allEnabled: Boolean,
+        private val partialEnabled: Boolean,
+        private val onExpandToggle: Consumer<String>,
+        private val onSelectAll: Consumer<String>
     ) : Entry() {
         override fun render(
             graphics: GuiGraphics, index: Int, top: Int, left: Int, width: Int, height: Int,
@@ -126,14 +129,28 @@ class StructureListWidget(
             // 绘制展开箭头
             graphics.drawString(mc.font, expandIcon, left + 2, top + 7, 0xFFFFFF, false)
 
-            var textX = left + 24
+            // Checkbox
+            val boxSize = 10
+            val boxX = left + 14
+            val boxY = top + 6
+            
+            graphics.fill(boxX, boxY, boxX + boxSize, boxY + boxSize, 0xFF000000.toInt())
+            graphics.fill(boxX + 1, boxY + 1, boxX + boxSize - 1, boxY + boxSize - 1, 0xFF888888.toInt())
+            
+            if (allEnabled) {
+                graphics.fill(boxX + 2, boxY + 2, boxX + boxSize - 2, boxY + boxSize - 2, 0xFF55FF55.toInt())
+            } else if (partialEnabled) {
+                graphics.fill(boxX + 3, boxY + 3, boxX + boxSize - 3, boxY + boxSize - 3, 0xFFFFFF55.toInt())
+            }
+
+            var textX = left + 30
             val icon = getModIconTexture(modId)
 
             icon?.let {
                 RenderSystem.enableBlend()
-                graphics.blit(it, left + 14, top + 4, 0f, 0f, 16, 16, 16, 16)
+                graphics.blit(it, textX, top + 4, 0f, 0f, 16, 16, 16, 16)
                 RenderSystem.disableBlend()
-                textX += 10
+                textX += 18
             }
 
             graphics.drawString(mc.font, title, textX, top + 7, 0xFFFFFF, false)
@@ -141,10 +158,24 @@ class StructureListWidget(
 
         override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
             if (button == 0) {
-                // 在 1.20.1 中使用 getRowWidth 计算点击范围
                 val rowLeft = (list.width - list.getRowWidth()) / 2
-                if (mouseX >= rowLeft.toDouble() && mouseX <= (rowLeft + list.getRowWidth()).toDouble()) {
-                    onToggle.accept(modId)
+                
+                // 箭头区域
+                if (mouseX >= rowLeft.toDouble() && mouseX <= (rowLeft + 14).toDouble()) {
+                    onExpandToggle.accept(modId)
+                    return true
+                }
+                
+                // Checkbox 区域 (及整行点击逻辑优化：点击文字区域也触发展开或全选？通常Header点击文字是展开，点击box是全选)
+                // 这里我们让点击 checkbox 区域触发全选
+                if (mouseX > (rowLeft + 14).toDouble() && mouseX <= (rowLeft + 26).toDouble()) {
+                    onSelectAll.accept(modId)
+                    return true
+                }
+
+                // 点击其他区域（标题）切换展开
+                if (mouseX > (rowLeft + 26).toDouble() && mouseX <= (rowLeft + list.getRowWidth()).toDouble()) {
+                    onExpandToggle.accept(modId)
                     return true
                 }
             }

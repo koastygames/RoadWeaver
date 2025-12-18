@@ -34,8 +34,5 @@
 		"java": ">=17",
 		"fabric-api": "*",
 		"cloth-config2": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
 	}
 }

@@ -3,13 +3,12 @@ package net.shiroha233.roadweaver.config.structure
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import dev.architectury.platform.Platform
-import dev.architectury.utils.Env
 import net.minecraft.core.Holder
 import net.minecraft.core.Registry
-import net.minecraft.core.RegistryAccess
-import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
+import net.minecraft.world.level.biome.Biome
+import net.minecraft.world.level.dimension.LevelStem
 import net.minecraft.world.level.levelgen.structure.Structure
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -20,7 +19,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Collections
 import java.util.LinkedHashMap
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.stream.Collectors
 
@@ -50,9 +48,11 @@ object StructureDiscoveryService {
      * 发现结果
      */
     class DiscoveryResult(
+        dimensions: List<ResourceLocation>,
         tags: List<StructureTagEntry>,
         allStructures: List<StructureEntry>
     ) {
+        private val dimensions: MutableList<ResourceLocation> = ArrayList(dimensions)
         private val tags: MutableList<StructureTagEntry> = ArrayList(tags)
         private val allStructures: MutableList<StructureEntry> = ArrayList(allStructures)
 
@@ -60,6 +60,7 @@ object StructureDiscoveryService {
         private val tagToStructures: MutableMap<String, Set<String>> = ConcurrentHashMap()
 
         init {
+            Collections.sort(this.dimensions)
             Collections.sort(this.tags)
             Collections.sort(this.allStructures)
 
@@ -67,6 +68,8 @@ object StructureDiscoveryService {
                 tagToStructures[tag.tagId().toString()] = tag.getAllStructureIds()
             }
         }
+
+        fun dimensions(): List<ResourceLocation> = Collections.unmodifiableList(dimensions)
 
         fun tags(): List<StructureTagEntry> = Collections.unmodifiableList(tags)
 
@@ -87,41 +90,77 @@ object StructureDiscoveryService {
     }
 
     /**
-     * 从服务端世界收集所有结构和标签信息
+     * 兼容入口：从服务端 Level 提取注册表并进行结构发现。
      *
-     * 应该在进入世界后调用（服务端）
+     * 说明：
+     * - 该方法只负责“取注册表 + 转发”，保持 StructureDiscoveryService 的单一职责不被破坏。
+     * - 供旧调用点（例如 ServerPlanningHooks）使用。
      */
     @JvmStatic
-    fun discoverFromLevel(level: ServerLevel?) {
-        if (level === null) {
-            LOGGER.warn("Cannot discover structures: level is null")
-            return
-        }
-        discoverFromRegistryAccess(level.registryAccess())
+    fun discoverFromLevel(level: ServerLevel) {
+        val access = level.registryAccess()
+        val structureRegistry: Registry<Structure> = access.registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
+        val levelStemRegistry: Registry<LevelStem> = access.registryOrThrow(net.minecraft.core.registries.Registries.LEVEL_STEM)
+        discoverFromRegistries(structureRegistry, levelStemRegistry)
     }
 
     /**
-     * 从 RegistryAccess 收集所有结构和标签信息
+     * 从 RegistryAccess 和 LevelStem Registry 收集所有结构和标签信息
      *
-     * 可以在客户端创建世界界面或服务端调用
+     * 由 CreateWorldScreen 的 Mixin 调用
      */
     @JvmStatic
-    fun discoverFromRegistryAccess(registryAccess: RegistryAccess?) {
-        if (registryAccess === null) {
-            LOGGER.warn("Cannot discover structures: registryAccess is null")
-            return
-        }
-
+    fun discoverFromRegistries(structureRegistry: Registry<Structure>, levelStemRegistry: Registry<LevelStem>) {
         try {
-            val structureRegistry: Registry<Structure> = registryAccess.registryOrThrow(Registries.STRUCTURE)
+            // 收集所有维度（来自 LEVEL_STEM）
+            val discoveredDimensions: List<ResourceLocation> = levelStemRegistry.keySet().stream()
+                .sorted { a, b -> a.toString().compareTo(b.toString()) }
+                .collect(Collectors.toList())
+
+            // 预计算每个维度可能出现的生物群系集合，用于推断结构可生成维度
+            val possibleBiomesByDimension: Map<ResourceLocation, Set<Holder<Biome>>> = levelStemRegistry.entrySet()
+                .stream()
+                .collect(
+                    Collectors.toMap(
+                        { e -> e.key.location() },
+                        { e ->
+                            try {
+                                e.value.generator().biomeSource.possibleBiomes()
+                            } catch (_: Exception) {
+                                emptySet()
+                            }
+                        }
+                    )
+                )
 
             // 收集所有结构
             val structureMap: MutableMap<ResourceLocation, StructureEntry> = LinkedHashMap()
             for (entry in structureRegistry.entrySet()) {
                 val id = entry.key.location()
+                val structure = entry.value
                 val isVanilla = "minecraft" == id.namespace
                 val displayName = formatDisplayName(id)
-                structureMap[id] = StructureEntry(id, displayName, isVanilla)
+
+                // 推断结构可生成维度：若结构 biomes 与维度 possibleBiomes 有交集，则认为该维度可生成
+                val dimensions: MutableSet<ResourceLocation> = LinkedHashSet()
+                try {
+                    val structureBiomes = structure.biomes()
+                    for (dimId in discoveredDimensions) {
+                        val dimPossibleBiomes = possibleBiomesByDimension[dimId] ?: emptySet()
+                        if (dimPossibleBiomes.isEmpty()) continue
+
+                        val matches = structureBiomes.stream().anyMatch { biomeHolder ->
+                            dimPossibleBiomes.contains(biomeHolder)
+                        }
+                        if (matches) {
+                            dimensions.add(dimId)
+                        }
+                    }
+                } catch (_: Exception) {
+                    // 忽略 biome 访问错误
+                }
+
+                structureMap[id] = StructureEntry(id, displayName, isVanilla, dimensions)
             }
 
             // 收集所有标签及其包含的结构
@@ -141,7 +180,7 @@ object StructureDiscoveryService {
                         if (h.`is`(tagKey)) {
                             val structId = h.key().location()
                             val se = structureMap[structId]
-                            if (se != null) {
+                            if (se !== null) {
                                 tagStructures.add(se)
                             }
                         }
@@ -154,10 +193,10 @@ object StructureDiscoveryService {
                 }
             }
 
-            cachedResult = DiscoveryResult(tagEntries, ArrayList(structureMap.values))
+            cachedResult = DiscoveryResult(discoveredDimensions, tagEntries, ArrayList(structureMap.values))
             hasDiscovered = true
 
-            LOGGER.info("Discovered {} structures and {} tags", structureMap.size, tagEntries.size)
+            LOGGER.info("Discovered {} structures and {} tags from registries", structureMap.size, tagEntries.size)
 
             // 保存到缓存文件
             saveCacheToFile()
@@ -169,44 +208,15 @@ object StructureDiscoveryService {
     /**
      * 获取缓存的发现结果
      *
-     * 如果尚未发现，尝试从当前上下文或文件加载
+     * 如果尚未发现，尝试从文件加载
      */
     @JvmStatic
     fun getResult(): DiscoveryResult? {
-        if (cachedResult === null && !hasDiscovered) {
-            // 尝试从当前上下文获取
-            tryDiscoverFromCurrentContext()
-        }
         if (cachedResult === null && !hasDiscovered) {
             // 从缓存文件加载
             loadCacheFromFile()
         }
         return cachedResult
-    }
-
-    /**
-     * 尝试从当前上下文获取结构注册表
-     *
-     * 支持：
-     * - 客户端已连接服务器（ClientLevel）
-     * - 客户端创建世界界面（WorldCreationContext）
-     */
-    @JvmStatic
-    fun tryDiscoverFromCurrentContext() {
-        // 只在客户端执行
-        if (dev.architectury.platform.Platform.getEnvironment() !== Env.CLIENT) {
-            return
-        }
-
-        try {
-            // 尝试从客户端获取（使用反射避免直接引用客户端类）
-            val access = ClientRegistryAccessHelper.tryGetClientRegistryAccess()
-            if (access != null) {
-                discoverFromRegistryAccess(access)
-            }
-        } catch (_: Exception) {
-            // 静默失败，避免在某些加载阶段刷屏日志
-        }
     }
 
     /**
@@ -260,8 +270,16 @@ object StructureDiscoveryService {
 
             // 转换为可序列化的格式
             val data = CacheData()
+            data.dimensions = snapshot.dimensions().stream()
+                .map { it.toString() }
+                .collect(Collectors.toList())
             data.structures = snapshot.allStructures().stream()
-                .map { e -> CacheData.StructureData(e.id().toString(), e.displayName(), e.isVanilla()) }
+                .map { e -> CacheData.StructureData(
+                    e.id().toString(), 
+                    e.displayName(), 
+                    e.isVanilla(),
+                    e.dimensions().stream().map { it.toString() }.collect(Collectors.toList())
+                ) }
                 .collect(Collectors.toList())
             data.tags = snapshot.tags().stream()
                 .map { t ->
@@ -301,13 +319,46 @@ object StructureDiscoveryService {
                 return
             }
 
+            // 读取维度列表（如果不存在则稍后从结构条目中推导）
+            val discoveredDimensions: MutableList<ResourceLocation> = ArrayList()
+            if (data.dimensions !== null) {
+                for (dimStr in data.dimensions!!) {
+                    val rl = ResourceLocation.tryParse(dimStr)
+                    if (rl !== null) {
+                        discoveredDimensions.add(rl)
+                    }
+                }
+            }
+
             // 重建结构映射
             val structureMap: MutableMap<String, StructureEntry> = LinkedHashMap()
             for (sd in data.structures!!) {
                 val id = ResourceLocation.tryParse(sd.id)
                 if (id !== null) {
-                    structureMap[sd.id] = StructureEntry(id, sd.displayName, sd.isVanilla)
+                    val dimensions: MutableSet<ResourceLocation> = LinkedHashSet()
+
+                    // 新格式：dimensions = ["minecraft:overworld", ...]
+                    if (sd.dimensions !== null) {
+                        for (dimStr in sd.dimensions) {
+                            val rl = ResourceLocation.tryParse(dimStr)
+                            if (rl !== null) {
+                                dimensions.add(rl)
+                            }
+                        }
+                    }
+
+                    structureMap[sd.id] = StructureEntry(id, sd.displayName, sd.isVanilla, dimensions)
                 }
+            }
+
+            // 若缓存未提供维度列表，则从所有结构的 dimensions 推导
+            if (discoveredDimensions.isEmpty()) {
+                val derived: MutableSet<ResourceLocation> = LinkedHashSet()
+                for (se in structureMap.values) {
+                    derived.addAll(se.dimensions())
+                }
+                discoveredDimensions.addAll(derived)
+                Collections.sort(discoveredDimensions)
             }
 
             // 重建标签列表
@@ -318,7 +369,7 @@ object StructureDiscoveryService {
                 val tagStructures: MutableList<StructureEntry> = ArrayList()
                 for (structId in td.structureIds) {
                     val se = structureMap[structId]
-                    if (se != null) {
+                    if (se !== null) {
                         tagStructures.add(se)
                     }
                 }
@@ -328,7 +379,7 @@ object StructureDiscoveryService {
                 }
             }
 
-            cachedResult = DiscoveryResult(tagEntries, ArrayList(structureMap.values))
+            cachedResult = DiscoveryResult(discoveredDimensions, tagEntries, ArrayList(structureMap.values))
             LOGGER.info("Loaded structure cache: {} structures, {} tags", structureMap.size, tagEntries.size)
         } catch (e: Exception) {
             LOGGER.warn("Failed to load structure cache", e)
@@ -336,65 +387,18 @@ object StructureDiscoveryService {
     }
 
     /**
-     * 客户端注册表访问帮助类（内部类，避免外层类加载客户端依赖）
-     */
-    private object ClientRegistryAccessHelper {
-        fun tryGetClientRegistryAccess(): RegistryAccess? {
-            try {
-                // 使用反射加载 Minecraft 类，避免在服务端加载时失败
-                val minecraftClass = Class.forName("net.minecraft.client.Minecraft")
-                val mc = minecraftClass.getMethod("getInstance").invoke(null) ?: return null
-
-                // 获取 level 字段
-                val levelField = minecraftClass.getDeclaredField("level")
-                levelField.isAccessible = true
-                val level = levelField.get(mc)
-
-                if (level != null) {
-                    // 调用 level.registryAccess()
-                    val registryAccessMethod = level.javaClass.getMethod("registryAccess")
-                    return registryAccessMethod.invoke(level) as RegistryAccess
-                }
-
-                // 尝试从 CreateWorldScreen 获取
-                val screenField = minecraftClass.getDeclaredField("screen")
-                screenField.isAccessible = true
-                val screen = screenField.get(mc)
-
-                if (screen != null) {
-                    val createWorldScreenClass = Class.forName("net.minecraft.client.gui.screens.worldselection.CreateWorldScreen")
-                    if (createWorldScreenClass.isInstance(screen)) {
-                        val uiStateField = createWorldScreenClass.getDeclaredField("uiState")
-                        uiStateField.isAccessible = true
-                        val uiState = uiStateField.get(screen)
-
-                        val getSettingsMethod = uiState.javaClass.getMethod("getSettings")
-                        val context = getSettingsMethod.invoke(uiState)
-
-                        if (context !== null) {
-                            val worldgenLoadContextMethod = context.javaClass.getMethod("worldgenLoadContext")
-                            return worldgenLoadContextMethod.invoke(context) as RegistryAccess
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                LOGGER.warn("Failed to get client registry access: {}", e.message, e)
-            }
-            return null
-        }
-    }
-
-    /**
      * 缓存数据格式（用于 JSON 序列化）
      */
     private class CacheData {
+        var dimensions: List<String>? = null
         var structures: List<StructureData>? = null
         var tags: List<TagData>? = null
 
         class StructureData(
             @JvmField val id: String,
             @JvmField val displayName: String,
-            @JvmField val isVanilla: Boolean
+            @JvmField val isVanilla: Boolean,
+            @JvmField val dimensions: List<String>? = null
         )
 
         class TagData(

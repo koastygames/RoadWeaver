@@ -4,6 +4,7 @@ import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.network.chat.Component
+import net.minecraft.resources.ResourceLocation
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService
 import net.shiroha233.roadweaver.config.structure.StructureEntry
 import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig
@@ -21,6 +22,10 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
     private lateinit var listWidget: StructureListWidget
     private lateinit var searchBox: EditBox
     private var searchFilter = ""
+    private var currentDimension: ResourceLocation? = null
+    private var dimensionButton: Button? = null
+    private var dimensionListWidget: DimensionListWidget? = null
+    private var pendingCloseDimensionDropdown: Boolean = false
 
     // 展开状态
     private val expandedTags = HashSet<String>()
@@ -31,7 +36,7 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
         private const val BASE_INDENT_TAG = 30
         private const val BASE_INDENT_ORPHAN = 10
         private const val INDENT_STEP = 15 // 每级缩进增加量
-        private const val HEADER_HEIGHT = 50
+        private const val HEADER_HEIGHT = 72 // 标题 + 搜索框 + 维度选择
         private const val FOOTER_HEIGHT = 40
     }
 
@@ -45,6 +50,18 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
             rebuildList()
         }
         addRenderableWidget(searchBox)
+
+        // 维度选择（动态下拉）
+        val dimBtnY = 45
+        val dimBtnW = 220
+        val dimBtnH = 18
+        val dimBtnX = width / 2 - dimBtnW / 2
+        val btn = Button.builder(getDimensionButtonText()) {
+            toggleDimensionDropdown()
+        }.pos(dimBtnX, dimBtnY).size(dimBtnW, dimBtnH).build()
+        dimensionButton = btn
+        addRenderableWidget(btn)
+
 
         // 列表组件
         val listTop = HEADER_HEIGHT
@@ -76,7 +93,7 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
             rebuildList()
         }.pos(startX + buttonWidth + spacing, buttonY).size(buttonWidth, 20).build())
 
-        // 默认
+        // 默认（仅村庄）
         addRenderableWidget(Button.builder(
             Component.translatable("config.roadweaver.structure_selection.default")
         ) {
@@ -97,7 +114,10 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
         listWidget.clearAllEntries()
 
         val result = StructureDiscoveryService.getResult()
-        if (result == null) {
+        dimensionButton?.active = result !== null
+        updateDimensionButtonText()
+        if (result === null) {
+            closeDimensionDropdown()
             listWidget.addEntryItem(StructureListWidget.MessageEntry(
                 listWidget,
                 Component.translatable("config.roadweaver.structure_selection.no_data")
@@ -143,14 +163,21 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
             val modMatchesFilter = hasSearch && (matchesFilter(modDisplayName) || matchesFilter(modId))
             var hasAnyForMod = false
 
+            // 用于统计 Mod 下的结构是否全选
+            val structuresInMod = ArrayList<String>()
+
             // 1. 处理标签
             val modTags = tagsByMod[modId] ?: emptyList()
             for (tag in modTags) {
+                // 先做维度过滤，避免通过字符串二次查找
+                val visibleStructures = tag.structures().filter { matchesDimension(it) }
+                if (visibleStructures.isEmpty()) continue
+
                 val tagMatchesFilter = matchesFilter(tag.displayName()) || matchesFilter(tag.tagId().toString())
-                
-                // 找出匹配的结构
-                val matchingStructures = tag.structures().filter { 
-                    matchesFilter(it.displayName()) || matchesFilter(it.id().toString()) 
+
+                // 找出匹配搜索的结构
+                val matchingStructures = visibleStructures.filter {
+                    matchesFilter(it.displayName()) || matchesFilter(it.id().toString())
                 }
 
                 // 决定是否显示该标签
@@ -158,6 +185,8 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
                 if (!shouldShowTag) continue
 
                 hasAnyForMod = true
+                structuresInMod.addAll(visibleStructures.map { it.id().toString() })
+
                 val isTagEnabled = config.isTagEnabled(tag.tagId().toString())
                 val isTagExpanded = expandedTags.contains(tag.tagId().toString())
 
@@ -170,7 +199,7 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
                     if (isTagExpanded) {
                         // 如果 Mod 匹配或 Tag 匹配，显示所有结构；否则只显示搜索匹配的结构
                         val baseList = if (!hasSearch || modMatchesFilter || tagMatchesFilter) {
-                            tag.structures()
+                            visibleStructures
                         } else {
                             matchingStructures
                         }
@@ -180,26 +209,29 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
                             addPathNodeEntries(modEntries, pathTree, config, BASE_INDENT_TAG)
                             
                             // 记录已添加
-                            tag.structures().forEach { addedStructures.add(it.id().toString()) }
+                            baseList.forEach { addedStructures.add(it.id().toString()) }
                         }
                     } else {
-                        // 折叠状态也要记录，防止作为孤立结构重复显示
-                        tag.structures().forEach { addedStructures.add(it.id().toString()) }
+                        // 折叠状态也要记录
+                        visibleStructures.forEach { addedStructures.add(it.id().toString()) }
                     }
                 } else {
-                    tag.structures().forEach { addedStructures.add(it.id().toString()) }
+                    visibleStructures.forEach { addedStructures.add(it.id().toString()) }
                 }
             }
 
             // 2. 处理孤立结构
             val orphanStructures = result.allStructures().filter { 
                 it.namespace() == modId && 
+                matchesDimension(it) &&
                 !addedStructures.contains(it.id().toString()) &&
                 (modMatchesFilter || matchesFilter(it.displayName()) || matchesFilter(it.id().toString()) || !hasSearch)
             }
 
             if (orphanStructures.isNotEmpty()) {
                 hasAnyForMod = true
+                orphanStructures.forEach { structuresInMod.add(it.id().toString()) }
+
                 if (isModExpanded) {
                     modEntries.add(StructureListWidget.HeaderEntry(
                         listWidget,
@@ -212,16 +244,151 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
 
             // 3. 添加 Mod 头
             if (hasAnyForMod) {
+                // 计算 Mod 全选状态
+                val enabledCount = structuresInMod.count { config.isStructureEnabled(it) }
+                val modAllEnabled = structuresInMod.isNotEmpty() && enabledCount == structuresInMod.size
+                val modPartialEnabled = enabledCount > 0 && enabledCount < structuresInMod.size
+
                 val headerText = Component.literal("$modDisplayName [$modId]")
                 listWidget.addEntryItem(StructureListWidget.ModHeaderEntry(
-                    listWidget, modId, headerText, isModExpanded
-                ) { onModHeaderToggle(it) })
+                    listWidget, modId, headerText, isModExpanded,
+                    modAllEnabled, modPartialEnabled,
+                    { onModHeaderToggle(it) },
+                    { onModSelectAll(it, structuresInMod) }
+                ))
 
                 if (isModExpanded) {
                     modEntries.forEach { listWidget.addEntryItem(it) }
                 }
             }
         }
+    }
+
+    private fun matchesDimension(entry: StructureEntry): Boolean {
+        val dim = currentDimension ?: return true
+        val dims = entry.dimensions()
+        return dims.contains(dim)
+    }
+
+    private fun getDimensionButtonText(): Component {
+        val name = if (currentDimension === null) {
+            Component.translatable("config.roadweaver.structure_selection.dimension.all")
+        } else {
+            getDimensionDisplayName(currentDimension!!)
+        }
+        return Component.translatable("config.roadweaver.structure_selection.dimension", name)
+    }
+
+    private fun updateDimensionButtonText() {
+        dimensionButton?.message = getDimensionButtonText()
+    }
+
+    private fun getDimensionDisplayName(dimId: ResourceLocation): Component {
+        val key = "dimension.${dimId.namespace}.${dimId.path}"
+        val translated = Component.translatable(key)
+        return if (translated.string != key) translated else Component.literal(dimId.toString())
+    }
+
+    private fun toggleDimensionDropdown() {
+        if (dimensionListWidget !== null) {
+            closeDimensionDropdown()
+        } else {
+            openDimensionDropdown()
+        }
+    }
+
+    private fun openDimensionDropdown() {
+        val result = StructureDiscoveryService.getResult() ?: return
+        val btn = dimensionButton ?: return
+
+        val rows: MutableList<DimensionListWidget.Row> = ArrayList()
+        rows.add(
+            DimensionListWidget.Row(
+                null,
+                Component.translatable("config.roadweaver.structure_selection.dimension.all"),
+                null
+            )
+        )
+
+        for (dimId in result.dimensions()) {
+            val title = getDimensionDisplayName(dimId)
+            val subtitle = Component.literal(dimId.toString())
+            rows.add(
+                DimensionListWidget.Row(
+                    dimId,
+                    title,
+                    if (title.string != subtitle.string) subtitle else null
+                )
+            )
+        }
+
+        val top = btn.y + btn.height + 2
+        val maxH = (height - FOOTER_HEIGHT - top - 4).coerceAtLeast(44)
+        val desiredRows = rows.size.coerceAtMost(8).coerceAtLeast(2)
+        val listH = (desiredRows * 22).coerceAtMost(maxH)
+
+        val list = DimensionListWidget(minecraft!!, btn.width, listH, top) { selected ->
+            currentDimension = selected
+            updateDimensionButtonText()
+            // 注意：不能在 Screen.mouseClicked 遍历 children 时直接 removeWidget，否则可能触发并发修改异常。
+            // 这里设置标记，等 super.mouseClicked 返回后再统一关闭。
+            pendingCloseDimensionDropdown = true
+            rebuildList()
+        }
+        list.setLeftPos(btn.x)
+        list.setRenderBackground(false)
+        list.setRenderTopAndBottom(false)
+        list.setRows(rows, currentDimension)
+        dimensionListWidget = list
+        addRenderableWidget(list)
+    }
+
+    private fun closeDimensionDropdown() {
+        val list = dimensionListWidget ?: return
+        removeWidget(list)
+        dimensionListWidget = null
+    }
+
+    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
+        val dd = dimensionListWidget
+        val btn = dimensionButton
+
+        // 1. 优先处理下拉列表的点击（防止穿透）
+        if (dd !== null && dd.isMouseOver(mouseX, mouseY)) {
+            dd.mouseClicked(mouseX, mouseY, button)
+            return true
+        }
+
+        // 2. 如果点击了下拉列表外部且没点到按钮，则关闭下拉
+        if (dd !== null && btn !== null) {
+            val clickedButton = btn.isMouseOver(mouseX, mouseY)
+            val clickedDropdown = dd.isMouseOver(mouseX, mouseY)
+            if (!clickedButton && !clickedDropdown) {
+                closeDimensionDropdown()
+            }
+        }
+
+        // 3. 传递给其他组件（如搜索框、列表等）
+        val handled = super.mouseClicked(mouseX, mouseY, button)
+        
+        // 4. 处理延迟关闭
+        if (pendingCloseDimensionDropdown) {
+            pendingCloseDimensionDropdown = false
+            closeDimensionDropdown()
+        }
+        return handled
+    }
+
+    private fun onModSelectAll(modId: String, structures: List<String>) {
+        val config = StructureSelectionConfig.get()
+        val allEnabled = structures.all { config.isStructureEnabled(it) }
+        
+        if (allEnabled) {
+            structures.forEach { config.disableStructure(it) }
+        } else {
+            structures.forEach { config.enableStructure(it) }
+        }
+        rebuildList()
     }
 
     private fun addPathNodeEntries(
@@ -233,20 +400,19 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
         val hasSearch = searchFilter.isNotEmpty()
 
         // 先处理子节点（文件夹）
-        // 这里的 node 可能是 root 虚拟节点，也可能是递归中的某个节点
-        // root 节点的 children 是第一级路径
-        
-        // 我们遍历 children
         for (child in node.children.values) {
-            // 关键改进：根据 shouldShowAsFolder 判断是否作为文件夹显示
+            // 过滤文件夹中的内容
+            val childStructureIds = child.getAllStructureIds()
+            // 这里我们不需要再次过滤维度，因为 buildTree 时传入的 structures 已经是过滤过的
+            
+            if (childStructureIds.isEmpty()) continue
+
             if (child.shouldShowAsFolder()) {
-                // 作为文件夹显示
                 val isExpanded = hasSearch || expandedPaths.contains(child.fullPath)
                 
-                val allIds = child.getAllStructureIds()
-                val enabledCount = allIds.count { config.isStructureEnabled(it) }
-                val allEnabled = enabledCount == allIds.size && allIds.isNotEmpty()
-                val partialEnabled = enabledCount > 0 && enabledCount < allIds.size
+                val enabledCount = childStructureIds.count { config.isStructureEnabled(it) }
+                val allEnabled = enabledCount == childStructureIds.size && childStructureIds.isNotEmpty()
+                val partialEnabled = enabledCount > 0 && enabledCount < childStructureIds.size
                 
                 entries.add(StructureListWidget.PathFolderEntry(
                     listWidget, child, isExpanded, allEnabled, partialEnabled,
@@ -255,29 +421,20 @@ class StructureSelectionScreen(private val parentScreen: Screen) :
                 ))
 
                 if (isExpanded) {
-                    // 递归添加，注意缩进增加
                     addPathNodeEntries(entries, child, config, currentIndent + INDENT_STEP)
                 }
             } else {
-                // 不作为文件夹显示，直接“打平”它的内容（递归调用，但缩进不增加，或者增加？
-                // 如果不显示文件夹，那么它的子项应该直接展示在当前层级。
-                // 递归调用 addPathNodeEntries 处理该节点的 children 和 structures
-                // 此时 indent 是否增加？
-                // 如果文件夹这层皮被剥掉了，子项应该和文件夹同级。
-                // 所以 indent 保持不变 (或者 currentIndent)。
                 addPathNodeEntries(entries, child, config, currentIndent)
             }
         }
 
         // 处理当前节点挂载的叶子结构
         for (structure in node.structures) {
-            // 过滤
             if (hasSearch && !matchesFilter(structure.displayName()) && !matchesFilter(structure.id().toString())) {
                 continue
             }
             
             val isEnabled = config.isStructureEnabled(structure.id().toString())
-            // PathStructureEntry 使用 currentIndent
             entries.add(StructureListWidget.PathStructureEntry(
                 listWidget, structure, isEnabled, currentIndent,
                 { onStructureToggle(it) }

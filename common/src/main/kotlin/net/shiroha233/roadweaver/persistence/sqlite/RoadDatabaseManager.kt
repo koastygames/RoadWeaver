@@ -47,15 +47,26 @@ object RoadDatabaseManager {
         if (SQLITE_DRIVER_LOADED) return
         synchronized(this) {
             if (SQLITE_DRIVER_LOADED) return
-            try {
-                Class.forName("org.sqlite.JDBC")
-                SQLITE_DRIVER_LOADED = true
-            } catch (e: ClassNotFoundException) {
-                throw SQLException(
-                    "SQLite JDBC driver not found. Dependency org.xerial:sqlite-jdbc may be missing.",
-                    e
-                )
+            val candidates = arrayOf(
+                "org.sqlite.JDBC",
+                "net.shiroha233.roadweaver.libs.sqlite.JDBC"
+            )
+
+            var lastError: Throwable? = null
+            for (cn in candidates) {
+                try {
+                    Class.forName(cn)
+                    SQLITE_DRIVER_LOADED = true
+                    return
+                } catch (t: Throwable) {
+                    lastError = t
+                }
             }
+
+            throw SQLException(
+                "SQLite JDBC driver not found. Dependency org.xerial:sqlite-jdbc may be missing.",
+                lastError
+            )
         }
     }
 

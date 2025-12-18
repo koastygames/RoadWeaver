@@ -22,10 +22,13 @@ object StructureIndexService {
         if (!cfg.villagePredictionEnabled()) {
             return listOf()
         }
+        val whitelist = StructureSelectionConfig.get().toWhitelist()
         val predicted = StructurePredictor.predictOverworldStructuresAroundSpawn(
             level,
             cfg.predictRadiusChunks(),
-            cfg.biomePrefilter()
+            cfg.biomePrefilter(),
+            whitelist,
+            listOf()
         )
         return StructureVerificationService.verifyPredictedStructures(level, predicted)
     }

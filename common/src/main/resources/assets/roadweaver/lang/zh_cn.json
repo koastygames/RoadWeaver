@@ -21,6 +21,9 @@
   "gui.roadweaver.map.legend.generating": "生成中",
   "gui.roadweaver.map.legend.completed": "已成功",
   "gui.roadweaver.map.legend.failed": "已失败",
+  "gui.roadweaver.map.manual_connect": "手动连接",
+  "gui.roadweaver.map.manual_connect.denied": "没有权限创建道路连接",
+  "gui.roadweaver.map.config.denied": "没有权限打开配置",
   "message.roadweaver.migration.start": "[RoadWeaver] 检测到旧道路数据，正在迁移到 SQLite，请稍候...",
   "message.roadweaver.migration.done": "[RoadWeaver] 旧道路数据迁移完成：%s 条。",
   "key.categories.roadweaver": "RoadWeaver",
@@ -28,7 +31,6 @@
   "gui.roadweaver.map.grid.scale.chunks_blocks": "每格：%s 区块（%s 方块）",
   "gui.roadweaver.map.grid.scale.blocks": "每格：%s 方块",
   "gui.roadweaver.map.coord": "（%s，%s）",
-  "gui.roadweaver.map.manual_connect": "手动连接",
   "config.roadweaver.category.road_planning": "路网规划",
   "config.roadweaver.initial_plan_radius_chunks": "初始规划半径（区块）",
   "config.roadweaver.initial_plan_radius_chunks.tooltip": "新建世界启动后，以出生点为中心，在该半径内构建初始路网，不要设置太大（建议64），否则新建世界会加载很久！！！",
@@ -226,5 +228,7 @@
   "config.roadweaver.structure_selection.default": "仅村庄",
   "config.roadweaver.structure_selection.folder": "文件夹",
   "config.roadweaver.structure_selection.folder.select_all": "全选此文件夹",
-  "config.roadweaver.structure_selection.folder.deselect_all": "取消全选此文件夹"
+  "config.roadweaver.structure_selection.folder.deselect_all": "取消全选此文件夹",
+  "config.roadweaver.structure_selection.dimension": "维度：%s",
+  "config.roadweaver.structure_selection.dimension.all": "全部"
 }

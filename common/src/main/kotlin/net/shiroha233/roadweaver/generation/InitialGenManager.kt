@@ -72,9 +72,6 @@ object InitialGenManager {
         // 重置地形采样统计（用于 GUI 显示缓存命中率和每秒采样数）
         net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats.reset()
 
-        // 发现并缓存所有结构和标签（供结构选择 GUI 使用）
-        net.shiroha233.roadweaver.config.structure.StructureDiscoveryService.discoverFromLevel(level)
-
         // 首开世界：按配置尝试放置出生点小屋（幂等）
         if (ConfigService.get().spawnCabinEnabled()) {
             SpawnCabinPlacer.ensurePlaced(level)
@@ -86,7 +83,7 @@ object InitialGenManager {
         // 统计总数
         val provider = WorldDataProvider.getInstance()
         val conns = provider.getStructureConnections(level)
-        total.set(conns?.size ?: 0)
+        total.set(conns.size)
 
         // 初始化一次完成度
         update(level)
@@ -152,25 +149,23 @@ object InitialGenManager {
 
                 // 批量更新 WorldDataProvider
                 val currentList = provider.getStructureConnections(level)
-                if (currentList !== null) {
-                    val updatedList = ArrayList(currentList)
-                    var changed = false
+                val updatedList = ArrayList(currentList)
+                var changed = false
 
-                    for (i in updatedList.indices) {
-                        val original = updatedList[i]
-                        for ((task, ok) in results.entries) {
-                            if (PlanningUtils.sameEdge(original, task)) {
-                                val newStatus = if (ok) Records.ConnectionStatus.COMPLETED else Records.ConnectionStatus.FAILED
-                                updatedList[i] = Records.StructureConnection(original.from, original.to, newStatus)
-                                changed = true
-                                break
-                            }
+                for (i in updatedList.indices) {
+                    val original = updatedList[i]
+                    for ((task, ok) in results.entries) {
+                        if (PlanningUtils.sameEdge(original, task)) {
+                            val newStatus = if (ok) Records.ConnectionStatus.COMPLETED else Records.ConnectionStatus.FAILED
+                            updatedList[i] = Records.StructureConnection(original.from, original.to, newStatus)
+                            changed = true
+                            break
                         }
                     }
+                }
 
-                    if (changed) {
-                        provider.setStructureConnections(level, updatedList)
-                    }
+                if (changed) {
+                    provider.setStructureConnections(level, updatedList)
                 }
             }
         }

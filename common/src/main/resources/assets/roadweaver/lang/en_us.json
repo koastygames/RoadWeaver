@@ -21,6 +21,9 @@
   "gui.roadweaver.map.legend.generating": "Generating",
   "gui.roadweaver.map.legend.completed": "Completed",
   "gui.roadweaver.map.legend.failed": "Failed",
+  "gui.roadweaver.map.manual_connect": "Manual Connect",
+  "gui.roadweaver.map.manual_connect.denied": "No permission to start roads",
+  "gui.roadweaver.map.config.denied": "No permission to open config",
   "message.roadweaver.migration.start": "[RoadWeaver] Detected legacy road data. Migrating to SQLite...",
   "message.roadweaver.migration.done": "[RoadWeaver] Legacy road data migration completed: %s roads.",
   "key.categories.roadweaver": "RoadWeaver",
@@ -28,7 +31,6 @@
   "gui.roadweaver.map.grid.scale.chunks_blocks": "Per cell: %s chunks (%s blocks)",
   "gui.roadweaver.map.grid.scale.blocks": "Per cell: %s blocks",
   "gui.roadweaver.map.coord": "(%s, %s)",
-  "gui.roadweaver.map.manual_connect": "Manual Connect",
   "config.roadweaver.category.road_planning": "Road Planning",
   "config.roadweaver.initial_plan_radius_chunks": "Initial Plan Radius (chunks)",
   "config.roadweaver.initial_plan_radius_chunks.tooltip": "At new world start, build network around spawn within this radius (in chunks).",
@@ -231,5 +233,7 @@
   "config.roadweaver.structure_selection.default": "Villages Only",
   "config.roadweaver.structure_selection.folder": "Folder",
   "config.roadweaver.structure_selection.folder.select_all": "Select all in this folder",
-  "config.roadweaver.structure_selection.folder.deselect_all": "Deselect all in this folder"
+  "config.roadweaver.structure_selection.folder.deselect_all": "Deselect all in this folder",
+  "config.roadweaver.structure_selection.dimension": "Dimension: %s",
+  "config.roadweaver.structure_selection.dimension.all": "All"
 }

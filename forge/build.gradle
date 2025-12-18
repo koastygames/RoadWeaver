@@ -39,8 +39,14 @@ configurations {
 shadowJar {
     exclude "architectury.common.json"
     exclude "fabric.mod.json"
+	exclude "module-info.class"
+	exclude "META-INF/versions/**/module-info.class"
     configurations = [project.configurations.shadowCommon]
     archiveClassifier.set("dev-shadow")
+	relocate "org.sqlite", "net.shiroha233.roadweaver.libs.sqlite"
+	manifest {
+		attributes "Automatic-Module-Name": "net.shiroha233.roadweaver"
+	}
 }
 
 remapJar {
@@ -133,7 +139,7 @@ dependencies {
     // developmentForge 确保开发环境下驱动可用
     developmentForge("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
     implementation("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
-    include("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
+    shadowCommon("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees
     // 使用 compileOnly：

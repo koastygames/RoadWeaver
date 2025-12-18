@@ -93,6 +93,12 @@ object MapNetworkFabric {
             val bz = buf.readVarInt()
             
             server.execute {
+                val allowed = player.hasPermissions(2)
+                if (!allowed) {
+                    player.displayClientMessage(Component.translatable("gui.roadweaver.map.manual_connect.denied"), true)
+                    return@execute
+                }
+
                 val level = player.serverLevel()
                 val provider = WorldDataProvider.getInstance()
                 val origin = provider.getStructureConnections(level)

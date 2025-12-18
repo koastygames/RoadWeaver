@@ -12,7 +12,8 @@ class StructureEntry(
     private val id: ResourceLocation,
     private val displayName: String,
     @get:JvmName("isVanillaFlag")
-    val isVanilla: Boolean
+    val isVanilla: Boolean,
+    val dimensions: Set<ResourceLocation> = emptySet()
 ) : Comparable<StructureEntry> {
 
     fun id(): ResourceLocation = id
@@ -20,6 +21,8 @@ class StructureEntry(
     fun displayName(): String = displayName
 
     fun isVanilla(): Boolean = isVanilla
+
+    fun dimensions(): Set<ResourceLocation> = dimensions
 
     /**
      * 获取结构的命名空间
