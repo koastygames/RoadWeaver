@@ -6,7 +6,6 @@ import net.minecraft.core.QuartPos
 import net.minecraft.core.Registry
 import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.Registries
-import net.minecraft.resources.ResourceKey
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.tags.TagKey
@@ -14,10 +13,13 @@ import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.biome.Biome
 import net.minecraft.world.level.biome.BiomeSource
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState
+import net.minecraft.world.level.levelgen.LegacyRandomSource
 import net.minecraft.world.level.levelgen.RandomState
+import net.minecraft.world.level.levelgen.WorldgenRandom
 import net.minecraft.world.level.levelgen.structure.BuiltinStructureSets
 import net.minecraft.world.level.levelgen.structure.Structure
 import net.minecraft.world.level.levelgen.structure.StructureSet
+import net.minecraft.world.level.levelgen.structure.placement.ConcentricRingsStructurePlacement
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement
 import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
 import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig
@@ -47,15 +49,15 @@ object StructurePredictor {
         val randomState: RandomState = state.randomState()
         val biomeSource: BiomeSource = level.chunkSource.generator.biomeSource
 
-        var allowedBiomes: MutableSet<Holder<Biome>>? = null
-        if (biomePrefilter) {
-            allowedBiomes = HashSet()
+        val allowedBiomes: MutableSet<Holder<Biome>>? = if (biomePrefilter) {
+            val out = HashSet<Holder<Biome>>()
             for (entry in set.structures()) {
                 val structure = entry.structure().value()
-                for (b in structure.biomes()) {
-                    allowedBiomes.add(b)
-                }
+                for (b in structure.biomes()) out.add(b)
             }
+            out
+        } else {
+            null
         }
 
         val spacing = rssp.spacing()
@@ -64,7 +66,7 @@ object StructurePredictor {
         val startJ = Math.floorDiv(minZ, spacing)
         val endJ = Math.floorDiv(maxZ, spacing)
 
-        val seed = level.seed
+        val seed = state.levelSeed
         val result = ArrayList<Records.StructureInfo>()
 
         for (i in startI..endI) {
@@ -78,7 +80,7 @@ object StructurePredictor {
                 if (!placement.isStructureChunk(state, x, z)) continue
 
                 val locatePos = placement.getLocatePos(candidate)
-                if (biomePrefilter && allowedBiomes != null) {
+                if (allowedBiomes != null) {
                     val qx = QuartPos.fromBlock(locatePos.x)
                     val qy = QuartPos.fromBlock(64)
                     val qz = QuartPos.fromBlock(locatePos.z)
@@ -86,7 +88,11 @@ object StructurePredictor {
                     if (!allowedBiomes.contains(sample)) continue
                 }
 
-                result.add(Records.StructureInfo(locatePos, "village"))
+                val chosen = chooseActualStructureInSetAtChunk(level, set, candidate)
+                val chosenId = chosen?.structure()?.unwrapKey()?.map { it.location().toString() }?.orElse(null)
+                if (chosenId != null) {
+                    result.add(Records.StructureInfo(locatePos, chosenId))
+                }
             }
         }
 
@@ -117,86 +123,175 @@ object StructurePredictor {
         for (holder in setRegistry.holders().toList()) {
             val set = holder.value()
             val placement = set.placement()
-            val rssp = placement as? RandomSpreadStructurePlacement ?: continue
-
-            val matchedStructures = ArrayList<Holder<Structure>>()
-            for (entry in set.structures()) {
-                val structureHolder = entry.structure()
-                val key = structureHolder.unwrapKey()
-                if (key.isEmpty) continue
-                val id = key.get().location()
-                if (filters.matches(structureHolder, id)) {
-                    matchedStructures.add(structureHolder)
-                }
-            }
-
-            if (matchedStructures.isEmpty()) {
-                if (filters.hasWhitelist()) continue
+            val allowedBiomes: MutableSet<Holder<Biome>>? = if (biomePrefilter) {
+                val out = HashSet<Holder<Biome>>()
                 for (entry in set.structures()) {
-                    val structureHolder = entry.structure()
-                    val key = structureHolder.unwrapKey()
-                    if (key.isEmpty) continue
-                    val id = key.get().location()
-                    if (!filters.isBlacklisted(structureHolder, id)) {
-                        matchedStructures.add(structureHolder)
-                    }
+                    for (b in entry.structure().value().biomes()) out.add(b)
                 }
-                if (matchedStructures.isEmpty()) continue
+                out
+            } else {
+                null
             }
 
-            var allowedBiomes: MutableSet<Holder<Biome>>? = null
-            if (biomePrefilter) {
-                allowedBiomes = HashSet()
-                for (h in matchedStructures) {
-                    for (b in h.value().biomes()) {
-                        allowedBiomes.add(b)
-                    }
-                }
-            }
+            when (placement) {
+                is RandomSpreadStructurePlacement -> {
+                    val spacing = placement.spacing()
+                    val startI = Math.floorDiv(minChunkX, spacing)
+                    val endI = Math.floorDiv(maxChunkX, spacing)
+                    val startJ = Math.floorDiv(minChunkZ, spacing)
+                    val endJ = Math.floorDiv(maxChunkZ, spacing)
 
-            val spacing = rssp.spacing()
-            val startI = Math.floorDiv(minChunkX, spacing)
-            val endI = Math.floorDiv(maxChunkX, spacing)
-            val startJ = Math.floorDiv(minChunkZ, spacing)
-            val endJ = Math.floorDiv(maxChunkZ, spacing)
+                    val seed = state.levelSeed
+                    for (i in startI..endI) {
+                        for (j in startJ..endJ) {
+                            val baseX = i * spacing
+                            val baseZ = j * spacing
+                            val candidate = placement.getPotentialStructureChunk(seed, baseX, baseZ)
+                            val x = candidate.x
+                            val z = candidate.z
+                            if (x < minChunkX || x > maxChunkX || z < minChunkZ || z > maxChunkZ) continue
+                            if (!placement.isStructureChunk(state, x, z)) continue
 
-            val labelId = matchedStructures
-                .asSequence()
-                .map { h -> h.unwrapKey().map { it.location().toString() }.orElse("structure") }
-                .firstOrNull() ?: "structure"
+                            val locatePos = placement.getLocatePos(candidate)
+                            if (allowedBiomes != null) {
+                                val qx = QuartPos.fromBlock(locatePos.x)
+                                val qy = QuartPos.fromBlock(64)
+                                val qz = QuartPos.fromBlock(locatePos.z)
+                                val sample = biomeSource.getNoiseBiome(qx, qy, qz, randomState.sampler())
+                                if (!allowedBiomes.contains(sample)) continue
+                            }
 
-            for (i in startI..endI) {
-                for (j in startJ..endJ) {
-                    val baseX = i * spacing
-                    val baseZ = j * spacing
-                    val candidate = rssp.getPotentialStructureChunk(level.seed, baseX, baseZ)
-                    val x = candidate.x
-                    val z = candidate.z
-                    if (x < minChunkX || x > maxChunkX || z < minChunkZ || z > maxChunkZ) continue
-                    if (!placement.isStructureChunk(state, x, z)) continue
+                            val chosenEntry = chooseActualStructureInSetAtChunk(level, set, candidate) ?: continue
+                            val chosenHolder = chosenEntry.structure()
+                            val chosenKey = chosenHolder.unwrapKey()
+                            if (chosenKey.isEmpty) continue
+                            val chosenId = chosenKey.get().location()
+                            if (!filters.matches(chosenHolder, chosenId)) continue
 
-                    val locatePos = placement.getLocatePos(candidate)
-                    val qx = QuartPos.fromBlock(locatePos.x)
-                    val qy = QuartPos.fromBlock(64)
-                    val qz = QuartPos.fromBlock(locatePos.z)
-                    val sample = biomeSource.getNoiseBiome(qx, qy, qz, randomState.sampler())
-                    if (biomePrefilter && allowedBiomes != null) {
-                        if (!allowedBiomes.contains(sample)) continue
-                    }
-
-                    var chosenId = labelId
-                    for (h in matchedStructures) {
-                        if (h.value().biomes().contains(sample)) {
-                            chosenId = h.unwrapKey().map { it.location().toString() }.orElse(labelId)
-                            break
+                            result.add(Records.StructureInfo(locatePos, chosenId.toString()))
                         }
                     }
-                    result.add(Records.StructureInfo(locatePos, chosenId))
+                }
+
+                is ConcentricRingsStructurePlacement -> {
+                    val ring = state.getRingPositionsFor(placement) ?: continue
+                    for (candidate in ring) {
+                        val x = candidate.x
+                        val z = candidate.z
+                        if (x < minChunkX || x > maxChunkX || z < minChunkZ || z > maxChunkZ) continue
+                        // ring list 已经隐含 isPlacementChunk，但仍保留一次 isStructureChunk 做频率/排他区检查
+                        if (!placement.isStructureChunk(state, x, z)) continue
+
+                        val locatePos = placement.getLocatePos(candidate)
+                        if (allowedBiomes != null) {
+                            val qx = QuartPos.fromBlock(locatePos.x)
+                            val qy = QuartPos.fromBlock(64)
+                            val qz = QuartPos.fromBlock(locatePos.z)
+                            val sample = biomeSource.getNoiseBiome(qx, qy, qz, randomState.sampler())
+                            if (!allowedBiomes.contains(sample)) continue
+                        }
+
+                        val chosenEntry = chooseActualStructureInSetAtChunk(level, set, candidate) ?: continue
+                        val chosenHolder = chosenEntry.structure()
+                        val chosenKey = chosenHolder.unwrapKey()
+                        if (chosenKey.isEmpty) continue
+                        val chosenId = chosenKey.get().location()
+                        if (!filters.matches(chosenHolder, chosenId)) continue
+
+                        result.add(Records.StructureInfo(locatePos, chosenId.toString()))
+                    }
+                }
+
+                else -> {
+                    continue
                 }
             }
         }
 
         return result
+    }
+
+    /**
+     * 对齐原版 ChunkGenerator.createStructures 的“StructureSet 多结构权重选择 + 失败回退”行为。
+     *
+     * 关键点（避免虚假点位 / 漏网之鱼）：
+     * - 结构是否能在该区块生成，不能只看 placement（那只是候选 chunk），还要做 findValidGenerationPoint。
+     * - 一个 StructureSet 里可能包含多个结构（如各种村庄变体），最终生成哪个是确定性的（seed + chunkPos + weight）。
+     */
+    private fun chooseActualStructureInSetAtChunk(
+        level: ServerLevel,
+        set: StructureSet,
+        chunkPos: ChunkPos
+    ): StructureSet.StructureSelectionEntry? {
+        val entries = set.structures()
+        if (entries.isEmpty()) return null
+
+        // 单结构 set：直接验证
+        if (entries.size == 1) {
+            val e = entries[0]
+            val structure = e.structure().value()
+            return if (canCreateStructure(level, chunkPos, structure)) e else null
+        }
+
+        // 多结构 set：按原版逻辑做确定性权重选择，并在失败时移除继续尝试
+        val pool = ArrayList(entries)
+        var totalWeight = 0
+        for (e in pool) totalWeight += e.weight()
+        if (totalWeight <= 0) return null
+
+        val rnd = WorldgenRandom(LegacyRandomSource(0L))
+        val seed = level.chunkSource.generatorState.levelSeed
+        rnd.setLargeFeatureSeed(seed, chunkPos.x, chunkPos.z)
+
+        while (pool.isNotEmpty() && totalWeight > 0) {
+            var j = rnd.nextInt(totalWeight)
+            var idx = 0
+            for (k in pool.indices) {
+                j -= pool[k].weight()
+                if (j < 0) {
+                    idx = k
+                    break
+                }
+            }
+
+            val chosen = pool[idx]
+            val structure = chosen.structure().value()
+            if (canCreateStructure(level, chunkPos, structure)) {
+                return chosen
+            }
+
+            pool.removeAt(idx)
+            totalWeight -= chosen.weight()
+        }
+
+        return null
+    }
+
+    /**
+     * 使用原版 StructureCheck.canCreateStructure 同款判定：
+     * 仅通过噪声/生物群系/结构自身规则判断是否“有可能”生成，避免触发区块加载。
+     */
+    private fun canCreateStructure(level: ServerLevel, chunkPos: ChunkPos, structure: Structure): Boolean {
+        val generatorState = level.chunkSource.generatorState
+        val randomState = generatorState.randomState()
+        val generator = level.chunkSource.generator
+        val biomeSource = generator.biomeSource
+        val templateManager = level.server.structureManager
+        val seed = generatorState.levelSeed
+
+        return structure.findValidGenerationPoint(
+            Structure.GenerationContext(
+                level.registryAccess(),
+                generator,
+                biomeSource,
+                randomState,
+                templateManager,
+                seed,
+                chunkPos,
+                level,
+                structure.biomes()::contains
+            )
+        ).isPresent
     }
 
     /**

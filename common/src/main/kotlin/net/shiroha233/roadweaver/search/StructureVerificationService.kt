@@ -1,6 +1,7 @@
 package net.shiroha233.roadweaver.search
 
 import net.minecraft.core.Registry
+import net.minecraft.core.RegistryAccess
 import net.minecraft.core.registries.Registries
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.server.level.ServerChunkCache
@@ -10,9 +11,9 @@ import net.minecraft.world.level.biome.BiomeSource
 import net.minecraft.world.level.chunk.ChunkGenerator
 import net.minecraft.world.level.chunk.storage.ChunkScanAccess
 import net.minecraft.world.level.levelgen.RandomState
+import net.minecraft.world.level.levelgen.structure.StructureCheckResult
 import net.minecraft.world.level.levelgen.structure.Structure
 import net.minecraft.world.level.levelgen.structure.StructureCheck
-import net.minecraft.world.level.levelgen.structure.StructureCheckResult
 import net.minecraft.world.level.levelgen.structure.StructureSet
 import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
 import net.shiroha233.roadweaver.helpers.Records
@@ -37,11 +38,12 @@ object StructureVerificationService {
             return ArrayList(predicted)
         }
 
-        val registryAccess = level.registryAccess()
+        val registryAccess: RegistryAccess = level.registryAccess()
         val generator: ChunkGenerator = chunkCache.generator
         val randomState: RandomState = chunkCache.randomState()
         val biomeSource: BiomeSource = generator.biomeSource
-        val seed = level.seed
+        // 与原版 StructurePlacement/ChunkGeneratorStructureState 保持一致
+        val seed = level.chunkSource.generatorState.levelSeed
 
         val checker = StructureCheck(
             scanAccess,
@@ -59,13 +61,20 @@ object StructureVerificationService {
         val structureRegistry: Registry<Structure> = registryAccess.registryOrThrow(Registries.STRUCTURE)
         val structureSetRegistry: Registry<StructureSet> = registryAccess.registryOrThrow(Registries.STRUCTURE_SET)
 
-        val placementCache = HashMap<Structure, StructurePlacement>()
+        // 兼容性：部分结构可能出现在多个 StructureSet（不同 placement）；
+        // 原版 locate 会对该结构的全部 placements 逐个 check。
+        val placementCache = HashMap<Structure, List<StructurePlacement>>()
         for (setHolder in structureSetRegistry.holders().toList()) {
             val set = setHolder.value()
             val placement = set.placement()
             for (entry in set.structures()) {
                 val structure = entry.structure().value()
-                placementCache.putIfAbsent(structure, placement)
+                val prev = placementCache[structure]
+                if (prev == null) {
+                    placementCache[structure] = listOf(placement)
+                } else if (!prev.contains(placement)) {
+                    placementCache[structure] = prev + placement
+                }
             }
         }
 
@@ -90,24 +99,33 @@ object StructureVerificationService {
                 continue
             }
 
-            val placement = placementCache[structure]
-            if (placement == null) {
+            val placements = placementCache[structure]
+            if (placements.isNullOrEmpty()) {
                 result.add(info)
                 continue
             }
 
             val chunkPos = ChunkPos(info.pos.x shr 4, info.pos.z shr 4)
 
-            val checkResult = try {
-                checker.checkStart(chunkPos, structure, placement, false)
-            } catch (_: Throwable) {
-                result.add(info)
-                continue
+            var best: StructureCheckResult = StructureCheckResult.START_NOT_PRESENT
+            for (placement in placements) {
+                val r = try {
+                    checker.checkStart(chunkPos, structure, placement, false)
+                } catch (_: Throwable) {
+                    // 验证失败时保持“尽量不误删”策略
+                    StructureCheckResult.CHUNK_LOAD_NEEDED
+                }
+                // START_PRESENT > CHUNK_LOAD_NEEDED > START_NOT_PRESENT
+                if (r == StructureCheckResult.START_PRESENT) {
+                    best = r
+                    break
+                }
+                if (r == StructureCheckResult.CHUNK_LOAD_NEEDED) {
+                    best = r
+                }
             }
 
-            if (checkResult == StructureCheckResult.START_PRESENT) {
-                result.add(info)
-            } else if (checkResult == StructureCheckResult.CHUNK_LOAD_NEEDED) {
+            if (best == StructureCheckResult.START_PRESENT || best == StructureCheckResult.CHUNK_LOAD_NEEDED) {
                 result.add(info)
             }
         }
