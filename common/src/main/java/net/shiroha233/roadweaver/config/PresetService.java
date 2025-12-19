@@ -391,8 +391,44 @@ public final class PresetService {
         return out;
     }
 
+    private static List<BlockState> toBlockStatesAllowEmpty(List<String> ids) {
+        List<BlockState> out = new ArrayList<>();
+        if (ids == null) return out;
+        for (String s : ids) {
+            try {
+                ResourceLocation rl = new ResourceLocation(s);
+                Block b = BuiltInRegistries.BLOCK.get(rl);
+                if (b != null && b != Blocks.AIR) out.add(b.defaultBlockState());
+            } catch (Throwable ignored) {}
+        }
+        return out;
+    }
+
     public static List<BlockState> toBlockStatesFromIds(List<String> ids) {
         return toBlockStates(ids);
+    }
+
+    public static List<BlockState> toBlockStatesFromIdsAllowEmpty(List<String> ids) {
+        return toBlockStatesAllowEmpty(ids);
+    }
+
+    public static synchronized PresetDef findNaturalPresetForBiome(ResourceLocation dimension, ResourceLocation biomeId) {
+        if (biomeId == null) return null;
+        if (PRESETS.get().isEmpty()) reload();
+        Map<String, PresetDef> all = PRESETS.get();
+
+        // 兼容两种命名：
+        // 1) natural_<path>（例如 natural_plains，对应 minecraft:plains）
+        // 2) natural_<namespace>_<path>（例如 natural_minecraft_plains / natural_terralith_skylands）
+        String idPathOnly = "natural_" + biomeId.getPath();
+        String idNsPath = "natural_" + biomeId.getNamespace() + "_" + biomeId.getPath();
+
+        PresetDef def = all.get(idPathOnly);
+        if (def == null) def = all.get(idNsPath);
+        if (def == null) return null;
+        if (def.type != RoadType.NATURAL) return null;
+        if (dimension != null && (def.dimensions == null || !def.dimensions.contains(dimension))) return null;
+        return def;
     }
 
     public static synchronized List<List<String>> getMaterialCombos() {

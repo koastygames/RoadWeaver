@@ -73,12 +73,20 @@ public final class Road {
         if (!allowA && !allowN) return;
         int type = allowA && allowN ? (random.nextBoolean() ? 0 : 1) : (allowA ? 0 : 1);
         List<BlockState> materials;
-        List<BlockState> slabMaterials = java.util.List.of();
+        List<BlockState> slabMaterials;
         PresetService.RoadType presetType = (type == 0) ? PresetService.RoadType.ARTIFICIAL : PresetService.RoadType.NATURAL;
         ResourceLocation dimId = level.dimension().location();
-        PresetService.PresetDef preset = PresetService.choosePreset(random, dimId, presetType);
-        materials = PresetService.toBlockStatesFromIds(preset.materials());
-        slabMaterials = PresetService.toBlockStatesFromIds(preset.slabMaterials());
+
+        // 关键修复：自然道路不能在“道路生成阶段”就固定材质。
+        // 自然道路的材质应在铺设阶段根据每个方块所在的生物群系动态选择。
+        if (presetType == PresetService.RoadType.ARTIFICIAL) {
+            PresetService.PresetDef preset = PresetService.choosePreset(random, dimId, presetType);
+            materials = PresetService.toBlockStatesFromIds(preset.materials());
+            slabMaterials = PresetService.toBlockStatesFromIds(preset.slabMaterials());
+        } else {
+            materials = java.util.List.of();
+            slabMaterials = java.util.List.of();
+        }
 
         BlockPos rawStart = connection.from();
         BlockPos rawEnd = connection.to();

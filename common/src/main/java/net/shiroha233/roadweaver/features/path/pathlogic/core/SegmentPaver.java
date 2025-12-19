@@ -7,6 +7,7 @@ import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.features.path.decoration.system.SurfacePlacementUtil;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadHeightInterpolator;
 import net.shiroha233.roadweaver.helpers.Records;
@@ -65,7 +66,12 @@ public final class SegmentPaver {
             if (materials != null && !materials.isEmpty()) {
                 baseMats = materials;
             } else if (roadType == 1) {
-                baseMats = net.shiroha233.roadweaver.features.path.decoration.material.surface.BiomeRoadMaterialSelector.forBiome(world, pos);
+                PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(world.getLevel().dimension().location(), world.getBiome(pos).unwrapKey().map(k -> k.location()).orElse(null));
+                if (biomePreset != null) {
+                    baseMats = PresetService.toBlockStatesFromIdsAllowEmpty(biomePreset.materials());
+                } else {
+                    baseMats = net.shiroha233.roadweaver.features.path.decoration.material.surface.BiomeRoadMaterialSelector.forBiome(world, pos);
+                }
             } else {
                 baseMats = java.util.List.of();
             }
@@ -73,10 +79,20 @@ public final class SegmentPaver {
             // 放置路面方块
             SurfacePlacementUtil.placeOnSurface(world, pos, baseMats, 0, random, cfg);
             
-            // 人工道路且配置了半砖：检查是否需要平滑过渡
-            if (roadType == 0 && slabMaterials != null && !slabMaterials.isEmpty()) {
+            // 半砖平滑过渡：人工道路使用预设的 slabMaterials；自然道路按 biome 选择对应 natural 预设的 slabMaterials
+            List<BlockState> slabs;
+            if (roadType == 0) {
+                slabs = slabMaterials;
+            } else if (roadType == 1) {
+                PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(world.getLevel().dimension().location(), world.getBiome(pos).unwrapKey().map(k -> k.location()).orElse(null));
+                slabs = biomePreset != null ? PresetService.toBlockStatesFromIdsAllowEmpty(biomePreset.slabMaterials()) : java.util.List.of();
+            } else {
+                slabs = java.util.List.of();
+            }
+
+            if (slabs != null && !slabs.isEmpty()) {
                 if (shouldPlaceSlab(widthBlock.getX(), widthBlock.getZ(), y, centers, targetY)) {
-                    BlockState slabState = slabMaterials.get(random.nextInt(slabMaterials.size()));
+                    BlockState slabState = slabs.get(random.nextInt(slabs.size()));
                     if (slabState.getBlock() instanceof SlabBlock) {
                         slabState = slabState.setValue(SlabBlock.TYPE, SlabType.BOTTOM);
                     }
