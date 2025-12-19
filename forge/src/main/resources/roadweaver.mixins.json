@@ -8,7 +8,8 @@
     "MinecraftServerMixin",
     "GenericFeatureMixin",
     "dynamictree.DynamicTreeFeatureMixin",
-    "ServerLevelStructureMixin"
+    "ServerLevelStructureMixin",
+    "PlayerDimensionChangeMixin"
   ],
   "client": [
     "CreateWorldScreenMixin",

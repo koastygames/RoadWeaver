@@ -1,0 +1,242 @@
+package net.shiroha233.roadweaver.generation;
+
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
+
+import java.util.List;
+
+/**
+ * 初始道路生成管理器：在服务器启动后，阻塞直到初始规划范围内的道路生成完成，并提供进度统计。
+ */
+public final class InitialGenManager {
+    private InitialGenManager() {
+    }
+
+    private static volatile boolean active;
+    private static final java.util.concurrent.atomic.AtomicInteger total = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+    private static final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+
+    private static final java.util.concurrent.atomic.AtomicInteger generating = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+    private static final java.util.concurrent.atomic.AtomicInteger failed = new java.util.concurrent.atomic.AtomicInteger(
+            0);
+
+    public static boolean isActive() {
+        return active;
+    }
+
+    public static int getTotal() {
+        return total.get();
+    }
+
+    public static int getDone() {
+        return done.get();
+    }
+
+    public static int getGenerating() {
+        return generating.get();
+    }
+
+    public static int getFailed() {
+        return failed.get();
+    }
+
+    /**
+     * 在服务器启动时调用：执行初始规划并计算总任务数。
+     */
+    public static void begin(ServerLevel level) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension()))
+            return;
+        // 清零状态
+        active = true;
+        total.set(0);
+        done.set(0);
+
+        generating.set(0);
+        failed.set(0);
+
+        // 重置地形采样统计（用于 GUI 显示缓存命中率和每秒采样数）
+        net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats.reset();
+
+        // 确保生成线程池已初始化
+        RoadGenerationService.onServerStarted();
+
+        // 首开世界：按配置尝试放置出生点小屋（幂等）
+        if (ConfigService.get().spawnCabinEnabled()) {
+            SpawnCabinPlacer.ensurePlaced(level);
+        }
+
+        // 进行初始规划：写入结构连接（PLANNED）
+        RoadPlanningService.initialPlan(level);
+
+        // 统计总数
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> conns = provider.getStructureConnections(level);
+        total.set((conns == null) ? 0 : conns.size());
+        // 初始化一次完成度
+        update(level);
+    }
+
+    /**
+     * 循环推进生成并阻塞直到全部完成或总数为0。
+     * 注意：在服务器启动线程中调用，期间不会触发常规 tick。
+     * 改为多线程并行生成以提高速度。
+     */
+    public static void blockUntilDone(ServerLevel level) {
+        if (!active)
+            return;
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> list = provider.getStructureConnections(level);
+
+        if (list != null && !list.isEmpty()) {
+            // 筛选出需要生成的任务
+            List<Records.StructureConnection> tasks = new java.util.ArrayList<>();
+            for (Records.StructureConnection c : list) {
+                if (c.status() == Records.ConnectionStatus.PLANNED) {
+                    tasks.add(c);
+                }
+            }
+
+            if (!tasks.isEmpty()) {
+                // 提交任务到线程池 - 使用配置的初始生成线程数创建专用线程池
+                int nThreads = net.shiroha233.roadweaver.config.ConfigService.get().initialGenerationThreads();
+                java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
+                        nThreads,
+                        new java.util.concurrent.ThreadFactory() {
+                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(
+                                    1);
+
+                            @Override
+                            public Thread newThread(Runnable r) {
+                                Thread t = new Thread(r, "RoadWeaver-InitialGen-" + count.getAndIncrement());
+                                t.setDaemon(true);
+                                return t;
+                            }
+                        });
+                List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+
+                for (Records.StructureConnection task : tasks) {
+                    futures.add(executor.submit(() -> {
+                        // 更新状态为生成中
+                        generating.incrementAndGet();
+
+                        boolean success = RoadGenerationService.generateTask(level, task);
+
+                        generating.decrementAndGet();
+                        if (success) {
+                            done.incrementAndGet();
+                        } else {
+                            failed.incrementAndGet();
+                        }
+                        return new java.util.AbstractMap.SimpleEntry<>(task, success);
+                    }));
+                }
+
+                // 等待所有任务完成
+                // 收集结果用于批量更新
+                java.util.Map<Records.StructureConnection, Boolean> results = new java.util.HashMap<>();
+                for (java.util.concurrent.Future<?> f : futures) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        var entry = (java.util.Map.Entry<Records.StructureConnection, Boolean>) f.get();
+                        results.put(entry.getKey(), entry.getValue());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                // 关闭专用线程池
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+
+                // 批量更新 WorldDataProvider
+                List<Records.StructureConnection> currentList = provider.getStructureConnections(level);
+                if (currentList != null) {
+                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentList);
+                    boolean changed = false;
+                    for (int i = 0; i < updatedList.size(); i++) {
+                        Records.StructureConnection original = updatedList.get(i);
+                        for (java.util.Map.Entry<Records.StructureConnection, Boolean> entry : results.entrySet()) {
+                            Records.StructureConnection task = entry.getKey();
+                            if (sameEdge(original, task)) {
+                                Records.ConnectionStatus newStatus = entry.getValue()
+                                        ? Records.ConnectionStatus.COMPLETED
+                                        : Records.ConnectionStatus.FAILED;
+                                updatedList.set(i,
+                                        new Records.StructureConnection(original.from(), original.to(), newStatus));
+                                changed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (changed) {
+                        provider.setStructureConnections(level, updatedList);
+                    }
+                }
+            }
+        }
+        // 确保道路数据刷新到存储，以便树木生成时可以查询
+        net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage.flushAll(level);
+        // 清除道路位置查询缓存，避免过时缓存导致树木阻止失效
+        net.shiroha233.roadweaver.persistence.RoadPositionQuery.clearCache(level);
+        active = false;
+    }
+
+    private static boolean sameEdge(Records.StructureConnection a, Records.StructureConnection b) {
+        net.minecraft.core.BlockPos af = a.from(), at = a.to();
+        net.minecraft.core.BlockPos bf = b.from(), bt = b.to();
+        return (af.equals(bf) && at.equals(bt)) || (af.equals(bt) && at.equals(bf));
+    }
+
+    /**
+     * 读取世界数据统计完成数量。
+     * 注意：在多线程生成期间，此方法可能不会反映实时进度（因为我们只更新了 AtomicInteger，没有更新 WorldData），
+     * 但 UI 读取的是 AtomicInteger，所以 UI 是实时的。
+     * 生成结束后，再次调用此方法会从 WorldData 同步最终状态。
+     */
+    public static void update(ServerLevel level) {
+        // 如果处于活跃状态（生成中），不要从 WorldData 重置计数器，因为 WorldData 还没更新
+        if (active)
+            return;
+
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> conns = provider.getStructureConnections(level);
+        if (conns == null) {
+            total.set(0);
+
+            generating.set(0);
+            done.set(0);
+            failed.set(0);
+            return;
+        }
+        int g = 0, c = 0, f = 0;
+        for (Records.StructureConnection sc : conns) {
+            Records.ConnectionStatus s = sc.status();
+            if (s == Records.ConnectionStatus.GENERATING)
+                g++;
+            else if (s == Records.ConnectionStatus.COMPLETED)
+                c++;
+            else if (s == Records.ConnectionStatus.FAILED)
+                f++;
+        }
+        total.set(conns.size());
+
+        generating.set(g);
+        done.set(c);
+        failed.set(f);
+    }
+}

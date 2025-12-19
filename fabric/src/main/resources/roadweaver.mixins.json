@@ -6,7 +6,8 @@
   "mixins": [
     "MinecraftServerMixin",
     "GenericFeatureMixin",
-    "ServerLevelStructureMixin"
+    "ServerLevelStructureMixin",
+    "PlayerDimensionChangeMixin"
   ],
   "client": [
     "CreateWorldScreenMixin",

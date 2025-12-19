@@ -1,25 +1,17 @@
-architectury {
+ architectury {
     common("fabric", "forge")
 }
 
 dependencies {
-    // Architectury API
-    modImplementation "dev.architectury:architectury:9.2.14"
-    
-    // Kotlin - 由根项目插件自动处理
-
-    compileOnly "net.fabricmc:fabric-loader:${project.loader_version}"
+    // Architectury API（作为 mod 依赖以启用 Loom 重映射）
+    modImplementation("dev.architectury:architectury:9.2.14")
+    compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
 }
-
+ 
 sourceSets {
     main {
         java {
-            srcDirs = ["src/main/java"] // 可选，如果有 java 文件
             exclude 'net/shiroha233/roadweaver/client/gui/**'
-        }
-        // 核心：明确告知 Kotlin 源码路径
-        kotlin {
-            srcDirs = ["src/main/kotlin"]
         }
         resources {
             exclude 'pack.mcmeta'
