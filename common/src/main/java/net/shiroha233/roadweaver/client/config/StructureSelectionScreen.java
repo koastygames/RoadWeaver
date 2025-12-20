@@ -7,13 +7,13 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.config.structure.StructureEntry;
 import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig;
 import net.shiroha233.roadweaver.config.structure.StructureTagEntry;
 
 import java.util.*;
-
 /**
  * 结构选择界面
  *
@@ -627,8 +627,19 @@ public class StructureSelectionScreen extends Screen {
     
     @Override
     public void onClose() {
-        // 保存配置
-        StructureSelectionConfig.get().save();
+        // 保存结构选择配置（structure_selection.json）
+        StructureSelectionConfig selection = StructureSelectionConfig.get();
+        selection.save();
+
+        // 关键：把 GUI 选择结果同步到“结构搜寻器”实际使用的白名单（roadweaver.json -> structureWhitelist）。
+        // 原理：StructurePredictor/StructureIndexService 只读取 ModConfig.structureWhitelist，
+        // 之前 GUI 只写入 structure_selection.json，导致搜寻仍然只剩默认的 #minecraft:village。
+        List<String> whitelist = selection.toWhitelist();
+        if (whitelist == null || whitelist.isEmpty()) {
+            whitelist = List.of("#minecraft:village");
+        }
+        ConfigService.get().setStructureWhitelist(whitelist);
+        ConfigService.save();
         minecraft.setScreen(parent);
     }
     
