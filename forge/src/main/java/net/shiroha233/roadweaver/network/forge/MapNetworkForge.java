@@ -62,16 +62,23 @@ public class MapNetworkForge {
             if (player != null) {
                 int cx = (int) Math.round(player.getX());
                 int cz = (int) Math.round(player.getZ());
-                int radiusChunks;
+                int computedRadiusBlocks;
                 try {
                     net.shiroha233.roadweaver.config.ModConfig cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-                    radiusChunks = (cfg.dynamicPlanEnabled() ? cfg.dynamicPlanRadiusChunks() : cfg.initialPlanRadiusChunks());
+                    if (cfg.highwayEnabled()) {
+                        computedRadiusBlocks = Math.max(16, cfg.highwayPlanningRadiusBlocks());
+                    } else {
+                        int radiusChunks = cfg.dynamicPlanEnabled()
+                                ? cfg.dynamicPlanRadiusChunks()
+                                : cfg.initialPlanRadiusChunks();
+                        computedRadiusBlocks = Math.max(1, radiusChunks) * 16;
+                    }
                 } catch (Throwable t) {
-                    radiusChunks = 256;
+                    computedRadiusBlocks = 256 * 16;
                 }
-                int radiusBlocks = Math.max(1, radiusChunks) * 16;
+                final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
                 CompletableFuture
-                    .supplyAsync(() -> MapDataCollector.build(player.serverLevel(), msg.minX, msg.minZ, msg.maxX, msg.maxZ, cx, cz, radiusBlocks), ComputeService.executor())
+                    .supplyAsync(() -> MapDataCollector.build(player.serverLevel(), msg.minX, msg.minZ, msg.maxX, msg.maxZ, cx, cz, radiusBlocksFinal), ComputeService.executor())
                     .thenAccept(snap -> c.enqueueWork(() -> CHANNEL.sendTo(new MapSnapshotS2C(snap), player.connection.connection, NetworkDirection.PLAY_TO_CLIENT)));
             }
             c.setPacketHandled(true);

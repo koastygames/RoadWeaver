@@ -130,11 +130,15 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 MapTheme.COLOR_GRID, MapTheme.GRID_TARGET_PX, MapTheme.COLOR_TEXT);
 
         int thickness = computeThickness();
+
+        // 道路折线的 LOD：缩放较远时不绘制折线，改用连接直线（避免“只剩细节线段”导致层级渲染失效）。
+        int lodStep = GridRenderer.computeGridStep(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
+                view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(), MapTheme.GRID_TARGET_PX);
+        boolean renderRoadPolylines = !snapshot.roadPolylines().isEmpty() && lodStep <= 256;
         
         // 连接线（排除已完成的，因为会用道路折线表示）
         List<Records.StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
-        boolean hasDetailedRoads = !snapshot.roadPolylines().isEmpty();
-        if (hasDetailedRoads) {
+        if (renderRoadPolylines) {
             connForLines.removeIf(c -> c.status() == Records.ConnectionStatus.COMPLETED);
         }
         MapRenderers.renderConnections(g, connForLines,
@@ -147,14 +151,14 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 left, top, right, bottom);
 
         // 道路折线
-        int lodStep = GridRenderer.computeGridStep(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
-                view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(), MapTheme.GRID_TARGET_PX);
-        MapRenderers.renderRoadPolylines(g, snapshot.roadPolylines(),
-                (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
-                v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
-                v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
-                thickness, MapTheme.COLOR_COMPLETED,
-                left, top, right, bottom, lodStep);
+        if (renderRoadPolylines) {
+            MapRenderers.renderRoadPolylines(g, snapshot.roadPolylines(),
+                    (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
+                    v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
+                    v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
+                    thickness, MapTheme.COLOR_COMPLETED,
+                    left, top, right, bottom, lodStep);
+        }
 
         // 结构点
         MapRenderers.renderStructures(g, snapshot.structures(),
@@ -504,8 +508,14 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private int getRadiusBlocks() {
         try {
             var cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-            int radiusChunks = cfg.dynamicPlanEnabled() ? cfg.dynamicPlanRadiusChunks() : cfg.initialPlanRadiusChunks();
-            return Math.max(1, radiusChunks) * 16;
+            if (cfg.highwayEnabled()) {
+                return Math.max(16, cfg.highwayPlanningRadiusBlocks());
+            } else {
+                int radiusChunks = cfg.dynamicPlanEnabled()
+                        ? cfg.dynamicPlanRadiusChunks()
+                        : cfg.initialPlanRadiusChunks();
+                return Math.max(1, radiusChunks) * 16;
+            }
         } catch (Throwable t) {
             return 256 * 16;
         }

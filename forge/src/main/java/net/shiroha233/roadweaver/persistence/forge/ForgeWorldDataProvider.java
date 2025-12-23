@@ -34,12 +34,14 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
     public static class Data extends SavedData {
         private Records.StructureLocationData structureLocations = new Records.StructureLocationData(new ArrayList<>());
         private List<Records.StructureConnection> connections = new ArrayList<>();
+        private List<Records.StructureConnection> highwayConnections = new ArrayList<>();
         private Set<Long> plannedTileKeys = new HashSet<>();
         private Map<Long, Long> plannedTileCenters = new HashMap<>();
 
         // NBT 字段名
         private static final String KEY_LOCATIONS = "structure_locations";
         private static final String KEY_CONNECTIONS = "connections";
+        private static final String KEY_HIGHWAY_CONNECTIONS = "highway_connections";
         private static final String KEY_PLANNED_TILES = "planned_tiles";
         private static final String KEY_PLANNED_TILE_CENTERS = "planned_tile_centers";
 
@@ -61,6 +63,13 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
                 Tag conTag = tag.get(KEY_CONNECTIONS);
                 DataResult<List<Records.StructureConnection>> res = Codec.list(Records.StructureConnection.CODEC).parse(new Dynamic<>(ops, conTag));
                 res.result().ifPresent(val -> data.connections = val);
+            }
+
+            // Highway 结构连接（从 ListTag 读取）
+            if (tag.contains(KEY_HIGHWAY_CONNECTIONS)) {
+                Tag conTag = tag.get(KEY_HIGHWAY_CONNECTIONS);
+                DataResult<List<Records.StructureConnection>> res = Codec.list(Records.StructureConnection.CODEC).parse(new Dynamic<>(ops, conTag));
+                res.result().ifPresent(val -> data.highwayConnections = val);
             }
 
             if (tag.contains(KEY_PLANNED_TILES)) {
@@ -93,6 +102,11 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
                     .result()
                     .ifPresent(nbt -> tag.put(KEY_CONNECTIONS, Objects.requireNonNull(nbt)));
 
+            // Highway 结构连接（List 编码为 ListTag）
+            Codec.list(Records.StructureConnection.CODEC).encodeStart(ops, highwayConnections)
+                    .result()
+                    .ifPresent(nbt -> tag.put(KEY_HIGHWAY_CONNECTIONS, Objects.requireNonNull(nbt)));
+
             Codec.list(Codec.LONG).encodeStart(ops, new java.util.ArrayList<>(plannedTileKeys))
                     .result()
                     .ifPresent(nbt -> tag.put(KEY_PLANNED_TILES, Objects.requireNonNull(nbt)));
@@ -120,6 +134,15 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
 
         public void setConnections(List<Records.StructureConnection> connections) {
             this.connections = Objects.requireNonNullElseGet(connections, ArrayList::new);
+            setDirty();
+        }
+
+        public List<Records.StructureConnection> getHighwayConnections() {
+            return highwayConnections;
+        }
+
+        public void setHighwayConnections(List<Records.StructureConnection> connections) {
+            this.highwayConnections = Objects.requireNonNullElseGet(connections, ArrayList::new);
             setDirty();
         }
 
@@ -164,6 +187,16 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
     @Override
     public void setStructureConnections(ServerLevel level, List<Records.StructureConnection> connections) {
         getOrCreate(level).setConnections(connections);
+    }
+
+    @Override
+    public List<Records.StructureConnection> getHighwayConnections(ServerLevel level) {
+        return getOrCreate(level).getHighwayConnections();
+    }
+
+    @Override
+    public void setHighwayConnections(ServerLevel level, List<Records.StructureConnection> connections) {
+        getOrCreate(level).setHighwayConnections(connections);
     }
 
     @Override

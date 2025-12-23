@@ -35,6 +35,16 @@ public class FabricWorldDataProvider extends WorldDataProvider {
     }
 
     @Override
+    public List<Records.StructureConnection> getHighwayConnections(ServerLevel level) {
+        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.HIGHWAY_CONNECTIONS, ArrayList::new);
+    }
+
+    @Override
+    public void setHighwayConnections(ServerLevel level, List<Records.StructureConnection> connections) {
+        ((AttachmentTarget) level).setAttached(WorldDataAttachment.HIGHWAY_CONNECTIONS, connections);
+    }
+
+    @Override
     public Set<Long> getPlannedTileKeys(ServerLevel level) {
         return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.PLANNED_TILE_KEYS, java.util.HashSet::new);
     }

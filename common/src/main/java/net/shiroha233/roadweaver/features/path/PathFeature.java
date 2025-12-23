@@ -73,6 +73,9 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                                                ModConfig cfg,
                                                int averagingRadius) {
         int roadType = data.roadType();
+        if (roadType != 0 && roadType != 1) {
+            return;
+        }
         int roadWidth = Math.max(1, data.width());
         List<BlockState> materials = data.materials();
         List<BlockState> slabMaterials = data.slabMaterials();

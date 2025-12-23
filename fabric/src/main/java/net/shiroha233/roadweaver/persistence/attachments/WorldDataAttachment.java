@@ -20,6 +20,11 @@ public class WorldDataAttachment {
             Codec.list(Records.StructureConnection.CODEC)
     );
 
+    public static final AttachmentType<List<Records.StructureConnection>> HIGHWAY_CONNECTIONS = AttachmentRegistry.createPersistent(
+            new ResourceLocation(RoadWeaver.MOD_ID, "highway_connections"),
+            Codec.list(Records.StructureConnection.CODEC)
+    );
+
 
     public static final AttachmentType<Records.StructureLocationData> STRUCTURE_LOCATIONS = AttachmentRegistry.createPersistent(
             new ResourceLocation(RoadWeaver.MOD_ID, "village_locations"),

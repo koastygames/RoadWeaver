@@ -28,6 +28,11 @@ public abstract class WorldDataProvider {
     // 结构连接（道路规划）
     public abstract List<Records.StructureConnection> getStructureConnections(ServerLevel level);
     public abstract void setStructureConnections(ServerLevel level, List<Records.StructureConnection> connections);
+
+    // Highway 结构连接（公路规划）
+    // 说明：Highway 使用独立列表存储，避免与 Path 共用同一连接队列导致状态/调度互相污染。
+    public abstract List<Records.StructureConnection> getHighwayConnections(ServerLevel level);
+    public abstract void setHighwayConnections(ServerLevel level, List<Records.StructureConnection> connections);
     
     // 规划覆盖：tile 键集合与中心点映射
     public abstract Set<Long> getPlannedTileKeys(ServerLevel level);

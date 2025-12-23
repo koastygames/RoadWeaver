@@ -6,11 +6,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.shiroha233.roadweaver.config.RoadGenerationConfig;
+import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
+import net.shiroha233.roadweaver.features.highway.generation.HighwayRoad;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
+import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.config.ConfigService;
 
@@ -28,6 +31,8 @@ public final class RoadGenerationService {
     // 生命周期由中央管理器管理
     private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<Records.StructureConnection>> QUEUES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> PROCESSED = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<Records.StructureConnection>> HIGHWAY_QUEUES = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> HIGHWAY_PROCESSED = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING_COUNT = new ConcurrentHashMap<>();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
 
@@ -38,13 +43,16 @@ public final class RoadGenerationService {
         ALL_RUNNING.clear();
         QUEUES.clear();
         PROCESSED.clear();
+        HIGHWAY_QUEUES.clear();
+        HIGHWAY_PROCESSED.clear();
         RUNNING_COUNT.clear();
         RoadPlanningService.resetAll();
+        HighwayCellPathPlanningService.resetAll();
     }
 
     /**
      * 执行单个生成任务（无副作用，不更新全局状态）。
-     * 
+     *
      * @return true if success, false if failed
      */
     public static boolean generateTask(ServerLevel level, Records.StructureConnection conn) {
@@ -73,12 +81,84 @@ public final class RoadGenerationService {
         }
     }
 
+    private static void safeGenerateHighway(ServerLevel level, Records.StructureConnection conn, long epoch) {
+        try {
+            if (Thread.currentThread().isInterrupted())
+                return;
+            if (!net.shiroha233.roadweaver.runtime.ThreadPoolManager.isEpoch(epoch))
+                return;
+
+            boolean ok = generateHighwayTask(level, conn);
+            Records.ConnectionStatus st = ok ? Records.ConnectionStatus.COMPLETED : Records.ConnectionStatus.FAILED;
+            var server = level.getServer();
+            if (server != null) {
+                server.execute(() -> {
+                    if (!net.shiroha233.roadweaver.runtime.ThreadPoolManager.isEpoch(epoch))
+                        return;
+                    updateHighwayStatus(level, conn, st);
+                    // 重要：无论成功或失败，该边都算“已完成”，用于触发网格单元格（四边）完成检测。
+                    HighwayCellPathPlanningService.onHighwayEdgeFinalized(level, new Records.StructureConnection(conn.from(), conn.to(), st));
+                    removeHighwayProcessed(level, conn);
+                });
+            } else {
+                updateHighwayStatus(level, conn, st);
+                HighwayCellPathPlanningService.onHighwayEdgeFinalized(level, new Records.StructureConnection(conn.from(), conn.to(), st));
+                removeHighwayProcessed(level, conn);
+            }
+        } catch (Throwable t) {
+            updateHighwayStatus(level, conn, Records.ConnectionStatus.FAILED);
+            HighwayCellPathPlanningService.onHighwayEdgeFinalized(level,
+                    new Records.StructureConnection(conn.from(), conn.to(), Records.ConnectionStatus.FAILED));
+            removeHighwayProcessed(level, conn);
+        }
+    }
+
+    public static boolean generateHighwayTask(ServerLevel level, Records.StructureConnection conn) {
+        if (level == null || conn == null)
+            return false;
+        try {
+            if (Thread.currentThread().isInterrupted())
+                return false;
+            var cfg = ConfigService.get();
+            HighwayGenerationConfig genCfg = HighwayGenerationConfig.from(cfg);
+            return new HighwayRoad(level, conn, genCfg).generateRoad(cfg.highwayAStarMaxSteps());
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static void updateHighwayStatus(ServerLevel level, Records.StructureConnection conn, Records.ConnectionStatus status) {
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> origin = provider.getHighwayConnections(level);
+        List<Records.StructureConnection> all = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
+        boolean found = false;
+        for (int i = 0; i < all.size(); i++) {
+            Records.StructureConnection c = all.get(i);
+            if (PlanningUtils.sameEdge(c, conn)) {
+                all.set(i, new Records.StructureConnection(c.from(), c.to(), status));
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            all.add(new Records.StructureConnection(conn.from(), conn.to(), status));
+        }
+        provider.setHighwayConnections(level, all);
+    }
+
+    private static void removeHighwayProcessed(ServerLevel level, Records.StructureConnection conn) {
+        long k = PlanningUtils.edgeKey(conn.from(), conn.to());
+        ConcurrentHashMap<Long, Boolean> proc = HIGHWAY_PROCESSED.get(level);
+        if (proc != null)
+            proc.remove(k);
+    }
+
     /**
      * 同步生成，用于世界生成前的阻塞阶段（单线程）。
-     * 
+     *
      * @deprecated Use
-     *             {@link #generateTask(ServerLevel, Records.StructureConnection)}
-     *             managed by InitialGenManager instead.
+     * {@link #generateTask(ServerLevel, Records.StructureConnection)}
+     * managed by InitialGenManager instead.
      */
     @Deprecated
     public static void generateInline(ServerLevel level, Records.StructureConnection conn) {
@@ -93,7 +173,7 @@ public final class RoadGenerationService {
             List<Records.StructureConnection> all0 = origin0 != null ? new ArrayList<>(origin0) : new ArrayList<>();
             for (int i = 0; i < all0.size(); i++) {
                 Records.StructureConnection c = all0.get(i);
-                if (sameEdge(c, conn)) {
+                if (PlanningUtils.sameEdge(c, conn)) {
                     all0.set(i, new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.GENERATING));
                 }
             }
@@ -112,7 +192,7 @@ public final class RoadGenerationService {
                 List<Records.StructureConnection> all = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
                 for (int i = 0; i < all.size(); i++) {
                     Records.StructureConnection c = all.get(i);
-                    if (sameEdge(c, conn)) {
+                    if (PlanningUtils.sameEdge(c, conn)) {
                         all.set(i,
                                 new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.COMPLETED));
                     }
@@ -131,7 +211,7 @@ public final class RoadGenerationService {
             List<Records.StructureConnection> all = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
             for (int i = 0; i < all.size(); i++) {
                 Records.StructureConnection c = all.get(i);
-                if (sameEdge(c, conn)) {
+                if (PlanningUtils.sameEdge(c, conn)) {
                     all.set(i, new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.FAILED));
                 }
             }
@@ -148,15 +228,20 @@ public final class RoadGenerationService {
         ALL_RUNNING.clear();
         QUEUES.clear();
         PROCESSED.clear();
+        HIGHWAY_QUEUES.clear();
+        HIGHWAY_PROCESSED.clear();
         RUNNING_COUNT.clear();
     }
 
     public static void tick(ServerLevel level) {
         refreshQueue(level);
+        refreshHighwayQueue(level);
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
         ConcurrentLinkedQueue<Records.StructureConnection> q = QUEUES.computeIfAbsent(level,
                 l -> new ConcurrentLinkedQueue<>());
-        if (q.isEmpty())
+        ConcurrentLinkedQueue<Records.StructureConnection> hq = HIGHWAY_QUEUES.computeIfAbsent(level,
+                l -> new ConcurrentLinkedQueue<>());
+        if (q.isEmpty() && hq.isEmpty())
             return;
         int limit = Math.max(1, ConfigService.get().maxConcurrentGenerations());
         AtomicInteger cnt = RUNNING_COUNT.computeIfAbsent(level, l -> new AtomicInteger(0));
@@ -165,18 +250,28 @@ public final class RoadGenerationService {
             if (p != null && p.serverLevel() == level)
                 players.add(p);
         }
-        int sample = Math.max(64, limit * 8);
+        boolean pickHighway = false;
         while (cnt.get() < limit) {
-            Records.StructureConnection conn = pollNearest(q, players, sample);
-            if (conn == null)
+            if (q.isEmpty() && hq.isEmpty()) {
                 break;
-            {
+            }
+
+            boolean isHighway = !hq.isEmpty() && (q.isEmpty() || pickHighway);
+            pickHighway = !pickHighway;
+
+            Records.StructureConnection conn = isHighway ? pollNearest(hq, players) : pollNearest(q, players);
+            if (conn == null) {
+                continue;
+            }
+            if (isHighway) {
+                updateHighwayStatus(level, conn, Records.ConnectionStatus.GENERATING);
+            } else {
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 List<Records.StructureConnection> origin = provider.getStructureConnections(level);
                 List<Records.StructureConnection> all = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
                 for (int i = 0; i < all.size(); i++) {
                     Records.StructureConnection c = all.get(i);
-                    if (sameEdge(c, conn)) {
+                    if (PlanningUtils.sameEdge(c, conn)) {
                         all.set(i,
                                 new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.GENERATING));
                     }
@@ -184,7 +279,9 @@ public final class RoadGenerationService {
                 if (!all.isEmpty())
                     provider.setStructureConnections(level, all);
             }
+
             final Records.StructureConnection task = conn;
+            final boolean highwayTask = isHighway;
             cnt.incrementAndGet();
             long epoch = net.shiroha233.roadweaver.runtime.ThreadPoolManager.currentEpoch();
             Future<?> fut = net.shiroha233.roadweaver.runtime.ThreadPoolManager.generationExecutor().submit(() -> {
@@ -193,7 +290,11 @@ public final class RoadGenerationService {
                         return;
                     if (!net.shiroha233.roadweaver.runtime.ThreadPoolManager.isEpoch(epoch))
                         return;
-                    safeGenerate(level, task, epoch);
+                    if (highwayTask) {
+                        safeGenerateHighway(level, task, epoch);
+                    } else {
+                        safeGenerate(level, task, epoch);
+                    }
                 } finally {
                     cnt.decrementAndGet();
                 }
@@ -210,6 +311,24 @@ public final class RoadGenerationService {
         ConcurrentLinkedQueue<Records.StructureConnection> q = QUEUES.computeIfAbsent(level,
                 l -> new ConcurrentLinkedQueue<>());
         ConcurrentHashMap<Long, Boolean> proc = PROCESSED.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        for (Records.StructureConnection c : list) {
+            long key = PlanningUtils.edgeKey(c.from(), c.to());
+            if (proc.putIfAbsent(key, Boolean.TRUE) != null)
+                continue;
+            if (c.status() != Records.ConnectionStatus.PLANNED && c.status() != Records.ConnectionStatus.GENERATING)
+                continue;
+            q.add(c);
+        }
+    }
+
+    private static void refreshHighwayQueue(ServerLevel level) {
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> list = provider.getHighwayConnections(level);
+        if (list == null)
+            return;
+        ConcurrentLinkedQueue<Records.StructureConnection> q = HIGHWAY_QUEUES.computeIfAbsent(level,
+                l -> new ConcurrentLinkedQueue<>());
+        ConcurrentHashMap<Long, Boolean> proc = HIGHWAY_PROCESSED.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
         for (Records.StructureConnection c : list) {
             long key = PlanningUtils.edgeKey(c.from(), c.to());
             if (proc.putIfAbsent(key, Boolean.TRUE) != null)
@@ -245,7 +364,7 @@ public final class RoadGenerationService {
                             : new ArrayList<>();
                     for (int i = 0; i < all.size(); i++) {
                         Records.StructureConnection c = all.get(i);
-                        if (sameEdge(c, conn)) {
+                        if (PlanningUtils.sameEdge(c, conn)) {
                             all.set(i, new Records.StructureConnection(c.from(), c.to(),
                                     Records.ConnectionStatus.COMPLETED));
                         }
@@ -263,7 +382,7 @@ public final class RoadGenerationService {
                 List<Records.StructureConnection> all = origin2 != null ? new ArrayList<>(origin2) : new ArrayList<>();
                 for (int i = 0; i < all.size(); i++) {
                     Records.StructureConnection c = all.get(i);
-                    if (sameEdge(c, conn)) {
+                    if (PlanningUtils.sameEdge(c, conn)) {
                         all.set(i,
                                 new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.COMPLETED));
                     }
@@ -286,7 +405,7 @@ public final class RoadGenerationService {
                             : new ArrayList<>();
                     for (int i = 0; i < all.size(); i++) {
                         Records.StructureConnection c = all.get(i);
-                        if (sameEdge(c, conn)) {
+                        if (PlanningUtils.sameEdge(c, conn)) {
                             all.set(i,
                                     new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.FAILED));
                         }
@@ -304,7 +423,7 @@ public final class RoadGenerationService {
                 List<Records.StructureConnection> all = origin2 != null ? new ArrayList<>(origin2) : new ArrayList<>();
                 for (int i = 0; i < all.size(); i++) {
                     Records.StructureConnection c = all.get(i);
-                    if (sameEdge(c, conn)) {
+                    if (PlanningUtils.sameEdge(c, conn)) {
                         all.set(i, new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.FAILED));
                     }
                 }
@@ -319,12 +438,6 @@ public final class RoadGenerationService {
 
     private static PathFeatureConfig defaultConfig() {
         return new PathFeatureConfig();
-    }
-
-    private static boolean sameEdge(Records.StructureConnection a, Records.StructureConnection b) {
-        BlockPos af = a.from(), at = a.to();
-        BlockPos bf = b.from(), bt = b.to();
-        return (af.equals(bf) && at.equals(bt)) || (af.equals(bt) && at.equals(bf));
     }
 
     private static long dist2XZ(BlockPos a, BlockPos b) {
@@ -356,8 +469,7 @@ public final class RoadGenerationService {
     }
 
     private static Records.StructureConnection pollNearest(ConcurrentLinkedQueue<Records.StructureConnection> q,
-            java.util.List<ServerPlayer> players,
-            int sample) {
+            java.util.List<ServerPlayer> players) {
         if (q.isEmpty())
             return null;
         if (players == null || players.isEmpty())

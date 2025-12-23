@@ -3,10 +3,14 @@ package net.shiroha233.roadweaver.planning.forge;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
+import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
@@ -42,7 +46,9 @@ public final class ServerPlanningHooks {
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
-            RoadPlanningService.initialPlanAsync(level);
+            if (!ConfigService.get().highwayEnabled()) {
+                RoadPlanningService.initialPlanAsync(level);
+            }
             return;
         }
         List<Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
@@ -51,6 +57,7 @@ public final class ServerPlanningHooks {
             InitialGenManager.blockUntilDone(level);
         } else {
             RoadGenerationService.onServerStarted();
+            // highway 模式：初次加载由 planAroundPlayer 在 tick 中按玩家所在 1x1 cell 触发。
         }
     }
 
@@ -59,18 +66,30 @@ public final class ServerPlanningHooks {
         var server = event.getServer();
         if (server == null) return;
         if ((tick++ % 20) == 0) {
+            boolean highwayMode = ConfigService.get().highwayEnabled();
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                RoadPlanningService.planAroundPlayer(p);
+                if (highwayMode) {
+                    HighwayPlanningService.planAroundPlayer(p);
+                } else {
+                    RoadPlanningService.planAroundPlayer(p);
+                }
             }
         }
         ServerLevel level = server.getLevel(Objects.requireNonNull(Level.OVERWORLD));
         if (level != null) {
             RoadGenerationService.tick(level);
+            if (ConfigService.get().highwayEnabled()) {
+                HighwayCellPathPlanningService.tick(level);
+            }
+            SignTextService.tick(level);
         }
     }
 
     private static void onServerStopping(ServerStoppingEvent event) {
         RoadGenerationService.onServerStopping();
+        HighwayPlanningService.resetAll();
+        HighwayCellPathPlanningService.resetAll();
+        SignTextService.clearPending();
         CacheManager.onServerStopping(event.getServer().getAllLevels()); // 统一清理所有缓存
         ComputeService.shutdownNow();
     }

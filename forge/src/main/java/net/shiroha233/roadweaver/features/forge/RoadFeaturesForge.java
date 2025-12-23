@@ -6,6 +6,8 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.features.highway.HighwayFeature;
+import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.PathFeature;
 
@@ -18,6 +20,11 @@ public final class RoadFeaturesForge {
     public static final RegistryObject<Feature<PathFeatureConfig>> ROAD_FEATURE = FEATURES.register(
             "road_feature",
             () -> new PathFeature(PathFeatureConfig.CODEC)
+    );
+
+    public static final RegistryObject<Feature<HighwayFeatureConfig>> HIGHWAY_FEATURE = FEATURES.register(
+            "highway_feature",
+            () -> new HighwayFeature(HighwayFeatureConfig.CODEC)
     );
 
     public static void register(IEventBus modBus) {

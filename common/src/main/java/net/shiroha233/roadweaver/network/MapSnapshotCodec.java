@@ -65,6 +65,7 @@ public final class MapSnapshotCodec {
             for (int j = 0; j < pc; j++) poly.add(buf.readBlockPos());
             roads.add(poly);
         }
+
         return new MapSnapshot(structures, conns, infos, roads);
     }
 }

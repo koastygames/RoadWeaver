@@ -1,10 +1,14 @@
 package net.shiroha233.roadweaver.generation;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
+import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
@@ -73,13 +77,24 @@ public final class InitialGenManager {
             SpawnCabinPlacer.ensurePlaced(level);
         }
 
-        // 进行初始规划：写入结构连接（PLANNED）
-        RoadPlanningService.initialPlan(level);
+        // 进行初始规划：
+        // - highwayEnabled=true：规划 Highway 网格边；Path 规划将延后到 Highway 网格单元格四边终态后再做
+        // - highwayEnabled=false：保持旧行为，直接使用 RoadPlanningService 规划结构点路网
+        if (ConfigService.get().highwayEnabled()) {
+            HighwayPlanningService.initialPlan(level);
+        } else {
+            RoadPlanningService.initialPlan(level);
+        }
 
         // 统计总数
         WorldDataProvider provider = WorldDataProvider.getInstance();
-        List<Records.StructureConnection> conns = provider.getStructureConnections(level);
-        total.set((conns == null) ? 0 : conns.size());
+        if (ConfigService.get().highwayEnabled()) {
+            List<Records.StructureConnection> highways = provider.getHighwayConnections(level);
+            total.set((highways == null ? 0 : highways.size()));
+        } else {
+            List<Records.StructureConnection> conns = provider.getStructureConnections(level);
+            total.set((conns == null ? 0 : conns.size()));
+        }
         // 初始化一次完成度
         update(level);
     }
@@ -92,19 +107,115 @@ public final class InitialGenManager {
     public static void blockUntilDone(ServerLevel level) {
         if (!active)
             return;
-        WorldDataProvider provider = WorldDataProvider.getInstance();
-        List<Records.StructureConnection> list = provider.getStructureConnections(level);
 
-        if (list != null && !list.isEmpty()) {
-            // 筛选出需要生成的任务
-            List<Records.StructureConnection> tasks = new java.util.ArrayList<>();
-            for (Records.StructureConnection c : list) {
+        if (!ConfigService.get().highwayEnabled()) {
+            // 旧模式：仅生成 structureConnections（path）
+            WorldDataProvider provider2 = WorldDataProvider.getInstance();
+            List<Records.StructureConnection> list2 = provider2.getStructureConnections(level);
+            if (list2 == null || list2.isEmpty()) {
+                active = false;
+                return;
+            }
+
+            List<Records.StructureConnection> roadTasks = new java.util.ArrayList<>();
+            for (Records.StructureConnection c : list2) {
                 if (c.status() == Records.ConnectionStatus.PLANNED) {
-                    tasks.add(c);
+                    roadTasks.add(c);
                 }
             }
 
-            if (!tasks.isEmpty()) {
+            total.set(roadTasks.size());
+
+            if (!roadTasks.isEmpty()) {
+                int nThreads = net.shiroha233.roadweaver.config.ConfigService.get().initialGenerationThreads();
+                java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
+                        nThreads,
+                        new java.util.concurrent.ThreadFactory() {
+                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(1);
+
+                            @Override
+                            public Thread newThread(Runnable r) {
+                                Thread t = new Thread(r, "RoadWeaver-InitialGen-Path-" + count.getAndIncrement());
+                                t.setDaemon(true);
+                                return t;
+                            }
+                        });
+
+                record PathGenResult(long key, boolean success) {
+                }
+                List<java.util.concurrent.Future<PathGenResult>> futures = new java.util.ArrayList<>();
+                for (Records.StructureConnection task : roadTasks) {
+                    futures.add(executor.submit(() -> {
+                        generating.incrementAndGet();
+                        boolean success = RoadGenerationService.generateTask(level, task);
+                        generating.decrementAndGet();
+                        if (success) done.incrementAndGet();
+                        else failed.incrementAndGet();
+                        return new PathGenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
+                    }));
+                }
+
+                java.util.Map<Long, Boolean> roadResults = new java.util.HashMap<>();
+                for (java.util.concurrent.Future<PathGenResult> f : futures) {
+                    try {
+                        PathGenResult r = f.get();
+                        if (r != null) roadResults.put(r.key(), r.success());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+
+                List<Records.StructureConnection> currentList = provider2.getStructureConnections(level);
+                if (currentList != null && !roadResults.isEmpty()) {
+                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentList);
+                    boolean changed = false;
+                    for (int i = 0; i < updatedList.size(); i++) {
+                        Records.StructureConnection original = updatedList.get(i);
+                        long k = PlanningUtils.edgeKey(original.from(), original.to());
+                        Boolean ok = roadResults.get(k);
+                        if (ok == null) continue;
+                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED : Records.ConnectionStatus.FAILED;
+                        updatedList.set(i, new Records.StructureConnection(original.from(), original.to(), newStatus));
+                        changed = true;
+                    }
+                    if (changed) {
+                        provider2.setStructureConnections(level, updatedList);
+                    }
+                }
+            }
+
+            active = false;
+            return;
+        }
+
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> highwayList = provider.getHighwayConnections(level);
+
+        int plannedHighwayTasks = 0;
+
+        if (highwayList != null && !highwayList.isEmpty()) {
+            // 1) 先生成 Highway（公路），保证每段公路是一个整体
+            List<Records.StructureConnection> highwayTasks = new java.util.ArrayList<>();
+            for (Records.StructureConnection c : highwayList) {
+                if (c.status() == Records.ConnectionStatus.PLANNED) {
+                    highwayTasks.add(c);
+                }
+            }
+
+            plannedHighwayTasks = highwayTasks.size();
+            total.set(plannedHighwayTasks);
+
+            if (!highwayTasks.isEmpty()) {
                 // 提交任务到线程池 - 使用配置的初始生成线程数创建专用线程池
                 int nThreads = net.shiroha233.roadweaver.config.ConfigService.get().initialGenerationThreads();
                 java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
@@ -120,14 +231,14 @@ public final class InitialGenManager {
                                 return t;
                             }
                         });
-                List<java.util.concurrent.Future<?>> futures = new java.util.ArrayList<>();
+                record HighwayGenResult(long key, boolean success) {}
+                List<java.util.concurrent.Future<HighwayGenResult>> futures = new java.util.ArrayList<>();
 
-                for (Records.StructureConnection task : tasks) {
+                for (Records.StructureConnection task : highwayTasks) {
                     futures.add(executor.submit(() -> {
-                        // 更新状态为生成中
                         generating.incrementAndGet();
 
-                        boolean success = RoadGenerationService.generateTask(level, task);
+                        boolean success = RoadGenerationService.generateHighwayTask(level, task);
 
                         generating.decrementAndGet();
                         if (success) {
@@ -135,18 +246,17 @@ public final class InitialGenManager {
                         } else {
                             failed.incrementAndGet();
                         }
-                        return new java.util.AbstractMap.SimpleEntry<>(task, success);
+                        return new HighwayGenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
                     }));
                 }
 
                 // 等待所有任务完成
                 // 收集结果用于批量更新
-                java.util.Map<Records.StructureConnection, Boolean> results = new java.util.HashMap<>();
-                for (java.util.concurrent.Future<?> f : futures) {
+                java.util.Map<Long, Boolean> highwayResults = new java.util.HashMap<>();
+                for (java.util.concurrent.Future<HighwayGenResult> f : futures) {
                     try {
-                        @SuppressWarnings("unchecked")
-                        var entry = (java.util.Map.Entry<Records.StructureConnection, Boolean>) f.get();
-                        results.put(entry.getKey(), entry.getValue());
+                        HighwayGenResult r = f.get();
+                        if (r != null) highwayResults.put(r.key(), r.success());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -163,43 +273,142 @@ public final class InitialGenManager {
                     Thread.currentThread().interrupt();
                 }
 
-                // 批量更新 WorldDataProvider
-                List<Records.StructureConnection> currentList = provider.getStructureConnections(level);
-                if (currentList != null) {
-                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentList);
+                List<Records.StructureConnection> currentHighways = provider.getHighwayConnections(level);
+                if (currentHighways != null && !highwayResults.isEmpty()) {
+                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentHighways);
                     boolean changed = false;
                     for (int i = 0; i < updatedList.size(); i++) {
                         Records.StructureConnection original = updatedList.get(i);
-                        for (java.util.Map.Entry<Records.StructureConnection, Boolean> entry : results.entrySet()) {
-                            Records.StructureConnection task = entry.getKey();
-                            if (sameEdge(original, task)) {
-                                Records.ConnectionStatus newStatus = entry.getValue()
-                                        ? Records.ConnectionStatus.COMPLETED
-                                        : Records.ConnectionStatus.FAILED;
-                                updatedList.set(i,
-                                        new Records.StructureConnection(original.from(), original.to(), newStatus));
-                                changed = true;
-                                break;
-                            }
-                        }
+                        long k = PlanningUtils.edgeKey(original.from(), original.to());
+                        Boolean ok = highwayResults.get(k);
+                        if (ok == null)
+                            continue;
+                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED
+                                : Records.ConnectionStatus.FAILED;
+                        updatedList.set(i, new Records.StructureConnection(original.from(), original.to(), newStatus));
+                        changed = true;
                     }
                     if (changed) {
-                        provider.setStructureConnections(level, updatedList);
+                        provider.setHighwayConnections(level, updatedList);
                     }
                 }
             }
         }
+
+        // 2) Highway 网格单元格四边进入终态后，再触发该单元格内部的结构点路网规划，并添加单入口接入 Highway。
+        {
+            // 初始生成阶段与“初次加载”保持一致：只触发玩家（或出生点）所在的 1x1 cell。
+            // 原理：避免在大半径矩形内遍历大量 cell（绝大多数还未规划/生成）。
+            var cfg = ConfigService.get();
+            int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
+            BlockPos centerPos = level.getSharedSpawnPos();
+            var server = level.getServer();
+            if (server != null) {
+                var p = server.getPlayerList().getPlayers().stream()
+                        .filter(sp -> sp != null && sp.serverLevel() == level)
+                        .findFirst()
+                        .orElse(null);
+                if (p != null) {
+                    centerPos = p.blockPosition();
+                }
+            }
+            int cellGx = Math.floorDiv(centerPos.getX(), gridBlocks);
+            int cellGz = Math.floorDiv(centerPos.getZ(), gridBlocks);
+            int minX = cellGx * gridBlocks;
+            int maxX = (cellGx + 1) * gridBlocks;
+            int minZ = cellGz * gridBlocks;
+            int maxZ = (cellGz + 1) * gridBlocks;
+            HighwayCellPathPlanningService.planCompletedCellsInRect(level, minX, minZ, maxX, maxZ);
+        }
+
+        // 3) 生成格内路网（由上一步写入 WorldDataProvider.structureConnections 的 PLANNED 任务）
+        WorldDataProvider provider2 = WorldDataProvider.getInstance();
+        List<Records.StructureConnection> list2 = provider2.getStructureConnections(level);
+        if (list2 != null && !list2.isEmpty()) {
+            // 筛选出需要生成的任务
+            List<Records.StructureConnection> roadTasks = new java.util.ArrayList<>();
+            for (Records.StructureConnection c : list2) {
+                if (c.status() == Records.ConnectionStatus.PLANNED) {
+                    roadTasks.add(c);
+                }
+            }
+
+            // 将总任务数更新为 Highway + Path 两阶段总和（避免进度条在 Path 阶段超过 100%）
+            total.set(plannedHighwayTasks + roadTasks.size());
+
+            if (!roadTasks.isEmpty()) {
+                int nThreads = net.shiroha233.roadweaver.config.ConfigService.get().initialGenerationThreads();
+                java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
+                        nThreads,
+                        new java.util.concurrent.ThreadFactory() {
+                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(1);
+
+                            @Override
+                            public Thread newThread(Runnable r) {
+                                Thread t = new Thread(r, "RoadWeaver-InitialGen-Path-" + count.getAndIncrement());
+                                t.setDaemon(true);
+                                return t;
+                            }
+                        });
+
+                record PathGenResult(long key, boolean success) {}
+                List<java.util.concurrent.Future<PathGenResult>> futures = new java.util.ArrayList<>();
+                for (Records.StructureConnection task : roadTasks) {
+                    futures.add(executor.submit(() -> {
+                        generating.incrementAndGet();
+                        boolean success = RoadGenerationService.generateTask(level, task);
+                        generating.decrementAndGet();
+                        if (success) done.incrementAndGet(); else failed.incrementAndGet();
+                        return new PathGenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
+                    }));
+                }
+
+                java.util.Map<Long, Boolean> roadResults = new java.util.HashMap<>();
+                for (java.util.concurrent.Future<PathGenResult> f : futures) {
+                    try {
+                        PathGenResult r = f.get();
+                        if (r != null) roadResults.put(r.key(), r.success());
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+
+                // 批量更新 Path 连接状态
+                List<Records.StructureConnection> currentList = provider2.getStructureConnections(level);
+                if (currentList != null && !roadResults.isEmpty()) {
+                    List<Records.StructureConnection> updatedList = new java.util.ArrayList<>(currentList);
+                    boolean changed = false;
+                    for (int i = 0; i < updatedList.size(); i++) {
+                        Records.StructureConnection original = updatedList.get(i);
+                        long k = PlanningUtils.edgeKey(original.from(), original.to());
+                        Boolean ok = roadResults.get(k);
+                        if (ok == null) continue;
+                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED : Records.ConnectionStatus.FAILED;
+                        updatedList.set(i, new Records.StructureConnection(original.from(), original.to(), newStatus));
+                        changed = true;
+                    }
+                    if (changed) {
+                        provider2.setStructureConnections(level, updatedList);
+                    }
+                }
+            }
+        }
+
         // 确保道路数据刷新到存储，以便树木生成时可以查询
         net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage.flushAll(level);
         // 清除道路位置查询缓存，避免过时缓存导致树木阻止失效
         net.shiroha233.roadweaver.persistence.RoadPositionQuery.clearCache(level);
         active = false;
-    }
-
-    private static boolean sameEdge(Records.StructureConnection a, Records.StructureConnection b) {
-        net.minecraft.core.BlockPos af = a.from(), at = a.to();
-        net.minecraft.core.BlockPos bf = b.from(), bt = b.to();
-        return (af.equals(bf) && at.equals(bt)) || (af.equals(bt) && at.equals(bf));
     }
 
     /**
@@ -215,7 +424,8 @@ public final class InitialGenManager {
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<Records.StructureConnection> conns = provider.getStructureConnections(level);
-        if (conns == null) {
+        List<Records.StructureConnection> highways = provider.getHighwayConnections(level);
+        if ((conns == null || conns.isEmpty()) && (highways == null || highways.isEmpty())) {
             total.set(0);
 
             generating.set(0);
@@ -224,16 +434,32 @@ public final class InitialGenManager {
             return;
         }
         int g = 0, c = 0, f = 0;
-        for (Records.StructureConnection sc : conns) {
-            Records.ConnectionStatus s = sc.status();
-            if (s == Records.ConnectionStatus.GENERATING)
-                g++;
-            else if (s == Records.ConnectionStatus.COMPLETED)
-                c++;
-            else if (s == Records.ConnectionStatus.FAILED)
-                f++;
+        int t = 0;
+        if (conns != null) {
+            t += conns.size();
+            for (Records.StructureConnection sc : conns) {
+                Records.ConnectionStatus s = sc.status();
+                if (s == Records.ConnectionStatus.GENERATING)
+                    g++;
+                else if (s == Records.ConnectionStatus.COMPLETED)
+                    c++;
+                else if (s == Records.ConnectionStatus.FAILED)
+                    f++;
+            }
         }
-        total.set(conns.size());
+        if (highways != null) {
+            t += highways.size();
+            for (Records.StructureConnection sc : highways) {
+                Records.ConnectionStatus s = sc.status();
+                if (s == Records.ConnectionStatus.GENERATING)
+                    g++;
+                else if (s == Records.ConnectionStatus.COMPLETED)
+                    c++;
+                else if (s == Records.ConnectionStatus.FAILED)
+                    f++;
+            }
+        }
+        total.set(t);
 
         generating.set(g);
         done.set(c);

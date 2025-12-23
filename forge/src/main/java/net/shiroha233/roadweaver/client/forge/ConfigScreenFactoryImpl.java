@@ -131,6 +131,100 @@ public class ConfigScreenFactoryImpl {
                                                 .setSaveConsumer(v -> { if (v != null) conf.setPlanningAlgorithm(v); })
                                                 .build());
 
+                ConfigCategory highway = builder.getOrCreateCategory(
+                                Component.translatable("config.roadweaver.category.highway"));
+
+                highway.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_enabled"),
+                                                conf.highwayEnabled())
+                                                .setDefaultValue(defaultConf.highwayEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayEnabled(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_auto_plan_enabled"),
+                                                conf.highwayAutoPlanEnabled())
+                                                .setDefaultValue(defaultConf.highwayAutoPlanEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_auto_plan_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayAutoPlanEnabled(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.highway_grid_blocks"),
+                                                conf.highwayGridBlocks())
+                                                .setDefaultValue(defaultConf.highwayGridBlocks())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_grid_blocks.tooltip"))
+                                                .setMin(128)
+                                                .setMax(20000)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayGridBlocks(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_dynamic_plan_enabled"),
+                                                conf.highwayDynamicPlanEnabled())
+                                                .setDefaultValue(defaultConf.highwayDynamicPlanEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_dynamic_plan_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayDynamicPlanEnabled(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.highway_road_width"),
+                                                conf.highwayRoadWidth())
+                                                .setDefaultValue(defaultConf.highwayRoadWidth())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_road_width.tooltip"))
+                                                .setMin(1)
+                                                .setMax(31)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayRoadWidth(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.highway_a_star_step"),
+                                                conf.highwayAStarStep())
+                                                .setDefaultValue(defaultConf.highwayAStarStep())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_a_star_step.tooltip"))
+                                                .setMin(4)
+                                                .setMax(128)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayAStarStep(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.highway_a_star_max_steps"),
+                                                conf.highwayAStarMaxSteps())
+                                                .setDefaultValue(defaultConf.highwayAStarMaxSteps())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_a_star_max_steps.tooltip"))
+                                                .setMin(1000)
+                                                .setMax(200000)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayAStarMaxSteps(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startDoubleField(Component.translatable("config.roadweaver.highway_floating_weight"),
+                                                conf.highwayFloatingWeight())
+                                                .setDefaultValue(defaultConf.highwayFloatingWeight())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_floating_weight.tooltip"))
+                                                .setMin(0)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayFloatingWeight(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startDoubleField(Component.translatable("config.roadweaver.highway_penetration_weight"),
+                                                conf.highwayPenetrationWeight())
+                                                .setDefaultValue(defaultConf.highwayPenetrationWeight())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_penetration_weight.tooltip"))
+                                                .setMin(0)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayPenetrationWeight(v); })
+                                                .build());
+
                 ConfigCategory roadGen = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.road_generation"));
 

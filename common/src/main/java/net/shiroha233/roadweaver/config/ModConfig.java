@@ -30,6 +30,19 @@ public final class ModConfig {
     private int dynamicPlanStrideChunks; // 动态规划触发步进（区块），用于判定玩家移动到新网格时触发
     private PlanningAlgorithm planningAlgorithm; // 路网连边算法
 
+    // 公路（Highway）配置：独立于 path 道路系统
+    private boolean highwayEnabled;
+    private boolean highwayAutoPlanEnabled;
+    // 公路网格间距（方块）：每隔多少方块生成一个网格节点（原硬编码 1000）
+    private int highwayGridBlocks;
+    // 是否启用公路动态拓展（3x3 cell 滚动窗口）。关闭时仅保持玩家所在 1x1 cell。
+    private Boolean highwayDynamicPlanEnabled;
+    private int highwayRoadWidth;
+    private int highwayAStarStep;
+    private int highwayAStarMaxSteps;
+    private double highwayFloatingWeight;
+    private double highwayPenetrationWeight;
+
     // 道路生成配置
     private boolean allowArtificial;
     private boolean allowNatural;
@@ -114,6 +127,17 @@ public final class ModConfig {
         this.dynamicPlanRadiusChunks = 256;
         this.dynamicPlanStrideChunks = Math.max(8, Math.min(64, this.dynamicPlanRadiusChunks / 2));
         this.planningAlgorithm = PlanningAlgorithm.RNG;
+
+        // 公路（Highway）默认参数：默认关闭，避免改变旧世界行为
+        this.highwayEnabled = false;
+        this.highwayAutoPlanEnabled = true;
+        this.highwayGridBlocks = 1000;
+        this.highwayDynamicPlanEnabled = true;
+        this.highwayRoadWidth = 7;
+        this.highwayAStarStep = 32;
+        this.highwayAStarMaxSteps = 20000;
+        this.highwayFloatingWeight = 2.0;
+        this.highwayPenetrationWeight = 4.0;
 
         // 道路生成默认参数
         this.allowArtificial = true;
@@ -250,6 +274,31 @@ public final class ModConfig {
             dynamicPlanStrideChunks = 256;
         if (planningAlgorithm == null)
             planningAlgorithm = PlanningAlgorithm.RNG;
+
+        // Highway 字段校验
+        // 公路动态拓展缺省为 true（用于兼容旧配置文件：旧版本没有该字段，Gson 反序列化后为 null）。
+        if (highwayDynamicPlanEnabled == null)
+            highwayDynamicPlanEnabled = true;
+        if (highwayGridBlocks < 128)
+            highwayGridBlocks = 128;
+        if (highwayGridBlocks > 20000)
+            highwayGridBlocks = 20000;
+        if (highwayRoadWidth < 1)
+            highwayRoadWidth = 1;
+        if (highwayRoadWidth > 31)
+            highwayRoadWidth = 31;
+        if (highwayAStarStep < 4)
+            highwayAStarStep = 32;
+        if (highwayAStarStep > 128)
+            highwayAStarStep = 128;
+        if (highwayAStarMaxSteps < 1000)
+            highwayAStarMaxSteps = 1000;
+        if (highwayAStarMaxSteps > 200000)
+            highwayAStarMaxSteps = 200000;
+        if (highwayFloatingWeight < 0)
+            highwayFloatingWeight = 0;
+        if (highwayPenetrationWeight < 0)
+            highwayPenetrationWeight = 0;
         if (aStarStep > 128)
             aStarStep = 128; // 步数上限
         if (aStarMaxSteps < 3000)
@@ -475,6 +524,40 @@ public final class ModConfig {
     // 路网连边算法
     public PlanningAlgorithm planningAlgorithm() { return planningAlgorithm; }
     public void setPlanningAlgorithm(PlanningAlgorithm v) { this.planningAlgorithm = v; }
+
+    // 公路（Highway）配置存取
+    public boolean highwayEnabled() { return highwayEnabled; }
+    public void setHighwayEnabled(boolean v) { this.highwayEnabled = v; }
+
+    public boolean highwayAutoPlanEnabled() { return highwayAutoPlanEnabled; }
+    public void setHighwayAutoPlanEnabled(boolean v) { this.highwayAutoPlanEnabled = v; }
+
+    public int highwayGridBlocks() { return highwayGridBlocks; }
+    public void setHighwayGridBlocks(int v) { this.highwayGridBlocks = v; }
+
+    public boolean highwayDynamicPlanEnabled() { return highwayDynamicPlanEnabled == null || highwayDynamicPlanEnabled; }
+    public void setHighwayDynamicPlanEnabled(boolean v) { this.highwayDynamicPlanEnabled = v; }
+
+    public int highwayPlanningRadiusBlocks() {
+        int grid = Math.max(1, highwayGridBlocks);
+        // 1x1 cell：覆盖范围约等于 1 * grid；3x3 cell：覆盖范围约等于 2 * grid
+        return highwayDynamicPlanEnabled() ? (grid * 2) : grid;
+    }
+
+    public int highwayRoadWidth() { return highwayRoadWidth; }
+    public void setHighwayRoadWidth(int v) { this.highwayRoadWidth = v; }
+
+    public int highwayAStarStep() { return highwayAStarStep; }
+    public void setHighwayAStarStep(int v) { this.highwayAStarStep = v; }
+
+    public int highwayAStarMaxSteps() { return highwayAStarMaxSteps; }
+    public void setHighwayAStarMaxSteps(int v) { this.highwayAStarMaxSteps = v; }
+
+    public double highwayFloatingWeight() { return highwayFloatingWeight; }
+    public void setHighwayFloatingWeight(double v) { this.highwayFloatingWeight = v; }
+
+    public double highwayPenetrationWeight() { return highwayPenetrationWeight; }
+    public void setHighwayPenetrationWeight(double v) { this.highwayPenetrationWeight = v; }
 
     public boolean tunnelEnabled() { return tunnelEnabled; }
     public void setTunnelEnabled(boolean v) { this.tunnelEnabled = v; }

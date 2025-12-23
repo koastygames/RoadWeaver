@@ -4,12 +4,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
-import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.search.StructureIndexService;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -91,14 +90,9 @@ public final class RoadPlanningService {
     }
 
     private static void planRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        MapSnapshot snap = MapDataCollector.build(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<BlockPos> points = new ArrayList<>();
         HashSet<Long> seenPos = new HashSet<>();
-        for (BlockPos p : snap.structures()) {
-            BlockPos q = new BlockPos(p.getX(), 0, p.getZ());
-            long key = PlanningUtils.pos2dKey(q);
-            if (seenPos.add(key)) points.add(q);
-        }
+        collectStructurePointsInto(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, points, seenPos);
         if (points.size() < 2) return;
 
         List<Records.StructureConnection> primaryEdges;
@@ -136,6 +130,43 @@ public final class RoadPlanningService {
         }
     }
 
+    private static void collectStructurePointsInto(ServerLevel level,
+                                                  int minBlockX, int minBlockZ,
+                                                  int maxBlockX, int maxBlockZ,
+                                                  List<BlockPos> out,
+                                                  Set<Long> seenPos) {
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        Records.StructureLocationData loc = provider.getStructureLocations(level);
+        if (loc != null && loc.structureLocations() != null) {
+            for (BlockPos p : loc.structureLocations()) {
+                int x = p.getX(), z = p.getZ();
+                if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) continue;
+                BlockPos q = new BlockPos(x, 0, z);
+                long key = PlanningUtils.pos2dKey(q);
+                if (seenPos.add(key)) out.add(q);
+            }
+        }
+
+        if (Level.OVERWORLD.equals(level.dimension())) {
+            List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyInRect(
+                    level,
+                    minBlockX, minBlockZ,
+                    maxBlockX, maxBlockZ
+            );
+            if (verified != null && !verified.isEmpty()) {
+                for (Records.StructureInfo info : verified) {
+                    if (info == null) continue;
+                    BlockPos p = info.pos();
+                    int x = p.getX(), z = p.getZ();
+                    if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) continue;
+                    BlockPos q = new BlockPos(x, 0, z);
+                    long key = PlanningUtils.pos2dKey(q);
+                    if (seenPos.add(key)) out.add(q);
+                }
+            }
+        }
+    }
+
     public static CompletableFuture<Void> initialPlanAsync(ServerLevel level) {
         if (!Level.OVERWORLD.equals(level.dimension())) return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
@@ -162,14 +193,9 @@ public final class RoadPlanningService {
         return ComputeService.supplyAsync(() -> {
             if (Thread.currentThread().isInterrupted()) return new ArrayList<Records.StructureConnection>();
             if (!ThreadPoolManager.isEpoch(epoch)) return new ArrayList<Records.StructureConnection>();
-            MapSnapshot snap = MapDataCollector.build(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
             ArrayList<BlockPos> points = new ArrayList<>();
             HashSet<Long> seenPos = new HashSet<>();
-            for (BlockPos p : snap.structures()) {
-                BlockPos q = new BlockPos(p.getX(), 0, p.getZ());
-                long key = PlanningUtils.pos2dKey(q);
-                if (seenPos.add(key)) points.add(q);
-            }
+            collectStructurePointsInto(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, points, seenPos);
             // 将已有边的端点也纳入点集，确保 RNG/Delaunay 能看到全局拓扑
             for (Records.StructureConnection c : existingSnapshot) {
                 BlockPos f = new BlockPos(c.from().getX(), 0, c.from().getZ());

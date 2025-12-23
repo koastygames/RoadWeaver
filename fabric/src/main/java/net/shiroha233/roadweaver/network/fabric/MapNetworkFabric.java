@@ -37,17 +37,24 @@ public class MapNetworkFabric {
             ServerPlayer sp = player;
             int cx = (int) Math.round(sp.getX());
             int cz = (int) Math.round(sp.getZ());
-            int radiusChunks;
+            int computedRadiusBlocks;
             try {
                 net.shiroha233.roadweaver.config.ModConfig cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-                radiusChunks = (cfg.dynamicPlanEnabled() ? cfg.dynamicPlanRadiusChunks() : cfg.initialPlanRadiusChunks());
+                if (cfg.highwayEnabled()) {
+                    computedRadiusBlocks = Math.max(16, cfg.highwayPlanningRadiusBlocks());
+                } else {
+                    int radiusChunks = cfg.dynamicPlanEnabled()
+                            ? cfg.dynamicPlanRadiusChunks()
+                            : cfg.initialPlanRadiusChunks();
+                    computedRadiusBlocks = Math.max(1, radiusChunks) * 16;
+                }
             } catch (Throwable t) {
-                radiusChunks = 256;
+                computedRadiusBlocks = 256 * 16;
             }
-            int radiusBlocks = Math.max(1, radiusChunks) * 16;
+            final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
             CompletableFuture
                 .supplyAsync(() -> {
-                    MapSnapshot snapshot = MapDataCollector.build(sp.serverLevel(), minX, minZ, maxX, maxZ, cx, cz, radiusBlocks);
+                    MapSnapshot snapshot = MapDataCollector.build(sp.serverLevel(), minX, minZ, maxX, maxZ, cx, cz, radiusBlocksFinal);
                     FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
                     MapSnapshotCodec.write(out, snapshot);
                     return out;

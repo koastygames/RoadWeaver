@@ -10,6 +10,7 @@ import net.shiroha233.roadweaver.search.StructureIndexService;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.planning.PlanningUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,23 +21,34 @@ public final class MapDataCollector {
     private MapDataCollector() {}
 
     // 视图跨度超过该阈值时，不再加载详细道路几何，只依赖连接直线
-    private static final int MAX_DETAILED_ROAD_SPAN_BLOCKS = 7680;
+    public static final int MAX_DETAILED_ROAD_SPAN_BLOCKS = 7680;
 
     public static MapSnapshot build(ServerLevel level) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         Records.StructureLocationData loc = provider.getStructureLocations(level);
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
+        List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
         List<BlockPos> structures = (loc != null) ? new ArrayList<>(loc.structureLocations()) : new ArrayList<>();
         List<Records.StructureConnection> conns = (connections != null) ? new ArrayList<>(connections) : new ArrayList<>();
         List<Records.StructureInfo> infos = (loc != null) ? new ArrayList<>(loc.structureInfos()) : new ArrayList<>();
         List<List<BlockPos>> roads = new ArrayList<>();
         ModConfig cfg = ConfigService.get();
         BlockPos spawn = level.getSharedSpawnPos();
-        int radiusChunks = Math.max(1, cfg.initialPlanRadiusChunks());
-        int minX = (((spawn.getX() >> 4) - radiusChunks) * 16);
-        int maxX = (((spawn.getX() >> 4) + radiusChunks) * 16);
-        int minZ = (((spawn.getZ() >> 4) - radiusChunks) * 16);
-        int maxZ = (((spawn.getZ() >> 4) + radiusChunks) * 16);
+        int radiusBlocks;
+        if (cfg.highwayEnabled()) {
+            // Highway 模式：半径随 1x1/3x3 窗口变化（由 gridBlocks 推导），避免继续使用旧的“区块半径”配置。
+            radiusBlocks = cfg.highwayPlanningRadiusBlocks();
+        } else {
+            int radiusChunks = cfg.dynamicPlanEnabled()
+                    ? cfg.dynamicPlanRadiusChunks()
+                    : cfg.initialPlanRadiusChunks();
+            radiusBlocks = Math.max(1, radiusChunks) * 16;
+        }
+        radiusBlocks = Math.max(16, radiusBlocks);
+        int minX = spawn.getX() - radiusBlocks;
+        int maxX = spawn.getX() + radiusBlocks;
+        int minZ = spawn.getZ() - radiusBlocks;
+        int maxZ = spawn.getZ() + radiusBlocks;
         List<Records.RoadData> roadDataList = RoadShardStorage.queryRect(level, minX, minZ, maxX, maxZ);
         for (Records.RoadData rd : roadDataList) {
             List<Records.RoadSegmentPlacement> segs = rd.roadSegmentList();
@@ -44,6 +56,20 @@ public final class MapDataCollector {
             ArrayList<BlockPos> poly = new ArrayList<>(segs.size());
             for (Records.RoadSegmentPlacement sp : segs) poly.add(sp.middlePos());
             if (poly.size() >= 2) roads.add(poly);
+        }
+
+        // 将公路连接并入普通连接列表，地图渲染完全复用普通道路逻辑。
+        // 原理：地图层只关心“连接线+结构点”，不区分连接来源；连接规则/生成规则仍由各自服务维护。
+        if (highwayConnections != null && !highwayConnections.isEmpty()) {
+            HashSet<Long> seenEdges = new HashSet<>();
+            for (Records.StructureConnection c : conns) seenEdges.add(PlanningUtils.edgeKey(c.from(), c.to()));
+            HashSet<BlockPos> existingStructures = new HashSet<>(structures);
+            for (Records.StructureConnection hc : highwayConnections) {
+                long k = PlanningUtils.edgeKey(hc.from(), hc.to());
+                if (seenEdges.add(k)) conns.add(hc);
+                if (existingStructures.add(hc.from())) structures.add(hc.from());
+                if (existingStructures.add(hc.to())) structures.add(hc.to());
+            }
         }
 
         if (Level.OVERWORLD.equals(level.dimension())) {
@@ -60,6 +86,7 @@ public final class MapDataCollector {
                 }
             }
         }
+
         return new MapSnapshot(structures, conns, infos, roads);
     }
 
@@ -67,6 +94,7 @@ public final class MapDataCollector {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         Records.StructureLocationData loc = provider.getStructureLocations(level);
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
+        List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
 
         List<BlockPos> structures = new ArrayList<>();
         if (loc != null && loc.structureLocations() != null) {
@@ -84,6 +112,22 @@ public final class MapDataCollector {
                 boolean ina = a.getX() >= minBlockX && a.getX() <= maxBlockX && a.getZ() >= minBlockZ && a.getZ() <= maxBlockZ;
                 boolean inb = b.getX() >= minBlockX && b.getX() <= maxBlockX && b.getZ() >= minBlockZ && b.getZ() <= maxBlockZ;
                 if (ina || inb) conns.add(c);
+            }
+        }
+
+        // 合并公路连接
+        if (highwayConnections != null && !highwayConnections.isEmpty()) {
+            HashSet<Long> seenEdges = new HashSet<>();
+            for (Records.StructureConnection c : conns) seenEdges.add(PlanningUtils.edgeKey(c.from(), c.to()));
+            for (Records.StructureConnection hc : highwayConnections) {
+                BlockPos a = hc.from();
+                BlockPos b = hc.to();
+                boolean ina = a.getX() >= minBlockX && a.getX() <= maxBlockX && a.getZ() >= minBlockZ && a.getZ() <= maxBlockZ;
+                boolean inb = b.getX() >= minBlockX && b.getX() <= maxBlockX && b.getZ() >= minBlockZ && b.getZ() <= maxBlockZ;
+                if (ina || inb) {
+                    long k = PlanningUtils.edgeKey(a, b);
+                    if (seenEdges.add(k)) conns.add(hc);
+                }
             }
         }
 
@@ -132,6 +176,19 @@ public final class MapDataCollector {
             if (poly.size() >= 2) roads.add(poly);
         }
 
+        // 确保连接端点一定出现在结构点列表中（包括公路）
+        HashSet<BlockPos> existing = new HashSet<>(structures);
+        for (Records.StructureConnection c : conns) {
+            BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
+            for (BlockPos ep : eps) {
+                int x = ep.getX(), z = ep.getZ();
+                boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
+                if (inRect && existing.add(ep)) {
+                    structures.add(ep);
+                }
+            }
+        }
+
         return new MapSnapshot(structures, conns, infos, roads);
     }
 
@@ -141,6 +198,7 @@ public final class MapDataCollector {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         Records.StructureLocationData loc = provider.getStructureLocations(level);
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
+        List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
 
         final long r2 = (long) Math.max(0, radiusBlocks) * (long) Math.max(0, radiusBlocks);
         java.util.function.BiPredicate<Integer, Integer> inAOI = (x, z) -> {
@@ -157,6 +215,12 @@ public final class MapDataCollector {
         java.util.Set<BlockPos> plannedEndpoints = new java.util.HashSet<>();
         if (connections != null) {
             for (Records.StructureConnection c : connections) {
+                plannedEndpoints.add(c.from());
+                plannedEndpoints.add(c.to());
+            }
+        }
+        if (highwayConnections != null) {
+            for (Records.StructureConnection c : highwayConnections) {
                 plannedEndpoints.add(c.from());
                 plannedEndpoints.add(c.to());
             }
@@ -242,7 +306,23 @@ public final class MapDataCollector {
             }
         }
 
+        if (highwayConnections != null) {
+            java.util.HashSet<BlockPos> existing = new java.util.HashSet<>(structures);
+            for (Records.StructureConnection c : highwayConnections) {
+                BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
+                for (BlockPos ep : eps) {
+                    int x = ep.getX(), z = ep.getZ();
+                    boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
+                    if (inRect && !existing.contains(ep)) {
+                        structures.add(ep);
+                        existing.add(ep);
+                    }
+                }
+            }
+        }
+
         List<Records.StructureConnection> conns = new ArrayList<>();
+        java.util.HashSet<Long> seenEdges = new java.util.HashSet<>();
         if (connections != null) {
             for (Records.StructureConnection c : connections) {
                 BlockPos a = c.from();
@@ -251,7 +331,21 @@ public final class MapDataCollector {
                 boolean inb = b.getX() >= minBlockX && b.getX() <= maxBlockX && b.getZ() >= minBlockZ && b.getZ() <= maxBlockZ;
                 // 规则：连接按矩形过滤，不受 AOI 限制
                 if (ina || inb) {
-                    conns.add(c);
+                    long k = PlanningUtils.edgeKey(a, b);
+                    if (seenEdges.add(k)) conns.add(c);
+                }
+            }
+        }
+
+        if (highwayConnections != null) {
+            for (Records.StructureConnection c : highwayConnections) {
+                BlockPos a = c.from();
+                BlockPos b = c.to();
+                boolean ina = a.getX() >= minBlockX && a.getX() <= maxBlockX && a.getZ() >= minBlockZ && a.getZ() <= maxBlockZ;
+                boolean inb = b.getX() >= minBlockX && b.getX() <= maxBlockX && b.getZ() >= minBlockZ && b.getZ() <= maxBlockZ;
+                if (ina || inb) {
+                    long k = PlanningUtils.edgeKey(a, b);
+                    if (seenEdges.add(k)) conns.add(c);
                 }
             }
         }
