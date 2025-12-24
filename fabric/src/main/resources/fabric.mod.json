@@ -36,6 +36,8 @@
 		"cloth-config2": "*"
 	},
 	"suggests": {
-		"another-mod": "*"
+		"another-mod": "*",
+		"sereneseasons": "*",
+		"glitchcore": "*"
 	}
 }

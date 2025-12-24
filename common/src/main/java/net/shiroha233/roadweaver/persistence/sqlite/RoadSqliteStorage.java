@@ -8,6 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.helpers.Records;
 import org.slf4j.Logger;
@@ -17,14 +18,16 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /**
  * 基于 SQLite 的道路数据存储
@@ -40,6 +43,40 @@ public final class RoadSqliteStorage {
     
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final DynamicOps<Tag> OPS = NbtOps.INSTANCE;
+    private static final int ROAD_CACHE_MAX = 4096;
+
+    private static final class CacheKey {
+        private final ResourceLocation dimensionId;
+        private final long fingerprint;
+
+        private CacheKey(ResourceLocation dimensionId, long fingerprint) {
+            this.dimensionId = dimensionId;
+            this.fingerprint = fingerprint;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof CacheKey other)) return false;
+            return fingerprint == other.fingerprint && dimensionId.equals(other.dimensionId);
+        }
+
+        @Override
+        public int hashCode() {
+            int h = dimensionId.hashCode();
+            h = 31 * h + (int) (fingerprint ^ (fingerprint >>> 32));
+            return h;
+        }
+    }
+
+    private static final Map<CacheKey, Records.RoadData> ROAD_CACHE = Collections.synchronizedMap(
+            new LinkedHashMap<>(256, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<CacheKey, Records.RoadData> eldest) {
+                    return size() > ROAD_CACHE_MAX;
+                }
+            }
+    );
     
     // SQL 语句
     private static final String SQL_INSERT = 
@@ -47,7 +84,7 @@ public final class RoadSqliteStorage {
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     
     private static final String SQL_QUERY_RECT = 
-        "SELECT data FROM roads " +
+        "SELECT fingerprint, data FROM roads " +
         "WHERE max_x >= ? AND min_x <= ? AND max_z >= ? AND min_z <= ?";
     
     private static final String SQL_EXISTS = 
@@ -130,7 +167,6 @@ public final class RoadSqliteStorage {
                                                     int minBlockX, int minBlockZ, 
                                                     int maxBlockX, int maxBlockZ) {
         List<Records.RoadData> result = new ArrayList<>();
-        Set<Long> seen = new HashSet<>(); // 去重
         
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
@@ -144,15 +180,26 @@ public final class RoadSqliteStorage {
                 
                 try (ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
-                        byte[] data = rs.getBytes("data");
-                        Records.RoadData rd = deserializeRoadData(data);
-                        if (rd != null) {
-                            long fp = fingerprint(rd);
-                            if (seen.add(fp)) {
-                                // 精确检查是否真的相交（不只是 bbox 相交）
-                                if (intersects(rd, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
-                                    result.add(rd);
-                                }
+                        long fp = rs.getLong("fingerprint");
+                        CacheKey key = new CacheKey(level.dimension().location(), fp);
+                        Records.RoadData cached = ROAD_CACHE.get(key);
+                        if (cached != null) {
+                            result.add(cached);
+                            continue;
+                        }
+
+                        InputStream in = rs.getBinaryStream("data");
+                        if (in == null) continue;
+                        try {
+                            Records.RoadData rd = deserializeRoadData(in);
+                            if (rd != null) {
+                                ROAD_CACHE.put(key, rd);
+                                result.add(rd);
+                            }
+                        } finally {
+                            try {
+                                in.close();
+                            } catch (java.io.IOException ignored) {
                             }
                         }
                     }
@@ -246,6 +293,26 @@ public final class RoadSqliteStorage {
         try {
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             DataInputStream dis = new DataInputStream(bais);
+            return deserializeRoadData(dis);
+            
+        } catch (Exception e) {
+            LOGGER.error("RoadSqliteStorage: 反序列化失败", e);
+            return null;
+        }
+    }
+
+    private static Records.RoadData deserializeRoadData(InputStream in) {
+        try {
+            DataInputStream dis = new DataInputStream(in);
+            return deserializeRoadData(dis);
+        } catch (Exception e) {
+            LOGGER.error("RoadSqliteStorage: 反序列化失败", e);
+            return null;
+        }
+    }
+
+    private static Records.RoadData deserializeRoadData(DataInputStream dis) {
+        try {
             CompoundTag compound = NbtIo.read(dis);
             
             if (compound == null || !compound.contains("road")) {

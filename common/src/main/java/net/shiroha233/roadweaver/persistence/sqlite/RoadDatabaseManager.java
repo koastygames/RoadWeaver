@@ -31,6 +31,13 @@ public final class RoadDatabaseManager {
     // Forge 的 dev 环境下偶发不会自动触发 JDBC Service Provider 的加载，
     // 导致 DriverManager 找不到 sqlite 驱动（No suitable driver）。这里做一次显式加载兜底。
     private static volatile boolean SQLITE_DRIVER_LOADED = false;
+
+    // 说明：
+    // - 为避免与其他模组/服务端核心的 sqlite-jdbc 产生类冲突，Fabric/Forge 产物会通过 shadow relocate
+    //   将 org.sqlite.* 重定向到本模组私有包名。
+    // - 开发环境/旧产物下仍可能是原始 org.sqlite.JDBC。
+    private static final String SQLITE_DRIVER_RELOCATED = "net.shiroha233.roadweaver.libs.sqlite.JDBC";
+    private static final String SQLITE_DRIVER_ORIGINAL = "org.sqlite.JDBC";
     
     // 按维度存储的数据库连接（每个维度一个连接池）
     private static final ConcurrentHashMap<String, Connection> CONNECTIONS = new ConcurrentHashMap<>();
@@ -68,43 +75,46 @@ public final class RoadDatabaseManager {
         if (SQLITE_DRIVER_LOADED) return;
         synchronized (RoadDatabaseManager.class) {
             if (SQLITE_DRIVER_LOADED) return;
-            
-            // 尝试多种类加载器，确保在 Forge/Fabric 的 JAR-in-JAR 环境中都能正确加载
+
+            // 尝试多种类加载器，确保在 Forge/Fabric 的 JAR-in-JAR / shadow 环境中都能正确加载
             ClassNotFoundException lastException = null;
-            
-            // 1. 尝试使用当前类的类加载器（最可能包含嵌入的依赖）
-            try {
-                Class.forName("org.sqlite.JDBC", true, RoadDatabaseManager.class.getClassLoader());
-                SQLITE_DRIVER_LOADED = true;
-                LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过模组类加载器加载");
-                return;
-            } catch (ClassNotFoundException e) {
-                lastException = e;
-            }
-            
-            // 2. 尝试使用线程上下文类加载器
-            try {
-                ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-                if (contextLoader != null) {
-                    Class.forName("org.sqlite.JDBC", true, contextLoader);
+
+            String[] driverCandidates = new String[]{SQLITE_DRIVER_RELOCATED, SQLITE_DRIVER_ORIGINAL};
+            for (String driverClass : driverCandidates) {
+                // 1. 尝试使用当前类的类加载器（最可能包含嵌入的依赖）
+                try {
+                    Class.forName(driverClass, true, RoadDatabaseManager.class.getClassLoader());
                     SQLITE_DRIVER_LOADED = true;
-                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过上下文类加载器加载");
+                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过模组类加载器加载: {}", driverClass);
                     return;
+                } catch (ClassNotFoundException e) {
+                    lastException = e;
                 }
-            } catch (ClassNotFoundException e) {
-                lastException = e;
+
+                // 2. 尝试使用线程上下文类加载器
+                try {
+                    ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+                    if (contextLoader != null) {
+                        Class.forName(driverClass, true, contextLoader);
+                        SQLITE_DRIVER_LOADED = true;
+                        LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过上下文类加载器加载: {}", driverClass);
+                        return;
+                    }
+                } catch (ClassNotFoundException e) {
+                    lastException = e;
+                }
+
+                // 3. 尝试使用默认的 Class.forName（系统类加载器）
+                try {
+                    Class.forName(driverClass);
+                    SQLITE_DRIVER_LOADED = true;
+                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过系统类加载器加载: {}", driverClass);
+                    return;
+                } catch (ClassNotFoundException e) {
+                    lastException = e;
+                }
             }
-            
-            // 3. 尝试使用默认的 Class.forName（系统类加载器）
-            try {
-                Class.forName("org.sqlite.JDBC");
-                SQLITE_DRIVER_LOADED = true;
-                LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过系统类加载器加载");
-                return;
-            } catch (ClassNotFoundException e) {
-                lastException = e;
-            }
-            
+
             throw new SQLException("SQLite JDBC driver not found. Dependency org.xerial:sqlite-jdbc may be missing.", lastException);
         }
     }
@@ -213,6 +223,58 @@ public final class RoadDatabaseManager {
             stmt.execute(
                 "CREATE INDEX IF NOT EXISTS idx_roads_fingerprint " +
                 "ON roads (fingerprint)"
+            );
+
+            // 结构点缓存表：用于持久化结构预测/验证结果，避免地图缩放时重复预测/验证。
+            // 说明：
+            // - x/z 使用块坐标（y 不参与地图/规划），预测点统一按 y=0 归一化。
+            // - source 用于区分来源（例如：预测/玩家手动注册），便于将来扩展。
+            stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS structures (" +
+                    "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "    x INTEGER NOT NULL," +
+                    "    z INTEGER NOT NULL," +
+                    "    structure_id TEXT NOT NULL," +
+                    "    source INTEGER NOT NULL," +
+                    "    verified_at INTEGER DEFAULT (strftime('%s', 'now'))," +
+                    "    UNIQUE (x, z, structure_id, source)" +
+                    ")"
+            );
+
+            // x/z 联合索引：矩形范围查询的主要加速点
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_structures_xz " +
+                    "ON structures (x, z)"
+            );
+
+            // 用于按类型过滤（例如只看村庄/自定义结构）
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_structures_structure_id " +
+                    "ON structures (structure_id)"
+            );
+
+            // 已扫描区域标记：按固定 chunk tile 记录，确保同一区域只做一次预测+验证。
+            stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS structure_scan_tiles (" +
+                    "    tile_x INTEGER NOT NULL," +
+                    "    tile_z INTEGER NOT NULL," +
+                    "    tile_size_chunks INTEGER NOT NULL," +
+                    "    scanned_at INTEGER DEFAULT (strftime('%s', 'now'))," +
+                    "    PRIMARY KEY (tile_x, tile_z, tile_size_chunks)" +
+                    ")"
+            );
+
+            stmt.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_structure_scan_tiles_range " +
+                    "ON structure_scan_tiles (tile_size_chunks, tile_x, tile_z)"
+            );
+
+            // 结构缓存元数据：记录预测策略 hash 等，便于配置变化时自动失效缓存
+            stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS structure_cache_meta (" +
+                    "    k TEXT PRIMARY KEY," +
+                    "    v TEXT NOT NULL" +
+                    ")"
             );
         }
     }

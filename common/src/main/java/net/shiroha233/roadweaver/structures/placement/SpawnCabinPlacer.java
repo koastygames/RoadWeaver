@@ -9,7 +9,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
@@ -71,6 +73,13 @@ public final class SpawnCabinPlacer {
         
         // 记录到世界数据（用于幂等性检查）
         provider.addStructureLocation(level, anchor);
+
+        // 同步写入 SQLite 结构点缓存（地图/规划统一从 SQLite 取结构点，避免纯内存堆积）
+        StructureSqliteStorage.addStructures(
+                level,
+                java.util.List.of(new Records.StructureInfo(new BlockPos(anchor.getX(), 0, anchor.getZ()), STRUCTURE_ID.toString())),
+                StructureSqliteStorage.SOURCE_MANUAL
+        );
         
         return true;
     }

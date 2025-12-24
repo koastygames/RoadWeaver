@@ -54,7 +54,8 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
     ) {
         // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
         try {
-            WorldCreationContext settings = uiState.getSettings();
+            // 优先使用构造函数参数，避免某些阶段 uiState.getSettings() 尚未就绪。
+            WorldCreationContext settings = (worldCreationContext != null) ? worldCreationContext : uiState.getSettings();
             if (settings != null) {
                 RegistryAccess.Frozen registryAccess = settings.worldgenLoadContext();
                 if (registryAccess == null) return;

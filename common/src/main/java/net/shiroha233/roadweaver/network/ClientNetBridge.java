@@ -1,12 +1,13 @@
 package net.shiroha233.roadweaver.network;
 
 import dev.architectury.injectables.annotations.ExpectPlatform;
+import net.minecraft.resources.ResourceLocation;
 
 public final class ClientNetBridge {
     private ClientNetBridge() {}
 
     @ExpectPlatform
-    public static void requestSnapshot(int minX, int minZ, int maxX, int maxZ) {
+    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
         throw new AssertionError();
     }
 

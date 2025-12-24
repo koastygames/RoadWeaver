@@ -73,7 +73,12 @@ public final class RoadGenerationService {
             if (Thread.currentThread().isInterrupted())
                 return false;
             var modCfg = ConfigService.get();
-            RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
+            String dimId = level.dimension().location().toString();
+            // 按维度：道路系统关闭时跳过生成（视为成功，避免任务被标记为 FAILED）
+            if (!modCfg.roadsEnabledForDimension(dimId)) {
+                return true;
+            }
+            RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg, dimId);
             new Road(level, conn, cfg, genCfg).generateRoad(modCfg.aStarMaxSteps());
             return true;
         } catch (Throwable t) {
@@ -120,6 +125,11 @@ public final class RoadGenerationService {
             if (Thread.currentThread().isInterrupted())
                 return false;
             var cfg = ConfigService.get();
+            String dimId = level.dimension().location().toString();
+            // 按维度：公路系统关闭时跳过生成（视为成功，避免任务被标记为 FAILED）
+            if (!cfg.highwayEnabledForDimension(dimId)) {
+                return true;
+            }
             HighwayGenerationConfig genCfg = HighwayGenerationConfig.from(cfg);
             return new HighwayRoad(level, conn, genCfg).generateRoad(cfg.highwayAStarMaxSteps());
         } catch (Throwable t) {

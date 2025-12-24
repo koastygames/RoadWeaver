@@ -38,18 +38,27 @@ public final class ServerPlanningHooks {
             boolean dedicated = server.isDedicatedServer();
             if (dedicated) {
                 RoadGenerationService.onServerStarted();
-                if (!ConfigService.get().highwayEnabled()) {
+                boolean highwayMode = ConfigService.get().highwayEnabled();
+                if (highwayMode) {
+                    HighwayPlanningService.initialPlanAsync(level);
+                } else {
                     RoadPlanningService.initialPlanAsync(level);
                 }
                 return;
             }
             List<Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
             if (conns == null || conns.isEmpty()) {
+                RoadGenerationService.onServerStarted();
                 InitialGenManager.begin(level);
                 InitialGenManager.blockUntilDone(level);
             } else {
                 RoadGenerationService.onServerStarted();
                 // highway 模式：初次加载由 planAroundPlayer 在 tick 中按玩家所在 1x1 cell 触发。
+            }
+
+            // highway 模式下：启动时先以出生点/首个玩家位置做一次初始规划，保证进游戏即可看到网格边。
+            if (ConfigService.get().highwayEnabled()) {
+                HighwayPlanningService.initialPlanAsync(level);
             }
         });
 
@@ -64,13 +73,19 @@ public final class ServerPlanningHooks {
                     }
                 }
             }
-            ServerLevel level = server.getLevel(Level.OVERWORLD);
-            if (level != null) {
+
+            // 道路生成队列是“按维度”维护的，因此必须对所有已加载维度 tick，
+            // 否则下界/末地/模组维度的连接永远不会被消费。
+            for (ServerLevel level : server.getAllLevels()) {
+                if (level == null) continue;
                 RoadGenerationService.tick(level);
-                if (ConfigService.get().highwayEnabled()) {
-                    HighwayCellPathPlanningService.tick(level);
-                }
                 SignTextService.tick(level);
+            }
+
+            // Highway 与其 cell backfill 目前仅设计用于主世界。
+            ServerLevel overworld = server.getLevel(Level.OVERWORLD);
+            if (overworld != null && ConfigService.get().highwayEnabled()) {
+                HighwayCellPathPlanningService.tick(overworld);
             }
         });
 

@@ -38,12 +38,15 @@ public class ConfigScreenFactoryImpl {
 
                 filters.addEntry(
                                 eb.startBooleanToggle(Component.translatable("config.roadweaver.enable_prediction"),
-                                                conf.villagePredictionEnabled())
-                                                .setDefaultValue(defaultConf.villagePredictionEnabled())
+                                                conf.structurePredictionEnabled())
+                                                .setDefaultValue(defaultConf.structurePredictionEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.enable_prediction.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setVillagePredictionEnabled(v); })
+                                                .setSaveConsumer(v -> { if (v != null) conf.setStructurePredictionEnabled(v); })
                                                 .build());
+
+                // 结构预测维度白名单
+                filters.addEntry(new OpenStructurePredictionDimensionWhitelistEntry());
 
                 filters.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.radius_chunks"),
@@ -227,6 +230,19 @@ public class ConfigScreenFactoryImpl {
                 ConfigCategory roadGen = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.road_generation"));
 
+                // 新增：道路系统总开关
+                roadGen.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.roads_enabled"),
+                                                conf.roadsEnabled())
+                                                .setDefaultValue(defaultConf.roadsEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.roads_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadsEnabled(v); })
+                                                .build());
+
+                // 新增：按维度道路功能控制
+                roadGen.addEntry(new OpenDimensionRoadSettingsEntry());
+
                 roadGen.addEntry(
                                 eb.startBooleanToggle(Component.translatable("config.roadweaver.allow_artificial"),
                                                 conf.allowArtificial())
@@ -368,6 +384,26 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.slope_limit_enabled.tooltip"))
                                                 .setSaveConsumer(v -> { if (v != null) conf.setSlopeLimitEnabled(v); })
+                                                .build());
+
+                // 新增：道路填充（路基/堤道）总开关
+                genSurface.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.road_fill_enabled"),
+                                                conf.roadFillEnabled())
+                                                .setDefaultValue(defaultConf.roadFillEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.road_fill_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadFillEnabled(v); })
+                                                .build());
+
+                // 新增：插值路基填充
+                genSurface.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.interpolated_roadbed_fill_enabled"),
+                                                conf.interpolatedRoadbedFillEnabled())
+                                                .setDefaultValue(defaultConf.interpolatedRoadbedFillEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.interpolated_roadbed_fill_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setInterpolatedRoadbedFillEnabled(v); })
                                                 .build());
 
                 genSurface.addEntry(

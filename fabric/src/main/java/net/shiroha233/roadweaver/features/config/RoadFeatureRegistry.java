@@ -32,7 +32,7 @@ public final class RoadFeatureRegistry {
                 Registries.PLACED_FEATURE,
                 new ResourceLocation(RoadWeaver.MOD_ID, "road_feature_placed"));
         BiomeModifications.addFeature(
-                BiomeSelectors.foundInOverworld(),
+                BiomeSelectors.all(),
                 GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
                 placedKey);
 
@@ -40,7 +40,7 @@ public final class RoadFeatureRegistry {
                 Registries.PLACED_FEATURE,
                 new ResourceLocation(RoadWeaver.MOD_ID, "highway_feature_placed"));
         BiomeModifications.addFeature(
-                BiomeSelectors.foundInOverworld(),
+                BiomeSelectors.all(),
                 GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
                 highwayPlacedKey);
     }

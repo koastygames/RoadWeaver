@@ -1,7 +1,9 @@
 package net.shiroha233.roadweaver.config;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class ModConfig {
     public enum PlanningAlgorithm {
@@ -17,11 +19,18 @@ public final class ModConfig {
         GRADIENT_DESCENT
     }
 
+    // 旧字段：历史上用于控制“村庄预测”。为兼容旧配置文件保留。
     private boolean villagePredictionEnabled;
+    // 新字段：结构预测总开关（支持多维度）。用 Boolean 以区分“缺失字段(null)”与用户显式设置。
+    private Boolean structurePredictionEnabled;
     private int predictRadiusChunks;
     private boolean biomePrefilter;
     private List<String> structureWhitelist;
     private List<String> structureBlacklist;
+
+    // 结构预测维度白名单：仅在白名单中的维度会进行预测/扫描。
+    // 用字符串存储 ResourceLocation（例如 "minecraft:overworld"），避免在 config 层引入 MC 类依赖。
+    private List<String> structurePredictionDimensionWhitelist;
 
     // 路网规划配置
     private int initialPlanRadiusChunks; // 新建世界后以出生点为中心的初始规划半径（区块）
@@ -44,6 +53,8 @@ public final class ModConfig {
     private double highwayPenetrationWeight;
 
     // 道路生成配置
+    // 道路系统总开关（Boolean 用于兼容旧配置：缺失字段=null 时保持旧行为=启用）
+    private Boolean roadsEnabled;
     private boolean allowArtificial;
     private boolean allowNatural;
     private boolean placeWaypoints;
@@ -59,6 +70,9 @@ public final class ModConfig {
     private int aStarStep; // A* 采样步长（方块）
     private int aStarMaxSteps; // A* 寻路最大步数上限
     private int causewayMaxDepth;
+    // 是否启用道路“路基/地形适配”填充（RoadTerrainAdapter）。
+    // Boolean 用于兼容旧配置：缺失字段=null 时保持旧行为=启用。
+    private Boolean roadFillEnabled;
     private int maxSlopeStepPerTwoSegments;
     private boolean slopeLimitEnabled = true; // 是否启用基于 maxSlopeStepPerTwoSegments 的限坡平滑
     private PathfindingAlgorithm pathfindingAlgorithm; // 具体寻路算法策略
@@ -66,6 +80,10 @@ public final class ModConfig {
     private int roadWidth;
     // 是否启用道路路牌（距离牌/跨海提示牌）
     private boolean roadSignsEnabled;
+
+    // 是否启用“高度平滑插值路基填充”（RoadTerrainAdapter.adaptWithInterpolation）。
+    // Boolean 用于兼容旧配置：缺失字段=null 时保持旧行为=启用。
+    private Boolean interpolatedRoadbedFillEnabled;
     private int lampInterval;
     private int roadClearHeight;
     private boolean tunnelEnabled;
@@ -101,6 +119,9 @@ public final class ModConfig {
     private boolean structureAvoidanceEnabled; // 放置阶段检测并跳过结构内的道路
     private int structureRoadOffset; // 道路端点距结构中心的缩进距离（方块）（兼容旧配置）
 
+    // 按维度覆盖的道路功能设置。key 为维度 ResourceLocation 字符串（例如 "minecraft:overworld"）。
+    private Map<String, DimensionRoadSettings> dimensionRoadSettings;
+
     // A* 寻路成本权重
     private double orthoStepCost;
     private double diagStepCost;
@@ -115,11 +136,19 @@ public final class ModConfig {
 
     public ModConfig() {
         this.villagePredictionEnabled = true;
+        this.structurePredictionEnabled = true;
         this.predictRadiusChunks = 1024;
         this.biomePrefilter = true;
         this.structureWhitelist = new ArrayList<>();
         this.structureBlacklist = new ArrayList<>();
         this.structureWhitelist.add("#minecraft:village");
+
+        // 默认开启三大原版维度的预测（多维度搜寻）。
+        this.structurePredictionDimensionWhitelist = new ArrayList<>();
+        this.structurePredictionDimensionWhitelist.add("minecraft:overworld");
+        this.structurePredictionDimensionWhitelist.add("minecraft:the_nether");
+        this.structurePredictionDimensionWhitelist.add("minecraft:the_end");
+        this.structurePredictionDimensionWhitelist.add("twilightforest:twilight_forest");
 
         // 默认规划参数：初始64区块；动态规划开启，半径256区块
         this.initialPlanRadiusChunks = 64;
@@ -140,6 +169,7 @@ public final class ModConfig {
         this.highwayPenetrationWeight = 4.0;
 
         // 道路生成默认参数
+        this.roadsEnabled = true;
         this.allowArtificial = true;
         this.allowNatural = true;
         this.placeWaypoints = false;
@@ -158,6 +188,7 @@ public final class ModConfig {
         this.aStarStep = 16;
         this.aStarMaxSteps = 10000;
         this.causewayMaxDepth = 1;
+        this.roadFillEnabled = true;
         this.maxSlopeStepPerTwoSegments = 1;
         this.slopeLimitEnabled = true;
         this.pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
@@ -165,11 +196,15 @@ public final class ModConfig {
         // 新增默认值
         this.roadWidth = 3;
         this.roadSignsEnabled = false;
+        this.interpolatedRoadbedFillEnabled = true;
         this.lampInterval = 32;
         this.roadClearHeight = 4;
         this.tunnelEnabled = false;
         this.tunnelClearHeight = 5;
         this.preventTreesOnRoad = true; // 默认开启
+
+        // 维度覆盖默认值
+        this.dimensionRoadSettings = new HashMap<>();
 
         // 桥梁默认值
         this.bridgeEnabled = true;
@@ -214,11 +249,36 @@ public final class ModConfig {
     }
 
     public boolean villagePredictionEnabled() {
-        return villagePredictionEnabled;
+        return structurePredictionEnabled();
     }
 
     public void setVillagePredictionEnabled(boolean villagePredictionEnabled) {
         this.villagePredictionEnabled = villagePredictionEnabled;
+        this.structurePredictionEnabled = villagePredictionEnabled;
+    }
+
+    public boolean structurePredictionEnabled() {
+        return structurePredictionEnabled != null ? structurePredictionEnabled : villagePredictionEnabled;
+    }
+
+    public void setStructurePredictionEnabled(boolean enabled) {
+        this.structurePredictionEnabled = enabled;
+        this.villagePredictionEnabled = enabled;
+    }
+
+    public List<String> structurePredictionDimensionWhitelist() {
+        return structurePredictionDimensionWhitelist;
+    }
+
+    public void setStructurePredictionDimensionWhitelist(List<String> whitelist) {
+        this.structurePredictionDimensionWhitelist = whitelist == null ? new ArrayList<>() : new ArrayList<>(whitelist);
+    }
+
+    public boolean isStructurePredictionEnabledForDimension(String dimensionId) {
+        if (!structurePredictionEnabled()) return false;
+        if (dimensionId == null || dimensionId.isEmpty()) return false;
+        if (structurePredictionDimensionWhitelist == null || structurePredictionDimensionWhitelist.isEmpty()) return false;
+        return structurePredictionDimensionWhitelist.contains(dimensionId);
     }
 
     public int predictRadiusChunks() {
@@ -260,8 +320,25 @@ public final class ModConfig {
         if (structureBlacklist == null)
             structureBlacklist = new ArrayList<>();
 
+        // 结构预测开关：若新字段缺失，则沿用旧字段值
+        if (structurePredictionEnabled == null) {
+            structurePredictionEnabled = villagePredictionEnabled;
+        }
+
+        // 维度白名单：若缺失字段则填充默认维度；若用户显式清空则尊重（=不在任何维度预测）
+        if (structurePredictionDimensionWhitelist == null) {
+            structurePredictionDimensionWhitelist = new ArrayList<>();
+            structurePredictionDimensionWhitelist.add("minecraft:overworld");
+            structurePredictionDimensionWhitelist.add("minecraft:the_nether");
+            structurePredictionDimensionWhitelist.add("minecraft:the_end");
+        }
+
         if (predictRadiusChunks <= 0)
             predictRadiusChunks = 1024;
+
+        // 道路系统总开关：缺失字段时保持旧行为（启用）
+        if (roadsEnabled == null)
+            roadsEnabled = true;
         if (initialPlanRadiusChunks <= 0)
             initialPlanRadiusChunks = 64;
         if (dynamicPlanRadiusChunks <= 0)
@@ -328,6 +405,14 @@ public final class ModConfig {
             // 迁移旧配置
             pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
         }
+
+        // 插值路基填充：缺失字段时保持旧行为（启用）
+        if (interpolatedRoadbedFillEnabled == null)
+            interpolatedRoadbedFillEnabled = true;
+
+        // 路基/地形适配填充：缺失字段时保持旧行为（启用）
+        if (roadFillEnabled == null)
+            roadFillEnabled = true;
 
         // 分层寻路新字段：缺省为 false
         // 这里不做额外校验，仅保证反序列化时 null/缺失字段不会影响
@@ -433,6 +518,16 @@ public final class ModConfig {
             structureRoadOffset = 0;
         if (structureRoadOffset > 256)
             structureRoadOffset = 256;
+
+        // 按维度配置：保底非空，并清理“全继承”的空条目，避免配置文件膨胀
+        if (dimensionRoadSettings == null) {
+            dimensionRoadSettings = new HashMap<>();
+        } else {
+            try {
+                dimensionRoadSettings.values().removeIf(v -> v == null || v.isAllInherit());
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     // 初始规划半径
@@ -450,6 +545,10 @@ public final class ModConfig {
     // 动态规划触发步进
     public int dynamicPlanStrideChunks() { return dynamicPlanStrideChunks; }
     public void setDynamicPlanStrideChunks(int v) { this.dynamicPlanStrideChunks = v; }
+
+    // 道路系统总开关
+    public boolean roadsEnabled() { return roadsEnabled == null || roadsEnabled; }
+    public void setRoadsEnabled(boolean v) { this.roadsEnabled = v; }
 
     public boolean allowArtificial() { return allowArtificial; }
     public void setAllowArtificial(boolean v) { this.allowArtificial = v; }
@@ -497,6 +596,9 @@ public final class ModConfig {
     public int causewayMaxDepth() { return causewayMaxDepth; }
     public void setCausewayMaxDepth(int v) { this.causewayMaxDepth = v; }
 
+    public boolean roadFillEnabled() { return roadFillEnabled == null || roadFillEnabled; }
+    public void setRoadFillEnabled(boolean v) { this.roadFillEnabled = v; }
+
     public int maxSlopeStepPerTwoSegments() { return maxSlopeStepPerTwoSegments; }
     public void setMaxSlopeStepPerTwoSegments(int v) { this.maxSlopeStepPerTwoSegments = v; }
 
@@ -513,6 +615,10 @@ public final class ModConfig {
     // 新增：路牌系统开关
     public boolean roadSignsEnabled() { return roadSignsEnabled; }
     public void setRoadSignsEnabled(boolean v) { this.roadSignsEnabled = v; }
+
+    // 新增：高度平滑插值路基填充
+    public boolean interpolatedRoadbedFillEnabled() { return interpolatedRoadbedFillEnabled == null || interpolatedRoadbedFillEnabled; }
+    public void setInterpolatedRoadbedFillEnabled(boolean v) { this.interpolatedRoadbedFillEnabled = v; }
 
     // 新增：路灯间隔（段）
     public int lampInterval() { return lampInterval; }
@@ -669,4 +775,90 @@ public final class ModConfig {
     public int structureRoadOffset() { return villageRoadOffset; }
     @Deprecated
     public void setStructureRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
+
+    public Map<String, DimensionRoadSettings> dimensionRoadSettings() {
+        return dimensionRoadSettings;
+    }
+
+    public void setDimensionRoadSettings(Map<String, DimensionRoadSettings> v) {
+        this.dimensionRoadSettings = (v == null) ? new HashMap<>() : new HashMap<>(v);
+        try {
+            this.dimensionRoadSettings.values().removeIf(s -> s == null || s.isAllInherit());
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private DimensionRoadSettings getDimensionRoadSettingsInternal(String dimensionId) {
+        if (dimensionId == null || dimensionId.isEmpty()) return null;
+        if (dimensionRoadSettings == null || dimensionRoadSettings.isEmpty()) return null;
+        return dimensionRoadSettings.get(dimensionId);
+    }
+
+    private static boolean chooseBool(Boolean override, boolean globalValue) {
+        return override != null ? override : globalValue;
+    }
+
+    public DimensionRoadSettings getOrCreateDimensionRoadSettings(String dimensionId) {
+        if (dimensionId == null || dimensionId.isEmpty()) return null;
+        if (dimensionRoadSettings == null) dimensionRoadSettings = new HashMap<>();
+        return dimensionRoadSettings.computeIfAbsent(dimensionId, k -> new DimensionRoadSettings());
+    }
+
+    public void removeDimensionRoadSettingsIfAllInherit(String dimensionId) {
+        if (dimensionId == null || dimensionId.isEmpty()) return;
+        if (dimensionRoadSettings == null) return;
+        DimensionRoadSettings s = dimensionRoadSettings.get(dimensionId);
+        if (s != null && s.isAllInherit()) {
+            dimensionRoadSettings.remove(dimensionId);
+        }
+    }
+
+    // -------- 维度优先、全局兜底：effective 读取方法 --------
+
+    public boolean roadsEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.roadsEnabled(), roadsEnabled());
+    }
+
+    public boolean bridgeEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.bridgeEnabled(), bridgeEnabled());
+    }
+
+    public PathfindingAlgorithm pathfindingAlgorithmForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        PathfindingAlgorithm v = (s == null) ? null : s.pathfindingAlgorithm();
+        return v != null ? v : pathfindingAlgorithm();
+    }
+
+    public boolean roadFillEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        // roadFillEnabled 只控制“RoadTerrainAdapter 路基/地形适配”这部分。
+        return chooseBool(s == null ? null : s.roadFillEnabled(), roadFillEnabled());
+    }
+
+    public boolean slopeLimitEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.slopeLimitEnabled(), slopeLimitEnabled());
+    }
+
+    public boolean highwayEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.highwayEnabled(), highwayEnabled());
+    }
+
+    public boolean roadsideStructuresEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.roadsideStructuresEnabled(), roadsideStructuresEnabled());
+    }
+
+    public boolean roadSignsEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.roadSignsEnabled(), roadSignsEnabled());
+    }
+
+    public boolean interpolatedRoadbedFillEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.interpolatedRoadbedFillEnabled(), interpolatedRoadbedFillEnabled());
+    }
 }
