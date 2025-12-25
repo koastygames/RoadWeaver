@@ -1,6 +1,7 @@
 package net.shiroha233.roadweaver.structures.registry;
 
 import net.minecraft.world.level.levelgen.structure.StructureType;
+import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
@@ -22,6 +23,11 @@ public final class ModStructureTypes {
      * 初始小屋结构类型
      */
     public static StructureType<SpawnCabinStructure> SPAWN_CABIN;
+
+    /**
+     * 桥结构类型
+     */
+    public static StructureType<BridgeTemplateStructure> BRIDGE_TEMPLATE;
     
     /**
      * 设置路边结构类型（由平台注册时调用）
@@ -35,5 +41,12 @@ public final class ModStructureTypes {
      */
     public static void setSpawnCabin(StructureType<SpawnCabinStructure> type) {
         SPAWN_CABIN = type;
+    }
+
+    /**
+     * 桥结构类型（由平台注册时调用）
+     */
+    public static void setBridge(StructureType<BridgeTemplateStructure> type) {
+        BRIDGE_TEMPLATE = type;
     }
 }

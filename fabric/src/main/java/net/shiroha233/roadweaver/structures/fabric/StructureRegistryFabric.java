@@ -9,6 +9,7 @@ import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.structures.pieces.ModStructurePieceTypes;
 import net.shiroha233.roadweaver.structures.pieces.SimpleTemplatePiece;
 import net.shiroha233.roadweaver.structures.registry.ModStructureTypes;
+import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
@@ -64,5 +65,14 @@ public final class StructureRegistryFabric {
             spawnCabinType
         );
         ModStructureTypes.setSpawnCabin(spawnCabinType);
+
+        // 注册桥类型
+        StructureType<BridgeTemplateStructure> bridgeTemplateType = () -> BridgeTemplateStructure.CODEC;
+        Registry.register(
+                BuiltInRegistries.STRUCTURE_TYPE,
+                new ResourceLocation(RoadWeaver.MOD_ID, "bridge"),
+                bridgeTemplateType
+        );
+        ModStructureTypes.setBridge(bridgeTemplateType);
     }
 }
