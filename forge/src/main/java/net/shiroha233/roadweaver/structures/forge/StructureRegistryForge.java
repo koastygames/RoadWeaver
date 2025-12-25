@@ -11,6 +11,7 @@ import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.structures.pieces.ModStructurePieceTypes;
 import net.shiroha233.roadweaver.structures.pieces.SimpleTemplatePiece;
 import net.shiroha233.roadweaver.structures.registry.ModStructureTypes;
+import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
@@ -42,6 +43,11 @@ public final class StructureRegistryForge {
     public static final RegistryObject<StructureType<SpawnCabinStructure>> SPAWN_CABIN =
             STRUCTURE_TYPES.register("spawn_cabin",
                 () -> () -> SpawnCabinStructure.CODEC);
+
+    // 桥梁模板类型
+    public static final RegistryObject<StructureType<BridgeTemplateStructure>> BRIDGE_TEMPLATE =
+            STRUCTURE_TYPES.register("bridge",
+                    () -> () -> BridgeTemplateStructure.CODEC);
     
     /**
      * 注册到事件总线
@@ -56,6 +62,7 @@ public final class StructureRegistryForge {
                 ModStructurePieceTypes.setSimpleTemplate(SIMPLE_TEMPLATE.get());
                 ModStructureTypes.setRoadside(ROADSIDE.get());
                 ModStructureTypes.setSpawnCabin(SPAWN_CABIN.get());
+                ModStructureTypes.setBridge(BRIDGE_TEMPLATE.get());
             });
         });
     }

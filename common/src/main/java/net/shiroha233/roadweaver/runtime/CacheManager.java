@@ -6,8 +6,10 @@ import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
+import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacyShardMigration;
+import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +41,7 @@ public final class CacheManager {
     public static void onServerStarted() {
         // 清理可能残留的旧缓存
         RoadsideStructureRegistry.clearCache();
+        BridgeTemplateStructureRegistry.clearCache();
         RoadSpatialIndex.clearAllCache();
         LOGGER.debug("CacheManager: 缓存已初始化");
     }
@@ -90,6 +93,7 @@ public final class CacheManager {
         RoadSpatialIndex.clearCache(level);
         PendingStructureStorage.clearDimension(level.dimension().location());
         RoadsideStructureRegistry.clearCache(level.dimension());
+        BridgeTemplateStructureRegistry.clearCache(level.dimension());
         
         LOGGER.debug("CacheManager: 维度 {} 的缓存已清理", level.dimension().location());
     }
