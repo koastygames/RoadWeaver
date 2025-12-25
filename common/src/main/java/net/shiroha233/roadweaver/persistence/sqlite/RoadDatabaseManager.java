@@ -33,11 +33,10 @@ public final class RoadDatabaseManager {
     private static volatile boolean SQLITE_DRIVER_LOADED = false;
 
     // 说明：
-    // - 为避免与其他模组/服务端核心的 sqlite-jdbc 产生类冲突，Fabric/Forge 产物会通过 shadow relocate
-    //   将 org.sqlite.* 重定向到本模组私有包名。
-    // - 开发环境/旧产物下仍可能是原始 org.sqlite.JDBC。
-    private static final String SQLITE_DRIVER_RELOCATED = "net.shiroha233.roadweaver.libs.sqlite.JDBC";
-    private static final String SQLITE_DRIVER_ORIGINAL = "org.sqlite.JDBC";
+    // - SQLite JDBC 驱动通常由 org.xerial:sqlite-jdbc 提供。
+    // - 在多模组环境中，我们直接使用原始包名 org.sqlite.JDBC。
+    // - 不再进行 shadow relocate，因为这会破坏 native 库的 JNI 绑定，导致 UnsatisfiedLinkError。
+    private static final String SQLITE_DRIVER = "org.sqlite.JDBC";
     
     // 按维度存储的数据库连接（每个维度一个连接池）
     private static final ConcurrentHashMap<String, Connection> CONNECTIONS = new ConcurrentHashMap<>();
@@ -76,43 +75,40 @@ public final class RoadDatabaseManager {
         synchronized (RoadDatabaseManager.class) {
             if (SQLITE_DRIVER_LOADED) return;
 
-            // 尝试多种类加载器，确保在 Forge/Fabric 的 JAR-in-JAR / shadow 环境中都能正确加载
+            // 尝试多种类加载器，确保在 Forge/Fabric 的 JAR-in-JAR 环境中都能正确加载
             ClassNotFoundException lastException = null;
 
-            String[] driverCandidates = new String[]{SQLITE_DRIVER_RELOCATED, SQLITE_DRIVER_ORIGINAL};
-            for (String driverClass : driverCandidates) {
-                // 1. 尝试使用当前类的类加载器（最可能包含嵌入的依赖）
-                try {
-                    Class.forName(driverClass, true, RoadDatabaseManager.class.getClassLoader());
-                    SQLITE_DRIVER_LOADED = true;
-                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过模组类加载器加载: {}", driverClass);
-                    return;
-                } catch (ClassNotFoundException e) {
-                    lastException = e;
-                }
+            // 1. 尝试使用当前类的类加载器（最可能包含嵌入的依赖）
+            try {
+                Class.forName(SQLITE_DRIVER, true, RoadDatabaseManager.class.getClassLoader());
+                SQLITE_DRIVER_LOADED = true;
+                LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过模组类加载器加载: {}", SQLITE_DRIVER);
+                return;
+            } catch (ClassNotFoundException e) {
+                lastException = e;
+            }
 
-                // 2. 尝试使用线程上下文类加载器
-                try {
-                    ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-                    if (contextLoader != null) {
-                        Class.forName(driverClass, true, contextLoader);
-                        SQLITE_DRIVER_LOADED = true;
-                        LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过上下文类加载器加载: {}", driverClass);
-                        return;
-                    }
-                } catch (ClassNotFoundException e) {
-                    lastException = e;
-                }
-
-                // 3. 尝试使用默认的 Class.forName（系统类加载器）
-                try {
-                    Class.forName(driverClass);
+            // 2. 尝试使用线程上下文类加载器
+            try {
+                ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+                if (contextLoader != null) {
+                    Class.forName(SQLITE_DRIVER, true, contextLoader);
                     SQLITE_DRIVER_LOADED = true;
-                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过系统类加载器加载: {}", driverClass);
+                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过上下文类加载器加载: {}", SQLITE_DRIVER);
                     return;
-                } catch (ClassNotFoundException e) {
-                    lastException = e;
                 }
+            } catch (ClassNotFoundException e) {
+                lastException = e;
+            }
+
+            // 3. 尝试使用默认的 Class.forName（系统类加载器）
+            try {
+                Class.forName(SQLITE_DRIVER);
+                SQLITE_DRIVER_LOADED = true;
+                LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过系统类加载器加载: {}", SQLITE_DRIVER);
+                return;
+            } catch (ClassNotFoundException e) {
+                lastException = e;
             }
 
             throw new SQLException("SQLite JDBC driver not found. Dependency org.xerial:sqlite-jdbc may be missing.", lastException);

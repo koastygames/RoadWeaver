@@ -184,7 +184,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                                 world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
                     } else {
                         // 回退到旧的“按路段统一高度”的路基填充（不使用插值）
-                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter.adapt(
+                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter.adaptWithoutInterpolation(
                                 world, middle, roadWidth, baseYForThis, random, cfg);
                     }
                 }

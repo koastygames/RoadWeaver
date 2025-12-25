@@ -16,7 +16,8 @@ public record HighwayGenerationConfig(
         int roadWidth,
         int averagingRadius,
         boolean slopeLimitEnabled,
-        int maxSlopeStepPerTwoSegments,
+        int slopeRunBlocks,
+        int slopeRiseBlocks,
         ModConfig.PathfindingAlgorithm pathfindingAlgorithm,
         double floatingWeight,
         double penetrationWeight
@@ -43,8 +44,9 @@ public record HighwayGenerationConfig(
                 cfg.hierarchicalPathfindingEnabled(),
                 cfg.highwayRoadWidth(),
                 cfg.averagingRadius(),
-                cfg.slopeLimitEnabled(),
-                cfg.maxSlopeStepPerTwoSegments(),
+                cfg.highwaySlopeLimitEnabled(),
+                cfg.highwaySlopeRunBlocks(),
+                cfg.highwaySlopeRiseBlocks(),
                 ModConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL,
                 cfg.highwayFloatingWeight(),
                 cfg.highwayPenetrationWeight()
@@ -55,6 +57,13 @@ public record HighwayGenerationConfig(
      * 适配现有 path 寻路/后处理所需的配置类型。
      */
     public RoadGenerationConfig toRoadGenerationConfig() {
+        // 兼容层：RoadGenerationConfig 仍然使用“每两段最大坡度”的表示。
+        // Highway 的真实高度平滑由 slopeRunBlocks/slopeRiseBlocks 决定。
+        int step2 = 0;
+        if (slopeRunBlocks > 0 && slopeRiseBlocks > 0) {
+            step2 = (int) Math.floor((2.0 * slopeRiseBlocks) / (double) slopeRunBlocks);
+        }
+        step2 = Math.max(0, Math.min(8, step2));
         return new RoadGenerationConfig(
                 pathfinding,
                 hierarchicalPathfindingEnabled,
@@ -63,7 +72,7 @@ public record HighwayGenerationConfig(
                 false,
                 averagingRadius,
                 slopeLimitEnabled,
-                maxSlopeStepPerTwoSegments,
+                step2,
                 false,
                 0,
                 0,

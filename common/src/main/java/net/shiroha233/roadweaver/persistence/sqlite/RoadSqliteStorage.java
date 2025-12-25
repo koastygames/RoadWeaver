@@ -216,6 +216,7 @@ public final class RoadSqliteStorage {
     /**
      * 检查道路是否与矩形相交
      */
+    @SuppressWarnings("unused")
     private static boolean intersects(Records.RoadData rd, int minX, int minZ, int maxX, int maxZ) {
         if (rd == null || rd.roadSegmentList() == null || rd.roadSegmentList().isEmpty()) {
             return false;
@@ -285,6 +286,7 @@ public final class RoadSqliteStorage {
     /**
      * 反序列化字节数组为道路数据
      */
+    @SuppressWarnings("unused")
     private static Records.RoadData deserializeRoadData(byte[] data) {
         if (data == null || data.length == 0) {
             return null;

@@ -39,9 +39,9 @@ dependencies {
 	
 	// Optional compat mods (dev only)
 	modCompileOnly("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false } // GlitchCore
-	modCompileOnly("maven.modrinth:e0bNACJD:4RgDk9NB") { transitive = false } // SereneSeasons Fabric 1.20.1 9.1.0.0
 	modLocalRuntime("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false }
-	modLocalRuntime("maven.modrinth:e0bNACJD:4RgDk9NB") { transitive = false }
+	// Loom 1.6 在 dev runtime 下可能忽略 modLocalRuntime，因此补充 modRuntimeOnly 确保 runClient 能加载依赖
+	modRuntimeOnly("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false }
 	
 	// Architectury API - 内嵌到模组中
 	modImplementation("dev.architectury:architectury-fabric:9.2.14") {
@@ -72,7 +72,6 @@ processResources {
 shadowJar {
 	exclude "architectury.common.json"
 	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
-	relocate "org.sqlite", "net.shiroha233.roadweaver.libs.sqlite"
 	archiveClassifier.set("dev-shadow")
 }
 

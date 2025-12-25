@@ -186,6 +186,37 @@ public class ConfigScreenFactoryImpl {
                                                 .build());
 
                 highway.addEntry(
+                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_slope_limit_enabled"),
+                                                conf.highwaySlopeLimitEnabled())
+                                                .setDefaultValue(defaultConf.highwaySlopeLimitEnabled())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_slope_limit_enabled.tooltip"))
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwaySlopeLimitEnabled(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.highway_slope_run_blocks"),
+                                                conf.highwaySlopeRunBlocks())
+                                                .setDefaultValue(defaultConf.highwaySlopeRunBlocks())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_slope_run_blocks.tooltip"))
+                                                .setMin(1)
+                                                .setMax(64)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwaySlopeRunBlocks(v); })
+                                                .build());
+
+                highway.addEntry(
+                                eb.startIntField(Component.translatable("config.roadweaver.highway_slope_rise_blocks"),
+                                                conf.highwaySlopeRiseBlocks())
+                                                .setDefaultValue(defaultConf.highwaySlopeRiseBlocks())
+                                                .setTooltip(Component.translatable(
+                                                                "config.roadweaver.highway_slope_rise_blocks.tooltip"))
+                                                .setMin(0)
+                                                .setMax(16)
+                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwaySlopeRiseBlocks(v); })
+                                                .build());
+
+                highway.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.highway_a_star_step"),
                                                 conf.highwayAStarStep())
                                                 .setDefaultValue(defaultConf.highwayAStarStep())

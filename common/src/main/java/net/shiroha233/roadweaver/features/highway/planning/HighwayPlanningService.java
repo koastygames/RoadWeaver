@@ -242,34 +242,6 @@ public final class HighwayPlanningService {
         }
     }
 
-    private static void refreshWindow(ServerLevel level, ModConfig cfg, int centerCellGx, int centerCellGz) {
-        if (level == null || cfg == null) return;
-
-        int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
-        int minPointGx = centerCellGx - 1;
-        int maxPointGx = centerCellGx + 2;
-        int minPointGz = centerCellGz - 1;
-        int maxPointGz = centerCellGz + 2;
-
-        int minX = minPointGx * gridBlocks;
-        int maxX = maxPointGx * gridBlocks;
-        int minZ = minPointGz * gridBlocks;
-        int maxZ = maxPointGz * gridBlocks;
-        planRect(level, minX, minZ, maxX, maxZ);
-
-        int minCellGx = centerCellGx - 1;
-        int maxCellGx = centerCellGx + 1;
-        int minCellGz = centerCellGz - 1;
-        int maxCellGz = centerCellGz + 1;
-        HighwayCellPathPlanningService.retainPlannedCellsInRect(level, minCellGx, minCellGz, maxCellGx, maxCellGz);
-
-        int cellMinX = minCellGx * gridBlocks;
-        int cellMaxX = (maxCellGx + 1) * gridBlocks;
-        int cellMinZ = minCellGz * gridBlocks;
-        int cellMaxZ = (maxCellGz + 1) * gridBlocks;
-        HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ, cellMaxX, cellMaxZ);
-    }
-
     private static CompletableFuture<Void> refreshWindowAsync(ServerLevel level, ModConfig cfg, int centerCellGx, int centerCellGz) {
         if (level == null || cfg == null) return CompletableFuture.completedFuture(null);
 

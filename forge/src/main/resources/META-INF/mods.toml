@@ -54,3 +54,10 @@ mandatory = false
 versionRange = "[0,)"
 ordering = "AFTER"
 side = "CLIENT"
+
+[[dependencies.roadweaver]]
+modId = "thelostcities"
+mandatory = false
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "BOTH"

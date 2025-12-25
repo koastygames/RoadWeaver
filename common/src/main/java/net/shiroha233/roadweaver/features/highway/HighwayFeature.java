@@ -14,6 +14,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
 import net.shiroha233.roadweaver.features.highway.placement.HighwaySegmentPaver;
+import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
@@ -71,6 +72,10 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
 
         int[] targetYArr = buildTargetY(world, data, centers);
 
+        String dimId = world.getLevel().dimension().location().toString();
+        boolean roadFillEnabled = cfg == null || cfg.roadFillEnabledForDimension(dimId);
+        boolean interpolatedRoadbedFillEnabled = cfg == null || cfg.interpolatedRoadbedFillEnabledForDimension(dimId);
+
         boolean didAny = false;
         for (int i = 1; i < segments.size() - 1; i++) {
             Records.RoadSegmentPlacement seg = segments.get(i);
@@ -79,6 +84,12 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
 
             ChunkPos middleChunk = new ChunkPos(middle);
             if (!middleChunk.equals(currentChunk)) continue;
+
+            // 与 Path 道路一致：在铺设路面前先进行“路基/地形适配”填充。
+            // 原理：先填出平滑的路堤，再铺路面方块，可减少“悬空路面/直上直下台阶”的观感。
+            if (roadFillEnabled && interpolatedRoadbedFillEnabled) {
+                RoadTerrainAdapter.adaptWithInterpolation(world, middle, i, centers, targetYArr, data.width(), random, cfg);
+            }
 
             // 保持路面更齐平：这里不做半砖过渡（Highway 不需要）
             HighwaySegmentPaver.paveSegment(world, seg, i, centers, targetYArr, random, cfg);

@@ -60,7 +60,7 @@ public final class HighwayRoad {
 
             List<Records.RoadSpan> spans = net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator
                     .extractSpans(segments, level, cache, adapted.pathfinding());
-            List<Integer> targetY = computeTargetY(level, segments, spans, cache, adapted);
+            List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
             Records.RoadData rd = new Records.RoadData(
                     width,
@@ -82,7 +82,7 @@ public final class HighwayRoad {
                                                List<Records.RoadSegmentPlacement> segments,
                                                List<Records.RoadSpan> spans,
                                                TerrainSamplingCache cache,
-                                               RoadGenerationConfig cfg) {
+                                               HighwayGenerationConfig cfg) {
         int n = segments.size();
         List<BlockPos> centers = new ArrayList<>(n);
         for (Records.RoadSegmentPlacement s : segments) centers.add(s.middlePos());
@@ -123,55 +123,11 @@ public final class HighwayRoad {
             return out;
         }
 
-        int[] smoothed = base.clone();
-        int i = 0;
-        while (i < n) {
-            while (i < n && isBridge[i]) i++;
-            int s = i;
-            while (i < n && !isBridge[i]) i++;
-            int e = i - 1;
-            if (s <= e) {
-                int step2 = Math.max(0, Math.min(8, cfg.maxSlopeStepPerTwoSegments()));
-                int halfLow = Math.max(0, step2 / 2);
-                int halfHigh = Math.max(0, (step2 + 1) / 2);
-                for (int ii = s + 1; ii <= e; ii++) {
-                    int y = smoothed[ii];
-                    if (ii == s + 1) {
-                        int py = smoothed[ii - 1];
-                        if (y > py + halfLow) y = py + halfLow;
-                        if (y < py - halfLow) y = py - halfLow;
-                    } else {
-                        int py = smoothed[ii - 1];
-                        if (y > py + halfHigh) y = py + halfHigh;
-                        if (y < py - halfHigh) y = py - halfHigh;
-                        int p2 = smoothed[ii - 2];
-                        int hi = p2 + step2;
-                        int lo = p2 - step2;
-                        if (y > hi) y = hi;
-                        if (y < lo) y = lo;
-                    }
-                    smoothed[ii] = y;
-                }
-                for (int ii = e - 1; ii >= s; ii--) {
-                    int y = smoothed[ii];
-                    if (ii == e - 1) {
-                        int ny = smoothed[ii + 1];
-                        if (y > ny + halfLow) y = ny + halfLow;
-                        if (y < ny - halfLow) y = ny - halfLow;
-                    } else {
-                        int ny = smoothed[ii + 1];
-                        if (y > ny + halfHigh) y = ny + halfHigh;
-                        if (y < ny - halfHigh) y = ny - halfHigh;
-                        int n2 = smoothed[ii + 2];
-                        int hi = n2 + step2;
-                        int lo = n2 - step2;
-                        if (y > hi) y = hi;
-                        if (y < lo) y = lo;
-                    }
-                    smoothed[ii] = y;
-                }
-            }
-        }
+        // 可配置的限坡平滑：默认每 5 格高度差为 1。
+        // 原理：将“最大坡度”表达为 rise/run（单位：方块/方块），并根据相邻中心点实际水平距离计算允许的最大高度变化。
+        int slopeRunBlocks = Math.max(1, cfg.slopeRunBlocks());
+        int slopeRiseBlocks = Math.max(0, cfg.slopeRiseBlocks());
+        int[] smoothed = HighwayHeightSmoother.smooth(base, centers, isBridge, slopeRunBlocks, slopeRiseBlocks);
 
         List<Integer> out = new ArrayList<>(n);
         for (int v : smoothed) out.add(v);

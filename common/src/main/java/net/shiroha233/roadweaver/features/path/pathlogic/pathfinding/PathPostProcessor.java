@@ -9,6 +9,11 @@ import java.util.*;
 public final class PathPostProcessor {
     private PathPostProcessor() {}
 
+    public enum CurveMode {
+        CATMULL_ROM,
+        BEZIER_CASTELJAU
+    }
+
     /**
      * 将原始寻路节点列表转换为平滑的、具有宽度的路段列表。
      * 使用 Catmull-Rom 样条曲线生成平滑路径，并通过距离场光栅化生成路面。
@@ -27,6 +32,15 @@ public final class PathPostProcessor {
                                                              ServerLevel level,
                                                              TerrainSamplingCache cache,
                                                              int bridgeMinWaterDepth) {
+        return process(rawPath, width, level, cache, bridgeMinWaterDepth, CurveMode.CATMULL_ROM);
+    }
+
+    public static List<Records.RoadSegmentPlacement> process(List<BlockPos> rawPath,
+                                                             int width,
+                                                             ServerLevel level,
+                                                             TerrainSamplingCache cache,
+                                                             int bridgeMinWaterDepth,
+                                                             CurveMode curveMode) {
         if (rawPath == null || rawPath.size() < 2) return new ArrayList<>();
 
         // 1. 路径简化
@@ -58,9 +72,14 @@ public final class PathPostProcessor {
 
             for (int s = 0; s < steps; s++) {
                 double t = (double) s / steps;
-                Vec2d pt = bridgeSeg
-                        ? lerp2d(p1, p2, t)
-                        : catmullRomSplineDouble(p0, p1, p2, p3, t);
+                Vec2d pt;
+                if (bridgeSeg) {
+                    pt = lerp2d(p1, p2, t);
+                } else if (curveMode == CurveMode.BEZIER_CASTELJAU) {
+                    pt = catmullRomBezierCasteljau(p0, p1, p2, p3, t);
+                } else {
+                    pt = catmullRomSplineDouble(p0, p1, p2, p3, t);
+                }
                 splinePoints.add(pt);
             }
         }
@@ -186,6 +205,70 @@ public final class PathPostProcessor {
         double x = a.getX() + (b.getX() - a.getX()) * t;
         double z = a.getZ() + (b.getZ() - a.getZ()) * t;
         return new Vec2d(x, z);
+    }
+
+    private static Vec2d catmullRomBezierCasteljau(BlockPos p0, BlockPos p1, BlockPos p2, BlockPos p3, double t) {
+        t = Math.max(0.0, Math.min(1.0, t));
+
+        Vec2d b0 = new Vec2d(p1.getX(), p1.getZ());
+        Vec2d b1 = new Vec2d(
+                p1.getX() + (p2.getX() - p0.getX()) / 6.0,
+                p1.getZ() + (p2.getZ() - p0.getZ()) / 6.0
+        );
+        Vec2d b2 = new Vec2d(
+                p2.getX() - (p3.getX() - p1.getX()) / 6.0,
+                p2.getZ() - (p3.getZ() - p1.getZ()) / 6.0
+        );
+        Vec2d b3 = new Vec2d(p2.getX(), p2.getZ());
+
+        Vec2d[] elevated = elevateBezierDegree(new Vec2d[]{b0, b1, b2, b3}, 5);
+        return bezierDeCasteljau(elevated, t);
+    }
+
+    private static Vec2d[] elevateBezierDegree(Vec2d[] ctrl, int targetDegree) {
+        if (ctrl == null || ctrl.length < 2) return ctrl;
+
+        int degree = ctrl.length - 1;
+        if (targetDegree <= degree) return ctrl;
+
+        Vec2d[] cur = ctrl;
+        int n = degree;
+        while (n < targetDegree) {
+            Vec2d[] next = new Vec2d[n + 2];
+            next[0] = cur[0];
+            next[n + 1] = cur[n];
+
+            for (int i = 1; i <= n; i++) {
+                double a = (double) i / (double) (n + 1);
+                double x = a * cur[i - 1].x + (1.0 - a) * cur[i].x;
+                double z = a * cur[i - 1].z + (1.0 - a) * cur[i].z;
+                next[i] = new Vec2d(x, z);
+            }
+
+            cur = next;
+            n++;
+        }
+
+        return cur;
+    }
+
+    private static Vec2d bezierDeCasteljau(Vec2d[] ctrl, double t) {
+        int n = ctrl.length;
+        double[] xs = new double[n];
+        double[] zs = new double[n];
+        for (int i = 0; i < n; i++) {
+            xs[i] = ctrl[i].x;
+            zs[i] = ctrl[i].z;
+        }
+
+        for (int k = n - 1; k > 0; k--) {
+            for (int i = 0; i < k; i++) {
+                xs[i] = xs[i] + (xs[i + 1] - xs[i]) * t;
+                zs[i] = zs[i] + (zs[i + 1] - zs[i]) * t;
+            }
+        }
+
+        return new Vec2d(xs[0], zs[0]);
     }
 
     /**

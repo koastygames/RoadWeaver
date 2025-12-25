@@ -42,11 +42,16 @@ public final class ModConfig {
     // 公路（Highway）配置：独立于 path 道路系统
     private boolean highwayEnabled;
     private boolean highwayAutoPlanEnabled;
-    // 公路网格间距（方块）：每隔多少方块生成一个网格节点（原硬编码 1000）
+    // 公路网格间距（方块）：每隔多少方块生成一个网格节点
     private int highwayGridBlocks;
     // 是否启用公路动态拓展（3x3 cell 滚动窗口）。关闭时仅保持玩家所在 1x1 cell。
     private Boolean highwayDynamicPlanEnabled;
     private int highwayRoadWidth;
+    // Highway 高度平滑：默认每 5 格高度差为 1。
+    // Boolean 用于兼容旧配置：缺失字段=null 时保持默认启用。
+    private Boolean highwaySlopeLimitEnabled;
+    private int highwaySlopeRunBlocks;
+    private int highwaySlopeRiseBlocks;
     private int highwayAStarStep;
     private int highwayAStarMaxSteps;
     private double highwayFloatingWeight;
@@ -160,9 +165,12 @@ public final class ModConfig {
         // 公路（Highway）默认参数：默认关闭，避免改变旧世界行为
         this.highwayEnabled = false;
         this.highwayAutoPlanEnabled = true;
-        this.highwayGridBlocks = 1000;
+        this.highwayGridBlocks = 2500;
         this.highwayDynamicPlanEnabled = true;
         this.highwayRoadWidth = 7;
+        this.highwaySlopeLimitEnabled = true;
+        this.highwaySlopeRunBlocks = 5;
+        this.highwaySlopeRiseBlocks = 1;
         this.highwayAStarStep = 32;
         this.highwayAStarMaxSteps = 20000;
         this.highwayFloatingWeight = 2.0;
@@ -237,7 +245,7 @@ public final class ModConfig {
 
         // A* 寻路成本权重
         this.orthoStepCost = 1.0;
-        this.diagStepCost = 1.0;
+        this.diagStepCost = 1.414;
         this.elevationWeight = 80;
         this.biomeWeight = 2;
         this.stabilityWeight = 15;
@@ -356,6 +364,8 @@ public final class ModConfig {
         // 公路动态拓展缺省为 true（用于兼容旧配置文件：旧版本没有该字段，Gson 反序列化后为 null）。
         if (highwayDynamicPlanEnabled == null)
             highwayDynamicPlanEnabled = true;
+        if (highwaySlopeLimitEnabled == null)
+            highwaySlopeLimitEnabled = true;
         if (highwayGridBlocks < 128)
             highwayGridBlocks = 128;
         if (highwayGridBlocks > 20000)
@@ -364,6 +374,14 @@ public final class ModConfig {
             highwayRoadWidth = 1;
         if (highwayRoadWidth > 31)
             highwayRoadWidth = 31;
+        if (highwaySlopeRunBlocks < 1)
+            highwaySlopeRunBlocks = 5;
+        if (highwaySlopeRunBlocks > 64)
+            highwaySlopeRunBlocks = 64;
+        if (highwaySlopeRiseBlocks < 0)
+            highwaySlopeRiseBlocks = 0;
+        if (highwaySlopeRiseBlocks > 16)
+            highwaySlopeRiseBlocks = 16;
         if (highwayAStarStep < 4)
             highwayAStarStep = 32;
         if (highwayAStarStep > 128)
@@ -652,6 +670,15 @@ public final class ModConfig {
 
     public int highwayRoadWidth() { return highwayRoadWidth; }
     public void setHighwayRoadWidth(int v) { this.highwayRoadWidth = v; }
+
+    public boolean highwaySlopeLimitEnabled() { return highwaySlopeLimitEnabled == null || highwaySlopeLimitEnabled; }
+    public void setHighwaySlopeLimitEnabled(boolean v) { this.highwaySlopeLimitEnabled = v; }
+
+    public int highwaySlopeRunBlocks() { return highwaySlopeRunBlocks; }
+    public void setHighwaySlopeRunBlocks(int v) { this.highwaySlopeRunBlocks = v; }
+
+    public int highwaySlopeRiseBlocks() { return highwaySlopeRiseBlocks; }
+    public void setHighwaySlopeRiseBlocks(int v) { this.highwaySlopeRiseBlocks = v; }
 
     public int highwayAStarStep() { return highwayAStarStep; }
     public void setHighwayAStarStep(int v) { this.highwayAStarStep = v; }

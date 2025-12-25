@@ -14,17 +14,11 @@ public final class RoadTerrainAdapter {
     private RoadTerrainAdapter() {}
 
     /**
-     * 对道路段进行地形适配。
+     * 对道路段进行地形适配（使用固定高度）。
      *
-     * 现在的策略刻意做得非常保守：
-     * - 只在「路面明显高于原地形」时，向下方和两侧填土，做一个简单的路基（Embarkment）。
-     * - 完全不做削坡(Cut)，避免把已有地形挖坏、露出大量泥土台阶。
-     * - 路侧的路基高度用 smoothstep 从路面下一格平滑过渡到原始地表高度，形成一个“凸”字形托起。
-     *
-     * @deprecated 使用 {@link #adaptWithInterpolation} 代替，该方法支持插值高度计算
+     * 策略与旧实现一致，仅在“路面明显高于原地形”时填充路基。
      */
-    @Deprecated
-    public static void adapt(WorldGenLevel level, BlockPos middle, int width, int targetY, RandomSource random, ModConfig cfg) {
+    public static void adaptWithoutInterpolation(WorldGenLevel level, BlockPos middle, int width, int targetY, RandomSource random, ModConfig cfg) {
         int halfWidth = (width + 1) / 2;
         int bankWidth = 3; // 路基向外延伸 3 格
         int scanRadius = halfWidth + bankWidth;

@@ -217,7 +217,13 @@ public final class HighwayBidirectionalAStarPathfinder {
             cur = cur.parent;
         }
 
-        return PathPostProcessor.process(rawPath, width, level, cache, cfg.pathfinding().bridgeMinWaterDepth());
+        return PathPostProcessor.process(
+                rawPath,
+                width,
+                level,
+                cache,
+                cfg.pathfinding().bridgeMinWaterDepth(),
+                PathPostProcessor.CurveMode.BEZIER_CASTELJAU);
     }
 
     private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {

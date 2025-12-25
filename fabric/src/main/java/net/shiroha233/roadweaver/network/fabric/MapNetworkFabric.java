@@ -31,7 +31,8 @@ public class MapNetworkFabric {
         // 矩形范围请求：minX,minZ,maxX,maxZ
         ServerPlayNetworking.registerGlobalReceiver(REQ_RECT, (server, player, handler, buf, responseSender) -> {
             int requestSeq = buf.readVarInt();
-            ResourceLocation requestDimensionId = buf.readResourceLocation();
+            // 客户端上报的维度 ID 不可信，仅为消费缓冲区而读取。
+            buf.readResourceLocation();
             int minX = buf.readVarInt();
             int minZ = buf.readVarInt();
             int maxX = buf.readVarInt();

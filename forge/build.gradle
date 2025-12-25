@@ -41,7 +41,6 @@ shadowJar {
     exclude "architectury.common.json"
     exclude "fabric.mod.json"
     configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
-    relocate "org.sqlite", "net.shiroha233.roadweaver.libs.sqlite"
     archiveClassifier.set("dev-shadow")
 }
 
@@ -82,6 +81,10 @@ repositories {
         url "https://maven.architectury.dev/"
         name "Architectury"
     }
+    maven {
+        url "https://cursemaven.com"
+        name "CurseMaven"
+    }
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -118,6 +121,8 @@ dependencies {
     modCompileOnly("maven.modrinth:e0bNACJD:9.1.0.0") { transitive = false } // SereneSeasons Forge 1.20.1
     modRuntimeOnly("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false }
     modRuntimeOnly("maven.modrinth:e0bNACJD:9.1.0.0") { transitive = false }
+    modCompileOnly("curse.maven:the-lost-cities-269024:6174986") { transitive = false } // The Lost Cities 1.20-7.3.6
+    modRuntimeOnly("curse.maven:the-lost-cities-269024:6174986") { transitive = false }
 
     // Architectury API - 使用 Jar-in-Jar 内嵌
     modApi("dev.architectury:architectury-forge:9.2.14")

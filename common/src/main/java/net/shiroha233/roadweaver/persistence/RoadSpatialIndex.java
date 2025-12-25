@@ -1,5 +1,7 @@
 package net.shiroha233.roadweaver.persistence;
 
+import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
@@ -73,8 +75,19 @@ public final class RoadSpatialIndex {
         if (level == null || pos == null) return false;
         if (!ConfigService.get().preventTreesOnRoad()) return false;
 
-        int margin = (ConfigService.get().roadWidth() / 2) + 1;
-        return isNearRoadInternal(level, pos, margin, Y_CHECK_ABOVE, Y_CHECK_BELOW);
+        // 关键改进：树木阻拦范围应依据“实际道路宽度”，而不是单一全局 roadWidth。
+        // 这里传入的是“最大可能边距”，仅用于决定需要检查的网格半径；
+        // 精确判定会在 isNearRoadInternal 内按每个道路点的 margin 进行。
+        int maxMargin = computeMaxPossibleMargin();
+        return isNearRoadInternal(level, pos, maxMargin, Y_CHECK_ABOVE, Y_CHECK_BELOW);
+    }
+
+    private static int computeMaxPossibleMargin() {
+        int wRoad = Math.max(0, ConfigService.get().roadWidth());
+        int wHighway = Math.max(0, ConfigService.get().highwayRoadWidth());
+        int maxW = Math.max(wRoad, wHighway);
+        // margin = halfWidth + 1；至少给 1 格边距用于覆盖“中心点代表整条道路宽度”的情况。
+        return Math.max(1, (maxW / 2) + 1);
     }
 
     /**
@@ -110,16 +123,18 @@ public final class RoadSpatialIndex {
         for (int dx = -gridRadius; dx <= gridRadius; dx++) {
             for (int dz = -gridRadius; dz <= gridRadius; dz++) {
                 long gridKey = gridKey(gridX + dx, gridZ + dz);
-                Set<Long> points = gridIndex.getPoints(gridKey);
+                Long2ByteMap points = gridIndex.getPoints(gridKey);
                 if (points == null || points.isEmpty()) continue;
 
                 // 检查该网格内的道路点
-                for (long packed : points) {
+                for (Long2ByteMap.Entry e : points.long2ByteEntrySet()) {
+                    long packed = e.getLongKey();
+                    int pointMargin = e.getByteValue() & 0xFF;
                     BlockPos road = BlockPos.of(packed);
                     int rdx = Math.abs(px - road.getX());
                     int rdz = Math.abs(pz - road.getZ());
 
-                    if (rdx <= margin && rdz <= margin) {
+                    if (rdx <= pointMargin && rdz <= pointMargin) {
                         int yDiff = py - road.getY();
                         if (yDiff >= -yBelow && yDiff <= yAbove) {
                             return true;
@@ -152,14 +167,17 @@ public final class RoadSpatialIndex {
         for (Records.RoadData rd : roads) {
             if (rd.roadSegmentList() == null) continue;
 
+            // 依据实际道路宽度计算阻拦边距：半宽 + 1。
+            int pointMargin = Math.max(1, (Math.max(1, rd.width()) / 2) + 1);
+
             for (Records.RoadSegmentPlacement seg : rd.roadSegmentList()) {
                 // 添加中心点
-                addToIndex(index, seg.middlePos(), minX, minZ, maxX, maxZ);
+                addToIndex(index, seg.middlePos(), pointMargin, minX, minZ, maxX, maxZ);
 
                 // 添加所有位置点
                 if (seg.positions() != null) {
                     for (BlockPos p : seg.positions()) {
-                        addToIndex(index, p, minX, minZ, maxX, maxZ);
+                        addToIndex(index, p, pointMargin, minX, minZ, maxX, maxZ);
                     }
                 }
             }
@@ -171,7 +189,7 @@ public final class RoadSpatialIndex {
     /**
      * 将道路点添加到网格索引
      */
-    private static void addToIndex(ChunkGridIndex index, BlockPos p, int minX, int minZ, int maxX, int maxZ) {
+    private static void addToIndex(ChunkGridIndex index, BlockPos p, int margin, int minX, int minZ, int maxX, int maxZ) {
         if (p == null) return;
 
         int x = p.getX(), z = p.getZ();
@@ -180,7 +198,7 @@ public final class RoadSpatialIndex {
             int gridX = x >> GRID_SHIFT;
             int gridZ = z >> GRID_SHIFT;
             long gridKey = gridKey(gridX, gridZ);
-            index.addPoint(gridKey, p.asLong());
+            index.addPoint(gridKey, p.asLong(), margin);
         }
     }
 
@@ -243,17 +261,23 @@ public final class RoadSpatialIndex {
         static final ChunkGridIndex EMPTY = new ChunkGridIndex();
 
         // 网格坐标 -> 该网格内的道路点（packed BlockPos）
-        private final Map<Long, Set<Long>> grids;
+        // value: 每个道路点对应的阻拦边距（byte，足够覆盖 0-127）
+        private final Map<Long, Long2ByteOpenHashMap> grids;
 
         ChunkGridIndex() {
             this.grids = new HashMap<>();
         }
 
-        void addPoint(long gridKey, long packedPos) {
-            grids.computeIfAbsent(gridKey, k -> new HashSet<>()).add(packedPos);
+        void addPoint(long gridKey, long packedPos, int margin) {
+            int m = Math.max(0, Math.min(127, margin));
+            Long2ByteOpenHashMap map = grids.computeIfAbsent(gridKey, k -> new Long2ByteOpenHashMap());
+            byte existing = map.get(packedPos);
+            if ((existing & 0xFF) < m) {
+                map.put(packedPos, (byte) m);
+            }
         }
 
-        Set<Long> getPoints(long gridKey) {
+        Long2ByteMap getPoints(long gridKey) {
             return grids.get(gridKey);
         }
 
