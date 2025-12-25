@@ -1,10 +1,12 @@
 package net.shiroha233.roadweaver.network.forge;
 
+import net.minecraft.resources.ResourceLocation;
+
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}
 
-    public static void requestSnapshot(int minX, int minZ, int maxX, int maxZ) {
-        MapNetworkForge.requestSnapshot(minX, minZ, maxX, maxZ);
+    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
+        MapNetworkForge.requestSnapshot(requestSeq, dimensionId, minX, minZ, maxX, maxZ);
     }
 
     public static void requestTeleport(int x, int y, int z) {

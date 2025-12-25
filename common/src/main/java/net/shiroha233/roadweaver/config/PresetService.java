@@ -32,6 +32,9 @@ public final class PresetService {
     private static final String BASE_DIR = "roadweaver";
     private static final String PRESET_DIR = "presets";
     private static final ResourceLocation OVERWORLD = new ResourceLocation("minecraft:overworld");
+    private static final ResourceLocation NETHER = new ResourceLocation("minecraft:the_nether");
+    private static final ResourceLocation END = new ResourceLocation("minecraft:the_end");
+    private static final ResourceLocation TWILIGHT_FOREST = new ResourceLocation("twilightforest:twilight_forest");
 
     public enum RoadType {
         ARTIFICIAL,
@@ -67,6 +70,40 @@ public final class PresetService {
                 List.of(OVERWORLD),
                 List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"),
                 List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab")
+        ));
+
+        // ===== 人工道路（下界/末地/暮色森林） =====
+        list.add(new SamplePresetTemplate(
+                "nether_blackstone_road",
+                "Nether Blackstone Road",
+                RoadType.ARTIFICIAL,
+                List.of(NETHER),
+                List.of("minecraft:polished_blackstone_bricks", "minecraft:polished_blackstone", "minecraft:blackstone", "minecraft:basalt"),
+                List.of("minecraft:polished_blackstone_brick_slab", "minecraft:blackstone_slab")
+        ));
+        list.add(new SamplePresetTemplate(
+                "nether_brick_road",
+                "Nether Brick Road",
+                RoadType.ARTIFICIAL,
+                List.of(NETHER),
+                List.of("minecraft:nether_bricks", "minecraft:red_nether_bricks", "minecraft:cracked_nether_bricks", "minecraft:blackstone"),
+                List.of("minecraft:nether_brick_slab", "minecraft:red_nether_brick_slab")
+        ));
+        list.add(new SamplePresetTemplate(
+                "end_endstone_road",
+                "End Stone Road",
+                RoadType.ARTIFICIAL,
+                List.of(END),
+                List.of("minecraft:end_stone_bricks", "minecraft:end_stone", "minecraft:purpur_block"),
+                List.of("minecraft:end_stone_brick_slab", "minecraft:purpur_slab")
+        ));
+        list.add(new SamplePresetTemplate(
+                "twilight_castle_road",
+                "Twilight Castle Road",
+                RoadType.ARTIFICIAL,
+                List.of(TWILIGHT_FOREST),
+                List.of("twilightforest:castle_brick", "twilightforest:deadrock", "twilightforest:twilight_oak_planks"),
+                List.of("twilightforest:twilight_oak_slab", "twilightforest:canopy_slab")
         ));
 
         // ===== 自然道路（按生物群系划分）=====
@@ -194,10 +231,84 @@ public final class PresetService {
                 List.of("minecraft:mycelium", "minecraft:dirt_path", "minecraft:coarse_dirt"),
                 List.of("minecraft:oak_slab")));
 
+        // ===== 自然道路（下界） =====
+        list.add(naturalPresetInDimensions("minecraft:nether_wastes", "Nether Wastes Trail",
+                List.of(NETHER),
+                List.of("minecraft:netherrack", "minecraft:blackstone", "minecraft:basalt"),
+                List.of("minecraft:blackstone_slab")));
+        list.add(naturalPresetInDimensions("minecraft:crimson_forest", "Crimson Forest Trail",
+                List.of(NETHER),
+                List.of("minecraft:crimson_nylium", "minecraft:netherrack", "minecraft:nether_wart_block"),
+                List.of("minecraft:crimson_slab")));
+        list.add(naturalPresetInDimensions("minecraft:warped_forest", "Warped Forest Trail",
+                List.of(NETHER),
+                List.of("minecraft:warped_nylium", "minecraft:netherrack", "minecraft:warped_wart_block"),
+                List.of("minecraft:warped_slab")));
+        list.add(naturalPresetInDimensions("minecraft:soul_sand_valley", "Soul Sand Valley Trail",
+                List.of(NETHER),
+                List.of("minecraft:soul_sand", "minecraft:soul_soil", "minecraft:blackstone"),
+                List.of("minecraft:blackstone_slab")));
+        list.add(naturalPresetInDimensions("minecraft:basalt_deltas", "Basalt Deltas Trail",
+                List.of(NETHER),
+                List.of("minecraft:basalt", "minecraft:polished_basalt", "minecraft:blackstone"),
+                List.of("minecraft:blackstone_slab")));
+
+        // ===== 自然道路（末地） =====
+        list.add(naturalPresetInDimensions("minecraft:the_end", "End Trail",
+                List.of(END),
+                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
+                List.of("minecraft:end_stone_brick_slab")));
+        list.add(naturalPresetInDimensions("minecraft:end_highlands", "End Highlands Trail",
+                List.of(END),
+                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
+                List.of("minecraft:end_stone_brick_slab")));
+        list.add(naturalPresetInDimensions("minecraft:end_midlands", "End Midlands Trail",
+                List.of(END),
+                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
+                List.of("minecraft:end_stone_brick_slab")));
+        list.add(naturalPresetInDimensions("minecraft:small_end_islands", "Small End Islands Trail",
+                List.of(END),
+                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
+                List.of("minecraft:end_stone_brick_slab")));
+        list.add(naturalPresetInDimensions("minecraft:end_barrens", "End Barrens Trail",
+                List.of(END),
+                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
+                List.of("minecraft:end_stone_brick_slab")));
+
+        // ===== 自然道路（暮色森林） =====
+        list.add(naturalPresetInDimensions("twilightforest:forest", "Twilight Forest Trail",
+                List.of(TWILIGHT_FOREST),
+                List.of("minecraft:dirt_path", "minecraft:moss_block", "minecraft:coarse_dirt"),
+                List.of("twilightforest:twilight_oak_slab", "twilightforest:canopy_slab")));
+        list.add(naturalPresetInDimensions("twilightforest:dense_forest", "Twilight Dense Forest Trail",
+                List.of(TWILIGHT_FOREST),
+                List.of("minecraft:coarse_dirt", "minecraft:podzol", "minecraft:moss_block"),
+                List.of("twilightforest:canopy_slab")));
+        list.add(naturalPresetInDimensions("twilightforest:firefly_forest", "Twilight Firefly Forest Trail",
+                List.of(TWILIGHT_FOREST),
+                List.of("minecraft:dirt_path", "minecraft:coarse_dirt", "minecraft:glowstone"),
+                List.of("twilightforest:twilight_oak_slab")));
+        list.add(naturalPresetInDimensions("twilightforest:swamp", "Twilight Swamp Trail",
+                List.of(TWILIGHT_FOREST),
+                List.of("minecraft:mud", "minecraft:muddy_mangrove_roots", "minecraft:dirt_path"),
+                List.of("minecraft:mud_brick_slab")));
+        list.add(naturalPresetInDimensions("twilightforest:glacier", "Twilight Glacier Trail",
+                List.of(TWILIGHT_FOREST),
+                List.of("minecraft:packed_ice", "minecraft:snow_block", "minecraft:stone"),
+                List.of("minecraft:stone_slab")));
+
         SAMPLE_PRESETS = List.copyOf(list);
     }
 
     private static SamplePresetTemplate naturalPreset(String biomeId, String displayName, List<String> materials, List<String> slabMaterials) {
+        return naturalPresetInDimensions(biomeId, displayName, List.of(OVERWORLD), materials, slabMaterials);
+    }
+
+    private static SamplePresetTemplate naturalPresetInDimensions(String biomeId,
+                                                                 String displayName,
+                                                                 List<ResourceLocation> dimensions,
+                                                                 List<String> materials,
+                                                                 List<String> slabMaterials) {
         String sanitizedId = biomeId.contains(":")
                 ? biomeId.replace(':', '_')
                 : biomeId;
@@ -206,7 +317,7 @@ public final class PresetService {
                 presetId,
                 displayName,
                 RoadType.NATURAL,
-                List.of(OVERWORLD),
+                List.copyOf(dimensions),
                 List.copyOf(materials),
                 List.copyOf(slabMaterials)
         );
@@ -293,6 +404,15 @@ public final class PresetService {
         } catch (Exception e) {
             LOGGER.warn("Failed scanning presets: {}", presetDir, e);
         }
+
+        // 如果用户已有预设文件，则只为“缺失维度”补齐少量示例预设，避免把整套默认预设全部写出来。
+        // 这样能让下界/末地/暮色森林的道路材质开箱即用，同时不覆盖用户已有配置。
+        if (!map.isEmpty()) {
+            tryEnsureDimensionSamplePresets(presetDir, map, NETHER);
+            tryEnsureDimensionSamplePresets(presetDir, map, END);
+            tryEnsureDimensionSamplePresets(presetDir, map, TWILIGHT_FOREST);
+        }
+
         if (map.isEmpty()) {
             try {
                 writeSamplePresets(presetDir);
@@ -303,6 +423,30 @@ public final class PresetService {
         }
         PRESETS.set(map);
         LOGGER.info("Presets loaded: {} entries", map.size());
+    }
+
+    private static void tryEnsureDimensionSamplePresets(Path presetDir, Map<String, PresetDef> map, ResourceLocation dimension) {
+        if (dimension == null) return;
+        boolean hasAny = false;
+        for (PresetDef d : map.values()) {
+            if (d != null && d.dimensions() != null && d.dimensions().contains(dimension)) {
+                hasAny = true;
+                break;
+            }
+        }
+        if (hasAny) return;
+
+        for (SamplePresetTemplate template : SAMPLE_PRESETS) {
+            if (template == null) continue;
+            if (template.dimensions() == null || !template.dimensions().contains(dimension)) continue;
+            // 写入到 config/roadweaver/presets，保证用户可以在 UI 中编辑/删除
+            Path file = presetDir.resolve(template.id() + ".json");
+            if (!Files.exists(file)) {
+                writePreset(file, template.toPresetFile());
+            }
+            PresetDef def = template.toPresetDef();
+            map.putIfAbsent(def.id(), def);
+        }
     }
 
     private static String stripExt(String fn) {

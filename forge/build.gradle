@@ -31,6 +31,7 @@ loom {
 configurations {
     common
     shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
+    shadowSqlite
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
     developmentForge.extendsFrom common
@@ -39,7 +40,8 @@ configurations {
 shadowJar {
     exclude "architectury.common.json"
     exclude "fabric.mod.json"
-    configurations = [project.configurations.shadowCommon]
+    configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
+    relocate "org.sqlite", "net.shiroha233.roadweaver.libs.sqlite"
     archiveClassifier.set("dev-shadow")
 }
 
@@ -111,6 +113,12 @@ dependencies {
     // Forge 平台
     forge "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
+    // Optional compat mods (dev only)
+    modCompileOnly("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false } // GlitchCore
+    modCompileOnly("maven.modrinth:e0bNACJD:9.1.0.0") { transitive = false } // SereneSeasons Forge 1.20.1
+    modRuntimeOnly("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false }
+    modRuntimeOnly("maven.modrinth:e0bNACJD:9.1.0.0") { transitive = false }
+
     // Architectury API - 使用 Jar-in-Jar 内嵌
     modApi("dev.architectury:architectury-forge:9.2.14")
     include("dev.architectury:architectury-forge:9.2.14")
@@ -122,8 +130,7 @@ dependencies {
     // SQLite JDBC - 道路数据持久化（内嵌到模组）
     // developmentForge 确保开发环境下驱动可用
     developmentForge("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
-    implementation("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
-    include("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
+    shadowSqlite("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees
     // 换成modCompileOnly可以临时关闭此mod的运行以测试非联动状态

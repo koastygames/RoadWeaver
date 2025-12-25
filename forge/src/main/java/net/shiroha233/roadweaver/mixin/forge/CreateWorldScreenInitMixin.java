@@ -5,10 +5,14 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationContext;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationUiState;
+import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.presets.WorldPreset;
+import net.minecraft.world.level.levelgen.structure.Structure;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -50,10 +54,33 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
     ) {
         // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
         try {
-            WorldCreationContext settings = uiState.getSettings();
+            // 优先使用构造函数参数，避免某些阶段 uiState.getSettings() 尚未就绪。
+            WorldCreationContext settings = (worldCreationContext != null) ? worldCreationContext : uiState.getSettings();
             if (settings != null) {
                 RegistryAccess.Frozen registryAccess = settings.worldgenLoadContext();
-                if (registryAccess != null) {
+                if (registryAccess == null) return;
+
+                Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
+                Registry<LevelStem> levelStemRegistry = null;
+                try {
+                    levelStemRegistry = registryAccess.registryOrThrow(Registries.LEVEL_STEM);
+                } catch (Exception ignored) {
+                }
+
+                if (levelStemRegistry == null) {
+                    try {
+                        levelStemRegistry = settings.selectedDimensions().bake(settings.datapackDimensions()).dimensions();
+                    } catch (Exception ignored) {
+                        try {
+                            levelStemRegistry = settings.selectedDimensions().dimensions();
+                        } catch (Exception ignored2) {
+                        }
+                    }
+                }
+
+                if (levelStemRegistry != null) {
+                    StructureDiscoveryService.discoverFromRegistries(structureRegistry, levelStemRegistry);
+                } else {
                     StructureDiscoveryService.discoverFromRegistryAccess(registryAccess);
                 }
             }

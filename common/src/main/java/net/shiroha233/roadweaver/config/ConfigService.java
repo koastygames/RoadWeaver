@@ -51,7 +51,7 @@ public final class ConfigService {
             LOGGER.warn("Failed to sanitize config; continuing with raw values.", t);
         }
         LOGGER.info("Configuration loaded (radiusChunks={}, enabled={})",
-                INSTANCE.predictRadiusChunks(), INSTANCE.villagePredictionEnabled());
+                INSTANCE.predictRadiusChunks(), INSTANCE.structurePredictionEnabled());
     }
 
     public static synchronized void save() {

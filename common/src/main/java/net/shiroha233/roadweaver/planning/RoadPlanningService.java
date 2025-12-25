@@ -8,6 +8,8 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 
 import java.util.ArrayList;
@@ -61,7 +63,6 @@ public final class RoadPlanningService {
     public static void planAroundPlayer(ServerPlayer player) {
         if (player == null) return;
         ServerLevel level = player.serverLevel();
-        if (!Level.OVERWORLD.equals(level.dimension())) return;
         ModConfig cfg = ConfigService.get();
         if (!cfg.dynamicPlanEnabled()) return;
         int radiusChunks = Math.max(1, cfg.dynamicPlanRadiusChunks());
@@ -135,35 +136,23 @@ public final class RoadPlanningService {
                                                   int maxBlockX, int maxBlockZ,
                                                   List<BlockPos> out,
                                                   Set<Long> seenPos) {
-        WorldDataProvider provider = WorldDataProvider.getInstance();
-        Records.StructureLocationData loc = provider.getStructureLocations(level);
-        if (loc != null && loc.structureLocations() != null) {
-            for (BlockPos p : loc.structureLocations()) {
-                int x = p.getX(), z = p.getZ();
-                if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) continue;
-                BlockPos q = new BlockPos(x, 0, z);
-                long key = PlanningUtils.pos2dKey(q);
-                if (seenPos.add(key)) out.add(q);
-            }
-        }
+        // 迁移 legacy 并触发一次预测扫描（若启用预测）：结构点统一进 SQLite
+        StructureCacheMigrator.migrateLegacyIfNeeded(level);
 
-        if (Level.OVERWORLD.equals(level.dimension())) {
-            List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyInRect(
-                    level,
-                    minBlockX, minBlockZ,
-                    maxBlockX, maxBlockZ
-            );
-            if (verified != null && !verified.isEmpty()) {
-                for (Records.StructureInfo info : verified) {
-                    if (info == null) continue;
-                    BlockPos p = info.pos();
-                    int x = p.getX(), z = p.getZ();
-                    if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) continue;
-                    BlockPos q = new BlockPos(x, 0, z);
-                    long key = PlanningUtils.pos2dKey(q);
-                    if (seenPos.add(key)) out.add(q);
-                }
-            }
+        // 内部按 tile 扫描去重，重复调用不会重复计算。
+        // 注意：是否实际执行预测/验证，由 StructureIndexService 根据配置开关 + 维度白名单判定。
+        StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+
+        List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        if (cached == null || cached.isEmpty()) return;
+        for (Records.StructureInfo info : cached) {
+            if (info == null || info.pos() == null) continue;
+            BlockPos p = info.pos();
+            int x = p.getX(), z = p.getZ();
+            if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) continue;
+            BlockPos q = new BlockPos(x, 0, z);
+            long key = PlanningUtils.pos2dKey(q);
+            if (seenPos.add(key)) out.add(q);
         }
     }
 

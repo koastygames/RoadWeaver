@@ -49,6 +49,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
     // 数据
     private MapSnapshot snapshot = MapSnapshot.empty();
+    private ResourceLocation currentDimensionId;
     
     // 组件
     private final MapState state = new MapState();
@@ -70,9 +71,13 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     protected void init() {
         super.init();
         MapSnapshotCache.cancelClear();
-        MapSnapshot cached = MapSnapshotCache.peek();
-        if (cached != null) {
-            this.snapshot = cached;
+        Minecraft mc = this.minecraft;
+        if (mc != null && mc.level != null) {
+            currentDimensionId = mc.level.dimension().location();
+            MapSnapshot cached = MapSnapshotCache.peek(currentDimensionId);
+            if (cached != null) {
+                this.snapshot = cached;
+            }
         }
         computeMapRect();
         inputHandler.updateLayout(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING);
@@ -81,7 +86,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         int contentH = mapH - MapTheme.INNER_PADDING * 2;
         view.resetFromSnapshot(snapshot);
         
-        Minecraft mc = this.minecraft;
         if (mc != null && mc.player != null) {
             view.calibrateInitialToPlayer(mc, contentW, contentH, MapTheme.GRID_TARGET_PX);
         }
@@ -391,12 +395,25 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
         Minecraft mc = this.minecraft;
         if (mc == null) return;
+
+        ResourceLocation dimensionId = (mc.level != null) ? mc.level.dimension().location() : null;
+        if (dimensionId != null && (currentDimensionId == null || !dimensionId.equals(currentDimensionId))) {
+            currentDimensionId = dimensionId;
+            MapSnapshot cached = MapSnapshotCache.peek(currentDimensionId);
+            if (cached != null) {
+                this.snapshot = cached;
+            }
+        }
         
         MinecraftServer server = mc.getSingleplayerServer();
         if (server != null) {
             // 单人模式：本地构造快照
-            ServerLevel level = server.getLevel(Level.OVERWORLD);
+            ServerLevel level = null;
+            if (mc.level != null) {
+                level = server.getLevel(mc.level.dimension());
+            }
             if (level != null) {
+                final ServerLevel levelFinal = level;
                 int cx = 0, cz = 0;
                 if (mc.player != null) {
                     cx = (int) Math.round(mc.player.getX());
@@ -408,18 +425,19 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 final int currentSeq = state.incrementAndGetRequestSeq();
                 
                 CompletableFuture
-                    .supplyAsync(() -> MapDataCollector.build(level, fMinX, fMinZ, fMaxX, fMaxZ, fcx, fcz, radiusBlocks), 
+                    .supplyAsync(() -> MapDataCollector.build(levelFinal, fMinX, fMinZ, fMaxX, fMaxZ, fcx, fcz, radiusBlocks), 
                                  ComputeService.executor())
                     .thenAccept(snap -> mc.execute(() -> {
                         if (state.getCurrentRequestSeq() == currentSeq) {
-                            setSnapshot(snap);
+                            acceptSnapshot(currentSeq, levelFinal.dimension().location(), snap);
                         }
                     }));
             }
         } else {
             // 多人模式：发送网络请求
-            state.incrementAndGetRequestSeq();
-            ClientNetBridge.requestSnapshot(minX, minZ, maxX, maxZ);
+            int requestSeq = state.incrementAndGetRequestSeq();
+            ResourceLocation did = (mc.level != null) ? mc.level.dimension().location() : new ResourceLocation("minecraft", "overworld");
+            ClientNetBridge.requestSnapshot(requestSeq, did, minX, minZ, maxX, maxZ);
         }
     }
 
@@ -471,8 +489,21 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     public void setSnapshot(MapSnapshot snapshot) {
         if (snapshot != null) {
             this.snapshot = snapshot;
-            MapSnapshotCache.put(snapshot);
+            if (currentDimensionId != null) {
+                MapSnapshotCache.put(currentDimensionId, snapshot);
+            }
         }
+    }
+
+    public void acceptSnapshot(int requestSeq, ResourceLocation dimensionId, MapSnapshot snapshot) {
+        if (dimensionId == null || snapshot == null) return;
+        if (requestSeq != state.getCurrentRequestSeq()) return;
+
+        // 如果客户端当前维度已变更，则丢弃过期回包，避免覆盖当前视图
+        if (currentDimensionId != null && !dimensionId.equals(currentDimensionId)) return;
+
+        this.snapshot = snapshot;
+        MapSnapshotCache.put(dimensionId, snapshot);
     }
 
     // ========== 辅助方法 ==========

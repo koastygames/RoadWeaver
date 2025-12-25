@@ -30,6 +30,8 @@ public class MapNetworkFabric {
     public static void registerServerReceivers() {
         // 矩形范围请求：minX,minZ,maxX,maxZ
         ServerPlayNetworking.registerGlobalReceiver(REQ_RECT, (server, player, handler, buf, responseSender) -> {
+            int requestSeq = buf.readVarInt();
+            ResourceLocation requestDimensionId = buf.readResourceLocation();
             int minX = buf.readVarInt();
             int minZ = buf.readVarInt();
             int maxX = buf.readVarInt();
@@ -54,8 +56,13 @@ public class MapNetworkFabric {
             final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
             CompletableFuture
                 .supplyAsync(() -> {
-                    MapSnapshot snapshot = MapDataCollector.build(sp.serverLevel(), minX, minZ, maxX, maxZ, cx, cz, radiusBlocksFinal);
+                    // 不信任客户端传来的维度：以服务端玩家当前所处维度为准（防止伪造/竞态）。
+                    var level = sp.serverLevel();
+                    ResourceLocation actualDimensionId = level.dimension().location();
+                    MapSnapshot snapshot = MapDataCollector.build(level, minX, minZ, maxX, maxZ, cx, cz, radiusBlocksFinal);
                     FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
+                    out.writeVarInt(requestSeq);
+                    out.writeResourceLocation(actualDimensionId);
                     MapSnapshotCodec.write(out, snapshot);
                     return out;
                 }, ComputeService.executor())
@@ -126,10 +133,12 @@ public class MapNetworkFabric {
 
     public static void registerClientReceivers() {
         ClientPlayNetworking.registerGlobalReceiver(SNAP, (client, handler, buf, responseSender) -> {
+            int requestSeq = buf.readVarInt();
+            ResourceLocation dimensionId = buf.readResourceLocation();
             MapSnapshot s = MapSnapshotCodec.read(buf);
             client.execute(() -> {
                 if (client.screen instanceof RoadMapScreen screen) {
-                    screen.setSnapshot(s);
+                    screen.acceptSnapshot(requestSeq, dimensionId, s);
                 }
             });
         });
@@ -150,8 +159,10 @@ public class MapNetworkFabric {
         });
     }
 
-    public static void requestSnapshot(int minX, int minZ, int maxX, int maxZ) {
+    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
         FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
+        out.writeVarInt(requestSeq);
+        out.writeResourceLocation(dimensionId);
         out.writeVarInt(minX);
         out.writeVarInt(minZ);
         out.writeVarInt(maxX);

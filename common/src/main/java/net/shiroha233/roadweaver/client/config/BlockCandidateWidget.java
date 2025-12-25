@@ -22,6 +22,7 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import java.util.ArrayList;
@@ -184,11 +185,11 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
             
             Block b = filteredBlocks.get(i);
             ItemStack stack = new ItemStack(b);
-            g.renderFakeItem(stack, bx + 1, by + 1);
+            SafeGuiItemRenderer.renderFakeItemSafe(g, stack, bx + 1, by + 1);
             
             if (mouseX >= bx && mouseX < bx + slotSize && mouseY >= by && mouseY < by + slotSize) {
                 g.fill(bx, by, bx + slotSize, by + slotSize, 0x80FFFFFF);
-                g.renderTooltip(Minecraft.getInstance().font, stack, mouseX, mouseY);
+                SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
             }
         }
         

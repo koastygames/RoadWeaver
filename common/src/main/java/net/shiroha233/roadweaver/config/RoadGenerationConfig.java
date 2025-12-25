@@ -60,6 +60,25 @@ public record RoadGenerationConfig(
             cfg.pathfindingAlgorithm()
         );
     }
+
+    public static RoadGenerationConfig from(ModConfig cfg, String dimensionId) {
+        return new RoadGenerationConfig(
+            PathfindingConfig.from(cfg),
+            cfg.hierarchicalPathfindingEnabled(),
+            cfg.roadWidth(),
+            cfg.allowArtificial(),
+            cfg.allowNatural(),
+            cfg.averagingRadius(),
+            cfg.slopeLimitEnabledForDimension(dimensionId),
+            cfg.maxSlopeStepPerTwoSegments(),
+            cfg.roadsideStructuresEnabledForDimension(dimensionId),
+            cfg.maxStructuresPerRoad(),
+            cfg.smallStructureOffset(),
+            cfg.mediumStructureOffset(),
+            cfg.largeStructureOffset(),
+            cfg.pathfindingAlgorithmForDimension(dimensionId)
+        );
+    }
     
     /**
      * 获取有效的道路宽度

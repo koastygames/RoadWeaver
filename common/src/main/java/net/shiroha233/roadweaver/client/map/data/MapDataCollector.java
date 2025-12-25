@@ -11,6 +11,10 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,17 +24,18 @@ import java.util.Set;
 public final class MapDataCollector {
     private MapDataCollector() {}
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
+    private static final boolean PERF_DEBUG = Boolean.getBoolean("roadweaver.mapPerfDebug");
+
     // 视图跨度超过该阈值时，不再加载详细道路几何，只依赖连接直线
     public static final int MAX_DETAILED_ROAD_SPAN_BLOCKS = 7680;
 
     public static MapSnapshot build(ServerLevel level) {
+        final long tAll0 = PERF_DEBUG ? System.nanoTime() : 0L;
         WorldDataProvider provider = WorldDataProvider.getInstance();
-        Records.StructureLocationData loc = provider.getStructureLocations(level);
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
         List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
-        List<BlockPos> structures = (loc != null) ? new ArrayList<>(loc.structureLocations()) : new ArrayList<>();
         List<Records.StructureConnection> conns = (connections != null) ? new ArrayList<>(connections) : new ArrayList<>();
-        List<Records.StructureInfo> infos = (loc != null) ? new ArrayList<>(loc.structureInfos()) : new ArrayList<>();
         List<List<BlockPos>> roads = new ArrayList<>();
         ModConfig cfg = ConfigService.get();
         BlockPos spawn = level.getSharedSpawnPos();
@@ -49,6 +54,28 @@ public final class MapDataCollector {
         int maxX = spawn.getX() + radiusBlocks;
         int minZ = spawn.getZ() - radiusBlocks;
         int maxZ = spawn.getZ() + radiusBlocks;
+
+        // 迁移旧结构点（WorldDataProvider）到 SQLite：地图后续统一从 SQLite 取数。
+        StructureCacheMigrator.migrateLegacyIfNeeded(level);
+
+        // 从 SQLite 读取结构点：预测点是否纳入取决于配置开关 + 维度白名单
+        boolean allowPredicted = cfg != null
+                && cfg.structurePredictionEnabled()
+                && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
+        int[] src = allowPredicted
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+        List<Records.StructureInfo> cachedInfos = StructureSqliteStorage.queryRect(level, minX, minZ, maxX, maxZ, src);
+        java.util.HashMap<Long, Records.StructureInfo> bestInfoByPos = new java.util.HashMap<>();
+        java.util.HashSet<BlockPos> structuresSet = new java.util.HashSet<>();
+        for (Records.StructureInfo info : cachedInfos) {
+            if (info == null || info.pos() == null) continue;
+            mergeBestStructureInfo(bestInfoByPos, info);
+            BlockPos p = info.pos();
+            structuresSet.add(new BlockPos(p.getX(), 0, p.getZ()));
+        }
+        List<BlockPos> structures = new ArrayList<>(structuresSet);
+        List<Records.StructureInfo> infos = new ArrayList<>(bestInfoByPos.values());
         List<Records.RoadData> roadDataList = RoadShardStorage.queryRect(level, minX, minZ, maxX, maxZ);
         for (Records.RoadData rd : roadDataList) {
             List<Records.RoadSegmentPlacement> segs = rd.roadSegmentList();
@@ -67,24 +94,46 @@ public final class MapDataCollector {
             for (Records.StructureConnection hc : highwayConnections) {
                 long k = PlanningUtils.edgeKey(hc.from(), hc.to());
                 if (seenEdges.add(k)) conns.add(hc);
-                if (existingStructures.add(hc.from())) structures.add(hc.from());
-                if (existingStructures.add(hc.to())) structures.add(hc.to());
+                BlockPos f = new BlockPos(hc.from().getX(), 0, hc.from().getZ());
+                BlockPos t = new BlockPos(hc.to().getX(), 0, hc.to().getZ());
+                if (existingStructures.add(f)) structures.add(f);
+                if (existingStructures.add(t)) structures.add(t);
             }
         }
 
-        if (Level.OVERWORLD.equals(level.dimension())) {
-            List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyAroundSpawn(level);
-            if (!verified.isEmpty()) {
-                Set<BlockPos> existing = new HashSet<>(structures);
-                for (Records.StructureInfo info : verified) {
-                    BlockPos p = info.pos();
-                    if (!existing.contains(p)) {
-                        structures.add(p);
-                        infos.add(info);
-                        existing.add(p);
-                    }
+        final long tPred0 = PERF_DEBUG ? System.nanoTime() : 0L;
+        List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyAroundSpawn(level);
+        final long predMs = PERF_DEBUG ? (System.nanoTime() - tPred0) / 1_000_000L : 0L;
+        if (!verified.isEmpty()) {
+            Set<BlockPos> existing = new HashSet<>(structures);
+            for (Records.StructureInfo info : verified) {
+                BlockPos p0 = info.pos();
+                BlockPos p = new BlockPos(p0.getX(), 0, p0.getZ());
+                if (!existing.contains(p)) {
+                    structures.add(p);
+                    mergeBestStructureInfo(bestInfoByPos, info);
+                    existing.add(p);
                 }
             }
+            infos = new ArrayList<>(bestInfoByPos.values());
+        }
+
+        if (PERF_DEBUG) {
+            int cachedCount = cachedInfos != null ? cachedInfos.size() : 0;
+            int conCount = connections != null ? connections.size() : 0;
+            int hwCount = highwayConnections != null ? highwayConnections.size() : 0;
+            int outStructures = structures.size();
+            int outInfos = infos.size();
+            int predictedCount = verified.size();
+            long totalMs = (System.nanoTime() - tAll0) / 1_000_000L;
+            LOGGER.info("MapDataCollector.build(spawn) rect=[{},{}..{},{}] spawn=[{},{}] predictR={} cachedInfos={} conns={} hwConns={} out(struct={},info={}) predicted={} timeMs={} predMs={}",
+                    minX, minZ, maxX, maxZ,
+                    spawn.getX(), spawn.getZ(), radiusBlocks,
+                    cachedCount,
+                    conCount, hwCount,
+                    outStructures, outInfos,
+                    predictedCount,
+                    totalMs, predMs);
         }
 
         return new MapSnapshot(structures, conns, infos, roads);
@@ -92,17 +141,32 @@ public final class MapDataCollector {
 
     public static MapSnapshot build(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
-        Records.StructureLocationData loc = provider.getStructureLocations(level);
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
         List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
 
-        List<BlockPos> structures = new ArrayList<>();
-        if (loc != null && loc.structureLocations() != null) {
-            for (BlockPos p : loc.structureLocations()) {
-                int x = p.getX(), z = p.getZ();
-                if (x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ) structures.add(p);
-            }
+        StructureCacheMigrator.migrateLegacyIfNeeded(level);
+
+        // 触发一次扫描（若启用预测）：保证 SQLite 中有 predicted 数据
+        StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+
+        ModConfig cfg = ConfigService.get();
+        boolean allowPredicted = cfg != null
+                && cfg.structurePredictionEnabled()
+                && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
+        int[] src = allowPredicted
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+
+        java.util.List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, src);
+        java.util.HashMap<Long, Records.StructureInfo> bestInfoByPos = new java.util.HashMap<>();
+        java.util.HashSet<BlockPos> structuresSet = new java.util.HashSet<>();
+        for (Records.StructureInfo info : cached) {
+            if (info == null || info.pos() == null) continue;
+            mergeBestStructureInfo(bestInfoByPos, info);
+            BlockPos p = info.pos();
+            structuresSet.add(new BlockPos(p.getX(), 0, p.getZ()));
         }
+        List<BlockPos> structures = new ArrayList<>(structuresSet);
 
         List<Records.StructureConnection> conns = new ArrayList<>();
         if (connections != null) {
@@ -131,36 +195,7 @@ public final class MapDataCollector {
             }
         }
 
-        List<Records.StructureInfo> infos = new ArrayList<>();
-        if (loc != null && loc.structureInfos() != null) {
-            for (Records.StructureInfo info : loc.structureInfos()) {
-                BlockPos p = info.pos();
-                int x = p.getX(), z = p.getZ();
-                if (x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ) infos.add(info);
-            }
-        }
-
-        if (Level.OVERWORLD.equals(level.dimension())) {
-            List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyInRect(
-                    level,
-                    minBlockX, minBlockZ,
-                    maxBlockX, maxBlockZ
-            );
-            if (!verified.isEmpty()) {
-                Set<BlockPos> existing = new HashSet<>(structures);
-                for (Records.StructureInfo info : verified) {
-                    BlockPos p = info.pos();
-                    if (!existing.contains(p)) {
-                        int x = p.getX(), z = p.getZ();
-                        if (x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ) {
-                            structures.add(p);
-                            infos.add(info);
-                            existing.add(p);
-                        }
-                    }
-                }
-            }
-        }
+        List<Records.StructureInfo> infos = new ArrayList<>(bestInfoByPos.values());
 
         List<List<BlockPos>> roads = new ArrayList<>();
         List<Records.RoadData> roadDataList = RoadShardStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
@@ -182,9 +217,10 @@ public final class MapDataCollector {
             BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
             for (BlockPos ep : eps) {
                 int x = ep.getX(), z = ep.getZ();
+                BlockPos ep2d = new BlockPos(x, 0, z);
                 boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                if (inRect && existing.add(ep)) {
-                    structures.add(ep);
+                if (inRect && existing.add(ep2d)) {
+                    structures.add(ep2d);
                 }
             }
         }
@@ -195,10 +231,20 @@ public final class MapDataCollector {
     public static MapSnapshot build(ServerLevel level,
                                     int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ,
                                     int centerX, int centerZ, int radiusBlocks) {
+        final long tAll0 = PERF_DEBUG ? System.nanoTime() : 0L;
         WorldDataProvider provider = WorldDataProvider.getInstance();
-        Records.StructureLocationData loc = provider.getStructureLocations(level);
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
         List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
+
+        StructureCacheMigrator.migrateLegacyIfNeeded(level);
+
+        ModConfig cfg = ConfigService.get();
+        boolean allowPredicted = cfg != null
+                && cfg.structurePredictionEnabled()
+                && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
+        int[] src = allowPredicted
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
 
         final long r2 = (long) Math.max(0, radiusBlocks) * (long) Math.max(0, radiusBlocks);
         java.util.function.BiPredicate<Integer, Integer> inAOI = (x, z) -> {
@@ -215,14 +261,14 @@ public final class MapDataCollector {
         java.util.Set<BlockPos> plannedEndpoints = new java.util.HashSet<>();
         if (connections != null) {
             for (Records.StructureConnection c : connections) {
-                plannedEndpoints.add(c.from());
-                plannedEndpoints.add(c.to());
+                plannedEndpoints.add(new BlockPos(c.from().getX(), 0, c.from().getZ()));
+                plannedEndpoints.add(new BlockPos(c.to().getX(), 0, c.to().getZ()));
             }
         }
         if (highwayConnections != null) {
             for (Records.StructureConnection c : highwayConnections) {
-                plannedEndpoints.add(c.from());
-                plannedEndpoints.add(c.to());
+                plannedEndpoints.add(new BlockPos(c.from().getX(), 0, c.from().getZ()));
+                plannedEndpoints.add(new BlockPos(c.to().getX(), 0, c.to().getZ()));
             }
         }
 
@@ -238,31 +284,15 @@ public final class MapDataCollector {
         long initialR2 = (long) initialRadiusBlocks * (long) initialRadiusBlocks;
         BlockPos spawn = level.getSharedSpawnPos();
 
-        // 预计算已规划 tiles 对应的近似矩形（块坐标）
-        java.util.List<int[]> plannedRects = new java.util.ArrayList<>();
+        // 已规划覆盖判断（性能关键）：
+        // 旧实现为“对每个点遍历 plannedRects 列表”，复杂度会变成 O(点数 * 已规划tile数)，
+        // 缩小地图（请求矩形变大）时会明显变慢。
+        // 新实现按点所在 chunk 推导附近 tile 邻域，只检查少量候选 tile，并基于中心点+半径做矩形包含判断。
+        java.util.Set<Long> plannedTiles = RoadPlanningService.getPlannedTiles(level);
         java.util.Map<Long, Long> centersMap = RoadPlanningService.getPlannedTileCenters(level);
-        for (Long key : RoadPlanningService.getPlannedTiles(level)) {
-            int kx = (int) (key >> 32);
-            int kz = (int) (key & 0xffffffffL);
-            int centerChunkX;
-            int centerChunkZ;
-            Long cval = centersMap.get(key);
-            if (cval != null) {
-                centerChunkX = (int) (cval >> 32);
-                centerChunkZ = (int) (cval & 0xffffffffL);
-            } else {
-                centerChunkX = kx * strideChunks + strideChunks / 2;
-                centerChunkZ = kz * strideChunks + strideChunks / 2;
-            }
-            int cxBlocks = centerChunkX * 16;
-            int czBlocks = centerChunkZ * 16;
-            int minBx = cxBlocks - dynRadiusBlocks;
-            int maxBx = cxBlocks + dynRadiusBlocks;
-            int minBz = czBlocks - dynRadiusBlocks;
-            int maxBz = czBlocks + dynRadiusBlocks;
-            plannedRects.add(new int[]{minBx, minBz, maxBx, maxBz});
-        }
-
+        int safeStrideChunks = Math.max(1, strideChunks);
+        int safeDynRadiusChunks = Math.max(1, dynRadiusChunks);
+        int neighborTiles = Math.floorDiv(safeDynRadiusChunks, safeStrideChunks) + 2;
         java.util.function.BiPredicate<Integer, Integer> inPlannedCoverage = (x, z) -> {
             // 初始覆盖（仅主世界）
             if (Level.OVERWORLD.equals(level.dimension())) {
@@ -270,25 +300,58 @@ public final class MapDataCollector {
                 long dzs = (long) z - spawn.getZ();
                 if (dxs * dxs + dzs * dzs <= initialR2) return true;
             }
-            // 历史动态规划矩形覆盖
-            for (int[] r : plannedRects) {
-                if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return true;
+
+            if (plannedTiles == null || plannedTiles.isEmpty()) return false;
+
+            int chunkX = Math.floorDiv(x, 16);
+            int chunkZ = Math.floorDiv(z, 16);
+            int baseTileX = Math.floorDiv(chunkX, safeStrideChunks);
+            int baseTileZ = Math.floorDiv(chunkZ, safeStrideChunks);
+
+            for (int dx = -neighborTiles; dx <= neighborTiles; dx++) {
+                for (int dz = -neighborTiles; dz <= neighborTiles; dz++) {
+                    int kx = baseTileX + dx;
+                    int kz = baseTileZ + dz;
+                    long key = (((long) kx) << 32) ^ (kz & 0xffffffffL);
+                    if (!plannedTiles.contains(key)) continue;
+
+                    int centerChunkX;
+                    int centerChunkZ;
+                    Long cval = centersMap.get(key);
+                    if (cval != null) {
+                        centerChunkX = (int) (cval >> 32);
+                        centerChunkZ = (int) (cval & 0xffffffffL);
+                    } else {
+                        centerChunkX = kx * safeStrideChunks + safeStrideChunks / 2;
+                        centerChunkZ = kz * safeStrideChunks + safeStrideChunks / 2;
+                    }
+
+                    int cxBlocks = centerChunkX * 16;
+                    int czBlocks = centerChunkZ * 16;
+                    if (x >= cxBlocks - dynRadiusBlocks && x <= cxBlocks + dynRadiusBlocks
+                            && z >= czBlocks - dynRadiusBlocks && z <= czBlocks + dynRadiusBlocks) {
+                        return true;
+                    }
+                }
             }
             return false;
         };
 
-        List<BlockPos> structures = new ArrayList<>();
-        if (loc != null && loc.structureLocations() != null) {
-            for (BlockPos p : loc.structureLocations()) {
-                int x = p.getX(), z = p.getZ();
-                boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                if (!inRect) continue;
-                // 规则：已规划端点始终显示；已触发规划覆盖内的结构显示；其余仅在 AOI 内显示
-                if (plannedEndpoints.contains(p) || inPlannedCoverage.test(x, z) || inAOI.test(x, z)) {
-                    structures.add(p);
-                }
-            }
+        java.util.List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, src);
+        java.util.HashMap<Long, Records.StructureInfo> bestInfoByPos = new java.util.HashMap<>();
+        java.util.HashSet<BlockPos> structuresSet = new java.util.HashSet<>();
+        for (Records.StructureInfo info : cached) {
+            if (info == null || info.pos() == null) continue;
+            BlockPos p = info.pos();
+            int x = p.getX();
+            int z = p.getZ();
+            boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
+            if (!inRect) continue;
+            if (!(plannedEndpoints.contains(p) || inPlannedCoverage.test(x, z) || inAOI.test(x, z))) continue;
+            mergeBestStructureInfo(bestInfoByPos, info);
+            structuresSet.add(new BlockPos(x, 0, z));
         }
+        List<BlockPos> structures = new ArrayList<>(structuresSet);
 
         // 确保连接端点一定出现在结构点列表中（即使 StructureLocationData 尚未包含该点）
         if (connections != null) {
@@ -297,10 +360,11 @@ public final class MapDataCollector {
                 BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
                 for (BlockPos ep : eps) {
                     int x = ep.getX(), z = ep.getZ();
+                    BlockPos ep2d = new BlockPos(x, 0, z);
                     boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                    if (inRect && !existing.contains(ep)) {
-                        structures.add(ep);
-                        existing.add(ep);
+                    if (inRect && !existing.contains(ep2d)) {
+                        structures.add(ep2d);
+                        existing.add(ep2d);
                     }
                 }
             }
@@ -312,10 +376,11 @@ public final class MapDataCollector {
                 BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
                 for (BlockPos ep : eps) {
                     int x = ep.getX(), z = ep.getZ();
+                    BlockPos ep2d = new BlockPos(x, 0, z);
                     boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                    if (inRect && !existing.contains(ep)) {
-                        structures.add(ep);
-                        existing.add(ep);
+                    if (inRect && !existing.contains(ep2d)) {
+                        structures.add(ep2d);
+                        existing.add(ep2d);
                     }
                 }
             }
@@ -350,17 +415,35 @@ public final class MapDataCollector {
             }
         }
 
-        List<Records.StructureInfo> infos = new ArrayList<>();
-        if (loc != null && loc.structureInfos() != null) {
-            for (Records.StructureInfo info : loc.structureInfos()) {
-                BlockPos p = info.pos();
-                int x = p.getX(), z = p.getZ();
+        List<Records.StructureInfo> infos = new ArrayList<>(bestInfoByPos.values());
+
+        // 结构预测/验证开销随“请求矩形面积”快速增长（遍历 StructureSet + chunkScanner 验证）。
+        // 但地图层实际只会展示 AOI/规划覆盖内的结构点，因此这里将预测范围限制为与 AOI 相交的矩形，
+        // 避免在缩小地图（视图范围变大）时做无意义的全量预测。
+        int predMinX = Math.max(minBlockX, centerX - radiusBlocks);
+        int predMaxX = Math.min(maxBlockX, centerX + radiusBlocks);
+        int predMinZ = Math.max(minBlockZ, centerZ - radiusBlocks);
+        int predMaxZ = Math.min(maxBlockZ, centerZ + radiusBlocks);
+        final long tPred0 = PERF_DEBUG ? System.nanoTime() : 0L;
+        List<Records.StructureInfo> predictedInfos = (predMinX <= predMaxX && predMinZ <= predMaxZ)
+                ? StructureIndexService.predictAndVerifyInRect(level, predMinX, predMinZ, predMaxX, predMaxZ)
+                : List.of();
+        final long predMs = PERF_DEBUG ? (System.nanoTime() - tPred0) / 1_000_000L : 0L;
+        if (!predictedInfos.isEmpty()) {
+            java.util.HashSet<BlockPos> existingStructures = new java.util.HashSet<>(structures);
+            for (Records.StructureInfo info : predictedInfos) {
+                BlockPos p0 = info.pos();
+                int x = p0.getX(), z = p0.getZ();
+                BlockPos p = new BlockPos(x, 0, z);
                 boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
                 if (!inRect) continue;
-                if (plannedEndpoints.contains(p) || inPlannedCoverage.test(x, z) || inAOI.test(x, z)) {
-                    infos.add(info);
+                if (!(plannedEndpoints.contains(p) || inPlannedCoverage.test(x, z) || inAOI.test(x, z))) continue;
+                if (existingStructures.add(p)) {
+                    structures.add(p);
                 }
+                mergeBestStructureInfo(bestInfoByPos, info);
             }
+            infos = new ArrayList<>(bestInfoByPos.values());
         }
 
         List<List<BlockPos>> roads = new ArrayList<>();
@@ -383,7 +466,50 @@ public final class MapDataCollector {
             }
         }
 
+        if (PERF_DEBUG) {
+            int cachedCount = cached != null ? cached.size() : 0;
+            int conCount = connections != null ? connections.size() : 0;
+            int hwCount = highwayConnections != null ? highwayConnections.size() : 0;
+            int outStructures = structures.size();
+            int outInfos = infos.size();
+            int predictedCount = predictedInfos.size();
+            int plannedTileCount = plannedTiles != null ? plannedTiles.size() : 0;
+            long totalMs = (System.nanoTime() - tAll0) / 1_000_000L;
+            LOGGER.info("MapDataCollector.build rect=[{},{}..{},{}] aoiCenter=[{},{}] aoiR={} span=[{},{}] plannedTiles={} loadRoads={} roads={} cachedInfos={} conns={} hwConns={} out(struct={},info={}) predicted={} timeMs={} predMs={}",
+                    minBlockX, minBlockZ, maxBlockX, maxBlockZ,
+                    centerX, centerZ, radiusBlocks,
+                    spanX, spanZ,
+                    plannedTileCount,
+                    loadDetailedRoads, roads.size(),
+                    cachedCount,
+                    conCount, hwCount,
+                    outStructures, outInfos,
+                    predictedCount,
+                    totalMs, predMs);
+        }
+
         return new MapSnapshot(structures, conns, infos, roads);
+    }
+
+    private static void mergeBestStructureInfo(java.util.Map<Long, Records.StructureInfo> out, Records.StructureInfo info) {
+        if (out == null || info == null || info.pos() == null) return;
+        BlockPos p = info.pos();
+        int x = p.getX();
+        int z = p.getZ();
+        long key = (((long) x) << 32) ^ (z & 0xffffffffL);
+        Records.StructureInfo prev = out.get(key);
+        if (prev == null) {
+            out.put(key, new Records.StructureInfo(new BlockPos(x, 0, z), info.structureId()));
+            return;
+        }
+        String prevId = prev.structureId();
+        String nextId = info.structureId();
+        if (prevId == null) prevId = "unknown";
+        if (nextId == null) nextId = "unknown";
+        // 优先保留非 unknown
+        if ("unknown".equals(prevId) && !"unknown".equals(nextId)) {
+            out.put(key, new Records.StructureInfo(new BlockPos(x, 0, z), nextId));
+        }
     }
 }
 

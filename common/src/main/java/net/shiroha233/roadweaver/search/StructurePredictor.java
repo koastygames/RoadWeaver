@@ -15,13 +15,16 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructureSets;
+import net.minecraft.world.level.levelgen.structure.placement.ConcentricRingsStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.RandomSpreadStructurePlacement;
 import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement;
+import net.minecraft.world.level.levelgen.structure.placement.StructurePlacementType;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.shiroha233.roadweaver.helpers.Records;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +34,19 @@ import java.util.Locale;
 
 public final class StructurePredictor {
     private StructurePredictor() {}
+
+    public static List<Records.StructureInfo> predictStructuresInRect(ServerLevel level,
+                                                                      int minChunkX,
+                                                                      int minChunkZ,
+                                                                      int maxChunkX,
+                                                                      int maxChunkZ,
+                                                                      boolean biomePrefilter,
+                                                                      List<String> whitelist,
+                                                                      List<String> blacklist) {
+        // 说明：旧实现命名为 Overworld，但其核心逻辑是读取当前维度的 StructureSet/placement 并做候选区块推导，
+        // 因此对下界/末地同样适用（只要对应结构使用 RandomSpreadStructurePlacement）。
+        return predictOverworldStructuresInRect(level, minChunkX, minChunkZ, maxChunkX, maxChunkZ, biomePrefilter, whitelist, blacklist);
+    }
 
     public static List<Records.StructureInfo> predictOverworldVillagesAroundSpawn(ServerLevel level, int radiusChunks, boolean biomePrefilter) {
         RegistryAccess registryAccess = level.registryAccess();
@@ -99,6 +115,113 @@ public final class StructurePredictor {
         return result;
     }
 
+    private static ResourceLocation getPlacementTypeId(RegistryAccess access, StructurePlacement placement) {
+        if (access == null || placement == null) return null;
+        try {
+            Registry<StructurePlacementType<?>> reg = access.registryOrThrow(Registries.STRUCTURE_PLACEMENT);
+            return reg.getKey(placement.type());
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * 暮色森林 forced_landmark 预测（不依赖暮色 mod 的编译期引用）。
+     *
+     * 原理：
+     * - 暮色的 landmark center 以 16 chunk 为一个“region”，每个 region 会有一个中心点（chunk）。
+     * - placement 内部提供了 isTFPlacementChunk(generator, state, chunkX, chunkZ) 用于按群系/种子挑选地标。
+     * - 我们只枚举这些中心点，而不是扫描所有 chunk，从而保证性能。
+     */
+    private static void predictTwilightForestForcedLandmark(ServerLevel level,
+                                                           ChunkGeneratorStructureState state,
+                                                           StructurePlacement placement,
+                                                           String labelId,
+                                                           int minChunkX, int minChunkZ,
+                                                           int maxChunkX, int maxChunkZ,
+                                                           List<Records.StructureInfo> out) {
+        if (level == null || state == null || placement == null || out == null) return;
+
+        // regionX = floor((chunkX + 8) / 16)
+        int regionMinX = Math.floorDiv(minChunkX + 8, 16);
+        int regionMaxX = Math.floorDiv(maxChunkX + 8, 16);
+        int regionMinZ = Math.floorDiv(minChunkZ + 8, 16);
+        int regionMaxZ = Math.floorDiv(maxChunkZ + 8, 16);
+
+        Method isTfPlacementChunk = null;
+        try {
+            // BiomeForcedLandmarkPlacement#isTFPlacementChunk(ChunkGenerator, ChunkGeneratorStructureState, int, int)
+            isTfPlacementChunk = placement.getClass().getMethod(
+                    "isTFPlacementChunk",
+                    net.minecraft.world.level.chunk.ChunkGenerator.class,
+                    ChunkGeneratorStructureState.class,
+                    int.class,
+                    int.class
+            );
+        } catch (Throwable ignored) {
+            // 无该方法则回退到 placement.isStructureChunk
+        }
+
+        var generator = level.getChunkSource().getGenerator();
+
+        for (int rx = regionMinX; rx <= regionMaxX; rx++) {
+            for (int rz = regionMinZ; rz <= regionMaxZ; rz++) {
+                ChunkPos center = tfLegacyLandmarkCenterChunk(rx, rz);
+                int cx = center.x;
+                int cz = center.z;
+                if (cx < minChunkX || cx > maxChunkX || cz < minChunkZ || cz > maxChunkZ) continue;
+
+                boolean ok;
+                try {
+                    if (isTfPlacementChunk != null) {
+                        ok = (boolean) isTfPlacementChunk.invoke(placement, generator, state, cx, cz);
+                    } else {
+                        ok = placement.isStructureChunk(state, cx, cz);
+                    }
+                } catch (Throwable t) {
+                    // 任何异常都视为“不支持预测”，避免影响主流程
+                    continue;
+                }
+
+                if (!ok) continue;
+
+                BlockPos locatePos = placement.getLocatePos(center);
+                out.add(new Records.StructureInfo(locatePos, labelId));
+            }
+        }
+    }
+
+    // 复刻 TwilightForest LegacyLandmarkPlacements#getNearestCenterXZ 的中心点计算。
+    // 输入为 region 坐标（每 16 chunk 一格），输出为该 region 的中心 chunk。
+    private static ChunkPos tfLegacyLandmarkCenterChunk(int regionX, int regionZ) {
+        long seed = regionX * 3129871L ^ regionZ * 116129781L;
+        seed = seed * seed * 42317861L + seed * 7L;
+
+        int num0 = (int) (seed >> 12 & 3L);
+        int num1 = (int) (seed >> 15 & 3L);
+        int num2 = (int) (seed >> 18 & 3L);
+        int num3 = (int) (seed >> 21 & 3L);
+
+        int centerX = 8 + num0 - num1;
+        int centerZ = 8 + num2 - num3;
+
+        int ccx;
+        if (regionX >= 0) {
+            ccx = (regionX * 16 + centerX - 8) * 16 + 8;
+        } else {
+            ccx = (regionX * 16 + (16 - centerX) - 8) * 16 + 9;
+        }
+
+        int ccz;
+        if (regionZ >= 0) {
+            ccz = (regionZ * 16 + centerZ - 8) * 16 + 8;
+        } else {
+            ccz = (regionZ * 16 + (16 - centerZ) - 8) * 16 + 9;
+        }
+
+        return new ChunkPos(ccx >> 4, ccz >> 4);
+    }
+
     public static List<Records.StructureInfo> predictOverworldStructuresInRect(ServerLevel level,
                                                                                int minChunkX,
                                                                                int minChunkZ,
@@ -108,7 +231,6 @@ public final class StructurePredictor {
                                                                                List<String> whitelist,
                                                                                List<String> blacklist) {
         RegistryAccess access = level.registryAccess();
-        Registry<StructureSet> setRegistry = access.registryOrThrow(Registries.STRUCTURE_SET);
 
         ChunkGeneratorStructureState state = level.getChunkSource().getGeneratorState();
         RandomState randomState = state.randomState();
@@ -118,10 +240,12 @@ public final class StructurePredictor {
 
         List<Records.StructureInfo> result = new ArrayList<>();
 
-        for (Holder.Reference<StructureSet> holder : setRegistry.holders().toList()) {
+        // 关键：只遍历“当前维度/群系可能生成的 StructureSet”。
+        // 原版也会用 biomeSource.possibleBiomes 过滤 structure sets；否则在第三方维度会枚举大量不可能结构，导致卡顿。
+        List<Holder<StructureSet>> possibleSets = state.possibleStructureSets();
+        for (Holder<StructureSet> holder : possibleSets) {
             StructureSet set = holder.value();
             StructurePlacement placement = set.placement();
-            if (!(placement instanceof RandomSpreadStructurePlacement rssp)) continue;
 
             // 计算该集合中“被允许”的结构（根据白/黑名单筛选）
             List<Holder<Structure>> matchedStructures = new ArrayList<>();
@@ -149,6 +273,42 @@ public final class StructurePredictor {
                 if (matchedStructures.isEmpty()) continue;
             }
 
+            // 代表性结构ID（用于标注），选择第一个匹配结构的 ID
+            String labelId = matchedStructures.stream()
+                    .map(h -> h.unwrapKey().map(ResourceKey::location).map(ResourceLocation::toString).orElse("structure"))
+                    .findFirst().orElse("structure");
+
+            // 1.20.1 原版 placement 类型：RandomSpread / ConcentricRings。
+            // ConcentricRings 典型例子是 Stronghold（环状分布）。
+            if (placement instanceof ConcentricRingsStructurePlacement crsp) {
+                List<ChunkPos> ring = state.getRingPositionsFor(crsp);
+                if (ring == null || ring.isEmpty()) {
+                    continue;
+                }
+                for (ChunkPos cp : ring) {
+                    int x = cp.x;
+                    int z = cp.z;
+                    if (x < minChunkX || x > maxChunkX || z < minChunkZ || z > maxChunkZ) continue;
+                    if (!placement.isStructureChunk(state, x, z)) continue;
+                    BlockPos locatePos = placement.getLocatePos(cp);
+                    result.add(new Records.StructureInfo(locatePos, labelId));
+                }
+                continue;
+            }
+
+            // Twilight Forest 等第三方维度常用自定义 placement。
+            // 目前只对暮色森林的 forced_landmark 做专门支持（避免维度内无结构点 + 兼容多维度需求）。
+            ResourceLocation placementTypeId = getPlacementTypeId(access, placement);
+            if (placementTypeId != null && "twilightforest".equals(placementTypeId.getNamespace())
+                    && "forced_landmark".equals(placementTypeId.getPath())) {
+                predictTwilightForestForcedLandmark(level, state, placement, labelId, minChunkX, minChunkZ, maxChunkX, maxChunkZ, result);
+                continue;
+            }
+
+            if (!(placement instanceof RandomSpreadStructurePlacement rssp)) {
+                continue;
+            }
+
             Set<Holder<Biome>> allowedBiomes = null;
             if (biomePrefilter) {
                 allowedBiomes = new HashSet<>();
@@ -164,11 +324,6 @@ public final class StructurePredictor {
             int endI = Math.floorDiv(maxChunkX, spacing);
             int startJ = Math.floorDiv(minChunkZ, spacing);
             int endJ = Math.floorDiv(maxChunkZ, spacing);
-
-            // 代表性结构ID（用于标注），选择第一个匹配结构的 ID
-            String labelId = matchedStructures.stream()
-                    .map(h -> h.unwrapKey().map(ResourceKey::location).map(ResourceLocation::toString).orElse("structure"))
-                    .findFirst().orElse("structure");
 
             for (int i = startI; i <= endI; i++) {
                 for (int j = startJ; j <= endJ; j++) {

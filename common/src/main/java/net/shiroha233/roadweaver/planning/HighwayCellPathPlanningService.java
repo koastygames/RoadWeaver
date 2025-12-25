@@ -7,6 +7,8 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 
@@ -359,30 +361,25 @@ public final class HighwayCellPathPlanningService {
         ArrayList<BlockPos> out = new ArrayList<>();
         HashSet<Long> seen = new HashSet<>();
 
-        WorldDataProvider provider = WorldDataProvider.getInstance();
-        Records.StructureLocationData loc = provider.getStructureLocations(level);
-        if (loc != null && loc.structureLocations() != null) {
-            for (BlockPos p : loc.structureLocations()) {
-                if (p == null) continue;
-                int x = p.getX(), z = p.getZ();
-                if (x < minX || x >= maxXExcl || z < minZ || z >= maxZExcl) continue;
-                BlockPos q = new BlockPos(x, 0, z);
-                long k = PlanningUtils.pos2dKey(q);
-                if (seen.add(k)) out.add(q);
-            }
+        // 迁移 legacy 并按需触发预测扫描：结构点统一走 SQLite
+        StructureCacheMigrator.migrateLegacyIfNeeded(level);
+        ModConfig cfg = ConfigService.get();
+        boolean allowPredicted = cfg != null
+                && cfg.structurePredictionEnabled()
+                && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
+        if (allowPredicted) {
+            // 注意：predictAndVerifyInRect 是闭区间，因此 max-1
+            StructureIndexService.predictAndVerifyInRect(level, minX, minZ, maxXExcl - 1, maxZExcl - 1);
         }
 
-        // 结构预测 + 验证（注意：predictAndVerifyInRect 是闭区间，因此 max-1）
-        List<Records.StructureInfo> verified = StructureIndexService.predictAndVerifyInRect(
-                level,
-                minX, minZ,
-                maxXExcl - 1, maxZExcl - 1
-        );
-        if (verified != null && !verified.isEmpty()) {
-            for (Records.StructureInfo info : verified) {
-                if (info == null) continue;
+        int[] sources = allowPredicted
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+        List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minX, minZ, maxXExcl - 1, maxZExcl - 1, sources);
+        if (cached != null && !cached.isEmpty()) {
+            for (Records.StructureInfo info : cached) {
+                if (info == null || info.pos() == null) continue;
                 BlockPos p = info.pos();
-                if (p == null) continue;
                 int x = p.getX(), z = p.getZ();
                 if (x < minX || x >= maxXExcl || z < minZ || z >= maxZExcl) continue;
                 BlockPos q = new BlockPos(x, 0, z);

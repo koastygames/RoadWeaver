@@ -39,22 +39,33 @@ public class MapNetworkForge {
     }
 
     public static class RequestMapSnapshotC2S {
+        public final int requestSeq;
+        public final ResourceLocation requestedDimensionId;
         public final int minX, minZ, maxX, maxZ;
-        public RequestMapSnapshotC2S(int minX, int minZ, int maxX, int maxZ) {
-            this.minX = minX; this.minZ = minZ; this.maxX = maxX; this.maxZ = maxZ;
+        public RequestMapSnapshotC2S(int requestSeq, ResourceLocation requestedDimensionId, int minX, int minZ, int maxX, int maxZ) {
+            this.requestSeq = requestSeq;
+            this.requestedDimensionId = requestedDimensionId;
+            this.minX = minX;
+            this.minZ = minZ;
+            this.maxX = maxX;
+            this.maxZ = maxZ;
         }
         public static void encode(RequestMapSnapshotC2S msg, FriendlyByteBuf buf) {
+            buf.writeVarInt(msg.requestSeq);
+            buf.writeResourceLocation(msg.requestedDimensionId);
             buf.writeVarInt(msg.minX);
             buf.writeVarInt(msg.minZ);
             buf.writeVarInt(msg.maxX);
             buf.writeVarInt(msg.maxZ);
         }
         public static RequestMapSnapshotC2S decode(FriendlyByteBuf buf) {
+            int requestSeq = buf.readVarInt();
+            ResourceLocation requestedDimensionId = buf.readResourceLocation();
             int minX = buf.readVarInt();
             int minZ = buf.readVarInt();
             int maxX = buf.readVarInt();
             int maxZ = buf.readVarInt();
-            return new RequestMapSnapshotC2S(minX, minZ, maxX, maxZ);
+            return new RequestMapSnapshotC2S(requestSeq, requestedDimensionId, minX, minZ, maxX, maxZ);
         }
         public static void handle(RequestMapSnapshotC2S msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
@@ -78,31 +89,47 @@ public class MapNetworkForge {
                 }
                 final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
                 CompletableFuture
-                    .supplyAsync(() -> MapDataCollector.build(player.serverLevel(), msg.minX, msg.minZ, msg.maxX, msg.maxZ, cx, cz, radiusBlocksFinal), ComputeService.executor())
-                    .thenAccept(snap -> c.enqueueWork(() -> CHANNEL.sendTo(new MapSnapshotS2C(snap), player.connection.connection, NetworkDirection.PLAY_TO_CLIENT)));
+                    .supplyAsync(() -> {
+                        // 不信任客户端传来的维度：以服务端玩家当前所处维度为准（防止伪造/竞态）。
+                        var level = player.serverLevel();
+                        ResourceLocation actualDimensionId = level.dimension().location();
+                        MapSnapshot snap = MapDataCollector.build(level, msg.minX, msg.minZ, msg.maxX, msg.maxZ, cx, cz, radiusBlocksFinal);
+                        return new MapSnapshotS2C(msg.requestSeq, actualDimensionId, snap);
+                    }, ComputeService.executor())
+                    .thenAccept(packet -> c.enqueueWork(() -> CHANNEL.sendTo(packet, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT)));
             }
             c.setPacketHandled(true);
         }
     }
 
-    public static void requestSnapshot(int minX, int minZ, int maxX, int maxZ) {
-        CHANNEL.sendToServer(new RequestMapSnapshotC2S(minX, minZ, maxX, maxZ));
+    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
+        CHANNEL.sendToServer(new RequestMapSnapshotC2S(requestSeq, dimensionId, minX, minZ, maxX, maxZ));
     }
 
     public static class MapSnapshotS2C {
+        public final int requestSeq;
+        public final ResourceLocation dimensionId;
         public final MapSnapshot snapshot;
-        public MapSnapshotS2C(MapSnapshot s) { this.snapshot = s; }
+        public MapSnapshotS2C(int requestSeq, ResourceLocation dimensionId, MapSnapshot s) {
+            this.requestSeq = requestSeq;
+            this.dimensionId = dimensionId;
+            this.snapshot = s;
+        }
         public static void encode(MapSnapshotS2C msg, FriendlyByteBuf buf) {
+            buf.writeVarInt(msg.requestSeq);
+            buf.writeResourceLocation(msg.dimensionId);
             MapSnapshotCodec.write(buf, msg.snapshot);
         }
         public static MapSnapshotS2C decode(FriendlyByteBuf buf) {
-            return new MapSnapshotS2C(MapSnapshotCodec.read(buf));
+            int requestSeq = buf.readVarInt();
+            ResourceLocation dimensionId = buf.readResourceLocation();
+            return new MapSnapshotS2C(requestSeq, dimensionId, MapSnapshotCodec.read(buf));
         }
         public static void handle(MapSnapshotS2C msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
             c.enqueueWork(() -> {
                 Minecraft mc = Minecraft.getInstance();
-                if (mc.screen instanceof RoadMapScreen screen) screen.setSnapshot(msg.snapshot);
+                if (mc.screen instanceof RoadMapScreen screen) screen.acceptSnapshot(msg.requestSeq, msg.dimensionId, msg.snapshot);
             });
             c.setPacketHandled(true);
         }

@@ -6,6 +6,7 @@ import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.helpers.StructureConnector;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 
 import java.util.ArrayList;
@@ -49,6 +50,15 @@ public final class RoadNetworkApi {
         Records.StructureLocationData updated = new Records.StructureLocationData(locations, infos);
         provider.setStructureLocations(level, updated);
 
+        // 同步写入 SQLite 结构点缓存：让地图/规划可以从 SQLite 统一查询结构点。
+        // 这里按 y=0 归一化（地图/规划只关心 x/z）。
+        String id = (structureId != null && !structureId.isEmpty()) ? structureId : "unknown";
+        StructureSqliteStorage.addStructures(
+                level,
+                java.util.List.of(new Records.StructureInfo(new BlockPos(pos.getX(), 0, pos.getZ()), id)),
+                StructureSqliteStorage.SOURCE_MANUAL
+        );
+
         if (autoConnect) {
             StructureConnector.cacheNewConnection(level, true);
         }
@@ -84,6 +94,17 @@ public final class RoadNetworkApi {
             Records.StructureLocationData updated = new Records.StructureLocationData(locations, infos);
             provider.setStructureLocations(level, updated);
         }
+
+        // 同步写入 SQLite（SOURCE_MANUAL）：确保连接端点在“统一结构点缓存”中存在
+        // 说明：这里不写 structureId，仅保证坐标存在，避免丢点。
+        StructureSqliteStorage.addStructures(
+                level,
+                java.util.List.of(
+                        new Records.StructureInfo(new BlockPos(from.getX(), 0, from.getZ()), "unknown"),
+                        new Records.StructureInfo(new BlockPos(to.getX(), 0, to.getZ()), "unknown")
+                ),
+                StructureSqliteStorage.SOURCE_MANUAL
+        );
 
         List<Records.StructureConnection> existingConns = provider.getStructureConnections(level);
         List<Records.StructureConnection> list = existingConns != null ? new ArrayList<>(existingConns)

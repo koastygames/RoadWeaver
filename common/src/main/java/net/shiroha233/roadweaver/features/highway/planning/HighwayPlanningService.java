@@ -32,10 +32,15 @@ public final class HighwayPlanningService {
     private static final class WindowCenter {
         private int gx;
         private int gz;
+        // 是否已进入“九宫格动态规划”模式。
+        // 设计目的：服务器启动/初始生成阶段仅规划 1x1 cell，避免启动即铺满 3x3；
+        // 玩家进入游戏后再触发一次 3x3 规划。
+        private boolean dynamicActivated;
 
-        private WindowCenter(int gx, int gz) {
+        private WindowCenter(int gx, int gz, boolean dynamicActivated) {
             this.gx = gx;
             this.gz = gz;
+            this.dynamicActivated = dynamicActivated;
         }
     }
 
@@ -49,7 +54,8 @@ public final class HighwayPlanningService {
     public static void initialPlan(ServerLevel level) {
         if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         ModConfig cfg = ConfigService.get();
-        if (!cfg.highwayEnabled() || !cfg.highwayAutoPlanEnabled()) return;
+        String dimId = level.dimension().location().toString();
+        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled()) return;
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
         // 初次加载：只加载“玩家当前所在的 1x1 cell”。
@@ -68,14 +74,17 @@ public final class HighwayPlanningService {
 
         int cellGx = floorDiv(centerPos.getX(), gridBlocks);
         int cellGz = floorDiv(centerPos.getZ(), gridBlocks);
-        WINDOW_CENTERS.put(level, new WindowCenter(cellGx, cellGz));
+        // 初始阶段始终只规划 1x1 cell。
+        // 九宫格动态规划将由 planAroundPlayer 在玩家进入游戏后首次触发。
+        WINDOW_CENTERS.put(level, new WindowCenter(cellGx, cellGz, false));
         refreshSingleCell(level, cfg, cellGx, cellGz);
     }
 
     public static CompletableFuture<Void> initialPlanAsync(ServerLevel level) {
         if (level == null || !Level.OVERWORLD.equals(level.dimension())) return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
-        if (!cfg.highwayEnabled() || !cfg.highwayAutoPlanEnabled()) return CompletableFuture.completedFuture(null);
+        String dimId = level.dimension().location().toString();
+        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled()) return CompletableFuture.completedFuture(null);
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
         BlockPos centerPos = level.getSharedSpawnPos();
@@ -92,8 +101,8 @@ public final class HighwayPlanningService {
 
         int cellGx = floorDiv(centerPos.getX(), gridBlocks);
         int cellGz = floorDiv(centerPos.getZ(), gridBlocks);
-        WINDOW_CENTERS.put(level, new WindowCenter(cellGx, cellGz));
-
+        // 初始阶段始终只规划 1x1 cell。
+        WINDOW_CENTERS.put(level, new WindowCenter(cellGx, cellGz, false));
         return refreshSingleCellAsync(level, cfg, cellGx, cellGz);
     }
 
@@ -106,8 +115,6 @@ public final class HighwayPlanningService {
         int maxPointGx = cellGx + 1;
         int minPointGz = cellGz;
         int maxPointGz = cellGz + 1;
-
-        pruneHighwayConnectionsToWindow(level, gridBlocks, minPointGx, minPointGz, maxPointGx, maxPointGz);
 
         int minX = minPointGx * gridBlocks;
         int maxX = maxPointGx * gridBlocks;
@@ -131,8 +138,6 @@ public final class HighwayPlanningService {
         int maxPointGx = cellGx + 1;
         int minPointGz = cellGz;
         int maxPointGz = cellGz + 1;
-
-        pruneHighwayConnectionsToWindow(level, gridBlocks, minPointGx, minPointGz, maxPointGx, maxPointGz);
 
         int minX = minPointGx * gridBlocks;
         int maxX = maxPointGx * gridBlocks;
@@ -159,16 +164,41 @@ public final class HighwayPlanningService {
         if (!Level.OVERWORLD.equals(level.dimension())) return;
 
         ModConfig cfg = ConfigService.get();
-        if (!cfg.highwayEnabled() || !cfg.highwayAutoPlanEnabled()) return;
+        String dimId = level.dimension().location().toString();
+        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled()) return;
 
         WindowCenter center = WINDOW_CENTERS.get(level);
         if (center == null) {
             int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
             int playerCellGx = floorDiv(player.getBlockX(), gridBlocks);
             int playerCellGz = floorDiv(player.getBlockZ(), gridBlocks);
-            center = new WindowCenter(playerCellGx, playerCellGz);
+            // 玩家已进入游戏：若启用动态规划，则直接激活九宫格。
+            center = new WindowCenter(playerCellGx, playerCellGz, cfg.highwayDynamicPlanEnabled());
             WINDOW_CENTERS.put(level, center);
-            refreshSingleCellAsync(level, cfg, playerCellGx, playerCellGz);
+            if (cfg.highwayDynamicPlanEnabled()) {
+                refreshWindowAsync(level, cfg, playerCellGx, playerCellGz);
+            } else {
+                refreshSingleCellAsync(level, cfg, playerCellGx, playerCellGz);
+            }
+            return;
+        }
+
+        // 若动态规划开关被关闭：回退到 1x1，且允许未来再次开启时重新“激活九宫格”。
+        if (!cfg.highwayDynamicPlanEnabled()) {
+            center.dynamicActivated = false;
+        }
+
+        // 启用了动态规划，但当前还处于“初始阶段仅 1x1 cell”的状态：
+        // 玩家进入游戏后首次触发九宫格规划。
+        if (cfg.highwayDynamicPlanEnabled() && !center.dynamicActivated) {
+            int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
+            int playerCellGx = floorDiv(player.getBlockX(), gridBlocks);
+            int playerCellGz = floorDiv(player.getBlockZ(), gridBlocks);
+            center.gx = playerCellGx;
+            center.gz = playerCellGz;
+            center.dynamicActivated = true;
+            refreshWindowAsync(level, cfg, center.gx, center.gz);
+            return;
         }
 
         // 若未开启动态拓展：保持“仅 1x1 cell”，并且让该 cell 永远跟随玩家（玩家居中）。
@@ -187,7 +217,7 @@ public final class HighwayPlanningService {
 
         // 以玩家所在 cell 为依据维护 3x3 滚动窗口：
         // - 玩家进入窗口边缘 cell（相对中心 dx/dz 为 +/-1）时，窗口中心滚动到玩家所在 cell
-        // - 窗口外的 highwayConnections 会被裁剪掉（仅裁剪规划元数据，不回滚方块）
+        // - 滚动窗口仅用于“增量补齐”窗口内的规划边；不会删除历史 highwayConnections
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
         int playerCellGx = floorDiv(player.getBlockX(), gridBlocks);
         int playerCellGz = floorDiv(player.getBlockZ(), gridBlocks);
@@ -221,8 +251,6 @@ public final class HighwayPlanningService {
         int minPointGz = centerCellGz - 1;
         int maxPointGz = centerCellGz + 2;
 
-        pruneHighwayConnectionsToWindow(level, gridBlocks, minPointGx, minPointGz, maxPointGx, maxPointGz);
-
         int minX = minPointGx * gridBlocks;
         int maxX = maxPointGx * gridBlocks;
         int minZ = minPointGz * gridBlocks;
@@ -251,8 +279,6 @@ public final class HighwayPlanningService {
         int minPointGz = centerCellGz - 1;
         int maxPointGz = centerCellGz + 2;
 
-        pruneHighwayConnectionsToWindow(level, gridBlocks, minPointGx, minPointGz, maxPointGx, maxPointGz);
-
         int minX = minPointGx * gridBlocks;
         int maxX = maxPointGx * gridBlocks;
         int minZ = minPointGz * gridBlocks;
@@ -275,36 +301,6 @@ public final class HighwayPlanningService {
             if (server == null) return;
             server.execute(() -> HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ, cellMaxX, cellMaxZ));
         });
-    }
-
-    private static void pruneHighwayConnectionsToWindow(ServerLevel level,
-                                                        int gridBlocks,
-                                                        int minPointGx, int minPointGz,
-                                                        int maxPointGx, int maxPointGz) {
-        WorldDataProvider provider = WorldDataProvider.getInstance();
-        List<Records.StructureConnection> existing = provider.getHighwayConnections(level);
-        if (existing == null || existing.isEmpty()) return;
-
-        int minX = minPointGx * gridBlocks;
-        int maxX = maxPointGx * gridBlocks;
-        int minZ = minPointGz * gridBlocks;
-        int maxZ = maxPointGz * gridBlocks;
-
-        ArrayList<Records.StructureConnection> kept = new ArrayList<>(existing.size());
-        for (Records.StructureConnection c : existing) {
-            if (c == null) continue;
-            BlockPos a = c.from();
-            BlockPos b = c.to();
-            if (a == null || b == null) continue;
-
-            boolean ina = a.getX() >= minX && a.getX() <= maxX && a.getZ() >= minZ && a.getZ() <= maxZ;
-            boolean inb = b.getX() >= minX && b.getX() <= maxX && b.getZ() >= minZ && b.getZ() <= maxZ;
-            if (ina && inb) kept.add(c);
-        }
-
-        if (kept.size() != existing.size()) {
-            provider.setHighwayConnections(level, kept);
-        }
     }
 
     private static void planRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {

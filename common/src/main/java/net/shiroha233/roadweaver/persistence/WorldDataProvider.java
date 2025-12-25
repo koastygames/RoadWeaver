@@ -43,10 +43,11 @@ public abstract class WorldDataProvider {
     // 便捷方法：添加单个结构位置
     public void addStructureLocation(ServerLevel level, BlockPos pos) {
         Records.StructureLocationData data = getStructureLocations(level);
-        List<BlockPos> locations = new ArrayList<>(data.structureLocations());
+        List<BlockPos> locations = new ArrayList<>(data != null ? data.structureLocations() : new ArrayList<>());
+        List<Records.StructureInfo> infos = new ArrayList<>(data != null ? data.structureInfos() : new ArrayList<>());
         if (!locations.contains(pos)) {
             locations.add(pos);
-            setStructureLocations(level, new Records.StructureLocationData(locations));
+            setStructureLocations(level, new Records.StructureLocationData(locations, infos));
         }
     }
 }

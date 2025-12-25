@@ -19,6 +19,18 @@ public final class HeightProfileService {
                                       int averagingRadius,
                                       ModConfig cfg,
                                       List<Integer> targetY) {
+        boolean slopeLimitEnabled = cfg != null && cfg.slopeLimitEnabled();
+        int maxSlopeStepPerTwoSegments = cfg != null ? cfg.maxSlopeStepPerTwoSegments() : 1;
+        return build(world, middlePositions, currentChunk, averagingRadius, slopeLimitEnabled, maxSlopeStepPerTwoSegments, targetY);
+    }
+
+    public static HeightProfile build(WorldGenLevel world,
+                                     List<BlockPos> middlePositions,
+                                     ChunkPos currentChunk,
+                                     int averagingRadius,
+                                     boolean slopeLimitEnabled,
+                                     int maxSlopeStepPerTwoSegments,
+                                     List<Integer> targetY) {
         int n = middlePositions.size();
         boolean usePersisted = targetY != null && targetY.size() == n;
         if (usePersisted) {
@@ -48,7 +60,7 @@ public final class HeightProfileService {
             }
         }
         // 如果关闭限坡平滑，则直接返回基于平均的高度，不再进行每两段的步进限制
-        if (!cfg.slopeLimitEnabled()) {
+        if (!slopeLimitEnabled) {
             int[] noSmoothed = new int[n];
             for (int ii = 0; ii < n; ii++) noSmoothed[ii] = baseYArr[ii];
             return new HeightProfile(false, noSmoothed);
@@ -56,7 +68,7 @@ public final class HeightProfileService {
 
         int[] smoothed = new int[n];
         for (int ii = 0; ii < n; ii++) smoothed[ii] = baseYArr[ii];
-        int step2 = Math.max(0, Math.min(8, cfg.maxSlopeStepPerTwoSegments()));
+        int step2 = Math.max(0, Math.min(8, maxSlopeStepPerTwoSegments));
         int halfLow = Math.max(0, step2 / 2);
         int halfHigh = Math.max(0, (step2 + 1) / 2);
         

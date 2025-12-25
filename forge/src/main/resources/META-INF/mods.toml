@@ -40,3 +40,17 @@ mandatory = false
 versionRange = "[11.0,)"
 ordering = "NONE"
 side = "CLIENT"
+
+[[dependencies.roadweaver]]
+modId = "sereneseasons"
+mandatory = false
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.roadweaver]]
+modId = "glitchcore"
+mandatory = false
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "CLIENT"

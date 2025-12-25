@@ -14,7 +14,8 @@
   "client": [
     "CreateWorldScreenMixin",
     "CreateWorldScreenInitMixin",
-    "LevelLoadingScreenMixin"
+    "LevelLoadingScreenMixin",
+    "BiomeGrassColorFailSafeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

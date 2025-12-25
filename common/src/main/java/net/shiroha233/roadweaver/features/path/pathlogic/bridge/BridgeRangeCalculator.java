@@ -34,15 +34,31 @@ public final class BridgeRangeCalculator {
     }
 
     public static RangeResult compute(java.util.List<BlockPos> middlePositions, java.util.List<Records.RoadSpan> spans) {
+        ModConfig cfg = ConfigService.get();
+        return compute(middlePositions, spans, cfg, null);
+    }
+
+    public static RangeResult compute(java.util.List<BlockPos> middlePositions,
+                                      java.util.List<Records.RoadSpan> spans,
+                                      ModConfig cfg,
+                                      String dimensionId) {
         int n = middlePositions.size();
         boolean[] isBridge = new boolean[n];
         boolean[] skipSegments = new boolean[n];
         java.util.List<int[]> bridgeRanges = new java.util.ArrayList<>();
-        
-        ModConfig cfg = ConfigService.get();
-        if (!cfg.bridgeEnabled()) {
+
+        if (cfg == null) {
             return new RangeResult(isBridge, java.util.List.of(), skipSegments);
         }
+
+        // 按维度桥梁开关：dimensionId 为空时回退到全局。
+        boolean bridgeEnabled = (dimensionId == null || dimensionId.isEmpty())
+                ? cfg.bridgeEnabled()
+                : cfg.bridgeEnabledForDimension(dimensionId);
+        if (!bridgeEnabled) {
+            return new RangeResult(isBridge, java.util.List.of(), skipSegments);
+        }
+
         int minLength = Math.max(1, cfg.bridgeMinLength());
         int mergeGap = Math.max(1, cfg.bridgeMergeGap());
         boolean useBuoysInstead = cfg.bridgeUseBuoysInstead();

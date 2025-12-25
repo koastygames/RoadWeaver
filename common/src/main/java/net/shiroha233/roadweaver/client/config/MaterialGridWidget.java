@@ -7,6 +7,7 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -73,12 +74,12 @@ public class MaterialGridWidget extends AbstractWidget {
                     Block b = blockFromId(materialIds.get(index));
                     if (b != null && b != Blocks.AIR) {
                         ItemStack stack = new ItemStack(b);
-                        g.renderFakeItem(stack, x + 1, y + 1);
+                        SafeGuiItemRenderer.renderFakeItemSafe(g, stack, x + 1, y + 1);
                         
                         // Highlight hover
                         if (mouseX >= x && mouseX < x + slotSize && mouseY >= y && mouseY < y + slotSize) {
                              g.fill(x, y, x + slotSize, y + slotSize, 0x80FFFFFF);
-                             g.renderTooltip(Minecraft.getInstance().font, stack, mouseX, mouseY);
+                             SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
                         }
                     }
                 }
