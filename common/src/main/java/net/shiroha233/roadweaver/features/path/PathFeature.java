@@ -33,8 +33,6 @@ import net.shiroha233.roadweaver.features.path.pathlogic.surface.HeightProfileSe
 import net.shiroha233.roadweaver.util.Curve;
 
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class PathFeature extends Feature<PathFeatureConfig> {
     public PathFeature(Codec<PathFeatureConfig> codec) {
@@ -61,7 +59,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         if (roadDataList == null || roadDataList.isEmpty()) return false;
 
         RandomSource random = ctx.random();
-        ModConfig cfg = ConfigService.get();
         int averagingRadius = Math.max(0, cfg.averagingRadius());
 
         Set<BlockPos> processedMiddle = new HashSet<>();
@@ -109,8 +106,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
 
         BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments);
 
-        boolean useBuoysInstead = cfg.bridgeEnabled() && cfg.bridgeUseBuoysInstead();
-        boolean useBuoysWhenSkipped = cfg.bridgeEnabled() && cfg.bridgeUseBuoysWhenSkipped();
         boolean useBuoysInstead = bridgeEnabled && cfg.bridgeUseBuoysInstead();
         boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
 
@@ -183,7 +178,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 continue;
             }
 
-            if (cfg.bridgeEnabled() && isBridge[i]) {
+            if (bridgeEnabled && isBridge[i]) {
                 var curve = bridgeSegment.getCurve(i);
                 // 若桥曲线长度小于20，则沿用原桥生成方法
                 if (curve == null || curve.getTotalLength() <= 20) {
@@ -191,8 +186,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 } else {
                     BridgeSegmentPlannerNew.processSegment(world, curve, seg, middle, prev);
                 }
-            if (bridgeEnabled && isBridge[i]) {
-                BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
             } else {
                 // 按维度：道路填充（路基/地形适配）与插值路基填充开关
                 if (roadFillEnabled) {
@@ -309,3 +302,4 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
     }
 }
+
