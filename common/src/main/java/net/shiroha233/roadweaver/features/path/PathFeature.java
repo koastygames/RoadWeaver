@@ -11,10 +11,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.phys.Vec3;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
+import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlannerNew;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationPlanner;
@@ -28,6 +30,7 @@ import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.BridgeTransitionAdjuster;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.HeightProfileService;
+import net.shiroha233.roadweaver.util.Curve;
 
 import java.util.*;
 
@@ -100,6 +103,8 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
         boolean[] skipSegments = res.skipSegments();
+
+        BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments);
 
         boolean useBuoysInstead = bridgeEnabled && cfg.bridgeUseBuoysInstead();
         boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
@@ -174,7 +179,13 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             }
 
             if (bridgeEnabled && isBridge[i]) {
-                BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                var curve = bridgeSegment.getCurve(i);
+                // 若桥曲线长度小于20，则沿用原桥生成方法
+                if (curve == null || curve.getTotalLength() <= 20) {
+                    BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                } else {
+                    BridgeSegmentPlannerNew.processSegment(world, curve, seg, middle, prev);
+                }
             } else {
                 // 按维度：道路填充（路基/地形适配）与插值路基填充开关
                 if (roadFillEnabled) {
@@ -226,4 +237,69 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             // 参见 RoadsideStructurePrecomputer 和 StructureInjector
         }
     }
+
+    public static class BridgeSegment {
+        public final Map<Set<Integer>, Curve> curves = new HashMap<>();
+
+        public BridgeSegment(boolean[] isBridge, List<Records.RoadSegmentPlacement> segments) {
+            List<List<Vec3>> list1 = new ArrayList<>();
+            List<Set<Integer>> list2 = new ArrayList<>();
+            list1.add(new ArrayList<>());
+            list2.add(new HashSet<>());
+            for (int i = 0; i < segments.size(); i++) {
+                if (isBridge[i]) {
+                    list1.get(list1.size() - 1).add(segments.get(i).middlePos().getCenter());
+                    list2.get(list1.size() - 1).add(i);
+                } else {
+                    if (!list1.get(list1.size() - 1).isEmpty()) {
+                        list1.add(new ArrayList<>());
+                        list2.add(new HashSet<>());
+                    }
+                }
+            }
+            if (list1.get(list1.size() - 1).isEmpty()) {
+                list1.remove(list1.size() - 1);
+                list2.remove(list2.size() - 1);
+            }
+
+            for (int i = 0; i < list1.size(); i++) {
+                List<Vec3> seg = list1.get(i);
+                // 删除过于密集的点
+                Iterator<Vec3> iterator = seg.iterator();
+                int index = 0;
+                while (iterator.hasNext()) {
+                    iterator.next();
+                    if (index % 4 != 0 && index != seg.size() - 1) {
+                        iterator.remove();
+                    }
+                    index++;
+                }
+
+                // 创建曲线
+                var curve = new Curve();
+                for (int j = 0; j < seg.size() - 2; j++) {
+                    Vec3 a = seg.get(j);
+                    Vec3 b = seg.get(j + 1);
+                    Vec3 c = seg.get(j + 2);
+                    Vec3 startAxis = b.subtract(a).normalize();
+                    Vec3 endAxis = b.subtract(c).normalize();
+                    curve.addSegment0(a, b, startAxis, endAxis);
+                }
+                curve.addLineSegment(seg.get(seg.size() - 2), seg.get(seg.size() - 1));
+                curves.put(list2.get(i), curve);
+            }
+        }
+
+        // 通过索引获取曲线
+        public Curve getCurve(int index) {
+            for (Map.Entry<Set<Integer>, Curve> setCurveEntry : curves.entrySet()) {
+                var set = setCurveEntry.getKey();
+                if (set.contains(index)) {
+                    return setCurveEntry.getValue();
+                }
+            }
+            return null;
+        }
+    }
 }
+
