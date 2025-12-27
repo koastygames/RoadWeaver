@@ -9,7 +9,6 @@ import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacyShardMigration;
-import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

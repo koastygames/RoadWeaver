@@ -107,19 +107,19 @@ public final class ModConfig {
     private int bridgePierMaxHeight;
     private boolean bridgeKeepLamps;
     private int bridgeRampSegments;
-    private int bridgeMinWaterDepth;   // 最小水深，低于此值不建桥
-    private int bridgeMinLength;       // 最小桥梁长度（段数），太短的桥跳过
-    private int bridgeMergeGap;        // 桥梁区间合并间隔，间隔小于此值的区间合并
+    private int bridgeMinWaterDepth; // 最小水深，低于此值不建桥
+    private int bridgeMinLength; // 最小桥梁长度（段数），太短的桥跳过
+    private int bridgeMergeGap; // 桥梁区间合并间隔，间隔小于此值的区间合并
 
     // 路边结构配置
     private boolean roadsideStructuresEnabled;
-    private int maxStructuresPerRoad;      // 每条道路最多放置的结构数
-    private int smallStructureOffset;      // 小型结构距道路中心的距离
-    private int mediumStructureOffset;     // 中型结构距道路中心的距离
-    private int largeStructureOffset;      // 大型结构距道路中心的距离
+    private int maxStructuresPerRoad; // 每条道路最多放置的结构数
+    private int smallStructureOffset; // 小型结构距道路中心的距离
+    private int mediumStructureOffset; // 中型结构距道路中心的距离
+    private int largeStructureOffset; // 大型结构距道路中心的距离
 
     // 结构距离控制
-    private int villageRoadOffset;   // 村庄类结构的道路缩进距离（方块）
+    private int villageRoadOffset; // 村庄类结构的道路缩进距离（方块）
     private int otherStructureRoadOffset; // 其他结构的道路缩进距离（方块）
     private boolean structureAvoidanceEnabled; // 放置阶段检测并跳过结构内的道路
     private int structureRoadOffset; // 道路端点距结构中心的缩进距离（方块）（兼容旧配置）
@@ -153,7 +153,7 @@ public final class ModConfig {
         this.structurePredictionDimensionWhitelist.add("minecraft:overworld");
         this.structurePredictionDimensionWhitelist.add("minecraft:the_nether");
         this.structurePredictionDimensionWhitelist.add("minecraft:the_end");
-        this.structurePredictionDimensionWhitelist.add("twilightforest:twilight_forest");
+        this.structurePredictionDimensionWhitelist.add("minecraft:the_end");
 
         // 默认规划参数：初始64区块；动态规划开启，半径256区块
         this.initialPlanRadiusChunks = 64;
@@ -226,19 +226,19 @@ public final class ModConfig {
         this.bridgePierMaxHeight = 20;
         this.bridgeKeepLamps = true;
         this.bridgeRampSegments = 4;
-        this.bridgeMinWaterDepth = 2;   // 水深至少2格才建桥
-        this.bridgeMinLength = 5;       // 桥至少5段才建，避免小水坑
-        this.bridgeMergeGap = 8;        // 间隔小于8段的桥梁区间合并
+        this.bridgeMinWaterDepth = 2; // 水深至少2格才建桥
+        this.bridgeMinLength = 5; // 桥至少5段才建，避免小水坑
+        this.bridgeMergeGap = 8; // 间隔小于8段的桥梁区间合并
 
         // 路边结构默认值
         this.roadsideStructuresEnabled = true;
-        this.maxStructuresPerRoad = 3;        // 每条道路最多3个结构
-        this.smallStructureOffset = 8;        // 小型结构距道路8格
-        this.mediumStructureOffset = 12;      // 中型结构距道路12格
-        this.largeStructureOffset = 16;       // 大型结构距道路16格
+        this.maxStructuresPerRoad = 3; // 每条道路最多3个结构
+        this.smallStructureOffset = 8; // 小型结构距道路8格
+        this.mediumStructureOffset = 12; // 中型结构距道路12格
+        this.largeStructureOffset = 16; // 大型结构距道路16格
 
         // 结构距离控制默认值
-        this.villageRoadOffset = 60;        // 村庄默认缩进 60 格
+        this.villageRoadOffset = 60; // 村庄默认缩进 60 格
         this.otherStructureRoadOffset = 25; // 其他结构默认缩进 25 格
         this.structureAvoidanceEnabled = true; // 默认开启结构避让
         this.structureRoadOffset = 60; // 道路端点默认缩进 60 格（兼容旧配置）
@@ -283,9 +283,12 @@ public final class ModConfig {
     }
 
     public boolean isStructurePredictionEnabledForDimension(String dimensionId) {
-        if (!structurePredictionEnabled()) return false;
-        if (dimensionId == null || dimensionId.isEmpty()) return false;
-        if (structurePredictionDimensionWhitelist == null || structurePredictionDimensionWhitelist.isEmpty()) return false;
+        if (!structurePredictionEnabled())
+            return false;
+        if (dimensionId == null || dimensionId.isEmpty())
+            return false;
+        if (structurePredictionDimensionWhitelist == null || structurePredictionDimensionWhitelist.isEmpty())
+            return false;
         return structurePredictionDimensionWhitelist.contains(dimensionId);
     }
 
@@ -549,118 +552,283 @@ public final class ModConfig {
     }
 
     // 初始规划半径
-    public int initialPlanRadiusChunks() { return initialPlanRadiusChunks; }
-    public void setInitialPlanRadiusChunks(int v) { this.initialPlanRadiusChunks = v; }
+    public int initialPlanRadiusChunks() {
+        return initialPlanRadiusChunks;
+    }
+
+    public void setInitialPlanRadiusChunks(int v) {
+        this.initialPlanRadiusChunks = v;
+    }
 
     // 动态规划开关
-    public boolean dynamicPlanEnabled() { return dynamicPlanEnabled; }
-    public void setDynamicPlanEnabled(boolean v) { this.dynamicPlanEnabled = v; }
+    public boolean dynamicPlanEnabled() {
+        return dynamicPlanEnabled;
+    }
+
+    public void setDynamicPlanEnabled(boolean v) {
+        this.dynamicPlanEnabled = v;
+    }
 
     // 动态规划半径
-    public int dynamicPlanRadiusChunks() { return dynamicPlanRadiusChunks; }
-    public void setDynamicPlanRadiusChunks(int v) { this.dynamicPlanRadiusChunks = v; }
+    public int dynamicPlanRadiusChunks() {
+        return dynamicPlanRadiusChunks;
+    }
+
+    public void setDynamicPlanRadiusChunks(int v) {
+        this.dynamicPlanRadiusChunks = v;
+    }
 
     // 动态规划触发步进
-    public int dynamicPlanStrideChunks() { return dynamicPlanStrideChunks; }
-    public void setDynamicPlanStrideChunks(int v) { this.dynamicPlanStrideChunks = v; }
+    public int dynamicPlanStrideChunks() {
+        return dynamicPlanStrideChunks;
+    }
+
+    public void setDynamicPlanStrideChunks(int v) {
+        this.dynamicPlanStrideChunks = v;
+    }
 
     // 道路系统总开关
-    public boolean roadsEnabled() { return roadsEnabled == null || roadsEnabled; }
-    public void setRoadsEnabled(boolean v) { this.roadsEnabled = v; }
+    public boolean roadsEnabled() {
+        return roadsEnabled == null || roadsEnabled;
+    }
 
-    public boolean allowArtificial() { return allowArtificial; }
-    public void setAllowArtificial(boolean v) { this.allowArtificial = v; }
+    public void setRoadsEnabled(boolean v) {
+        this.roadsEnabled = v;
+    }
 
-    public boolean allowNatural() { return allowNatural; }
-    public void setAllowNatural(boolean v) { this.allowNatural = v; }
+    public boolean allowArtificial() {
+        return allowArtificial;
+    }
 
-    public boolean placeWaypoints() { return placeWaypoints; }
-    public void setPlaceWaypoints(boolean v) { this.placeWaypoints = v; }
+    public void setAllowArtificial(boolean v) {
+        this.allowArtificial = v;
+    }
 
-    public boolean spawnCabinEnabled() { return spawnCabinEnabled; }
-    public void setSpawnCabinEnabled(boolean v) { this.spawnCabinEnabled = v; }
+    public boolean allowNatural() {
+        return allowNatural;
+    }
 
-    public int averagingRadius() { return averagingRadius; }
-    public void setAveragingRadius(int v) { this.averagingRadius = v; }
+    public void setAllowNatural(boolean v) {
+        this.allowNatural = v;
+    }
 
-    public boolean hierarchicalPathfindingEnabled() { return hierarchicalPathfindingEnabled; }
-    public void setHierarchicalPathfindingEnabled(boolean v) { this.hierarchicalPathfindingEnabled = v; }
+    public boolean placeWaypoints() {
+        return placeWaypoints;
+    }
 
-    public int generationThreads() { return generationThreads; }
-    public void setGenerationThreads(int v) { this.generationThreads = v; }
+    public void setPlaceWaypoints(boolean v) {
+        this.placeWaypoints = v;
+    }
+
+    public boolean spawnCabinEnabled() {
+        return spawnCabinEnabled;
+    }
+
+    public void setSpawnCabinEnabled(boolean v) {
+        this.spawnCabinEnabled = v;
+    }
+
+    public int averagingRadius() {
+        return averagingRadius;
+    }
+
+    public void setAveragingRadius(int v) {
+        this.averagingRadius = v;
+    }
+
+    public boolean hierarchicalPathfindingEnabled() {
+        return hierarchicalPathfindingEnabled;
+    }
+
+    public void setHierarchicalPathfindingEnabled(boolean v) {
+        this.hierarchicalPathfindingEnabled = v;
+    }
+
+    public int generationThreads() {
+        return generationThreads;
+    }
+
+    public void setGenerationThreads(int v) {
+        this.generationThreads = v;
+    }
 
     // 计算线程池线程数（0=自动，>0=固定值）
-    public int computeThreads() { return computeThreads; }
-    public void setComputeThreads(int v) { this.computeThreads = v; }
+    public int computeThreads() {
+        return computeThreads;
+    }
 
-    public int initialGenerationThreads() { return initialGenerationThreads; }
-    public void setInitialGenerationThreads(int v) { this.initialGenerationThreads = v; }
+    public void setComputeThreads(int v) {
+        this.computeThreads = v;
+    }
 
-    public int maxConcurrentGenerations() { return maxConcurrentGenerations; }
-    public void setMaxConcurrentGenerations(int v) { this.maxConcurrentGenerations = v; }
+    public int initialGenerationThreads() {
+        return initialGenerationThreads;
+    }
+
+    public void setInitialGenerationThreads(int v) {
+        this.initialGenerationThreads = v;
+    }
+
+    public int maxConcurrentGenerations() {
+        return maxConcurrentGenerations;
+    }
+
+    public void setMaxConcurrentGenerations(int v) {
+        this.maxConcurrentGenerations = v;
+    }
 
     // 线程占空比（1-100%），用于控制CPU使用率
-    public int threadDutyCycle() { return threadDutyCycle; }
-    public void setThreadDutyCycle(int v) { this.threadDutyCycle = Math.max(1, Math.min(100, v)); }
+    public int threadDutyCycle() {
+        return threadDutyCycle;
+    }
+
+    public void setThreadDutyCycle(int v) {
+        this.threadDutyCycle = Math.max(1, Math.min(100, v));
+    }
 
     // A* 采样步长
-    public int aStarStep() { return aStarStep; }
-    public void setAStarStep(int v) { this.aStarStep = v; }
+    public int aStarStep() {
+        return aStarStep;
+    }
+
+    public void setAStarStep(int v) {
+        this.aStarStep = v;
+    }
 
     // A* 最大步数
-    public int aStarMaxSteps() { return aStarMaxSteps; }
-    public void setAStarMaxSteps(int v) { this.aStarMaxSteps = v; }
+    public int aStarMaxSteps() {
+        return aStarMaxSteps;
+    }
 
-    public int causewayMaxDepth() { return causewayMaxDepth; }
-    public void setCausewayMaxDepth(int v) { this.causewayMaxDepth = v; }
+    public void setAStarMaxSteps(int v) {
+        this.aStarMaxSteps = v;
+    }
 
-    public boolean roadFillEnabled() { return roadFillEnabled == null || roadFillEnabled; }
-    public void setRoadFillEnabled(boolean v) { this.roadFillEnabled = v; }
+    public int causewayMaxDepth() {
+        return causewayMaxDepth;
+    }
 
-    public int maxSlopeStepPerTwoSegments() { return maxSlopeStepPerTwoSegments; }
-    public void setMaxSlopeStepPerTwoSegments(int v) { this.maxSlopeStepPerTwoSegments = v; }
+    public void setCausewayMaxDepth(int v) {
+        this.causewayMaxDepth = v;
+    }
 
-    public boolean slopeLimitEnabled() { return slopeLimitEnabled; }
-    public void setSlopeLimitEnabled(boolean v) { this.slopeLimitEnabled = v; }
+    public boolean roadFillEnabled() {
+        return roadFillEnabled == null || roadFillEnabled;
+    }
 
-    public PathfindingAlgorithm pathfindingAlgorithm() { return pathfindingAlgorithm; }
-    public void setPathfindingAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
+    public void setRoadFillEnabled(boolean v) {
+        this.roadFillEnabled = v;
+    }
+
+    public int maxSlopeStepPerTwoSegments() {
+        return maxSlopeStepPerTwoSegments;
+    }
+
+    public void setMaxSlopeStepPerTwoSegments(int v) {
+        this.maxSlopeStepPerTwoSegments = v;
+    }
+
+    public boolean slopeLimitEnabled() {
+        return slopeLimitEnabled;
+    }
+
+    public void setSlopeLimitEnabled(boolean v) {
+        this.slopeLimitEnabled = v;
+    }
+
+    public PathfindingAlgorithm pathfindingAlgorithm() {
+        return pathfindingAlgorithm;
+    }
+
+    public void setPathfindingAlgorithm(PathfindingAlgorithm v) {
+        this.pathfindingAlgorithm = v;
+    }
 
     // 新增：道路宽度（0=自动）
-    public int roadWidth() { return roadWidth; }
-    public void setRoadWidth(int v) { this.roadWidth = v; }
+    public int roadWidth() {
+        return roadWidth;
+    }
+
+    public void setRoadWidth(int v) {
+        this.roadWidth = v;
+    }
 
     // 新增：路牌系统开关
-    public boolean roadSignsEnabled() { return roadSignsEnabled; }
-    public void setRoadSignsEnabled(boolean v) { this.roadSignsEnabled = v; }
+    public boolean roadSignsEnabled() {
+        return roadSignsEnabled;
+    }
+
+    public void setRoadSignsEnabled(boolean v) {
+        this.roadSignsEnabled = v;
+    }
 
     // 新增：高度平滑插值路基填充
-    public boolean interpolatedRoadbedFillEnabled() { return interpolatedRoadbedFillEnabled == null || interpolatedRoadbedFillEnabled; }
-    public void setInterpolatedRoadbedFillEnabled(boolean v) { this.interpolatedRoadbedFillEnabled = v; }
+    public boolean interpolatedRoadbedFillEnabled() {
+        return interpolatedRoadbedFillEnabled == null || interpolatedRoadbedFillEnabled;
+    }
+
+    public void setInterpolatedRoadbedFillEnabled(boolean v) {
+        this.interpolatedRoadbedFillEnabled = v;
+    }
 
     // 新增：路灯间隔（段）
-    public int lampInterval() { return lampInterval; }
-    public void setLampInterval(int v) { this.lampInterval = v; }
+    public int lampInterval() {
+        return lampInterval;
+    }
 
-    public int roadClearHeight() { return roadClearHeight; }
-    public void setRoadClearHeight(int v) { this.roadClearHeight = v; }
+    public void setLampInterval(int v) {
+        this.lampInterval = v;
+    }
+
+    public int roadClearHeight() {
+        return roadClearHeight;
+    }
+
+    public void setRoadClearHeight(int v) {
+        this.roadClearHeight = v;
+    }
 
     // 路网连边算法
-    public PlanningAlgorithm planningAlgorithm() { return planningAlgorithm; }
-    public void setPlanningAlgorithm(PlanningAlgorithm v) { this.planningAlgorithm = v; }
+    public PlanningAlgorithm planningAlgorithm() {
+        return planningAlgorithm;
+    }
+
+    public void setPlanningAlgorithm(PlanningAlgorithm v) {
+        this.planningAlgorithm = v;
+    }
 
     // 公路（Highway）配置存取
-    public boolean highwayEnabled() { return highwayEnabled; }
-    public void setHighwayEnabled(boolean v) { this.highwayEnabled = v; }
+    public boolean highwayEnabled() {
+        return highwayEnabled;
+    }
 
-    public boolean highwayAutoPlanEnabled() { return highwayAutoPlanEnabled; }
-    public void setHighwayAutoPlanEnabled(boolean v) { this.highwayAutoPlanEnabled = v; }
+    public void setHighwayEnabled(boolean v) {
+        this.highwayEnabled = v;
+    }
 
-    public int highwayGridBlocks() { return highwayGridBlocks; }
-    public void setHighwayGridBlocks(int v) { this.highwayGridBlocks = v; }
+    public boolean highwayAutoPlanEnabled() {
+        return highwayAutoPlanEnabled;
+    }
 
-    public boolean highwayDynamicPlanEnabled() { return highwayDynamicPlanEnabled == null || highwayDynamicPlanEnabled; }
-    public void setHighwayDynamicPlanEnabled(boolean v) { this.highwayDynamicPlanEnabled = v; }
+    public void setHighwayAutoPlanEnabled(boolean v) {
+        this.highwayAutoPlanEnabled = v;
+    }
+
+    public int highwayGridBlocks() {
+        return highwayGridBlocks;
+    }
+
+    public void setHighwayGridBlocks(int v) {
+        this.highwayGridBlocks = v;
+    }
+
+    public boolean highwayDynamicPlanEnabled() {
+        return highwayDynamicPlanEnabled == null || highwayDynamicPlanEnabled;
+    }
+
+    public void setHighwayDynamicPlanEnabled(boolean v) {
+        this.highwayDynamicPlanEnabled = v;
+    }
 
     public int highwayPlanningRadiusBlocks() {
         int grid = Math.max(1, highwayGridBlocks);
@@ -668,140 +836,363 @@ public final class ModConfig {
         return highwayDynamicPlanEnabled() ? (grid * 2) : grid;
     }
 
-    public int highwayRoadWidth() { return highwayRoadWidth; }
-    public void setHighwayRoadWidth(int v) { this.highwayRoadWidth = v; }
+    public int highwayRoadWidth() {
+        return highwayRoadWidth;
+    }
 
-    public boolean highwaySlopeLimitEnabled() { return highwaySlopeLimitEnabled == null || highwaySlopeLimitEnabled; }
-    public void setHighwaySlopeLimitEnabled(boolean v) { this.highwaySlopeLimitEnabled = v; }
+    public void setHighwayRoadWidth(int v) {
+        this.highwayRoadWidth = v;
+    }
 
-    public int highwaySlopeRunBlocks() { return highwaySlopeRunBlocks; }
-    public void setHighwaySlopeRunBlocks(int v) { this.highwaySlopeRunBlocks = v; }
+    public boolean highwaySlopeLimitEnabled() {
+        return highwaySlopeLimitEnabled == null || highwaySlopeLimitEnabled;
+    }
 
-    public int highwaySlopeRiseBlocks() { return highwaySlopeRiseBlocks; }
-    public void setHighwaySlopeRiseBlocks(int v) { this.highwaySlopeRiseBlocks = v; }
+    public void setHighwaySlopeLimitEnabled(boolean v) {
+        this.highwaySlopeLimitEnabled = v;
+    }
 
-    public int highwayAStarStep() { return highwayAStarStep; }
-    public void setHighwayAStarStep(int v) { this.highwayAStarStep = v; }
+    public int highwaySlopeRunBlocks() {
+        return highwaySlopeRunBlocks;
+    }
 
-    public int highwayAStarMaxSteps() { return highwayAStarMaxSteps; }
-    public void setHighwayAStarMaxSteps(int v) { this.highwayAStarMaxSteps = v; }
+    public void setHighwaySlopeRunBlocks(int v) {
+        this.highwaySlopeRunBlocks = v;
+    }
 
-    public double highwayFloatingWeight() { return highwayFloatingWeight; }
-    public void setHighwayFloatingWeight(double v) { this.highwayFloatingWeight = v; }
+    public int highwaySlopeRiseBlocks() {
+        return highwaySlopeRiseBlocks;
+    }
 
-    public double highwayPenetrationWeight() { return highwayPenetrationWeight; }
-    public void setHighwayPenetrationWeight(double v) { this.highwayPenetrationWeight = v; }
+    public void setHighwaySlopeRiseBlocks(int v) {
+        this.highwaySlopeRiseBlocks = v;
+    }
 
-    public boolean tunnelEnabled() { return tunnelEnabled; }
-    public void setTunnelEnabled(boolean v) { this.tunnelEnabled = v; }
+    public int highwayAStarStep() {
+        return highwayAStarStep;
+    }
 
-    public int tunnelClearHeight() { return tunnelClearHeight; }
-    public void setTunnelClearHeight(int v) { this.tunnelClearHeight = v; }
+    public void setHighwayAStarStep(int v) {
+        this.highwayAStarStep = v;
+    }
 
-    public boolean preventTreesOnRoad() { return preventTreesOnRoad; }
-    public void setPreventTreesOnRoad(boolean v) { this.preventTreesOnRoad = v; }
+    public int highwayAStarMaxSteps() {
+        return highwayAStarMaxSteps;
+    }
+
+    public void setHighwayAStarMaxSteps(int v) {
+        this.highwayAStarMaxSteps = v;
+    }
+
+    public double highwayFloatingWeight() {
+        return highwayFloatingWeight;
+    }
+
+    public void setHighwayFloatingWeight(double v) {
+        this.highwayFloatingWeight = v;
+    }
+
+    public double highwayPenetrationWeight() {
+        return highwayPenetrationWeight;
+    }
+
+    public void setHighwayPenetrationWeight(double v) {
+        this.highwayPenetrationWeight = v;
+    }
+
+    public boolean tunnelEnabled() {
+        return tunnelEnabled;
+    }
+
+    public void setTunnelEnabled(boolean v) {
+        this.tunnelEnabled = v;
+    }
+
+    public int tunnelClearHeight() {
+        return tunnelClearHeight;
+    }
+
+    public void setTunnelClearHeight(int v) {
+        this.tunnelClearHeight = v;
+    }
+
+    public boolean preventTreesOnRoad() {
+        return preventTreesOnRoad;
+    }
+
+    public void setPreventTreesOnRoad(boolean v) {
+        this.preventTreesOnRoad = v;
+    }
 
     // 桥梁配置存取
-    public boolean bridgeEnabled() { return bridgeEnabled; }
-    public void setBridgeEnabled(boolean v) { this.bridgeEnabled = v; }
+    public boolean bridgeEnabled() {
+        return bridgeEnabled;
+    }
 
-    public int bridgeDeckClearance() { return bridgeDeckClearance; }
-    public void setBridgeDeckClearance(int v) { this.bridgeDeckClearance = v; }
+    public void setBridgeEnabled(boolean v) {
+        this.bridgeEnabled = v;
+    }
 
-    public int bridgeMaxLengthBlocks() { return bridgeMaxLengthBlocks; }
-    public void setBridgeMaxLengthBlocks(int v) { this.bridgeMaxLengthBlocks = v; }
+    public int bridgeDeckClearance() {
+        return bridgeDeckClearance;
+    }
 
-    public boolean bridgeUseBuoysInstead() { return bridgeUseBuoysInstead; }
-    public void setBridgeUseBuoysInstead(boolean v) { this.bridgeUseBuoysInstead = v; }
+    public void setBridgeDeckClearance(int v) {
+        this.bridgeDeckClearance = v;
+    }
 
-    public boolean bridgeUseBuoysWhenSkipped() { return bridgeUseBuoysWhenSkipped; }
-    public void setBridgeUseBuoysWhenSkipped(boolean v) { this.bridgeUseBuoysWhenSkipped = v; }
+    public int bridgeMaxLengthBlocks() {
+        return bridgeMaxLengthBlocks;
+    }
 
-    public int buoyIntervalBlocks() { return buoyIntervalBlocks; }
-    public void setBuoyIntervalBlocks(int v) { this.buoyIntervalBlocks = v; }
+    public void setBridgeMaxLengthBlocks(int v) {
+        this.bridgeMaxLengthBlocks = v;
+    }
 
-    public int bridgePierInterval() { return bridgePierInterval; }
-    public void setBridgePierInterval(int v) { this.bridgePierInterval = v; }
+    public boolean bridgeUseBuoysInstead() {
+        return bridgeUseBuoysInstead;
+    }
 
-    public int bridgePierWidth() { return bridgePierWidth; }
-    public void setBridgePierWidth(int v) { this.bridgePierWidth = v; }
+    public void setBridgeUseBuoysInstead(boolean v) {
+        this.bridgeUseBuoysInstead = v;
+    }
 
-    public int bridgePierMaxHeight() { return bridgePierMaxHeight; }
-    public void setBridgePierMaxHeight(int v) { this.bridgePierMaxHeight = v; }
+    public boolean bridgeUseBuoysWhenSkipped() {
+        return bridgeUseBuoysWhenSkipped;
+    }
 
-    public boolean bridgeKeepLamps() { return bridgeKeepLamps; }
-    public void setBridgeKeepLamps(boolean v) { this.bridgeKeepLamps = v; }
+    public void setBridgeUseBuoysWhenSkipped(boolean v) {
+        this.bridgeUseBuoysWhenSkipped = v;
+    }
 
-    public int bridgeRampSegments() { return bridgeRampSegments; }
-    public void setBridgeRampSegments(int v) { this.bridgeRampSegments = v; }
+    public int buoyIntervalBlocks() {
+        return buoyIntervalBlocks;
+    }
 
-    public int bridgeMinWaterDepth() { return bridgeMinWaterDepth; }
-    public void setBridgeMinWaterDepth(int v) { this.bridgeMinWaterDepth = v; }
+    public void setBuoyIntervalBlocks(int v) {
+        this.buoyIntervalBlocks = v;
+    }
 
-    public int bridgeMinLength() { return bridgeMinLength; }
-    public void setBridgeMinLength(int v) { this.bridgeMinLength = v; }
+    public int bridgePierInterval() {
+        return bridgePierInterval;
+    }
 
-    public int bridgeMergeGap() { return bridgeMergeGap; }
-    public void setBridgeMergeGap(int v) { this.bridgeMergeGap = v; }
+    public void setBridgePierInterval(int v) {
+        this.bridgePierInterval = v;
+    }
+
+    public int bridgePierWidth() {
+        return bridgePierWidth;
+    }
+
+    public void setBridgePierWidth(int v) {
+        this.bridgePierWidth = v;
+    }
+
+    public int bridgePierMaxHeight() {
+        return bridgePierMaxHeight;
+    }
+
+    public void setBridgePierMaxHeight(int v) {
+        this.bridgePierMaxHeight = v;
+    }
+
+    public boolean bridgeKeepLamps() {
+        return bridgeKeepLamps;
+    }
+
+    public void setBridgeKeepLamps(boolean v) {
+        this.bridgeKeepLamps = v;
+    }
+
+    public int bridgeRampSegments() {
+        return bridgeRampSegments;
+    }
+
+    public void setBridgeRampSegments(int v) {
+        this.bridgeRampSegments = v;
+    }
+
+    public int bridgeMinWaterDepth() {
+        return bridgeMinWaterDepth;
+    }
+
+    public void setBridgeMinWaterDepth(int v) {
+        this.bridgeMinWaterDepth = v;
+    }
+
+    public int bridgeMinLength() {
+        return bridgeMinLength;
+    }
+
+    public void setBridgeMinLength(int v) {
+        this.bridgeMinLength = v;
+    }
+
+    public int bridgeMergeGap() {
+        return bridgeMergeGap;
+    }
+
+    public void setBridgeMergeGap(int v) {
+        this.bridgeMergeGap = v;
+    }
 
     // A* 寻路成本权重
-    public double orthoStepCost() { return orthoStepCost; }
-    public void setOrthoStepCost(double v) { this.orthoStepCost = v; }
+    public double orthoStepCost() {
+        return orthoStepCost;
+    }
 
-    public double diagStepCost() { return diagStepCost; }
-    public void setDiagStepCost(double v) { this.diagStepCost = v; }
+    public void setOrthoStepCost(double v) {
+        this.orthoStepCost = v;
+    }
 
-    public int elevationWeight() { return elevationWeight; }
-    public void setElevationWeight(int v) { this.elevationWeight = v; }
+    public double diagStepCost() {
+        return diagStepCost;
+    }
 
-    public int biomeWeight() { return biomeWeight; }
-    public void setBiomeWeight(int v) { this.biomeWeight = v; }
+    public void setDiagStepCost(double v) {
+        this.diagStepCost = v;
+    }
 
-    public int stabilityWeight() { return stabilityWeight; }
-    public void setStabilityWeight(int v) { this.stabilityWeight = v; }
+    public int elevationWeight() {
+        return elevationWeight;
+    }
 
-    public int waterDepthWeight() { return waterDepthWeight; }
-    public void setWaterDepthWeight(int v) { this.waterDepthWeight = v; }
+    public void setElevationWeight(int v) {
+        this.elevationWeight = v;
+    }
 
-    public int nearWaterCost() { return nearWaterCost; }
-    public void setNearWaterCost(int v) { this.nearWaterCost = v; }
+    public int biomeWeight() {
+        return biomeWeight;
+    }
 
-    public int waterProximityCost() { return waterProximityCost; }
-    public void setWaterProximityCost(int v) { this.waterProximityCost = v; }
+    public void setBiomeWeight(int v) {
+        this.biomeWeight = v;
+    }
 
-    public double heuristicWeight() { return heuristicWeight; }
-    public void setHeuristicWeight(double v) { this.heuristicWeight = v; }
+    public int stabilityWeight() {
+        return stabilityWeight;
+    }
 
-    public double deviationWeight() { return deviationWeight; }
-    public void setDeviationWeight(double v) { this.deviationWeight = v; }
+    public void setStabilityWeight(int v) {
+        this.stabilityWeight = v;
+    }
+
+    public int waterDepthWeight() {
+        return waterDepthWeight;
+    }
+
+    public void setWaterDepthWeight(int v) {
+        this.waterDepthWeight = v;
+    }
+
+    public int nearWaterCost() {
+        return nearWaterCost;
+    }
+
+    public void setNearWaterCost(int v) {
+        this.nearWaterCost = v;
+    }
+
+    public int waterProximityCost() {
+        return waterProximityCost;
+    }
+
+    public void setWaterProximityCost(int v) {
+        this.waterProximityCost = v;
+    }
+
+    public double heuristicWeight() {
+        return heuristicWeight;
+    }
+
+    public void setHeuristicWeight(double v) {
+        this.heuristicWeight = v;
+    }
+
+    public double deviationWeight() {
+        return deviationWeight;
+    }
+
+    public void setDeviationWeight(double v) {
+        this.deviationWeight = v;
+    }
 
     // 路边结构配置存取
-    public boolean roadsideStructuresEnabled() { return roadsideStructuresEnabled; }
-    public void setRoadsideStructuresEnabled(boolean v) { this.roadsideStructuresEnabled = v; }
+    public boolean roadsideStructuresEnabled() {
+        return roadsideStructuresEnabled;
+    }
 
-    public int maxStructuresPerRoad() { return maxStructuresPerRoad; }
-    public void setMaxStructuresPerRoad(int v) { this.maxStructuresPerRoad = Math.max(0, v); }
+    public void setRoadsideStructuresEnabled(boolean v) {
+        this.roadsideStructuresEnabled = v;
+    }
 
-    public int smallStructureOffset() { return smallStructureOffset; }
-    public void setSmallStructureOffset(int v) { this.smallStructureOffset = Math.max(1, v); }
+    public int maxStructuresPerRoad() {
+        return maxStructuresPerRoad;
+    }
 
-    public int mediumStructureOffset() { return mediumStructureOffset; }
-    public void setMediumStructureOffset(int v) { this.mediumStructureOffset = Math.max(1, v); }
+    public void setMaxStructuresPerRoad(int v) {
+        this.maxStructuresPerRoad = Math.max(0, v);
+    }
 
-    public int largeStructureOffset() { return largeStructureOffset; }
-    public void setLargeStructureOffset(int v) { this.largeStructureOffset = Math.max(1, v); }
+    public int smallStructureOffset() {
+        return smallStructureOffset;
+    }
+
+    public void setSmallStructureOffset(int v) {
+        this.smallStructureOffset = Math.max(1, v);
+    }
+
+    public int mediumStructureOffset() {
+        return mediumStructureOffset;
+    }
+
+    public void setMediumStructureOffset(int v) {
+        this.mediumStructureOffset = Math.max(1, v);
+    }
+
+    public int largeStructureOffset() {
+        return largeStructureOffset;
+    }
+
+    public void setLargeStructureOffset(int v) {
+        this.largeStructureOffset = Math.max(1, v);
+    }
 
     // 结构距离控制存取
-    public int villageRoadOffset() { return villageRoadOffset; }
-    public void setVillageRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
-    public int otherStructureRoadOffset() { return otherStructureRoadOffset; }
-    public void setOtherStructureRoadOffset(int v) { this.otherStructureRoadOffset = Math.max(0, Math.min(256, v)); }
-    public boolean structureAvoidanceEnabled() { return structureAvoidanceEnabled; }
-    public void setStructureAvoidanceEnabled(boolean v) { this.structureAvoidanceEnabled = v; }
+    public int villageRoadOffset() {
+        return villageRoadOffset;
+    }
+
+    public void setVillageRoadOffset(int v) {
+        this.villageRoadOffset = Math.max(0, Math.min(256, v));
+    }
+
+    public int otherStructureRoadOffset() {
+        return otherStructureRoadOffset;
+    }
+
+    public void setOtherStructureRoadOffset(int v) {
+        this.otherStructureRoadOffset = Math.max(0, Math.min(256, v));
+    }
+
+    public boolean structureAvoidanceEnabled() {
+        return structureAvoidanceEnabled;
+    }
+
+    public void setStructureAvoidanceEnabled(boolean v) {
+        this.structureAvoidanceEnabled = v;
+    }
+
     @Deprecated
-    public int structureRoadOffset() { return villageRoadOffset; }
+    public int structureRoadOffset() {
+        return villageRoadOffset;
+    }
+
     @Deprecated
-    public void setStructureRoadOffset(int v) { this.villageRoadOffset = Math.max(0, Math.min(256, v)); }
+    public void setStructureRoadOffset(int v) {
+        this.villageRoadOffset = Math.max(0, Math.min(256, v));
+    }
 
     public Map<String, DimensionRoadSettings> dimensionRoadSettings() {
         return dimensionRoadSettings;
@@ -816,8 +1207,10 @@ public final class ModConfig {
     }
 
     private DimensionRoadSettings getDimensionRoadSettingsInternal(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty()) return null;
-        if (dimensionRoadSettings == null || dimensionRoadSettings.isEmpty()) return null;
+        if (dimensionId == null || dimensionId.isEmpty())
+            return null;
+        if (dimensionRoadSettings == null || dimensionRoadSettings.isEmpty())
+            return null;
         return dimensionRoadSettings.get(dimensionId);
     }
 
@@ -826,14 +1219,18 @@ public final class ModConfig {
     }
 
     public DimensionRoadSettings getOrCreateDimensionRoadSettings(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty()) return null;
-        if (dimensionRoadSettings == null) dimensionRoadSettings = new HashMap<>();
+        if (dimensionId == null || dimensionId.isEmpty())
+            return null;
+        if (dimensionRoadSettings == null)
+            dimensionRoadSettings = new HashMap<>();
         return dimensionRoadSettings.computeIfAbsent(dimensionId, k -> new DimensionRoadSettings());
     }
 
     public void removeDimensionRoadSettingsIfAllInherit(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty()) return;
-        if (dimensionRoadSettings == null) return;
+        if (dimensionId == null || dimensionId.isEmpty())
+            return;
+        if (dimensionRoadSettings == null)
+            return;
         DimensionRoadSettings s = dimensionRoadSettings.get(dimensionId);
         if (s != null && s.isAllInherit()) {
             dimensionRoadSettings.remove(dimensionId);

@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
 import net.shiroha233.roadweaver.helpers.Records;
@@ -56,7 +55,7 @@ public final class InitialGenManager {
      * 在服务器启动时调用：执行初始规划并计算总任务数。
      */
     public static void begin(ServerLevel level) {
-        if (level == null || !Level.OVERWORLD.equals(level.dimension()))
+        if (level == null)
             return;
         // 清零状态
         active = true;
@@ -131,7 +130,8 @@ public final class InitialGenManager {
                 java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
                         nThreads,
                         new java.util.concurrent.ThreadFactory() {
-                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(1);
+                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(
+                                    1);
 
                             @Override
                             public Thread newThread(Runnable r) {
@@ -149,8 +149,10 @@ public final class InitialGenManager {
                         generating.incrementAndGet();
                         boolean success = RoadGenerationService.generateTask(level, task);
                         generating.decrementAndGet();
-                        if (success) done.incrementAndGet();
-                        else failed.incrementAndGet();
+                        if (success)
+                            done.incrementAndGet();
+                        else
+                            failed.incrementAndGet();
                         return new PathGenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
                     }));
                 }
@@ -159,7 +161,8 @@ public final class InitialGenManager {
                 for (java.util.concurrent.Future<PathGenResult> f : futures) {
                     try {
                         PathGenResult r = f.get();
-                        if (r != null) roadResults.put(r.key(), r.success());
+                        if (r != null)
+                            roadResults.put(r.key(), r.success());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -183,8 +186,10 @@ public final class InitialGenManager {
                         Records.StructureConnection original = updatedList.get(i);
                         long k = PlanningUtils.edgeKey(original.from(), original.to());
                         Boolean ok = roadResults.get(k);
-                        if (ok == null) continue;
-                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED : Records.ConnectionStatus.FAILED;
+                        if (ok == null)
+                            continue;
+                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED
+                                : Records.ConnectionStatus.FAILED;
                         updatedList.set(i, new Records.StructureConnection(original.from(), original.to(), newStatus));
                         changed = true;
                     }
@@ -231,7 +236,8 @@ public final class InitialGenManager {
                                 return t;
                             }
                         });
-                record HighwayGenResult(long key, boolean success) {}
+                record HighwayGenResult(long key, boolean success) {
+                }
                 List<java.util.concurrent.Future<HighwayGenResult>> futures = new java.util.ArrayList<>();
 
                 for (Records.StructureConnection task : highwayTasks) {
@@ -256,7 +262,8 @@ public final class InitialGenManager {
                 for (java.util.concurrent.Future<HighwayGenResult> f : futures) {
                     try {
                         HighwayGenResult r = f.get();
-                        if (r != null) highwayResults.put(r.key(), r.success());
+                        if (r != null)
+                            highwayResults.put(r.key(), r.success());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -341,7 +348,8 @@ public final class InitialGenManager {
                 java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(
                         nThreads,
                         new java.util.concurrent.ThreadFactory() {
-                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(1);
+                            private final java.util.concurrent.atomic.AtomicInteger count = new java.util.concurrent.atomic.AtomicInteger(
+                                    1);
 
                             @Override
                             public Thread newThread(Runnable r) {
@@ -351,14 +359,18 @@ public final class InitialGenManager {
                             }
                         });
 
-                record PathGenResult(long key, boolean success) {}
+                record PathGenResult(long key, boolean success) {
+                }
                 List<java.util.concurrent.Future<PathGenResult>> futures = new java.util.ArrayList<>();
                 for (Records.StructureConnection task : roadTasks) {
                     futures.add(executor.submit(() -> {
                         generating.incrementAndGet();
                         boolean success = RoadGenerationService.generateTask(level, task);
                         generating.decrementAndGet();
-                        if (success) done.incrementAndGet(); else failed.incrementAndGet();
+                        if (success)
+                            done.incrementAndGet();
+                        else
+                            failed.incrementAndGet();
                         return new PathGenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
                     }));
                 }
@@ -367,7 +379,8 @@ public final class InitialGenManager {
                 for (java.util.concurrent.Future<PathGenResult> f : futures) {
                     try {
                         PathGenResult r = f.get();
-                        if (r != null) roadResults.put(r.key(), r.success());
+                        if (r != null)
+                            roadResults.put(r.key(), r.success());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -392,8 +405,10 @@ public final class InitialGenManager {
                         Records.StructureConnection original = updatedList.get(i);
                         long k = PlanningUtils.edgeKey(original.from(), original.to());
                         Boolean ok = roadResults.get(k);
-                        if (ok == null) continue;
-                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED : Records.ConnectionStatus.FAILED;
+                        if (ok == null)
+                            continue;
+                        Records.ConnectionStatus newStatus = ok ? Records.ConnectionStatus.COMPLETED
+                                : Records.ConnectionStatus.FAILED;
                         updatedList.set(i, new Records.StructureConnection(original.from(), original.to(), newStatus));
                         changed = true;
                     }

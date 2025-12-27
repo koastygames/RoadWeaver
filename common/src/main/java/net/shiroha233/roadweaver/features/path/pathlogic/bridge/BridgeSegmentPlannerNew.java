@@ -12,20 +12,30 @@ import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegi
 import net.shiroha233.roadweaver.util.Curve;
 
 public final class BridgeSegmentPlannerNew {
+    // 处理长距离桥梁生成
     private BridgeSegmentPlannerNew() {
     }
 
-    public static void processSegment(
+    /**
+     * 使用结构模板处理长距离桥梁段生成。
+     * 
+     * @return true 如果成功生成模板桥梁，false 如果模板不可用（调用方应回退到简单桥梁生成）
+     */
+    public static boolean processSegment(
             WorldGenLevel world,
             Curve curve,
             Records.RoadSegmentPlacement seg,
             BlockPos middle,
-            BlockPos prev
-    ) {
+            BlockPos prev) {
         double bridgeLength = curve.getTotalLength();
 
         // 随机选择一个桥模板
         var bridge = BridgeTemplateStructureRegistry.choose(world.getLevel(), (int) bridgeLength);
+
+        // 模板不可用时返回 false，由调用方回退到 BridgeSegmentPlanner
+        if (bridge == null) {
+            return false;
+        }
 
         int minX = Math.min(prev.getX(), middle.getX()) - 10;
         int maxX = Math.max(prev.getX(), middle.getX()) + 10;
@@ -49,7 +59,7 @@ public final class BridgeSegmentPlannerNew {
                 }
 
                 // 放置此竖列的方块
-                for (int y = middle.getY()+20; y >= middle.getY()-60; y--) {
+                for (int y = middle.getY() + 20; y >= middle.getY() - 60; y--) {
                     Vec3 vec = new Vec3(x, y, z).subtract(frame.closestPoint);
 
                     // 在标架下的坐标
@@ -74,12 +84,14 @@ public final class BridgeSegmentPlannerNew {
                     }
 
                     // 填充地基直到遇到支撑方块
-                    BlockPos cur = new BlockPos(x, y-1, z);
+                    BlockPos cur = new BlockPos(x, y - 1, z);
                     if (world.getBlockState(cur).isFaceSturdy(world, cur, Direction.UP)) {
                         break;
                     }
                 }
             }
         }
+
+        return true;
     }
 }

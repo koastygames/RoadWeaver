@@ -14,13 +14,10 @@ public class BridgeTemplateStructure extends Structure {
             instance.group(
                     settingsCodec(instance),
                     ResourceLocation.CODEC.fieldOf("template").forGetter(s -> s.templateId),
-                    // 桥高度偏移，通常为结构模板的地基的高度
                     Codec.INT.optionalFieldOf("height_offset", 1).forGetter(s -> s.heightOffset),
-                    // 桥面开始位置
                     Codec.INT.optionalFieldOf("bridge_deck_start", 0).forGetter(s -> s.bridgeDeckStart),
-                    // 桥面结束位置
                     Codec.INT.optionalFieldOf("bridge_deck_end", 100).forGetter(s -> s.bridgeDeckEnd)
-            ).apply(instance, BridgeTemplateStructure::new)
+            ).apply(instance, (settings, template, height, start, end) -> new BridgeTemplateStructure(settings, template, height, start, end))
     );
 
     public final ResourceLocation templateId;
@@ -28,10 +25,10 @@ public class BridgeTemplateStructure extends Structure {
     public final int bridgeDeckStart;
     public final int bridgeDeckEnd;
 
-    public BridgeTemplateStructure(StructureSettings structureSettings, ResourceLocation templateId, int roadbedHeight, int bridgeDeckStart, int bridgeDeckEnd) {
+    public BridgeTemplateStructure(StructureSettings structureSettings, ResourceLocation templateId, int heightOffset, int bridgeDeckStart, int bridgeDeckEnd) {
         super(structureSettings);
         this.templateId = templateId;
-        this.heightOffset = roadbedHeight;
+        this.heightOffset = heightOffset;
         this.bridgeDeckStart = bridgeDeckStart;
         this.bridgeDeckEnd = bridgeDeckEnd;
     }

@@ -23,11 +23,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * Highway 规划服务。
  *
  * 职责:
- * - 基于世界坐标网格（每 1000 方块一个网格点）生成 Highway 相邻连接边，并写入 WorldDataProvider 的 highwayConnections。
+ * - 基于世界坐标网格（每 1000 方块一个网格点）生成 Highway 相邻连接边，并写入 WorldDataProvider 的
+ * highwayConnections。
  * - 不修改 path 的连接列表。
  */
 public final class HighwayPlanningService {
-    private HighwayPlanningService() {}
+    private HighwayPlanningService() {
+    }
 
     private static final class WindowCenter {
         private int gx;
@@ -52,10 +54,12 @@ public final class HighwayPlanningService {
     }
 
     public static void initialPlan(ServerLevel level) {
-        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        if (level == null)
+            return;
         ModConfig cfg = ConfigService.get();
         String dimId = level.dimension().location().toString();
-        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled()) return;
+        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled())
+            return;
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
         // 初次加载：只加载“玩家当前所在的 1x1 cell”。
@@ -81,10 +85,12 @@ public final class HighwayPlanningService {
     }
 
     public static CompletableFuture<Void> initialPlanAsync(ServerLevel level) {
-        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return CompletableFuture.completedFuture(null);
+        if (level == null)
+            return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
         String dimId = level.dimension().location().toString();
-        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled()) return CompletableFuture.completedFuture(null);
+        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled())
+            return CompletableFuture.completedFuture(null);
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
         BlockPos centerPos = level.getSharedSpawnPos();
@@ -107,7 +113,8 @@ public final class HighwayPlanningService {
     }
 
     private static void refreshSingleCell(ServerLevel level, ModConfig cfg, int cellGx, int cellGz) {
-        if (level == null || cfg == null) return;
+        if (level == null || cfg == null)
+            return;
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
 
         // 1x1 cell 的边界点是 2x2 点阵
@@ -130,8 +137,10 @@ public final class HighwayPlanningService {
         HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ, cellMaxX, cellMaxZ);
     }
 
-    private static CompletableFuture<Void> refreshSingleCellAsync(ServerLevel level, ModConfig cfg, int cellGx, int cellGz) {
-        if (level == null || cfg == null) return CompletableFuture.completedFuture(null);
+    private static CompletableFuture<Void> refreshSingleCellAsync(ServerLevel level, ModConfig cfg, int cellGx,
+            int cellGz) {
+        if (level == null || cfg == null)
+            return CompletableFuture.completedFuture(null);
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
 
         int minPointGx = cellGx;
@@ -153,19 +162,22 @@ public final class HighwayPlanningService {
 
         return planRectAsync(level, minX, minZ, maxX, maxZ).thenRun(() -> {
             var server = level.getServer();
-            if (server == null) return;
-            server.execute(() -> HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ, cellMaxX, cellMaxZ));
+            if (server == null)
+                return;
+            server.execute(() -> HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ,
+                    cellMaxX, cellMaxZ));
         });
     }
 
     public static void planAroundPlayer(ServerPlayer player) {
-        if (player == null) return;
+        if (player == null)
+            return;
         ServerLevel level = player.serverLevel();
-        if (!Level.OVERWORLD.equals(level.dimension())) return;
 
         ModConfig cfg = ConfigService.get();
         String dimId = level.dimension().location().toString();
-        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled()) return;
+        if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled())
+            return;
 
         WindowCenter center = WINDOW_CENTERS.get(level);
         if (center == null) {
@@ -224,7 +236,8 @@ public final class HighwayPlanningService {
 
         int dx = playerCellGx - center.gx;
         int dz = playerCellGz - center.gz;
-        if (dx == 0 && dz == 0) return;
+        if (dx == 0 && dz == 0)
+            return;
 
         // 玩家跨越多个 cell（传送/快速移动）时，直接重置窗口中心
         if (Math.abs(dx) > 1 || Math.abs(dz) > 1) {
@@ -242,8 +255,10 @@ public final class HighwayPlanningService {
         }
     }
 
-    private static CompletableFuture<Void> refreshWindowAsync(ServerLevel level, ModConfig cfg, int centerCellGx, int centerCellGz) {
-        if (level == null || cfg == null) return CompletableFuture.completedFuture(null);
+    private static CompletableFuture<Void> refreshWindowAsync(ServerLevel level, ModConfig cfg, int centerCellGx,
+            int centerCellGz) {
+        if (level == null || cfg == null)
+            return CompletableFuture.completedFuture(null);
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
         int minPointGx = centerCellGx - 1;
@@ -270,15 +285,19 @@ public final class HighwayPlanningService {
         // 先异步补齐窗口内的 PLANNED 边，然后在主线程尝试触发已完成 cell 的回补。
         return planRectAsync(level, minX, minZ, maxX, maxZ).thenRun(() -> {
             var server = level.getServer();
-            if (server == null) return;
-            server.execute(() -> HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ, cellMaxX, cellMaxZ));
+            if (server == null)
+                return;
+            server.execute(() -> HighwayCellPathPlanningService.planCompletedCellsInRect(level, cellMinX, cellMinZ,
+                    cellMaxX, cellMaxZ));
         });
     }
 
     private static void planRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         int gridBlocks = Math.max(1, ConfigService.get().highwayGridBlocks());
-        List<Records.StructureConnection> planned = buildGridConnections(gridBlocks, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
-        if (planned.isEmpty()) return;
+        List<Records.StructureConnection> planned = buildGridConnections(gridBlocks, minBlockX, minBlockZ, maxBlockX,
+                maxBlockZ);
+        if (planned.isEmpty())
+            return;
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<Records.StructureConnection> existing = provider.getHighwayConnections(level);
@@ -288,14 +307,17 @@ public final class HighwayPlanningService {
         }
     }
 
-    public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+    public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX,
+            int maxBlockZ) {
         final long epoch = ThreadPoolManager.currentEpoch();
         final ModConfig cfgSnap = ConfigService.get();
         final int gridBlocks = Math.max(1, cfgSnap.highwayGridBlocks());
 
         return ComputeService.supplyAsync(() -> {
-            if (Thread.currentThread().isInterrupted()) return new ArrayList<Records.StructureConnection>();
-            if (!ThreadPoolManager.isEpoch(epoch)) return new ArrayList<Records.StructureConnection>();
+            if (Thread.currentThread().isInterrupted())
+                return new ArrayList<Records.StructureConnection>();
+            if (!ThreadPoolManager.isEpoch(epoch))
+                return new ArrayList<Records.StructureConnection>();
 
             // 注意：这里需要使用同一份 cfgSnap 的网格间距，避免规划线程运行期间配置变化导致“网格错位”。
             if (cfgSnap == null || !cfgSnap.highwayEnabled() || !cfgSnap.highwayAutoPlanEnabled()) {
@@ -304,13 +326,17 @@ public final class HighwayPlanningService {
 
             return new ArrayList<>(buildGridConnections(gridBlocks, minBlockX, minBlockZ, maxBlockX, maxBlockZ));
         }).thenAccept(incoming -> {
-            if (incoming == null || incoming.isEmpty()) return;
-            if (!ThreadPoolManager.isEpoch(epoch)) return;
+            if (incoming == null || incoming.isEmpty())
+                return;
+            if (!ThreadPoolManager.isEpoch(epoch))
+                return;
             var server = level.getServer();
-            if (server == null) return;
+            if (server == null)
+                return;
 
             server.execute(() -> {
-                if (!ThreadPoolManager.isEpoch(epoch)) return;
+                if (!ThreadPoolManager.isEpoch(epoch))
+                    return;
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 List<Records.StructureConnection> existing = provider.getHighwayConnections(level);
                 List<Records.StructureConnection> merged = mergeConnections(existing, incoming);
@@ -322,10 +348,10 @@ public final class HighwayPlanningService {
     }
 
     private static List<Records.StructureConnection> buildGridConnections(int gridBlocks,
-                                                                          int minBlockX,
-                                                                           int minBlockZ,
-                                                                           int maxBlockX,
-                                                                           int maxBlockZ) {
+            int minBlockX,
+            int minBlockZ,
+            int maxBlockX,
+            int maxBlockZ) {
         // 注意：这里不再固定“扩一圈”。
         // 原因：当 gridBlocks 很大（例如 1000/2000）时，扩一圈会让实际规划范围
         // 比配置的 radiusChunks 大出接近 1 个 gridBlocks，体感差距非常明显。
@@ -357,14 +383,15 @@ public final class HighwayPlanningService {
     }
 
     private static List<Records.StructureConnection> mergeConnections(List<Records.StructureConnection> existing,
-                                                                      List<Records.StructureConnection> incoming) {
+            List<Records.StructureConnection> incoming) {
         HashSet<Long> seen = new HashSet<>();
         ArrayList<Records.StructureConnection> out = new ArrayList<>();
 
         if (existing != null) {
             for (Records.StructureConnection c : existing) {
                 long k = PlanningUtils.edgeKey(c.from(), c.to());
-                if (seen.add(k)) out.add(c);
+                if (seen.add(k))
+                    out.add(c);
             }
         }
 
@@ -380,7 +407,8 @@ public final class HighwayPlanningService {
 
     private static int floorDiv(int a, int b) {
         int r = a / b;
-        if ((a ^ b) < 0 && (r * b != a)) r--;
+        if ((a ^ b) < 0 && (r * b != a))
+            r--;
         return r;
     }
 }

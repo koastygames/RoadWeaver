@@ -24,7 +24,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ServerPlanningHooks {
-    private ServerPlanningHooks() {}
+    private ServerPlanningHooks() {
+    }
 
     private static int tick;
 
@@ -38,11 +39,12 @@ public final class ServerPlanningHooks {
         CacheManager.onServerStarted(); // 统一初始化缓存
         ThreadPoolManager.onServerStarted(event.getServer());
         ServerLevel level = event.getServer().getLevel(Objects.requireNonNull(Level.OVERWORLD));
-        if (level == null) return;
-        
+        if (level == null)
+            return;
+
         // 无论是新世界还是已存在的世界，都发现并缓存结构（供结构选择 GUI 使用）
         net.shiroha233.roadweaver.config.structure.StructureDiscoveryService.discoverFromLevel(level);
-        
+
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
@@ -71,9 +73,11 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+        if (event.phase != TickEvent.Phase.END)
+            return;
         var server = event.getServer();
-        if (server == null) return;
+        if (server == null)
+            return;
         if ((tick++ % 20) == 0) {
             boolean highwayMode = ConfigService.get().highwayEnabled();
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
@@ -88,7 +92,8 @@ public final class ServerPlanningHooks {
         // 道路生成队列是“按维度”维护的，因此必须对所有已加载维度 tick，
         // 否则下界/末地/模组维度的连接永远不会被消费。
         for (ServerLevel level : server.getAllLevels()) {
-            if (level == null) continue;
+            if (level == null)
+                continue;
             RoadGenerationService.tick(level);
             SignTextService.tick(level);
         }

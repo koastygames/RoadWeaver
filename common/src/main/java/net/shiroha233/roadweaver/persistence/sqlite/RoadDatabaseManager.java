@@ -24,8 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * - 更好的并发性能
  */
 public final class RoadDatabaseManager {
-    private RoadDatabaseManager() {}
-    
+    private RoadDatabaseManager() {
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
     // Forge 的 dev 环境下偶发不会自动触发 JDBC Service Provider 的加载，
@@ -34,17 +35,21 @@ public final class RoadDatabaseManager {
 
     // 说明：
     // - SQLite JDBC 驱动通常由 org.xerial:sqlite-jdbc 提供。
-    // - 在多模组环境中，我们直接使用原始包名 org.sqlite.JDBC。
-    // - 不再进行 shadow relocate，因为这会破坏 native 库的 JNI 绑定，导致 UnsatisfiedLinkError。
-    private static final String SQLITE_DRIVER = "org.sqlite.JDBC";
-    
+    // - 为了解决 Mohist 等服务器的分包 (split-package) 冲突，我们在构建时将其重定位到
+    // net.road.w (长度 10)，以便进行二进制等长替换修复 JNI 符号。
+    // - 这里使用数组列出可能的驱动名称，以同时适配开发环境和生产环境。
+    private static final String[] SQLITE_DRIVERS = {
+            "net.road.w.JDBC", // 生产环境 (Relocated & Patched)
+            "org.sqlite.JDBC" // 开发环境 (Original)
+    };
+
     // 按维度存储的数据库连接（每个维度一个连接池）
     private static final ConcurrentHashMap<String, Connection> CONNECTIONS = new ConcurrentHashMap<>();
-    
+
     // 数据库文件目录
     private static final String DB_DIR = "data/roadweaver";
     private static final String DB_NAME = "roads.db";
-    
+
     /**
      * 获取维度的唯一键
      */
@@ -52,7 +57,7 @@ public final class RoadDatabaseManager {
         ResourceLocation rl = level.dimension().location();
         return rl.getNamespace() + "_" + rl.getPath();
     }
-    
+
     /**
      * 获取世界的唯一键（包含世界路径）
      */
@@ -61,7 +66,7 @@ public final class RoadDatabaseManager {
         String worldId = worldRoot == null ? "unknown" : worldRoot.toAbsolutePath().normalize().toString();
         return worldId + "|" + dimKey(level);
     }
-    
+
     /**
      * 获取数据库文件路径
      */
@@ -71,79 +76,84 @@ public final class RoadDatabaseManager {
     }
 
     private static void ensureSqliteDriverLoaded() throws SQLException {
-        if (SQLITE_DRIVER_LOADED) return;
+        if (SQLITE_DRIVER_LOADED)
+            return;
         synchronized (RoadDatabaseManager.class) {
-            if (SQLITE_DRIVER_LOADED) return;
+            if (SQLITE_DRIVER_LOADED)
+                return;
 
-            // 尝试多种类加载器，确保在 Forge/Fabric 的 JAR-in-JAR 环境中都能正确加载
+            // 尝试多种类加载器和包名，确保在各种环境下都能加载
             ClassNotFoundException lastException = null;
 
-            // 1. 尝试使用当前类的类加载器（最可能包含嵌入的依赖）
-            try {
-                Class.forName(SQLITE_DRIVER, true, RoadDatabaseManager.class.getClassLoader());
-                SQLITE_DRIVER_LOADED = true;
-                LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过模组类加载器加载: {}", SQLITE_DRIVER);
-                return;
-            } catch (ClassNotFoundException e) {
-                lastException = e;
-            }
-
-            // 2. 尝试使用线程上下文类加载器
-            try {
-                ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-                if (contextLoader != null) {
-                    Class.forName(SQLITE_DRIVER, true, contextLoader);
+            for (String driverName : SQLITE_DRIVERS) {
+                // 1. 尝试使用当前类的类加载器
+                try {
+                    Class.forName(driverName, true, RoadDatabaseManager.class.getClassLoader());
                     SQLITE_DRIVER_LOADED = true;
-                    LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过上下文类加载器加载: {}", SQLITE_DRIVER);
+                    LOGGER.info("RoadDatabaseManager: SQLite JDBC 驱动已通过模组类加载器加载: {}", driverName);
                     return;
+                } catch (ClassNotFoundException e) {
+                    lastException = e;
                 }
-            } catch (ClassNotFoundException e) {
-                lastException = e;
+
+                // 2. 尝试使用线程上下文类加载器
+                try {
+                    ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+                    if (contextLoader != null) {
+                        Class.forName(driverName, true, contextLoader);
+                        SQLITE_DRIVER_LOADED = true;
+                        LOGGER.info("RoadDatabaseManager: SQLite JDBC 驱动已通过上下文类加载器加载: {}", driverName);
+                        return;
+                    }
+                } catch (ClassNotFoundException e) {
+                    lastException = e;
+                }
+
+                // 3. 尝试使用默认加载方式
+                try {
+                    Class.forName(driverName);
+                    SQLITE_DRIVER_LOADED = true;
+                    LOGGER.info("RoadDatabaseManager: SQLite JDBC 驱动已通过系统类加载器加载: {}", driverName);
+                    return;
+                } catch (ClassNotFoundException e) {
+                    lastException = e;
+                }
             }
 
-            // 3. 尝试使用默认的 Class.forName（系统类加载器）
-            try {
-                Class.forName(SQLITE_DRIVER);
-                SQLITE_DRIVER_LOADED = true;
-                LOGGER.debug("RoadDatabaseManager: SQLite JDBC 驱动已通过系统类加载器加载: {}", SQLITE_DRIVER);
-                return;
-            } catch (ClassNotFoundException e) {
-                lastException = e;
-            }
-
-            throw new SQLException("SQLite JDBC driver not found. Dependency org.xerial:sqlite-jdbc may be missing.", lastException);
+            throw new SQLException("SQLite JDBC driver not found. Tried: " + java.util.Arrays.toString(SQLITE_DRIVERS),
+                    lastException);
         }
     }
-    
+
     /**
      * 获取或创建数据库连接
      */
     public static Connection getConnection(ServerLevel level) throws SQLException {
         String key = worldKey(level);
-        
+
         Connection conn = CONNECTIONS.get(key);
         if (conn != null && !conn.isClosed()) {
             return conn;
         }
-        
+
         synchronized (CONNECTIONS) {
             // Double-check
             conn = CONNECTIONS.get(key);
             if (conn != null && !conn.isClosed()) {
                 return conn;
             }
-            
+
             try {
                 // 确保目录存在
                 Path dbPath = getDbPath(level);
                 Files.createDirectories(dbPath.getParent());
 
                 ensureSqliteDriverLoaded();
-                
+
                 // 创建连接
                 String url = "jdbc:sqlite:" + dbPath.toAbsolutePath();
                 conn = DriverManager.getConnection(url);
-                
+
                 // 配置 SQLite 优化
                 try (Statement stmt = conn.createStatement()) {
                     // WAL 模式：支持并发读写
@@ -157,14 +167,14 @@ public final class RoadDatabaseManager {
                     // 启用外键约束
                     stmt.execute("PRAGMA foreign_keys=ON");
                 }
-                
+
                 // 初始化表结构
                 initTables(conn);
-                
+
                 // 先放入连接池，避免迁移过程中递归调用 getConnection 时重复创建
                 CONNECTIONS.put(key, conn);
                 LOGGER.debug("RoadDatabaseManager: 已创建维度 {} 的数据库连接", dimKey(level));
-                
+
                 // 检查并执行旧数据迁移（从分片 NBT 到 SQLite）
                 // 注意：必须在连接放入 CONNECTIONS 之后调用，因为迁移过程会调用 addRoad
                 try {
@@ -175,16 +185,16 @@ public final class RoadDatabaseManager {
                 } catch (Exception e) {
                     LOGGER.warn("RoadDatabaseManager: 旧数据迁移失败，不影响正常使用", e);
                 }
-                
+
                 return conn;
-                
+
             } catch (Exception e) {
                 LOGGER.error("RoadDatabaseManager: 创建数据库连接失败", e);
                 throw new SQLException("Failed to create database connection", e);
             }
         }
     }
-    
+
     /**
      * 初始化表结构
      */
@@ -194,32 +204,29 @@ public final class RoadDatabaseManager {
             // 使用 fingerprint 作为唯一标识，避免重复插入
             // min_x, min_z, max_x, max_z 用于空间查询
             stmt.execute(
-                "CREATE TABLE IF NOT EXISTS roads (" +
-                "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "    fingerprint INTEGER NOT NULL UNIQUE," +
-                "    width INTEGER NOT NULL," +
-                "    road_type INTEGER NOT NULL," +
-                "    min_x INTEGER NOT NULL," +
-                "    min_z INTEGER NOT NULL," +
-                "    max_x INTEGER NOT NULL," +
-                "    max_z INTEGER NOT NULL," +
-                "    data BLOB NOT NULL," +
-                "    created_at INTEGER DEFAULT (strftime('%s', 'now'))" +
-                ")"
-            );
-            
+                    "CREATE TABLE IF NOT EXISTS roads (" +
+                            "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            "    fingerprint INTEGER NOT NULL UNIQUE," +
+                            "    width INTEGER NOT NULL," +
+                            "    road_type INTEGER NOT NULL," +
+                            "    min_x INTEGER NOT NULL," +
+                            "    min_z INTEGER NOT NULL," +
+                            "    max_x INTEGER NOT NULL," +
+                            "    max_z INTEGER NOT NULL," +
+                            "    data BLOB NOT NULL," +
+                            "    created_at INTEGER DEFAULT (strftime('%s', 'now'))" +
+                            ")");
+
             // 空间索引：用于矩形范围查询
             // SQLite 的 R-tree 索引非常适合空间查询
             stmt.execute(
-                "CREATE INDEX IF NOT EXISTS idx_roads_spatial " +
-                "ON roads (min_x, max_x, min_z, max_z)"
-            );
-            
+                    "CREATE INDEX IF NOT EXISTS idx_roads_spatial " +
+                            "ON roads (min_x, max_x, min_z, max_z)");
+
             // fingerprint 索引：用于去重检查
             stmt.execute(
-                "CREATE INDEX IF NOT EXISTS idx_roads_fingerprint " +
-                "ON roads (fingerprint)"
-            );
+                    "CREATE INDEX IF NOT EXISTS idx_roads_fingerprint " +
+                            "ON roads (fingerprint)");
 
             // 结构点缓存表：用于持久化结构预测/验证结果，避免地图缩放时重复预测/验证。
             // 说明：
@@ -227,54 +234,48 @@ public final class RoadDatabaseManager {
             // - source 用于区分来源（例如：预测/玩家手动注册），便于将来扩展。
             stmt.execute(
                     "CREATE TABLE IF NOT EXISTS structures (" +
-                    "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                    "    x INTEGER NOT NULL," +
-                    "    z INTEGER NOT NULL," +
-                    "    structure_id TEXT NOT NULL," +
-                    "    source INTEGER NOT NULL," +
-                    "    verified_at INTEGER DEFAULT (strftime('%s', 'now'))," +
-                    "    UNIQUE (x, z, structure_id, source)" +
-                    ")"
-            );
+                            "    id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                            "    x INTEGER NOT NULL," +
+                            "    z INTEGER NOT NULL," +
+                            "    structure_id TEXT NOT NULL," +
+                            "    source INTEGER NOT NULL," +
+                            "    verified_at INTEGER DEFAULT (strftime('%s', 'now'))," +
+                            "    UNIQUE (x, z, structure_id, source)" +
+                            ")");
 
             // x/z 联合索引：矩形范围查询的主要加速点
             stmt.execute(
                     "CREATE INDEX IF NOT EXISTS idx_structures_xz " +
-                    "ON structures (x, z)"
-            );
+                            "ON structures (x, z)");
 
             // 用于按类型过滤（例如只看村庄/自定义结构）
             stmt.execute(
                     "CREATE INDEX IF NOT EXISTS idx_structures_structure_id " +
-                    "ON structures (structure_id)"
-            );
+                            "ON structures (structure_id)");
 
             // 已扫描区域标记：按固定 chunk tile 记录，确保同一区域只做一次预测+验证。
             stmt.execute(
                     "CREATE TABLE IF NOT EXISTS structure_scan_tiles (" +
-                    "    tile_x INTEGER NOT NULL," +
-                    "    tile_z INTEGER NOT NULL," +
-                    "    tile_size_chunks INTEGER NOT NULL," +
-                    "    scanned_at INTEGER DEFAULT (strftime('%s', 'now'))," +
-                    "    PRIMARY KEY (tile_x, tile_z, tile_size_chunks)" +
-                    ")"
-            );
+                            "    tile_x INTEGER NOT NULL," +
+                            "    tile_z INTEGER NOT NULL," +
+                            "    tile_size_chunks INTEGER NOT NULL," +
+                            "    scanned_at INTEGER DEFAULT (strftime('%s', 'now'))," +
+                            "    PRIMARY KEY (tile_x, tile_z, tile_size_chunks)" +
+                            ")");
 
             stmt.execute(
                     "CREATE INDEX IF NOT EXISTS idx_structure_scan_tiles_range " +
-                    "ON structure_scan_tiles (tile_size_chunks, tile_x, tile_z)"
-            );
+                            "ON structure_scan_tiles (tile_size_chunks, tile_x, tile_z)");
 
             // 结构缓存元数据：记录预测策略 hash 等，便于配置变化时自动失效缓存
             stmt.execute(
                     "CREATE TABLE IF NOT EXISTS structure_cache_meta (" +
-                    "    k TEXT PRIMARY KEY," +
-                    "    v TEXT NOT NULL" +
-                    ")"
-            );
+                            "    k TEXT PRIMARY KEY," +
+                            "    v TEXT NOT NULL" +
+                            ")");
         }
     }
-    
+
     /**
      * 关闭指定维度的数据库连接
      */
@@ -290,7 +291,7 @@ public final class RoadDatabaseManager {
             }
         }
     }
-    
+
     /**
      * 关闭所有数据库连接（服务器停止时调用）
      */
@@ -305,7 +306,7 @@ public final class RoadDatabaseManager {
         CONNECTIONS.clear();
         LOGGER.debug("RoadDatabaseManager: 所有数据库连接已关闭");
     }
-    
+
     /**
      * 执行检查点（将 WAL 日志合并到主数据库）
      * 在服务器停止或维度卸载时调用
@@ -322,7 +323,7 @@ public final class RoadDatabaseManager {
             }
         }
     }
-    
+
     /**
      * 执行所有连接的检查点
      */

@@ -42,7 +42,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.structurePredictionEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.enable_prediction.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setStructurePredictionEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setStructurePredictionEnabled(v);
+                                                })
                                                 .build());
 
                 // 结构预测维度白名单
@@ -56,7 +59,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.radius_chunks.tooltip"))
                                                 .setMin(1)
                                                 .setMax(4096)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setPredictRadiusChunks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setPredictRadiusChunks(v);
+                                                })
                                                 .build());
 
                 filters.addEntry(
@@ -65,7 +71,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.biomePrefilter())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.biome_prefilter.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBiomePrefilter(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBiomePrefilter(v);
+                                                })
                                                 .build());
 
                 // 打开结构选择界面的按钮（替代旧的白名单/黑名单输入框）
@@ -82,7 +91,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.initial_plan_radius_chunks.tooltip"))
                                                 .setMin(1)
                                                 .setMax(4096)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setInitialPlanRadiusChunks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setInitialPlanRadiusChunks(v);
+                                                })
                                                 .build());
 
                 planning.addEntry(
@@ -91,7 +103,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.dynamicPlanEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.dynamic_plan_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setDynamicPlanEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setDynamicPlanEnabled(v);
+                                                })
                                                 .build());
 
                 planning.addEntry(
@@ -102,7 +117,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.dynamic_plan_radius_chunks.tooltip"))
                                                 .setMin(1)
                                                 .setMax(4096)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setDynamicPlanRadiusChunks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setDynamicPlanRadiusChunks(v);
+                                                })
                                                 .build());
 
                 planning.addEntry(
@@ -113,11 +131,14 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.dynamic_plan_stride_chunks.tooltip"))
                                                 .setMin(1)
                                                 .setMax(256)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setDynamicPlanStrideChunks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setDynamicPlanStrideChunks(v);
+                                                })
                                                 .build());
 
-                ModConfig.PlanningAlgorithm planningAlgo =
-                                conf.planningAlgorithm() != null ? conf.planningAlgorithm() : ModConfig.PlanningAlgorithm.RNG;
+                ModConfig.PlanningAlgorithm planningAlgo = conf.planningAlgorithm() != null ? conf.planningAlgorithm()
+                                : ModConfig.PlanningAlgorithm.RNG;
 
                 planning.addEntry(
                                 eb.startEnumSelector(
@@ -130,7 +151,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setEnumNameProvider(v -> Component.translatable(
                                                                 "config.roadweaver.planning_algorithm.option."
                                                                                 + v.name().toLowerCase(Locale.ROOT)))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setPlanningAlgorithm(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setPlanningAlgorithm(v);
+                                                })
                                                 .build());
 
                 ConfigCategory highway = builder.getOrCreateCategory(
@@ -142,16 +166,23 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.highwayEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.highway_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayEnabled(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
-                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_auto_plan_enabled"),
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.highway_auto_plan_enabled"),
                                                 conf.highwayAutoPlanEnabled())
                                                 .setDefaultValue(defaultConf.highwayAutoPlanEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.highway_auto_plan_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayAutoPlanEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayAutoPlanEnabled(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -162,16 +193,24 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.highway_grid_blocks.tooltip"))
                                                 .setMin(128)
                                                 .setMax(20000)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayGridBlocks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayGridBlocks(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
-                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_dynamic_plan_enabled"),
+                                eb.startBooleanToggle(
+                                                Component.translatable(
+                                                                "config.roadweaver.highway_dynamic_plan_enabled"),
                                                 conf.highwayDynamicPlanEnabled())
                                                 .setDefaultValue(defaultConf.highwayDynamicPlanEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.highway_dynamic_plan_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayDynamicPlanEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayDynamicPlanEnabled(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -182,16 +221,23 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.highway_road_width.tooltip"))
                                                 .setMin(1)
                                                 .setMax(31)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayRoadWidth(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayRoadWidth(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
-                                eb.startBooleanToggle(Component.translatable("config.roadweaver.highway_slope_limit_enabled"),
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.highway_slope_limit_enabled"),
                                                 conf.highwaySlopeLimitEnabled())
                                                 .setDefaultValue(defaultConf.highwaySlopeLimitEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.highway_slope_limit_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwaySlopeLimitEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwaySlopeLimitEnabled(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -202,7 +248,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.highway_slope_run_blocks.tooltip"))
                                                 .setMin(1)
                                                 .setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwaySlopeRunBlocks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwaySlopeRunBlocks(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -213,7 +262,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.highway_slope_rise_blocks.tooltip"))
                                                 .setMin(0)
                                                 .setMax(16)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwaySlopeRiseBlocks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwaySlopeRiseBlocks(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -224,7 +276,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.highway_a_star_step.tooltip"))
                                                 .setMin(4)
                                                 .setMax(128)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayAStarStep(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayAStarStep(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -235,7 +290,10 @@ public class ConfigScreenFactoryImpl {
                                                                 "config.roadweaver.highway_a_star_max_steps.tooltip"))
                                                 .setMin(1000)
                                                 .setMax(200000)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayAStarMaxSteps(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayAStarMaxSteps(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
@@ -245,17 +303,24 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.highway_floating_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayFloatingWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayFloatingWeight(v);
+                                                })
                                                 .build());
 
                 highway.addEntry(
-                                eb.startDoubleField(Component.translatable("config.roadweaver.highway_penetration_weight"),
+                                eb.startDoubleField(
+                                                Component.translatable("config.roadweaver.highway_penetration_weight"),
                                                 conf.highwayPenetrationWeight())
                                                 .setDefaultValue(defaultConf.highwayPenetrationWeight())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.highway_penetration_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHighwayPenetrationWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHighwayPenetrationWeight(v);
+                                                })
                                                 .build());
 
                 ConfigCategory roadGen = builder.getOrCreateCategory(
@@ -268,7 +333,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.roadsEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.roads_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadsEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setRoadsEnabled(v);
+                                                })
                                                 .build());
 
                 // 新增：按维度道路功能控制
@@ -280,7 +348,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.allowArtificial())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.allow_artificial.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setAllowArtificial(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setAllowArtificial(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -289,7 +360,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.allowNatural())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.allow_natural.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setAllowNatural(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setAllowNatural(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -298,7 +372,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.placeWaypoints())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.place_waypoints.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setPlaceWaypoints(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setPlaceWaypoints(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -307,7 +384,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.spawnCabinEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.spawn_cabin_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setSpawnCabinEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setSpawnCabinEnabled(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -317,7 +397,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component
                                                                 .translatable("config.roadweaver.road_width.tooltip"))
                                                 .setMin(0).setMax(15)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadWidth(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setRoadWidth(v);
+                                                })
                                                 .build());
 
                 // 村庄缩进距离
@@ -328,28 +411,39 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component
                                                                 .translatable("config.roadweaver.village_road_offset.tooltip"))
                                                 .setMin(0).setMax(256)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setVillageRoadOffset(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setVillageRoadOffset(v);
+                                                })
                                                 .build());
 
                 // 其他结构缩进距离
                 roadGen.addEntry(
-                                eb.startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"),
+                                eb.startIntField(
+                                                Component.translatable("config.roadweaver.other_structure_road_offset"),
                                                 conf.otherStructureRoadOffset())
                                                 .setDefaultValue(defaultConf.otherStructureRoadOffset())
                                                 .setTooltip(Component
                                                                 .translatable("config.roadweaver.other_structure_road_offset.tooltip"))
                                                 .setMin(0).setMax(256)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setOtherStructureRoadOffset(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setOtherStructureRoadOffset(v);
+                                                })
                                                 .build());
 
                 // 结构避让开关
                 roadGen.addEntry(
-                                eb.startBooleanToggle(Component.translatable("config.roadweaver.structure_avoidance_enabled"),
+                                eb.startBooleanToggle(
+                                                Component.translatable("config.roadweaver.structure_avoidance_enabled"),
                                                 conf.structureAvoidanceEnabled())
                                                 .setDefaultValue(defaultConf.structureAvoidanceEnabled())
                                                 .setTooltip(Component
                                                                 .translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setStructureAvoidanceEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setStructureAvoidanceEnabled(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -358,7 +452,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.roadSignsEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.road_signs_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadSignsEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setRoadSignsEnabled(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -368,7 +465,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.lamp_interval.tooltip"))
                                                 .setMin(1).setMax(2048)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setLampInterval(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setLampInterval(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(
@@ -378,7 +478,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.road_clear_height.tooltip"))
                                                 .setMin(1).setMax(16)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadClearHeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setRoadClearHeight(v);
+                                                })
                                                 .build());
 
                 roadGen.addEntry(new OpenPresetEditorEntry());
@@ -393,7 +496,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.averaging_radius.tooltip"))
                                                 .setMin(0).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setAveragingRadius(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setAveragingRadius(v);
+                                                })
                                                 .build());
 
                 genSurface.addEntry(
@@ -405,7 +511,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.max_slope_step_per_two_segments.tooltip"))
                                                 .setMin(0).setMax(8)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setMaxSlopeStepPerTwoSegments(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setMaxSlopeStepPerTwoSegments(v);
+                                                })
                                                 .build());
 
                 genSurface.addEntry(
@@ -414,7 +523,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.slopeLimitEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.slope_limit_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setSlopeLimitEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setSlopeLimitEnabled(v);
+                                                })
                                                 .build());
 
                 // 新增：道路填充（路基/堤道）总开关
@@ -424,17 +536,25 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.roadFillEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.road_fill_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadFillEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setRoadFillEnabled(v);
+                                                })
                                                 .build());
 
                 // 新增：插值路基填充
                 genSurface.addEntry(
-                                eb.startBooleanToggle(Component.translatable("config.roadweaver.interpolated_roadbed_fill_enabled"),
+                                eb.startBooleanToggle(
+                                                Component.translatable(
+                                                                "config.roadweaver.interpolated_roadbed_fill_enabled"),
                                                 conf.interpolatedRoadbedFillEnabled())
                                                 .setDefaultValue(defaultConf.interpolatedRoadbedFillEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.interpolated_roadbed_fill_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setInterpolatedRoadbedFillEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setInterpolatedRoadbedFillEnabled(v);
+                                                })
                                                 .build());
 
                 genSurface.addEntry(
@@ -444,7 +564,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.causeway_max_depth.tooltip"))
                                                 .setMin(0).setMax(12)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setCausewayMaxDepth(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setCausewayMaxDepth(v);
+                                                })
                                                 .build());
                 genSurface.addEntry(
                                 eb.startBooleanToggle(
@@ -453,7 +576,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.preventTreesOnRoad())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.prevent_trees_on_road.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setPreventTreesOnRoad(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setPreventTreesOnRoad(v);
+                                                })
                                                 .build());
 
                 // 桥梁设置
@@ -465,7 +591,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.bridgeEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeEnabled(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_deck_clearance"),
@@ -474,7 +603,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_deck_clearance.tooltip"))
                                                 .setMin(1).setMax(8)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeDeckClearance(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeDeckClearance(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_max_length_blocks"),
@@ -483,7 +615,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_max_length_blocks.tooltip"))
                                                 .setMin(0).setMax(10000)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeMaxLengthBlocks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeMaxLengthBlocks(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startBooleanToggle(
@@ -492,16 +627,23 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.bridgeUseBuoysInstead())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_use_buoys_instead.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeUseBuoysInstead(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeUseBuoysInstead(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startBooleanToggle(
-                                                Component.translatable("config.roadweaver.bridge_use_buoys_when_skipped"),
+                                                Component.translatable(
+                                                                "config.roadweaver.bridge_use_buoys_when_skipped"),
                                                 conf.bridgeUseBuoysWhenSkipped())
                                                 .setDefaultValue(defaultConf.bridgeUseBuoysWhenSkipped())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_use_buoys_when_skipped.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeUseBuoysWhenSkipped(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeUseBuoysWhenSkipped(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.buoy_interval_blocks"),
@@ -510,7 +652,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.buoy_interval_blocks.tooltip"))
                                                 .setMin(4).setMax(256)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBuoyIntervalBlocks(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBuoyIntervalBlocks(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_pier_interval"),
@@ -519,7 +664,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_pier_interval.tooltip"))
                                                 .setMin(3).setMax(32)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgePierInterval(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgePierInterval(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_pier_width"),
@@ -528,7 +676,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_pier_width.tooltip"))
                                                 .setMin(1).setMax(3)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgePierWidth(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgePierWidth(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_pier_max_height"),
@@ -537,7 +688,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_pier_max_height.tooltip"))
                                                 .setMin(6).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgePierMaxHeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgePierMaxHeight(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startBooleanToggle(Component.translatable("config.roadweaver.bridge_keep_lamps"),
@@ -545,7 +699,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.bridgeKeepLamps())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_keep_lamps.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeKeepLamps(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeKeepLamps(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_ramp_segments"),
@@ -554,7 +711,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_ramp_segments.tooltip"))
                                                 .setMin(0).setMax(12)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeRampSegments(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeRampSegments(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_min_water_depth"),
@@ -563,7 +723,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_min_water_depth.tooltip"))
                                                 .setMin(1).setMax(10)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeMinWaterDepth(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeMinWaterDepth(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_min_length"),
@@ -572,7 +735,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_min_length.tooltip"))
                                                 .setMin(1).setMax(32)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeMinLength(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeMinLength(v);
+                                                })
                                                 .build());
                 bridge.addEntry(
                                 eb.startIntField(Component.translatable("config.roadweaver.bridge_merge_gap"),
@@ -581,7 +747,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.bridge_merge_gap.tooltip"))
                                                 .setMin(1).setMax(32)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBridgeMergeGap(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBridgeMergeGap(v);
+                                                })
                                                 .build());
 
                 // 路边结构设置
@@ -594,7 +763,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.roadsideStructuresEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.roadside_structures_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setRoadsideStructuresEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setRoadsideStructuresEnabled(v);
+                                                })
                                                 .build());
                 roadsideStructures.addEntry(
                                 eb.startIntField(
@@ -604,7 +776,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.max_structures_per_road.tooltip"))
                                                 .setMin(0).setMax(20)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setMaxStructuresPerRoad(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setMaxStructuresPerRoad(v);
+                                                })
                                                 .build());
                 roadsideStructures.addEntry(
                                 eb.startIntField(
@@ -614,7 +789,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.small_structure_offset.tooltip"))
                                                 .setMin(1).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setSmallStructureOffset(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setSmallStructureOffset(v);
+                                                })
                                                 .build());
                 roadsideStructures.addEntry(
                                 eb.startIntField(
@@ -624,7 +802,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.medium_structure_offset.tooltip"))
                                                 .setMin(1).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setMediumStructureOffset(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setMediumStructureOffset(v);
+                                                })
                                                 .build());
                 roadsideStructures.addEntry(
                                 eb.startIntField(
@@ -634,7 +815,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.large_structure_offset.tooltip"))
                                                 .setMin(1).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setLargeStructureOffset(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setLargeStructureOffset(v);
+                                                })
                                                 .build());
 
                 ConfigCategory genPerformance = builder.getOrCreateCategory(
@@ -649,7 +833,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "text.autoconfig.roadweaver.option.computeThreads.@Tooltip"))
                                                 .setMin(0).setMax(128)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setComputeThreads(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setComputeThreads(v);
+                                                })
                                                 .build());
 
                 genPerformance.addEntry(
@@ -661,7 +848,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "text.autoconfig.roadweaver.option.generationThreads.@Tooltip"))
                                                 .setMin(1).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setGenerationThreads(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setGenerationThreads(v);
+                                                })
                                                 .build());
 
                 genPerformance.addEntry(
@@ -672,7 +862,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "text.autoconfig.roadweaver.option.initialGenerationThreads.@Tooltip"))
                                                 .setMin(1).setMax(64)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setInitialGenerationThreads(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setInitialGenerationThreads(v);
+                                                })
                                                 .build());
 
                 genPerformance.addEntry(
@@ -682,7 +875,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.max_concurrent_generations.tooltip"))
                                                 .setMin(1).setMax(128)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setMaxConcurrentGenerations(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setMaxConcurrentGenerations(v);
+                                                })
                                                 .build());
 
                 genPerformance.addEntry(
@@ -691,15 +887,18 @@ public class ConfigScreenFactoryImpl {
                                                 .setDefaultValue(defaultConf.threadDutyCycle())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.thread_duty_cycle.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setThreadDutyCycle(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setThreadDutyCycle(v);
+                                                })
                                                 .build());
 
                 ConfigCategory pathfindingCosts = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.pathfinding_costs"));
 
-                ModConfig.PathfindingAlgorithm pathfindingAlgo =
-                                conf.pathfindingAlgorithm() != null ? conf.pathfindingAlgorithm()
-                                                : ModConfig.PathfindingAlgorithm.ASTAR_BASIC;
+                ModConfig.PathfindingAlgorithm pathfindingAlgo = conf.pathfindingAlgorithm() != null
+                                ? conf.pathfindingAlgorithm()
+                                : ModConfig.PathfindingAlgorithm.ASTAR_BASIC;
 
                 pathfindingCosts.addEntry(
                                 eb.startEnumSelector(
@@ -712,17 +911,24 @@ public class ConfigScreenFactoryImpl {
                                                 .setEnumNameProvider(v -> Component.translatable(
                                                                 "config.roadweaver.pathfinding_algorithm.option."
                                                                                 + v.name().toLowerCase(Locale.ROOT)))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setPathfindingAlgorithm(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setPathfindingAlgorithm(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
                                 eb.startBooleanToggle(
-                                                Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled"),
+                                                Component.translatable(
+                                                                "config.roadweaver.hierarchical_pathfinding_enabled"),
                                                 conf.hierarchicalPathfindingEnabled())
                                                 .setDefaultValue(defaultConf.hierarchicalPathfindingEnabled())
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHierarchicalPathfindingEnabled(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHierarchicalPathfindingEnabled(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -732,7 +938,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component
                                                                 .translatable("config.roadweaver.a_star_step.tooltip"))
                                                 .setMin(4).setMax(128)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setAStarStep(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setAStarStep(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -742,7 +951,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.a_star_max_steps.tooltip"))
                                                 .setMin(100).setMax(100000)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setAStarMaxSteps(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setAStarMaxSteps(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -752,7 +964,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.ortho_step_cost.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setOrthoStepCost(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setOrthoStepCost(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -762,7 +977,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.diag_step_cost.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setDiagStepCost(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setDiagStepCost(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -772,7 +990,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.elevation_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setElevationWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setElevationWeight(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -782,7 +1003,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component
                                                                 .translatable("config.roadweaver.biome_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setBiomeWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setBiomeWeight(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -792,7 +1016,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.stability_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setStabilityWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setStabilityWeight(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -802,7 +1029,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.water_depth_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setWaterDepthWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setWaterDepthWeight(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -812,7 +1042,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.near_water_cost.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setNearWaterCost(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setNearWaterCost(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -822,7 +1055,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.water_proximity_cost.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setWaterProximityCost(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setWaterProximityCost(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -832,7 +1068,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.heuristic_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setHeuristicWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setHeuristicWeight(v);
+                                                })
                                                 .build());
 
                 pathfindingCosts.addEntry(
@@ -842,7 +1081,10 @@ public class ConfigScreenFactoryImpl {
                                                 .setTooltip(Component.translatable(
                                                                 "config.roadweaver.deviation_weight.tooltip"))
                                                 .setMin(0)
-                                                .setSaveConsumer(v -> { if (v != null) conf.setDeviationWeight(v); })
+                                                .setSaveConsumer(v -> {
+                                                        if (v != null)
+                                                                conf.setDeviationWeight(v);
+                                                })
                                                 .build());
 
                 return builder.build();

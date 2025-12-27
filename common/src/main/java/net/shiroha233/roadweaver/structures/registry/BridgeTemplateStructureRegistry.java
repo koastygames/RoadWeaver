@@ -1,18 +1,14 @@
 package net.shiroha233.roadweaver.structures.registry;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -28,11 +24,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BridgeTemplateStructureRegistry {
 
-    private BridgeTemplateStructureRegistry() {}
-    
+    private BridgeTemplateStructureRegistry() {
+    }
+
     // 缓存：每个世界的桥模板结构列表
     private static final Map<ResourceKey<?>, List<BridgeTemplate>> CACHE = new ConcurrentHashMap<>();
-    
+
     /**
      * 桥模板结构
      */
@@ -43,13 +40,14 @@ public final class BridgeTemplateStructureRegistry {
         private BlockState[][][] voxelGrid = new BlockState[0][0][0];
         private Vec3i size = new Vec3i(0, 0, 0);
 
-        public BridgeTemplate(ResourceLocation id, Holder<Structure> holder, BridgeTemplateStructure structure) {
+        public BridgeTemplate(ResourceLocation id, Holder<Structure> holder, BridgeTemplateStructure structure,
+                ServerLevel level) {
             this.id = id;
             this.holder = holder;
             this.structure = structure;
 
-            if (Minecraft.getInstance().getSingleplayerServer() != null) {
-                var template = Minecraft.getInstance().getSingleplayerServer().getStructureManager().get(structure.templateId).orElse(null);
+            if (level != null) {
+                StructureTemplate template = level.getStructureManager().get(structure.templateId).orElse(null);
                 List<StructureTemplate.Palette> palettes = template != null ? getPalettes(template) : List.of();
                 if (template == null || palettes.isEmpty()) {
                     return;
@@ -74,10 +72,11 @@ public final class BridgeTemplateStructureRegistry {
          */
         public boolean isInVoxelGrid(double x, double y, double z) {
             int originalX = (int) Math.floor(x);
-            int originalY = (int) Math.floor(y + structure.heightOffset + 1);  // 从路面高度计y坐标
+            int originalY = (int) Math.floor(y + structure.heightOffset + 1); // 从路面高度计y坐标
             int originalZ = (int) Math.floor(z + 0.01 + size.getZ() / 2.0);
 
-            return originalX >= 0 && originalX < size.getX() && originalY < size.getY() && originalZ >= 0 && originalZ < size.getZ();
+            return originalX >= 0 && originalX < size.getX() && originalY < size.getY() && originalZ >= 0
+                    && originalZ < size.getZ();
         }
 
         /**
@@ -94,10 +93,11 @@ public final class BridgeTemplateStructureRegistry {
             int originalX = (int) Math.floor(x);
 
             // 原始Y和Z坐标由局部坐标决定（考虑网格中心）
-            int originalY = (int) Math.floor(y + structure.heightOffset + 1);  // 从路面高度计y坐标
+            int originalY = (int) Math.floor(y + structure.heightOffset + 1); // 从路面高度计y坐标
             int originalZ = (int) Math.floor(z + 0.01 + size.getZ() / 2.0);
 
-            if (originalX < 0 || originalX >= size.getX() || originalY >= size.getY() || originalZ < 0 || originalZ >= size.getZ()) {
+            if (originalX < 0 || originalX >= size.getX() || originalY >= size.getY() || originalZ < 0
+                    || originalZ >= size.getZ()) {
                 return null;
             }
 
@@ -143,13 +143,16 @@ public final class BridgeTemplateStructureRegistry {
                 f.setAccessible(true);
                 Object val = f.get(tpl);
                 if (val instanceof List<?> list) {
-                    return (List<StructureTemplate.Palette>) list;
+                    @SuppressWarnings("unchecked")
+                    List<StructureTemplate.Palette> casted = (List<StructureTemplate.Palette>) list;
+                    return casted;
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
             return List.of();
         }
     }
-    
+
     /**
      * 获取所有已注册的桥模板结构
      * 
@@ -158,19 +161,30 @@ public final class BridgeTemplateStructureRegistry {
      */
     public static List<BridgeTemplate> getAll(ServerLevel level) {
         ResourceKey<?> dimensionKey = level.dimension();
-        return CACHE.computeIfAbsent(dimensionKey, k -> loadFromRegistry(level.registryAccess()));
+        return CACHE.computeIfAbsent(dimensionKey, k -> loadFromRegistry(level));
     }
-    
+
     /**
      * 根据条件选择一个桥模板结构
      * 
-     * @param level      服务端世界
-     * @param seed       随机种子
+     * @param level 服务端世界
+     * @param seed  随机种子
      * @return 选中的结构，如果没有符合条件的返回 null
      */
-    public static BridgeTemplate choose(ServerLevel level,
-                                        int seed) {
+    /**
+     * 根据条件选择一个桥模板结构
+     * 
+     * @param level 服务端世界
+     * @param seed  随机种子
+     * @return 选中的结构，如果没有符合条件的返回 null
+     */
+    public static BridgeTemplate choose(ServerLevel level, int seed) {
         List<BridgeTemplate> all = getAll(level);
+
+        // 空列表保护：如果没有找到任何桥梁模板，返回 null
+        if (all == null || all.isEmpty()) {
+            return null;
+        }
 
         Random random = new Random(seed * 10000L + 2025 + 1225);
         int randomIndex = random.nextInt(all.size());
@@ -179,36 +193,37 @@ public final class BridgeTemplateStructureRegistry {
 
         return all.get(randomIndex);
     }
-    
+
     /**
      * 从注册表加载所有桥模板结构
      */
-    private static List<BridgeTemplate> loadFromRegistry(RegistryAccess registryAccess) {
+    private static List<BridgeTemplate> loadFromRegistry(ServerLevel level) {
         List<BridgeTemplate> result = new ArrayList<>();
-        
+        RegistryAccess registryAccess = level.registryAccess();
+
         Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
-        
+
         for (var entry : structureRegistry.entrySet()) {
             ResourceLocation id = entry.getKey().location();
             Structure structure = entry.getValue();
-            
+
             // 只收集 BridgeTemplateStructure 类型
             if (structure instanceof BridgeTemplateStructure roadsideStructure) {
                 Holder<Structure> holder = structureRegistry.getHolderOrThrow(entry.getKey());
-                result.add(new BridgeTemplate(id, holder, roadsideStructure));
+                result.add(new BridgeTemplate(id, holder, roadsideStructure, level));
             }
         }
-        
+
         return result;
     }
-    
+
     /**
      * 清除缓存（在世界卸载或重载时调用）
      */
     public static void clearCache() {
         CACHE.clear();
     }
-    
+
     /**
      * 清除指定维度的缓存
      */

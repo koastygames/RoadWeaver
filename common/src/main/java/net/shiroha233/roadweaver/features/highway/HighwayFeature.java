@@ -14,7 +14,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
 import net.shiroha233.roadweaver.features.highway.placement.HighwaySegmentPaver;
-import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
@@ -36,7 +35,8 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
     public boolean place(FeaturePlaceContext<HighwayFeatureConfig> ctx) {
         WorldGenLevel world = ctx.level();
         Level lvl = world.getLevel();
-        if (!(lvl instanceof ServerLevel server)) return false;
+        if (!(lvl instanceof ServerLevel server))
+            return false;
 
         ChunkPos currentChunk = new ChunkPos(ctx.origin());
         int minX = currentChunk.getMinBlockX();
@@ -45,7 +45,8 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
         int maxZ = currentChunk.getMaxBlockZ();
 
         List<Records.RoadData> roadDataList = RoadShardStorage.queryRect(server, minX, minZ, maxX, maxZ);
-        if (roadDataList == null || roadDataList.isEmpty()) return false;
+        if (roadDataList == null || roadDataList.isEmpty())
+            return false;
 
         RandomSource random = ctx.random();
         ModConfig cfg = ConfigService.get();
@@ -53,43 +54,39 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
         Set<BlockPos> processedMiddle = new HashSet<>();
         boolean didPlaceAny = false;
         for (Records.RoadData data : roadDataList) {
-            if (data == null || data.roadType() != HighwayRoadTypes.HIGHWAY) continue;
+            if (data == null || data.roadType() != HighwayRoadTypes.HIGHWAY)
+                continue;
             didPlaceAny |= processRoadDataInChunk(world, currentChunk, data, processedMiddle, random, cfg);
         }
         return didPlaceAny;
     }
 
     private static boolean processRoadDataInChunk(WorldGenLevel world,
-                                                  ChunkPos currentChunk,
-                                                  Records.RoadData data,
-                                                  Set<BlockPos> processedMiddle,
-                                                  RandomSource random,
-                                                  ModConfig cfg) {
+            ChunkPos currentChunk,
+            Records.RoadData data,
+            Set<BlockPos> processedMiddle,
+            RandomSource random,
+            ModConfig cfg) {
         List<Records.RoadSegmentPlacement> segments = data.roadSegmentList();
-        if (segments == null || segments.size() < 3) return false;
+        if (segments == null || segments.size() < 3)
+            return false;
 
         List<BlockPos> centers = segments.stream().map(Records.RoadSegmentPlacement::middlePos).toList();
 
         int[] targetYArr = buildTargetY(world, data, centers);
 
-        String dimId = world.getLevel().dimension().location().toString();
-        boolean roadFillEnabled = cfg == null || cfg.roadFillEnabledForDimension(dimId);
-        boolean interpolatedRoadbedFillEnabled = cfg == null || cfg.interpolatedRoadbedFillEnabledForDimension(dimId);
-
         boolean didAny = false;
         for (int i = 1; i < segments.size() - 1; i++) {
             Records.RoadSegmentPlacement seg = segments.get(i);
             BlockPos middle = seg.middlePos();
-            if (!processedMiddle.add(middle)) continue;
+            if (!processedMiddle.add(middle))
+                continue;
 
             ChunkPos middleChunk = new ChunkPos(middle);
-            if (!middleChunk.equals(currentChunk)) continue;
+            if (!middleChunk.equals(currentChunk))
+                continue;
 
-            // 与 Path 道路一致：在铺设路面前先进行“路基/地形适配”填充。
-            // 原理：先填出平滑的路堤，再铺路面方块，可减少“悬空路面/直上直下台阶”的观感。
-            if (roadFillEnabled && interpolatedRoadbedFillEnabled) {
-                RoadTerrainAdapter.adaptWithInterpolation(world, middle, i, centers, targetYArr, data.width(), random, cfg);
-            }
+            // 移除路基填充逻辑：Highway 仅铺设路面方块，不再进行地形适配填充。
 
             // 保持路面更齐平：这里不做半砖过渡（Highway 不需要）
             HighwaySegmentPaver.paveSegment(world, seg, i, centers, targetYArr, random, cfg);

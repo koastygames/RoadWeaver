@@ -42,7 +42,68 @@ shadowJar {
     exclude "fabric.mod.json"
     configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
     archiveClassifier.set("dev-shadow")
+    
+    // 重定位 SQLite JDBC 包，长度设为 10 以便进行二进制等长替换
+    // org.sqlite (10) -> net.road.w (10)
+    relocate 'org.sqlite', 'net.road.w'
+    
+    // 强制更新 META-INF/services 里的类名
+    mergeServiceFiles()
 }
+
+// 修复 SQLite Native 库中的 JNI 符号
+import java.nio.file.*
+task fixSqliteNatives {
+    doLast {
+        File file = shadowJar.archiveFile.get().asFile
+        if (!file.exists()) return
+
+        Path zipPath = file.toPath()
+        Map<String, String> env = new HashMap<>()
+        env.put("create", "false")
+        
+        FileSystem fs = FileSystems.newFileSystem(zipPath, null as ClassLoader)
+        try {
+            Files.walk(fs.getPath("/")).filter { 
+                it.toString().endsWith(".dll") || it.toString().endsWith(".so") || it.toString().endsWith(".dylib") 
+            }.forEach { nativePath ->
+                println "Patching native symbols in: " + nativePath
+                byte[] bytes = Files.readAllBytes(nativePath)
+                
+                // 替换 "org_sqlite" -> "net_road_w" (JNI 符号)
+                // 替换 "org/sqlite" -> "net/road/w" (内部路径)
+                bytes = replaceBytesInternal(bytes, "org_sqlite".getBytes("UTF-8"), "net_road_w".getBytes("UTF-8"))
+                bytes = replaceBytesInternal(bytes, "org/sqlite".getBytes("UTF-8"), "net/road/w".getBytes("UTF-8"))
+                
+                Files.write(nativePath, bytes)
+            }
+        } finally {
+            fs.close()
+        }
+    }
+}
+
+// 辅助方法：执行等长字节替换
+def replaceBytesInternal(byte[] source, byte[] target, byte[] replacement) {
+    if (target.length != replacement.length) return source
+    for (int i = 0; i <= source.length - target.length; i++) {
+        boolean match = true
+        for (int j = 0; j < target.length; j++) {
+            if (source[i + j] != target[j]) {
+                match = false
+                break
+            }
+        }
+        if (match) {
+            for (int j = 0; j < target.length; j++) {
+                source[i + j] = replacement[j]
+            }
+        }
+    }
+    return source
+}
+
+shadowJar.finalizedBy(fixSqliteNatives)
 
 remapJar {
 	inputFile.set shadowJar.archiveFile

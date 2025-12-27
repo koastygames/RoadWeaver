@@ -11,15 +11,17 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import java.util.List;
 
 public final class RoadBlockPlacer {
-    private RoadBlockPlacer() {}
+    private RoadBlockPlacer() {
+    }
 
     public static void placeRoadBlock(WorldGenLevel world,
-                                      BlockState blockBelow,
-                                      BlockPos surfacePos,
-                                      List<BlockState> materials,
-                                      RandomSource random,
-                                      ModConfig cfg) {
-        if (!PlacementRules.placeAllowedCheck(blockBelow.getBlock())) return;
+            BlockState blockBelow,
+            BlockPos surfacePos,
+            List<BlockState> materials,
+            RandomSource random,
+            ModConfig cfg) {
+        if (!PlacementRules.placeAllowedCheck(blockBelow.getBlock()))
+            return;
         BlockState chosen = materials.get(random.nextInt(materials.size()));
 
         boolean roadFillEnabled = true;
@@ -50,7 +52,9 @@ public final class RoadBlockPlacer {
                 depth++;
             }
 
-            BlockPos fillStart = (base != null) ? base.above() : below1.below(Math.min(MAX_CAUSEWAY_DEPTH - 1, Math.max(0, below1.getY() - world.getMinBuildHeight())));
+            BlockPos fillStart = (base != null) ? base.above()
+                    : below1.below(
+                            Math.min(MAX_CAUSEWAY_DEPTH - 1, Math.max(0, below1.getY() - world.getMinBuildHeight())));
             if (fillStart.getY() < world.getMinBuildHeight()) {
                 fillStart = new BlockPos(fillStart.getX(), world.getMinBuildHeight(), fillStart.getZ());
             }

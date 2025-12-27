@@ -6,7 +6,7 @@ import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
- * 模组结构类型注册
+ * 模组结构类型注册中心
  * 
  * 由 Fabric/Forge 平台各自实现注册逻辑，
  * 这里只定义引用。

@@ -34,7 +34,6 @@ public final class PresetService {
     private static final ResourceLocation OVERWORLD = new ResourceLocation("minecraft:overworld");
     private static final ResourceLocation NETHER = new ResourceLocation("minecraft:the_nether");
     private static final ResourceLocation END = new ResourceLocation("minecraft:the_end");
-    private static final ResourceLocation TWILIGHT_FOREST = new ResourceLocation("twilightforest:twilight_forest");
 
     public enum RoadType {
         ARTIFICIAL,
@@ -53,24 +52,21 @@ public final class PresetService {
                 RoadType.ARTIFICIAL,
                 List.of(OVERWORLD),
                 List.of("minecraft:stone_bricks", "minecraft:polished_andesite"),
-                List.of("minecraft:stone_brick_slab", "minecraft:polished_andesite_slab")
-        ));
+                List.of("minecraft:stone_brick_slab", "minecraft:polished_andesite_slab")));
         list.add(new SamplePresetTemplate(
                 "mud_road",
                 "Mud Road",
                 RoadType.ARTIFICIAL,
                 List.of(OVERWORLD),
                 List.of("minecraft:mud_bricks", "minecraft:packed_mud"),
-                List.of("minecraft:mud_brick_slab")
-        ));
+                List.of("minecraft:mud_brick_slab")));
         list.add(new SamplePresetTemplate(
                 "aged_stone",
                 "Aged Stone",
                 RoadType.ARTIFICIAL,
                 List.of(OVERWORLD),
                 List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"),
-                List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab")
-        ));
+                List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab")));
 
         // ===== 人工道路（下界/末地/暮色森林） =====
         list.add(new SamplePresetTemplate(
@@ -78,33 +74,24 @@ public final class PresetService {
                 "Nether Blackstone Road",
                 RoadType.ARTIFICIAL,
                 List.of(NETHER),
-                List.of("minecraft:polished_blackstone_bricks", "minecraft:polished_blackstone", "minecraft:blackstone", "minecraft:basalt"),
-                List.of("minecraft:polished_blackstone_brick_slab", "minecraft:blackstone_slab")
-        ));
+                List.of("minecraft:polished_blackstone_bricks", "minecraft:polished_blackstone", "minecraft:blackstone",
+                        "minecraft:basalt"),
+                List.of("minecraft:polished_blackstone_brick_slab", "minecraft:blackstone_slab")));
         list.add(new SamplePresetTemplate(
                 "nether_brick_road",
                 "Nether Brick Road",
                 RoadType.ARTIFICIAL,
                 List.of(NETHER),
-                List.of("minecraft:nether_bricks", "minecraft:red_nether_bricks", "minecraft:cracked_nether_bricks", "minecraft:blackstone"),
-                List.of("minecraft:nether_brick_slab", "minecraft:red_nether_brick_slab")
-        ));
+                List.of("minecraft:nether_bricks", "minecraft:red_nether_bricks", "minecraft:cracked_nether_bricks",
+                        "minecraft:blackstone"),
+                List.of("minecraft:nether_brick_slab", "minecraft:red_nether_brick_slab")));
         list.add(new SamplePresetTemplate(
                 "end_endstone_road",
                 "End Stone Road",
                 RoadType.ARTIFICIAL,
                 List.of(END),
                 List.of("minecraft:end_stone_bricks", "minecraft:end_stone", "minecraft:purpur_block"),
-                List.of("minecraft:end_stone_brick_slab", "minecraft:purpur_slab")
-        ));
-        list.add(new SamplePresetTemplate(
-                "twilight_castle_road",
-                "Twilight Castle Road",
-                RoadType.ARTIFICIAL,
-                List.of(TWILIGHT_FOREST),
-                List.of("twilightforest:castle_brick", "twilightforest:deadrock", "twilightforest:twilight_oak_planks"),
-                List.of("twilightforest:twilight_oak_slab", "twilightforest:canopy_slab")
-        ));
+                List.of("minecraft:end_stone_brick_slab", "minecraft:purpur_slab")));
 
         // ===== 自然道路（按生物群系划分）=====
         list.add(naturalPreset("plains", "Plains Trail",
@@ -132,7 +119,7 @@ public final class PresetService {
                 List.of("minecraft:coarse_dirt", "minecraft:rooted_dirt", "minecraft:podzol"),
                 List.of("minecraft:dark_oak_slab")));
         list.add(naturalPreset("cherry_grove", "Cherry Grove Path",
-                List.of("minecraft:dirt_path", "minecraft:moss_block", "minecraft:pink_petals"),
+                List.of("minecraft:dirt_path", "minecraft:moss_block", "minecraft:coarse_dirt"),
                 List.of("minecraft:cherry_slab")));
         list.add(naturalPreset("taiga", "Taiga Trail",
                 List.of("minecraft:coarse_dirt", "minecraft:podzol", "minecraft:gravel"),
@@ -177,7 +164,7 @@ public final class PresetService {
                 List.of("minecraft:stone", "minecraft:snow_block", "minecraft:packed_ice"),
                 List.of("minecraft:stone_slab")));
         list.add(naturalPreset("desert", "Desert Trail",
-                List.of("minecraft:sandstone", "minecraft:smooth_sandstone", "minecraft:sand"),
+                List.of("minecraft:sandstone", "minecraft:smooth_sandstone", "minecraft:sand", "minecraft:gravel"),
                 List.of("minecraft:sandstone_slab", "minecraft:smooth_sandstone_slab")));
         list.add(naturalPreset("badlands", "Badlands Trail",
                 List.of("minecraft:red_sand", "minecraft:terracotta", "minecraft:orange_terracotta"),
@@ -275,40 +262,19 @@ public final class PresetService {
                 List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
                 List.of("minecraft:end_stone_brick_slab")));
 
-        // ===== 自然道路（暮色森林） =====
-        list.add(naturalPresetInDimensions("twilightforest:forest", "Twilight Forest Trail",
-                List.of(TWILIGHT_FOREST),
-                List.of("minecraft:dirt_path", "minecraft:moss_block", "minecraft:coarse_dirt"),
-                List.of("twilightforest:twilight_oak_slab", "twilightforest:canopy_slab")));
-        list.add(naturalPresetInDimensions("twilightforest:dense_forest", "Twilight Dense Forest Trail",
-                List.of(TWILIGHT_FOREST),
-                List.of("minecraft:coarse_dirt", "minecraft:podzol", "minecraft:moss_block"),
-                List.of("twilightforest:canopy_slab")));
-        list.add(naturalPresetInDimensions("twilightforest:firefly_forest", "Twilight Firefly Forest Trail",
-                List.of(TWILIGHT_FOREST),
-                List.of("minecraft:dirt_path", "minecraft:coarse_dirt", "minecraft:glowstone"),
-                List.of("twilightforest:twilight_oak_slab")));
-        list.add(naturalPresetInDimensions("twilightforest:swamp", "Twilight Swamp Trail",
-                List.of(TWILIGHT_FOREST),
-                List.of("minecraft:mud", "minecraft:muddy_mangrove_roots", "minecraft:dirt_path"),
-                List.of("minecraft:mud_brick_slab")));
-        list.add(naturalPresetInDimensions("twilightforest:glacier", "Twilight Glacier Trail",
-                List.of(TWILIGHT_FOREST),
-                List.of("minecraft:packed_ice", "minecraft:snow_block", "minecraft:stone"),
-                List.of("minecraft:stone_slab")));
-
         SAMPLE_PRESETS = List.copyOf(list);
     }
 
-    private static SamplePresetTemplate naturalPreset(String biomeId, String displayName, List<String> materials, List<String> slabMaterials) {
+    private static SamplePresetTemplate naturalPreset(String biomeId, String displayName, List<String> materials,
+            List<String> slabMaterials) {
         return naturalPresetInDimensions(biomeId, displayName, List.of(OVERWORLD), materials, slabMaterials);
     }
 
     private static SamplePresetTemplate naturalPresetInDimensions(String biomeId,
-                                                                 String displayName,
-                                                                 List<ResourceLocation> dimensions,
-                                                                 List<String> materials,
-                                                                 List<String> slabMaterials) {
+            String displayName,
+            List<ResourceLocation> dimensions,
+            List<String> materials,
+            List<String> slabMaterials) {
         String sanitizedId = biomeId.contains(":")
                 ? biomeId.replace(':', '_')
                 : biomeId;
@@ -319,11 +285,11 @@ public final class PresetService {
                 RoadType.NATURAL,
                 List.copyOf(dimensions),
                 List.copyOf(materials),
-                List.copyOf(slabMaterials)
-        );
+                List.copyOf(slabMaterials));
     }
 
-    private PresetService() {}
+    private PresetService() {
+    }
 
     public static synchronized void reload() {
         Path cfgRoot = Platform.getConfigFolder();
@@ -339,37 +305,43 @@ public final class PresetService {
             try (DirectoryStream<Path> ds = Files.newDirectoryStream(presetDir, "*.json")) {
                 for (Path p : ds) {
                     PresetFile dto = readPresetFile(p);
-                    if (dto == null) continue;
+                    if (dto == null)
+                        continue;
                     String id = dto.id;
-                    if (id == null || id.isBlank()) id = stripExt(p.getFileName().toString());
-                    
+                    if (id == null || id.isBlank())
+                        id = stripExt(p.getFileName().toString());
+
                     List<String> mats = dto.materials != null ? dto.materials : List.of();
                     List<String> valid = new ArrayList<>();
                     for (String s : mats) {
                         try {
                             ResourceLocation rl = new ResourceLocation(s);
                             Block b = BuiltInRegistries.BLOCK.get(rl);
-                            if (b != null && b != Blocks.AIR) valid.add(s);
-                        } catch (Throwable ignored) {}
+                            if (b != null && b != Blocks.AIR)
+                                valid.add(s);
+                        } catch (Throwable ignored) {
+                        }
                     }
-                    
+
                     List<String> slabIds = dto.slabMaterials != null ? dto.slabMaterials : List.of();
                     List<String> validSlabs = new ArrayList<>();
                     for (String s : slabIds) {
                         try {
                             ResourceLocation rl = new ResourceLocation(s);
                             Block b = BuiltInRegistries.BLOCK.get(rl);
-                            if (b != null && b != Blocks.AIR) validSlabs.add(s);
-                        } catch (Throwable ignored) {}
+                            if (b != null && b != Blocks.AIR)
+                                validSlabs.add(s);
+                        } catch (Throwable ignored) {
+                        }
                     }
-                    
+
                     if (valid.isEmpty()) {
                         LOGGER.warn("Skip preset {} due to empty/invalid materials", p.getFileName());
                         continue;
                     }
 
                     String name = dto.name == null || dto.name.isBlank() ? id : dto.name;
-                    
+
                     // Parse RoadType
                     RoadType type = RoadType.ARTIFICIAL;
                     if (dto.type != null) {
@@ -385,7 +357,8 @@ public final class PresetService {
                     if (dto.dimensions != null) {
                         for (String d : dto.dimensions) {
                             ResourceLocation rl = ResourceLocation.tryParse(d);
-                            if (rl != null) dims.add(rl);
+                            if (rl != null)
+                                dims.add(rl);
                         }
                     }
                     // Default to Overworld if empty (for backward compatibility or new files)
@@ -393,7 +366,8 @@ public final class PresetService {
                         dims.add(new ResourceLocation("minecraft:overworld"));
                     }
 
-                    PresetDef def = new PresetDef(id, name, type, Collections.unmodifiableList(dims), Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs));
+                    PresetDef def = new PresetDef(id, name, type, Collections.unmodifiableList(dims),
+                            Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs));
                     if (map.containsKey(id)) {
                         LOGGER.warn("Duplicate preset id '{}', file {} is ignored", id, p.getFileName());
                         continue;
@@ -410,7 +384,7 @@ public final class PresetService {
         if (!map.isEmpty()) {
             tryEnsureDimensionSamplePresets(presetDir, map, NETHER);
             tryEnsureDimensionSamplePresets(presetDir, map, END);
-            tryEnsureDimensionSamplePresets(presetDir, map, TWILIGHT_FOREST);
+
         }
 
         if (map.isEmpty()) {
@@ -425,8 +399,10 @@ public final class PresetService {
         LOGGER.info("Presets loaded: {} entries", map.size());
     }
 
-    private static void tryEnsureDimensionSamplePresets(Path presetDir, Map<String, PresetDef> map, ResourceLocation dimension) {
-        if (dimension == null) return;
+    private static void tryEnsureDimensionSamplePresets(Path presetDir, Map<String, PresetDef> map,
+            ResourceLocation dimension) {
+        if (dimension == null)
+            return;
         boolean hasAny = false;
         for (PresetDef d : map.values()) {
             if (d != null && d.dimensions() != null && d.dimensions().contains(dimension)) {
@@ -434,11 +410,14 @@ public final class PresetService {
                 break;
             }
         }
-        if (hasAny) return;
+        if (hasAny)
+            return;
 
         for (SamplePresetTemplate template : SAMPLE_PRESETS) {
-            if (template == null) continue;
-            if (template.dimensions() == null || !template.dimensions().contains(dimension)) continue;
+            if (template == null)
+                continue;
+            if (template.dimensions() == null || !template.dimensions().contains(dimension))
+                continue;
             // 写入到 config/roadweaver/presets，保证用户可以在 UI 中编辑/删除
             Path file = presetDir.resolve(template.id() + ".json");
             if (!Files.exists(file)) {
@@ -466,7 +445,8 @@ public final class PresetService {
     private static void writeSamplePresets(Path dir) {
         try {
             Files.createDirectories(dir);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         for (SamplePresetTemplate template : SAMPLE_PRESETS) {
             writePreset(dir.resolve(template.id() + ".json"), template.toPresetFile());
@@ -476,26 +456,30 @@ public final class PresetService {
     private static void writePreset(Path file, PresetFile dto) {
         try (BufferedWriter bw = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             GSON.toJson(dto, bw);
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     private static Map<String, PresetDef> defaultPresets() {
         Map<String, PresetDef> m = new LinkedHashMap<>();
         for (SamplePresetTemplate template : SAMPLE_PRESETS) {
             PresetDef def = template.toPresetDef();
-            if (m.containsKey(def.id())) continue;
+            if (m.containsKey(def.id()))
+                continue;
             m.put(def.id(), def);
         }
         return m;
     }
 
     public static synchronized List<PresetDef> getAllPresets() {
-        if (PRESETS.get().isEmpty()) reload();
+        if (PRESETS.get().isEmpty())
+            reload();
         return List.copyOf(PRESETS.get().values());
     }
 
     public static synchronized PresetDef choosePreset(RandomSource rnd, ResourceLocation dimension, RoadType type) {
-        if (PRESETS.get().isEmpty()) reload();
+        if (PRESETS.get().isEmpty())
+            reload();
         Map<String, PresetDef> all = PRESETS.get();
 
         List<PresetDef> candidates = new ArrayList<>();
@@ -523,27 +507,34 @@ public final class PresetService {
 
     private static List<BlockState> toBlockStates(List<String> ids) {
         List<BlockState> out = new ArrayList<>();
-        if (ids == null) return out;
+        if (ids == null)
+            return out;
         for (String s : ids) {
             try {
                 ResourceLocation rl = new ResourceLocation(s);
                 Block b = BuiltInRegistries.BLOCK.get(rl);
-                if (b != null && b != Blocks.AIR) out.add(b.defaultBlockState());
-            } catch (Throwable ignored) {}
+                if (b != null && b != Blocks.AIR)
+                    out.add(b.defaultBlockState());
+            } catch (Throwable ignored) {
+            }
         }
-        if (out.isEmpty()) out.add(Blocks.STONE_BRICKS.defaultBlockState());
+        if (out.isEmpty())
+            out.add(Blocks.STONE_BRICKS.defaultBlockState());
         return out;
     }
 
     private static List<BlockState> toBlockStatesAllowEmpty(List<String> ids) {
         List<BlockState> out = new ArrayList<>();
-        if (ids == null) return out;
+        if (ids == null)
+            return out;
         for (String s : ids) {
             try {
                 ResourceLocation rl = new ResourceLocation(s);
                 Block b = BuiltInRegistries.BLOCK.get(rl);
-                if (b != null && b != Blocks.AIR) out.add(b.defaultBlockState());
-            } catch (Throwable ignored) {}
+                if (b != null && b != Blocks.AIR)
+                    out.add(b.defaultBlockState());
+            } catch (Throwable ignored) {
+            }
         }
         return out;
     }
@@ -556,33 +547,44 @@ public final class PresetService {
         return toBlockStatesAllowEmpty(ids);
     }
 
-    public static synchronized PresetDef findNaturalPresetForBiome(ResourceLocation dimension, ResourceLocation biomeId) {
-        if (biomeId == null) return null;
-        if (PRESETS.get().isEmpty()) reload();
+    public static synchronized PresetDef findNaturalPresetForBiome(ResourceLocation dimension,
+            ResourceLocation biomeId) {
+        if (biomeId == null)
+            return null;
+        if (PRESETS.get().isEmpty())
+            reload();
         Map<String, PresetDef> all = PRESETS.get();
 
         // 兼容两种命名：
         // 1) natural_<path>（例如 natural_plains，对应 minecraft:plains）
-        // 2) natural_<namespace>_<path>（例如 natural_minecraft_plains / natural_terralith_skylands）
+        // 2) natural_<namespace>_<path>（例如 natural_minecraft_plains /
+        // natural_terralith_skylands）
         String idPathOnly = "natural_" + biomeId.getPath();
         String idNsPath = "natural_" + biomeId.getNamespace() + "_" + biomeId.getPath();
 
         PresetDef def = all.get(idPathOnly);
-        if (def == null) def = all.get(idNsPath);
-        if (def == null) return null;
-        if (def.type != RoadType.NATURAL) return null;
-        if (dimension != null && (def.dimensions == null || !def.dimensions.contains(dimension))) return null;
+        if (def == null)
+            def = all.get(idNsPath);
+        if (def == null)
+            return null;
+        if (def.type != RoadType.NATURAL)
+            return null;
+        if (dimension != null && (def.dimensions == null || !def.dimensions.contains(dimension)))
+            return null;
         return def;
     }
 
     public static synchronized List<List<String>> getMaterialCombos() {
-        if (PRESETS.get().isEmpty()) reload();
+        if (PRESETS.get().isEmpty())
+            reload();
         List<List<String>> combos = new ArrayList<>();
-        for (PresetDef d : PRESETS.get().values()) combos.add(d.materials());
+        for (PresetDef d : PRESETS.get().values())
+            combos.add(d.materials());
         return combos;
     }
 
-    public static synchronized void saveOrUpdatePresetFile(String id, String name, RoadType type, List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
+    public static synchronized void saveOrUpdatePresetFile(String id, String name, RoadType type,
+            List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
         if (id == null || id.isBlank()) {
             return;
         }
@@ -603,10 +605,12 @@ public final class PresetService {
         dto.slabMaterials = slabMaterials == null ? List.of() : new ArrayList<>(slabMaterials);
         writePreset(presetDir.resolve(id + ".json"), dto);
     }
-    
+
     // Kept for backward compatibility but redirecting
-    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials, List<String> slabMaterials) {
-        saveOrUpdatePresetFile(id, name, RoadType.ARTIFICIAL, List.of(new ResourceLocation("minecraft:overworld")), materials, slabMaterials);
+    public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials,
+            List<String> slabMaterials) {
+        saveOrUpdatePresetFile(id, name, RoadType.ARTIFICIAL, List.of(new ResourceLocation("minecraft:overworld")),
+                materials, slabMaterials);
     }
 
     public static synchronized void deletePresetFile(String id) {
@@ -632,9 +636,12 @@ public final class PresetService {
         List<String> slabMaterials;
     }
 
-    public record PresetDef(String id, String name, RoadType type, List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {}
+    public record PresetDef(String id, String name, RoadType type, List<ResourceLocation> dimensions,
+            List<String> materials, List<String> slabMaterials) {
+    }
 
-    private record SamplePresetTemplate(String id, String name, RoadType type, List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
+    private record SamplePresetTemplate(String id, String name, RoadType type, List<ResourceLocation> dimensions,
+            List<String> materials, List<String> slabMaterials) {
         PresetDef toPresetDef() {
             return new PresetDef(
                     id,
@@ -642,8 +649,7 @@ public final class PresetService {
                     type,
                     List.copyOf(dimensions),
                     List.copyOf(materials),
-                    List.copyOf(slabMaterials)
-            );
+                    List.copyOf(slabMaterials));
         }
 
         PresetFile toPresetFile() {

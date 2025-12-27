@@ -22,7 +22,8 @@ import net.shiroha233.roadweaver.util.ComputeService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 public final class RoadPlanningService {
-    private RoadPlanningService() {}
+    private RoadPlanningService() {
+    }
 
     private static final ConcurrentHashMap<Level, Set<Long>> PLANNED_TILES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Level, java.util.concurrent.ConcurrentHashMap<Long, Long>> PLANNED_TILE_CENTERS = new ConcurrentHashMap<>();
@@ -34,20 +35,30 @@ public final class RoadPlanningService {
         if (keys.size() > MAX_PLANNED_KEYS) {
             int remove = keys.size() - MAX_PLANNED_KEYS;
             java.util.Iterator<Long> it = keys.iterator();
-            while (remove > 0 && it.hasNext()) { it.next(); it.remove(); remove--; }
+            while (remove > 0 && it.hasNext()) {
+                it.next();
+                it.remove();
+                remove--;
+            }
             provider.setPlannedTileKeys((ServerLevel) level, keys);
         }
-        java.util.Map<Long, Long> centers = new java.util.HashMap<>(provider.getPlannedTileCenters((ServerLevel) level));
+        java.util.Map<Long, Long> centers = new java.util.HashMap<>(
+                provider.getPlannedTileCenters((ServerLevel) level));
         if (centers.size() > MAX_PLANNED_KEYS) {
             int remove2 = centers.size() - MAX_PLANNED_KEYS;
             java.util.Iterator<Long> it2 = centers.keySet().iterator();
-            while (remove2 > 0 && it2.hasNext()) { it2.next(); it2.remove(); remove2--; }
+            while (remove2 > 0 && it2.hasNext()) {
+                it2.next();
+                it2.remove();
+                remove2--;
+            }
             provider.setPlannedTileCenters((ServerLevel) level, centers);
         }
     }
 
     public static void initialPlan(ServerLevel level) {
-        if (!Level.OVERWORLD.equals(level.dimension())) return;
+        if (level == null)
+            return;
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.initialPlanRadiusChunks());
         BlockPos spawn = level.getSharedSpawnPos();
@@ -61,10 +72,12 @@ public final class RoadPlanningService {
     }
 
     public static void planAroundPlayer(ServerPlayer player) {
-        if (player == null) return;
+        if (player == null)
+            return;
         ServerLevel level = player.serverLevel();
         ModConfig cfg = ConfigService.get();
-        if (!cfg.dynamicPlanEnabled()) return;
+        if (!cfg.dynamicPlanEnabled())
+            return;
         int radiusChunks = Math.max(1, cfg.dynamicPlanRadiusChunks());
         int stride = Math.max(1, cfg.dynamicPlanStrideChunks());
         int tile = Math.max(8, Math.min(256, stride));
@@ -80,7 +93,8 @@ public final class RoadPlanningService {
         centers.putIfAbsent(key, (((long) pcx) << 32) ^ (pcz & 0xffffffffL));
         provider0.setPlannedTileKeys(level, set);
         provider0.setPlannedTileCenters(level, centers);
-        if (!isNewTile) return; 
+        if (!isNewTile)
+            return;
 
         int minX = (pcx - radiusChunks) * 16;
         int maxX = (pcx + radiusChunks) * 16;
@@ -94,7 +108,8 @@ public final class RoadPlanningService {
         List<BlockPos> points = new ArrayList<>();
         HashSet<Long> seenPos = new HashSet<>();
         collectStructurePointsInto(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, points, seenPos);
-        if (points.size() < 2) return;
+        if (points.size() < 2)
+            return;
 
         List<Records.StructureConnection> primaryEdges;
         ModConfig cfg0 = ConfigService.get();
@@ -105,7 +120,8 @@ public final class RoadPlanningService {
         } else {
             primaryEdges = KNNPlanner.planKNN(points, 2, 2048, 1.8, 40.0, 2);
         }
-        if (primaryEdges.isEmpty()) return;
+        if (primaryEdges.isEmpty())
+            return;
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<Records.StructureConnection> existing = provider.getStructureConnections(level);
@@ -114,7 +130,8 @@ public final class RoadPlanningService {
         ArrayList<Records.StructureConnection> existingInRect = new ArrayList<>();
         if (existing != null) {
             for (Records.StructureConnection c : existing) {
-                if (inRect.contains(c.from()) && inRect.contains(c.to())) existingInRect.add(c);
+                if (inRect.contains(c.from()) && inRect.contains(c.to()))
+                    existingInRect.add(c);
             }
         }
 
@@ -132,10 +149,10 @@ public final class RoadPlanningService {
     }
 
     private static void collectStructurePointsInto(ServerLevel level,
-                                                  int minBlockX, int minBlockZ,
-                                                  int maxBlockX, int maxBlockZ,
-                                                  List<BlockPos> out,
-                                                  Set<Long> seenPos) {
+            int minBlockX, int minBlockZ,
+            int maxBlockX, int maxBlockZ,
+            List<BlockPos> out,
+            Set<Long> seenPos) {
         // 迁移 legacy 并触发一次预测扫描（若启用预测）：结构点统一进 SQLite
         StructureCacheMigrator.migrateLegacyIfNeeded(level);
 
@@ -143,21 +160,27 @@ public final class RoadPlanningService {
         // 注意：是否实际执行预测/验证，由 StructureIndexService 根据配置开关 + 维度白名单判定。
         StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
 
-        List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
-        if (cached == null || cached.isEmpty()) return;
+        List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX,
+                maxBlockZ);
+        if (cached == null || cached.isEmpty())
+            return;
         for (Records.StructureInfo info : cached) {
-            if (info == null || info.pos() == null) continue;
+            if (info == null || info.pos() == null)
+                continue;
             BlockPos p = info.pos();
             int x = p.getX(), z = p.getZ();
-            if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) continue;
+            if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ)
+                continue;
             BlockPos q = new BlockPos(x, 0, z);
             long key = PlanningUtils.pos2dKey(q);
-            if (seenPos.add(key)) out.add(q);
+            if (seenPos.add(key))
+                out.add(q);
         }
     }
 
     public static CompletableFuture<Void> initialPlanAsync(ServerLevel level) {
-        if (!Level.OVERWORLD.equals(level.dimension())) return CompletableFuture.completedFuture(null);
+        if (level == null)
+            return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.initialPlanRadiusChunks());
         BlockPos spawn = level.getSharedSpawnPos();
@@ -170,7 +193,8 @@ public final class RoadPlanningService {
         return planRectAsync(level, minX, minZ, maxX, maxZ);
     }
 
-    public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+    public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX,
+            int maxBlockZ) {
         final long epoch = ThreadPoolManager.currentEpoch();
         // 预先获取已有连接，用于增量规划时保持一致性
         final List<Records.StructureConnection> existingSnapshot;
@@ -180,8 +204,10 @@ public final class RoadPlanningService {
             existingSnapshot = ex != null ? new ArrayList<>(ex) : new ArrayList<>();
         }
         return ComputeService.supplyAsync(() -> {
-            if (Thread.currentThread().isInterrupted()) return new ArrayList<Records.StructureConnection>();
-            if (!ThreadPoolManager.isEpoch(epoch)) return new ArrayList<Records.StructureConnection>();
+            if (Thread.currentThread().isInterrupted())
+                return new ArrayList<Records.StructureConnection>();
+            if (!ThreadPoolManager.isEpoch(epoch))
+                return new ArrayList<Records.StructureConnection>();
             ArrayList<BlockPos> points = new ArrayList<>();
             HashSet<Long> seenPos = new HashSet<>();
             collectStructurePointsInto(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, points, seenPos);
@@ -191,23 +217,26 @@ public final class RoadPlanningService {
                 BlockPos t = new BlockPos(c.to().getX(), 0, c.to().getZ());
                 long kf = PlanningUtils.pos2dKey(f);
                 long kt = PlanningUtils.pos2dKey(t);
-                if (seenPos.add(kf)) points.add(f);
-                if (seenPos.add(kt)) points.add(t);
+                if (seenPos.add(kf))
+                    points.add(f);
+                if (seenPos.add(kt))
+                    points.add(t);
             }
-            if (points.size() < 2) return new ArrayList<Records.StructureConnection>();
-            
+            if (points.size() < 2)
+                return new ArrayList<Records.StructureConnection>();
+
             // 收集矩形内的已有边
             HashSet<BlockPos> inRect = new HashSet<>(points);
             ArrayList<Records.StructureConnection> existingInRect = new ArrayList<>();
             HashSet<Long> existingEdgeKeys = new HashSet<>();
             for (Records.StructureConnection c : existingSnapshot) {
                 if (inRect.contains(new BlockPos(c.from().getX(), 0, c.from().getZ())) &&
-                    inRect.contains(new BlockPos(c.to().getX(), 0, c.to().getZ()))) {
+                        inRect.contains(new BlockPos(c.to().getX(), 0, c.to().getZ()))) {
                     existingInRect.add(c);
                     existingEdgeKeys.add(PlanningUtils.edgeKey(c.from(), c.to()));
                 }
             }
-            
+
             List<Records.StructureConnection> primaryEdges;
             ModConfig cfg0 = ConfigService.get();
             if (cfg0.planningAlgorithm() == ModConfig.PlanningAlgorithm.DELAUNAY) {
@@ -217,8 +246,9 @@ public final class RoadPlanningService {
             } else {
                 primaryEdges = KNNPlanner.planKNN(points, 2, 2048, 1.8, 40.0, 2);
             }
-            if (primaryEdges.isEmpty() && existingInRect.isEmpty()) return new ArrayList<Records.StructureConnection>();
-            
+            if (primaryEdges.isEmpty() && existingInRect.isEmpty())
+                return new ArrayList<Records.StructureConnection>();
+
             // 过滤掉与已有边冲突的新边（保持规划一致性）
             ArrayList<Records.StructureConnection> filteredPrimary = new ArrayList<>();
             for (Records.StructureConnection c : primaryEdges) {
@@ -228,22 +258,26 @@ public final class RoadPlanningService {
                     filteredPrimary.add(c);
                 }
             }
-            
+
             // 将已有边和新边合并作为 base 进行连通性修复
             ArrayList<Records.StructureConnection> base = new ArrayList<>(existingInRect);
             base.addAll(filteredPrimary);
             List<Records.StructureConnection> bridges = KNNPlanner.connectComponents(points, base, 1536, 35.0, 3);
-            
+
             ArrayList<Records.StructureConnection> incoming = new ArrayList<>(filteredPrimary);
             incoming.addAll(bridges);
             return incoming;
         }).thenAccept(incoming -> {
-            if (incoming == null || incoming.isEmpty()) return;
-            if (!ThreadPoolManager.isEpoch(epoch)) return;
+            if (incoming == null || incoming.isEmpty())
+                return;
+            if (!ThreadPoolManager.isEpoch(epoch))
+                return;
             var server = level.getServer();
-            if (server == null) return;
+            if (server == null)
+                return;
             server.execute(() -> {
-                if (!ThreadPoolManager.isEpoch(epoch)) return;
+                if (!ThreadPoolManager.isEpoch(epoch))
+                    return;
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 List<Records.StructureConnection> existing = provider.getStructureConnections(level);
                 List<Records.StructureConnection> merged = mergeConnections(existing, incoming);
@@ -255,25 +289,28 @@ public final class RoadPlanningService {
     }
 
     private static List<Records.StructureConnection> mergeConnections(List<Records.StructureConnection> existing,
-                                                                      List<Records.StructureConnection> incoming) {
+            List<Records.StructureConnection> incoming) {
         HashSet<Long> seen = new HashSet<>();
         ArrayList<Records.StructureConnection> out = new ArrayList<>();
         if (existing != null) {
             for (Records.StructureConnection c : existing) {
                 long k = PlanningUtils.edgeKey(c.from(), c.to());
-                if (seen.add(k)) out.add(c);
+                if (seen.add(k))
+                    out.add(c);
             }
         }
         for (Records.StructureConnection c : incoming) {
             long k = PlanningUtils.edgeKey(c.from(), c.to());
-            if (seen.add(k)) out.add(new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.PLANNED));
+            if (seen.add(k))
+                out.add(new Records.StructureConnection(c.from(), c.to(), Records.ConnectionStatus.PLANNED));
         }
         return out;
     }
 
     private static int floorDiv(int a, int b) {
         int r = a / b;
-        if ((a ^ b) < 0 && (r * b != a)) r--;
+        if ((a ^ b) < 0 && (r * b != a))
+            r--;
         return r;
     }
 
@@ -284,7 +321,8 @@ public final class RoadPlanningService {
 
     public static java.util.Map<Long, Long> getPlannedTileCenters(ServerLevel level) {
         java.util.Map<Long, Long> m = WorldDataProvider.getInstance().getPlannedTileCenters(level);
-        if (m == null || m.isEmpty()) return java.util.Map.of();
+        if (m == null || m.isEmpty())
+            return java.util.Map.of();
         return java.util.Map.copyOf(m);
     }
 

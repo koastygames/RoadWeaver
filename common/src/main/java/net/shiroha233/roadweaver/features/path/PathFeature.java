@@ -16,7 +16,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
-import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlannerNew;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationPlanner;
@@ -26,6 +25,7 @@ import net.shiroha233.roadweaver.features.path.bridge.BuoyMarkerPlanner;
 import net.shiroha233.roadweaver.features.path.decoration.system.SkippedBridgeBankSignPlanner;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeRangeCalculator;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlanner;
+import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlannerNew;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.BridgeTransitionAdjuster;
@@ -43,12 +43,14 @@ public class PathFeature extends Feature<PathFeatureConfig> {
     public boolean place(FeaturePlaceContext<PathFeatureConfig> ctx) {
         WorldGenLevel world = ctx.level();
         Level lvl = world.getLevel();
-        if (!(lvl instanceof ServerLevel server)) return false;
+        if (!(lvl instanceof ServerLevel server))
+            return false;
 
         ModConfig cfg = ConfigService.get();
         String dimId = server.dimension().location().toString();
         // 按维度：是否生成道路（path 道路系统）
-        if (!cfg.roadsEnabledForDimension(dimId)) return false;
+        if (!cfg.roadsEnabledForDimension(dimId))
+            return false;
 
         ChunkPos currentChunk = new ChunkPos(ctx.origin());
         int minX = currentChunk.getMinBlockX();
@@ -56,7 +58,8 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         int maxX = currentChunk.getMaxBlockX();
         int maxZ = currentChunk.getMaxBlockZ();
         List<Records.RoadData> roadDataList = RoadShardStorage.queryRect(server, minX, minZ, maxX, maxZ);
-        if (roadDataList == null || roadDataList.isEmpty()) return false;
+        if (roadDataList == null || roadDataList.isEmpty())
+            return false;
 
         RandomSource random = ctx.random();
         int averagingRadius = Math.max(0, cfg.averagingRadius());
@@ -64,21 +67,22 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         Set<BlockPos> processedMiddle = new HashSet<>();
         Set<Decoration> decorations = new HashSet<>();
         for (Records.RoadData data : roadDataList) {
-            processRoadDataInChunk(world, server, currentChunk, data, processedMiddle, decorations, random, cfg, averagingRadius);
+            processRoadDataInChunk(world, server, currentChunk, data, processedMiddle, decorations, random, cfg,
+                    averagingRadius);
         }
         DecorationExecutor.tryPlaceDecorations(decorations);
         return true;
     }
 
     private static void processRoadDataInChunk(WorldGenLevel world,
-                                               ServerLevel server,
-                                               ChunkPos currentChunk,
-                                               Records.RoadData data,
-                                               Set<BlockPos> processedMiddle,
-                                               Set<Decoration> decorations,
-                                               RandomSource random,
-                                               ModConfig cfg,
-                                               int averagingRadius) {
+            ServerLevel server,
+            ChunkPos currentChunk,
+            Records.RoadData data,
+            Set<BlockPos> processedMiddle,
+            Set<Decoration> decorations,
+            RandomSource random,
+            ModConfig cfg,
+            int averagingRadius) {
         String dimId = server.dimension().location().toString();
         // 按维度：是否生成道路（path 道路系统）
         if (!cfg.roadsEnabledForDimension(dimId)) {
@@ -96,10 +100,12 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         List<BlockState> materials = data.materials();
         List<BlockState> slabMaterials = data.slabMaterials();
         List<Records.RoadSegmentPlacement> segments = data.roadSegmentList();
-        if (segments == null || segments.size() < 5) return;
+        if (segments == null || segments.size() < 5)
+            return;
 
         List<BlockPos> middlePositions = segments.stream().map(Records.RoadSegmentPlacement::middlePos).toList();
-        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg, dimId);
+        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg,
+                dimId);
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
         boolean[] skipSegments = res.skipSegments();
@@ -110,8 +116,12 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
 
         int intervalBlocks = Math.max(4, cfg.buoyIntervalBlocks());
-        boolean[] buoyMarkersForBridge = (useBuoysInstead ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks) : null);
-        boolean[] buoyMarkersForSkipped = (useBuoysWhenSkipped ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks) : null);
+        boolean[] buoyMarkersForBridge = (useBuoysInstead
+                ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks)
+                : null);
+        boolean[] buoyMarkersForSkipped = (useBuoysWhenSkipped
+                ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks)
+                : null);
 
         java.util.List<Integer> targetY = data.targetY();
         boolean slopeLimitEnabled = cfg.slopeLimitEnabledForDimension(dimId);
@@ -122,8 +132,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 averagingRadius,
                 slopeLimitEnabled,
                 cfg.maxSlopeStepPerTwoSegments(),
-                targetY
-        );
+                targetY);
         boolean usePersisted = hp.usePersisted();
         int[] smoothedYArr = hp.smoothedY();
         int[] baseYArr;
@@ -142,11 +151,14 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
         for (int i = 2; i < segments.size() - 2; i++) {
             BlockPos middle = middlePositions.get(i);
-            if (!processedMiddle.add(middle)) continue;
+            if (!processedMiddle.add(middle))
+                continue;
             segmentIndex++;
-            if (segmentIndex < 8 || segmentIndex > segments.size() - 8) continue;
+            if (segmentIndex < 8 || segmentIndex > segments.size() - 8)
+                continue;
             ChunkPos middleChunk = new ChunkPos(middle);
-            if (!middleChunk.equals(currentChunk)) continue;
+            if (!middleChunk.equals(currentChunk))
+                continue;
 
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
@@ -164,7 +176,8 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             }
             if (skipSegments != null && i >= 0 && i < skipSegments.length && skipSegments[i]) {
                 // 超长水域跨度：整段跳过生成
-                if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length && buoyMarkersForSkipped[i]) {
+                if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length
+                        && buoyMarkersForSkipped[i]) {
                     BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
                 }
                 continue;
@@ -182,25 +195,37 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 var curve = bridgeSegment.getCurve(i);
                 // 若桥曲线长度小于20，则沿用原桥生成方法
                 if (curve == null || curve.getTotalLength() <= 20) {
-                    BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                    BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY,
+                            segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
                 } else {
-                    BridgeSegmentPlannerNew.processSegment(world, curve, seg, middle, prev);
+                    // 尝试使用新的桥梁规划器处理长距离桥梁
+                    // 如果模板不可用，回退到简单桥梁生成
+                    boolean success = BridgeSegmentPlannerNew.processSegment(world, curve, seg, middle, prev);
+                    if (!success) {
+                        // 模板桥梁不可用，回退到简单桥梁生成器
+                        BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis,
+                                deckY,
+                                segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                    }
                 }
             } else {
                 // 按维度：道路填充（路基/地形适配）与插值路基填充开关
                 if (roadFillEnabled) {
                     if (interpolatedRoadbedFillEnabled) {
                         // 使用插值高度计算，确保与路面铺设的高度一致
-                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter.adaptWithInterpolation(
-                                world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
+                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter
+                                .adaptWithInterpolation(
+                                        world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
                     } else {
                         // 回退到旧的“按路段统一高度”的路基填充（不使用插值）
-                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter.adaptWithoutInterpolation(
-                                world, middle, roadWidth, baseYForThis, random, cfg);
+                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter
+                                .adaptWithoutInterpolation(
+                                        world, middle, roadWidth, baseYForThis, random, cfg);
                     }
                 }
 
-                SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials, random, cfg);
+                SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials,
+                        random, cfg);
 
                 // 跨海被跳过（超长水域跨度）时：在两端岸边放置提示路牌
                 // 仅在"岸边正常路段"触发一次；真正落地仍由 Decoration.placeAllowed 做表面与禁放判断
@@ -213,8 +238,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                             prev,
                             roadWidth,
                             skipSegments,
-                            i
-                    );
+                            i);
                 }
             }
 
@@ -230,8 +254,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                         roadWidth,
                         random,
                         cfg,
-                        (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL)
-                );
+                        (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL));
             }
             // 路边结构现在通过预计算系统在 STRUCTURE_STARTS 阶段注入
             // 参见 RoadsideStructurePrecomputer 和 StructureInjector
@@ -302,4 +325,3 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
     }
 }
-
