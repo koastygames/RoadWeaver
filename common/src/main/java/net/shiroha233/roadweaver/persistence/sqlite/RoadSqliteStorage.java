@@ -11,6 +11,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,8 +40,9 @@ import java.util.Map;
  * - 自动持久化，无需手动 flush
  */
 public final class RoadSqliteStorage {
-    private RoadSqliteStorage() {}
-    
+    private RoadSqliteStorage() {
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final DynamicOps<Tag> OPS = NbtOps.INSTANCE;
     private static final int ROAD_CACHE_MAX = 4096;
@@ -56,8 +58,10 @@ public final class RoadSqliteStorage {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof CacheKey other)) return false;
+            if (this == o)
+                return true;
+            if (!(o instanceof CacheKey other))
+                return false;
             return fingerprint == other.fingerprint && dimensionId.equals(other.dimensionId);
         }
 
@@ -75,49 +79,50 @@ public final class RoadSqliteStorage {
                 protected boolean removeEldestEntry(Map.Entry<CacheKey, Records.RoadData> eldest) {
                     return size() > ROAD_CACHE_MAX;
                 }
-            }
-    );
-    
+            });
+
     // SQL 语句
-    private static final String SQL_INSERT = 
-        "INSERT OR IGNORE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    
-    private static final String SQL_QUERY_RECT = 
-        "SELECT fingerprint, data FROM roads " +
-        "WHERE max_x >= ? AND min_x <= ? AND max_z >= ? AND min_z <= ?";
-    
-    private static final String SQL_EXISTS = 
-        "SELECT 1 FROM roads WHERE fingerprint = ? LIMIT 1";
-    
+    private static final String SQL_INSERT = "INSERT OR IGNORE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) "
+            +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+    private static final String SQL_QUERY_RECT = "SELECT fingerprint, data FROM roads " +
+            "WHERE max_x >= ? AND min_x <= ? AND max_z >= ? AND min_z <= ?";
+
+    private static final String SQL_EXISTS = "SELECT 1 FROM roads WHERE fingerprint = ? LIMIT 1";
+
     /**
      * 添加道路数据
      * 
      * @param level 服务器世界
-     * @param rd 道路数据
+     * @param rd    道路数据
      */
     public static void addRoad(ServerLevel level, Records.RoadData rd) {
         if (rd == null || rd.roadSegmentList() == null || rd.roadSegmentList().isEmpty()) {
             return;
         }
-        
+
         // 计算 bounding box
         int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
         for (Records.RoadSegmentPlacement seg : rd.roadSegmentList()) {
             BlockPos p = seg.middlePos();
             int x = p.getX(), z = p.getZ();
-            if (x < minX) minX = x;
-            if (z < minZ) minZ = z;
-            if (x > maxX) maxX = x;
-            if (z > maxZ) maxZ = z;
+            if (x < minX)
+                minX = x;
+            if (z < minZ)
+                minZ = z;
+            if (x > maxX)
+                maxX = x;
+            if (z > maxZ)
+                maxZ = z;
         }
-        
+
         long fingerprint = fingerprint(rd);
-        
+
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
-            
+
             // 先检查是否已存在（快速路径）
             try (PreparedStatement checkStmt = conn.prepareStatement(SQL_EXISTS)) {
                 checkStmt.setLong(1, fingerprint);
@@ -127,14 +132,14 @@ public final class RoadSqliteStorage {
                     }
                 }
             }
-            
+
             // 序列化道路数据为 NBT 字节数组
             byte[] data = serializeRoadData(rd);
             if (data == null) {
                 LOGGER.warn("RoadSqliteStorage: 序列化道路数据失败");
                 return;
             }
-            
+
             // 插入数据库
             try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
                 stmt.setLong(1, fingerprint);
@@ -147,37 +152,49 @@ public final class RoadSqliteStorage {
                 stmt.setBytes(8, data);
                 stmt.executeUpdate();
             }
-            
+
+            // 关键：在 C2ME 并发环境下，新插入的道路必须立即让受影响的网格索引失效，
+            // 否则当前正在进行的辅助属性线程可能使用旧的（空）索引构建结果。
+            int minCX = minX >> 4;
+            int minCZ = minZ >> 4;
+            int maxCX = maxX >> 4;
+            int maxCZ = maxZ >> 4;
+            for (int cx = minCX; cx <= maxCX; cx++) {
+                for (int cz = minCZ; cz <= maxCZ; cz++) {
+                    RoadSpatialIndex.invalidateChunk(level, cx, cz);
+                }
+            }
+
         } catch (SQLException e) {
             LOGGER.error("RoadSqliteStorage: 添加道路数据失败", e);
         }
     }
-    
+
     /**
      * 查询矩形范围内的道路数据
      * 
-     * @param level 服务器世界
+     * @param level     服务器世界
      * @param minBlockX 最小 X 坐标
      * @param minBlockZ 最小 Z 坐标
      * @param maxBlockX 最大 X 坐标
      * @param maxBlockZ 最大 Z 坐标
      * @return 范围内的道路数据列表
      */
-    public static List<Records.RoadData> queryRect(ServerLevel level, 
-                                                    int minBlockX, int minBlockZ, 
-                                                    int maxBlockX, int maxBlockZ) {
+    public static List<Records.RoadData> queryRect(ServerLevel level,
+            int minBlockX, int minBlockZ,
+            int maxBlockX, int maxBlockZ) {
         List<Records.RoadData> result = new ArrayList<>();
-        
+
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
-            
+
             try (PreparedStatement stmt = conn.prepareStatement(SQL_QUERY_RECT)) {
                 // 空间查询条件：数据库中的 bbox 与查询 bbox 相交
                 stmt.setInt(1, minBlockX); // max_x >= minBlockX
                 stmt.setInt(2, maxBlockX); // min_x <= maxBlockX
                 stmt.setInt(3, minBlockZ); // max_z >= minBlockZ
                 stmt.setInt(4, maxBlockZ); // min_z <= maxBlockZ
-                
+
                 try (ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         long fp = rs.getLong("fingerprint");
@@ -189,7 +206,8 @@ public final class RoadSqliteStorage {
                         }
 
                         InputStream in = rs.getBinaryStream("data");
-                        if (in == null) continue;
+                        if (in == null)
+                            continue;
                         try {
                             Records.RoadData rd = deserializeRoadData(in);
                             if (rd != null) {
@@ -205,14 +223,14 @@ public final class RoadSqliteStorage {
                     }
                 }
             }
-            
+
         } catch (SQLException e) {
             LOGGER.error("RoadSqliteStorage: 查询道路数据失败", e);
         }
-        
+
         return result;
     }
-    
+
     /**
      * 检查道路是否与矩形相交
      */
@@ -221,22 +239,26 @@ public final class RoadSqliteStorage {
         if (rd == null || rd.roadSegmentList() == null || rd.roadSegmentList().isEmpty()) {
             return false;
         }
-        
+
         int rminX = Integer.MAX_VALUE, rminZ = Integer.MAX_VALUE;
         int rmaxX = Integer.MIN_VALUE, rmaxZ = Integer.MIN_VALUE;
-        
+
         for (Records.RoadSegmentPlacement seg : rd.roadSegmentList()) {
             BlockPos p = seg.middlePos();
             int x = p.getX(), z = p.getZ();
-            if (x < rminX) rminX = x;
-            if (z < rminZ) rminZ = z;
-            if (x > rmaxX) rmaxX = x;
-            if (z > rmaxZ) rmaxZ = z;
+            if (x < rminX)
+                rminX = x;
+            if (z < rminZ)
+                rminZ = z;
+            if (x > rmaxX)
+                rmaxX = x;
+            if (z > rmaxZ)
+                rmaxZ = z;
         }
-        
+
         return !(rmaxX < minX || rminX > maxX || rmaxZ < minZ || rminZ > maxZ);
     }
-    
+
     /**
      * 计算道路数据的指纹（用于去重）
      */
@@ -254,7 +276,7 @@ public final class RoadSqliteStorage {
         f ^= ((long) rd.roadType() & 0xffffffffL) << 33;
         return f;
     }
-    
+
     /**
      * 序列化道路数据为字节数组
      */
@@ -266,23 +288,23 @@ public final class RoadSqliteStorage {
             if (tag == null) {
                 return null;
             }
-            
+
             // 包装为 CompoundTag
             CompoundTag compound = new CompoundTag();
             compound.put("road", tag);
-            
+
             // 写入字节数组
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos);
             NbtIo.write(compound, dos);
             return baos.toByteArray();
-            
+
         } catch (Exception e) {
             LOGGER.error("RoadSqliteStorage: 序列化失败", e);
             return null;
         }
     }
-    
+
     /**
      * 反序列化字节数组为道路数据
      */
@@ -291,12 +313,12 @@ public final class RoadSqliteStorage {
         if (data == null || data.length == 0) {
             return null;
         }
-        
+
         try {
             ByteArrayInputStream bais = new ByteArrayInputStream(data);
             DataInputStream dis = new DataInputStream(bais);
             return deserializeRoadData(dis);
-            
+
         } catch (Exception e) {
             LOGGER.error("RoadSqliteStorage: 反序列化失败", e);
             return null;
@@ -316,28 +338,28 @@ public final class RoadSqliteStorage {
     private static Records.RoadData deserializeRoadData(DataInputStream dis) {
         try {
             CompoundTag compound = NbtIo.read(dis);
-            
+
             if (compound == null || !compound.contains("road")) {
                 return null;
             }
-            
+
             Tag tag = compound.get("road");
             DataResult<Records.RoadData> result = Records.RoadData.CODEC.parse(new Dynamic<>(OPS, tag));
             return result.result().orElse(null);
-            
+
         } catch (Exception e) {
             LOGGER.error("RoadSqliteStorage: 反序列化失败", e);
             return null;
         }
     }
-    
+
     /**
      * 刷新（SQLite 自动持久化，此方法仅执行检查点）
      */
     public static void flushAll(ServerLevel level) {
         RoadDatabaseManager.checkpoint(level);
     }
-    
+
     /**
      * 清除维度的所有道路数据（谨慎使用）
      */
@@ -351,7 +373,7 @@ public final class RoadSqliteStorage {
             LOGGER.error("RoadSqliteStorage: 清除道路数据失败", e);
         }
     }
-    
+
     /**
      * 关闭数据库连接（服务器停止时调用）
      */

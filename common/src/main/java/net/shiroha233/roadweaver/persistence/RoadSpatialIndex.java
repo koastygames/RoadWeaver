@@ -25,7 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * </p>
  */
 public final class RoadSpatialIndex {
-    private RoadSpatialIndex() {}
+    private RoadSpatialIndex() {
+    }
 
     // 网格大小（格子边长），8 是一个平衡点：足够小以减少每格点数，足够大以减少网格数量
     private static final int GRID_SIZE = 8;
@@ -43,13 +44,12 @@ public final class RoadSpatialIndex {
      */
     private static Map<Long, ChunkGridIndex> createLRUCache() {
         return java.util.Collections.synchronizedMap(
-            new java.util.LinkedHashMap<Long, ChunkGridIndex>(64, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<Long, ChunkGridIndex> eldest) {
-                    return size() > MAX_CACHED_CHUNKS_PER_DIM;
-                }
-            }
-        );
+                new java.util.LinkedHashMap<Long, ChunkGridIndex>(64, 0.75f, true) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry<Long, ChunkGridIndex> eldest) {
+                        return size() > MAX_CACHED_CHUNKS_PER_DIM;
+                    }
+                });
     }
 
     // Y 轴检查范围
@@ -72,8 +72,10 @@ public final class RoadSpatialIndex {
      * 判断指定位置是否在道路附近
      */
     public static boolean isNearRoad(ServerLevel level, BlockPos pos) {
-        if (level == null || pos == null) return false;
-        if (!ConfigService.get().preventTreesOnRoad()) return false;
+        if (level == null || pos == null)
+            return false;
+        if (!ConfigService.get().preventTreesOnRoad())
+            return false;
 
         // 关键改进：树木阻拦范围应依据“实际道路宽度”，而不是单一全局 roadWidth。
         // 这里传入的是“最大可能边距”，仅用于决定需要检查的网格半径；
@@ -101,15 +103,21 @@ public final class RoadSpatialIndex {
         // 获取或构建区块的网格索引（使用 LRU 缓存）
         Map<Long, ChunkGridIndex> dimIndex = CHUNK_INDEX.computeIfAbsent(dimKey, k -> createLRUCache());
         long chunkKey = chunkKey(cx, cz);
-        
-        // 先尝试获取，避免不必要的构建
+
+        // 双重检查锁定，确保高并发下同一个区块的索引只构建一次
         ChunkGridIndex gridIndex = dimIndex.get(chunkKey);
         if (gridIndex == null) {
-            gridIndex = buildChunkGridIndex(level, cx, cz);
-            dimIndex.put(chunkKey, gridIndex);
+            synchronized (dimIndex) {
+                gridIndex = dimIndex.get(chunkKey);
+                if (gridIndex == null) {
+                    gridIndex = buildChunkGridIndex(level, cx, cz);
+                    dimIndex.put(chunkKey, gridIndex);
+                }
+            }
         }
 
-        if (gridIndex.isEmpty()) return false;
+        if (gridIndex.isEmpty())
+            return false;
 
         // 计算需要检查的网格范围
         int px = pos.getX(), py = pos.getY(), pz = pos.getZ();
@@ -124,9 +132,12 @@ public final class RoadSpatialIndex {
             for (int dz = -gridRadius; dz <= gridRadius; dz++) {
                 long gridKey = gridKey(gridX + dx, gridZ + dz);
                 Long2ByteMap points = gridIndex.getPoints(gridKey);
-                if (points == null || points.isEmpty()) continue;
+                if (points == null || points.isEmpty())
+                    continue;
 
                 // 检查该网格内的道路点
+                // 注意：Long2ByteMap.EntrySet 遍历可能不是线程完全安全的，
+                // 但由于 gridIndex 构建后是只读的，这里是安全的。
                 for (Long2ByteMap.Entry e : points.long2ByteEntrySet()) {
                     long packed = e.getLongKey();
                     int pointMargin = e.getByteValue() & 0xFF;
@@ -157,7 +168,8 @@ public final class RoadSpatialIndex {
         int maxZ = minZ + 15;
 
         // 查询范围扩大，确保覆盖边缘道路
-        List<Records.RoadData> roads = RoadShardStorage.queryRect(level, minX - GRID_SIZE, minZ - GRID_SIZE, maxX + GRID_SIZE, maxZ + GRID_SIZE);
+        List<Records.RoadData> roads = RoadShardStorage.queryRect(level, minX - GRID_SIZE, minZ - GRID_SIZE,
+                maxX + GRID_SIZE, maxZ + GRID_SIZE);
         if (roads.isEmpty()) {
             return ChunkGridIndex.EMPTY;
         }
@@ -165,7 +177,8 @@ public final class RoadSpatialIndex {
         ChunkGridIndex index = new ChunkGridIndex();
 
         for (Records.RoadData rd : roads) {
-            if (rd.roadSegmentList() == null) continue;
+            if (rd.roadSegmentList() == null)
+                continue;
 
             // 依据实际道路宽度计算阻拦边距：半宽 + 1。
             int pointMargin = Math.max(1, (Math.max(1, rd.width()) / 2) + 1);
@@ -189,8 +202,10 @@ public final class RoadSpatialIndex {
     /**
      * 将道路点添加到网格索引
      */
-    private static void addToIndex(ChunkGridIndex index, BlockPos p, int margin, int minX, int minZ, int maxX, int maxZ) {
-        if (p == null) return;
+    private static void addToIndex(ChunkGridIndex index, BlockPos p, int margin, int minX, int minZ, int maxX,
+            int maxZ) {
+        if (p == null)
+            return;
 
         int x = p.getX(), z = p.getZ();
         // 扩展边界检查
@@ -206,8 +221,17 @@ public final class RoadSpatialIndex {
 
     @SuppressWarnings("deprecation")
     private static ServerLevel extractServerLevel(WorldGenLevel level) {
-        if (level instanceof ServerLevel sl) return sl;
-        if (level instanceof WorldGenRegion region) return region.getLevel();
+        if (level instanceof ServerLevel sl)
+            return sl;
+        if (level instanceof WorldGenRegion region)
+            return region.getLevel();
+        // C2ME/并发环境下，getLevel() 通常能返回真正的 ServerLevel
+        try {
+            Object l = level.getLevel();
+            if (l instanceof ServerLevel)
+                return (ServerLevel) l;
+        } catch (Throwable ignored) {
+        }
         return null;
     }
 
@@ -245,7 +269,8 @@ public final class RoadSpatialIndex {
      * 使指定区块的缓存失效（道路数据更新时调用）
      */
     public static void invalidateChunk(ServerLevel level, int cx, int cz) {
-        if (level == null) return;
+        if (level == null)
+            return;
         Map<Long, ChunkGridIndex> dimIndex = CHUNK_INDEX.get(dimKey(level));
         if (dimIndex != null) {
             dimIndex.remove(chunkKey(cx, cz));
@@ -265,12 +290,20 @@ public final class RoadSpatialIndex {
         private final Map<Long, Long2ByteOpenHashMap> grids;
 
         ChunkGridIndex() {
-            this.grids = new HashMap<>();
+            // 使用 ConcurrentHashMap 确保在高并发构建过程中的基本安全，
+            // 虽然 build 过程目前由 synchronized(dimIndex) 保护，但 grids 内部操作保持严谨。
+            this.grids = new ConcurrentHashMap<>();
         }
 
         void addPoint(long gridKey, long packedPos, int margin) {
             int m = Math.max(0, Math.min(127, margin));
-            Long2ByteOpenHashMap map = grids.computeIfAbsent(gridKey, k -> new Long2ByteOpenHashMap());
+            // computeIfAbsent 是线程安全的
+            Long2ByteOpenHashMap map = grids.computeIfAbsent(gridKey, k -> {
+                Long2ByteOpenHashMap m2 = new Long2ByteOpenHashMap();
+                // 由于 Long2ByteOpenHashMap 本身不是并发安全的，
+                // 但在 buildChunkGridIndex 期间只有一个线程会操作此 index 实例。
+                return m2;
+            });
             byte existing = map.get(packedPos);
             if ((existing & 0xFF) < m) {
                 map.put(packedPos, (byte) m);
@@ -285,4 +318,5 @@ public final class RoadSpatialIndex {
             return grids.isEmpty();
         }
     }
+
 }

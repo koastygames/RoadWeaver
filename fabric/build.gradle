@@ -42,6 +42,14 @@ dependencies {
 	modLocalRuntime("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false }
 	// Loom 1.6 在 dev runtime 下可能忽略 modLocalRuntime，因此补充 modRuntimeOnly 确保 runClient 能加载依赖
 	modRuntimeOnly("maven.modrinth:s3dmwKy5:0.0.1.1") { transitive = false }
+
+	// C2ME - 仅 Fabric 端的性能优化模组
+	modLocalRuntime("maven.modrinth:c2me-fabric:0.2.0+alpha.11.13+1.20.1")
+	modRuntimeOnly("maven.modrinth:c2me-fabric:0.2.0+alpha.11.13+1.20.1")
+	
+	// Mod Menu - 游戏内模组菜单
+	modLocalRuntime("maven.modrinth:modmenu:7.2.2")
+	modRuntimeOnly("maven.modrinth:modmenu:7.2.2")
 	
 	// Architectury API - 内嵌到模组中
 	modImplementation("dev.architectury:architectury-fabric:9.2.14") {
