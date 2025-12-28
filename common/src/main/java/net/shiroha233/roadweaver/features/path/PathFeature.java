@@ -30,7 +30,7 @@ import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.BridgeTransitionAdjuster;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.HeightProfileService;
-import net.shiroha233.roadweaver.util.Curve;
+import net.shiroha233.roadweaver.util.Line;
 
 import java.util.*;
 
@@ -192,15 +192,15 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             }
 
             if (bridgeEnabled && isBridge[i]) {
-                var curve = bridgeSegment.getCurve(i);
+                var line = bridgeSegment.getLine(i);
                 // 若桥曲线长度小于20，则沿用原桥生成方法
-                if (curve == null || curve.getTotalLength() <= 20) {
+                if (line == null || line.getTotalLength() <= 15) {
                     BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY,
                             segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
                 } else {
                     // 尝试使用新的桥梁规划器处理长距离桥梁
                     // 如果模板不可用，回退到简单桥梁生成
-                    boolean success = BridgeSegmentPlannerNew.processSegment(world, curve, seg, middle, prev);
+                    boolean success = BridgeSegmentPlannerNew.processSegment(world, line, seg, middle, prev);
                     if (!success) {
                         // 模板桥梁不可用，回退到简单桥梁生成器
                         BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis,
@@ -262,7 +262,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
     }
 
     public static class BridgeSegment {
-        public final Map<Set<Integer>, Curve> curves = new HashMap<>();
+        public final Map<Set<Integer>, Line> bridgeLines = new HashMap<>();
 
         public BridgeSegment(boolean[] isBridge, List<Records.RoadSegmentPlacement> segments) {
             List<List<Vec3>> list1 = new ArrayList<>();
@@ -287,38 +287,33 @@ public class PathFeature extends Feature<PathFeatureConfig> {
 
             for (int i = 0; i < list1.size(); i++) {
                 List<Vec3> seg = list1.get(i);
-                // 删除过于密集的点
-                Iterator<Vec3> iterator = seg.iterator();
-                int index = 0;
-                while (iterator.hasNext()) {
-                    iterator.next();
-                    if (index % 4 != 0 && index != seg.size() - 1) {
-                        iterator.remove();
-                    }
-                    index++;
-                }
 
                 // 创建曲线
-                var curve = new Curve();
-                for (int j = 0; j < seg.size() - 2; j++) {
-                    Vec3 a = seg.get(j);
-                    Vec3 b = seg.get(j + 1);
-                    Vec3 c = seg.get(j + 2);
-                    Vec3 startAxis = b.subtract(a).normalize();
-                    Vec3 endAxis = b.subtract(c).normalize();
-                    curve.addSegment0(a, b, startAxis, endAxis);
-                }
-                curve.addLineSegment(seg.get(seg.size() - 2), seg.get(seg.size() - 1));
-                curves.put(list2.get(i), curve);
+                var line = new Line(seg.get(0), seg.get(seg.size() - 1));
+
+//                var curve = new Curve();
+//                for (int j = 0; j < seg.size() - 1; j++) {
+//                    curve.addLineSegment(seg.get(j), seg.get(j + 1));
+//                }
+//                for (int j = 0; j < seg.size() - 2; j++) {
+//                    Vec3 a = seg.get(j);
+//                    Vec3 b = seg.get(j + 1);
+//                    Vec3 c = seg.get(j + 2);
+//                    Vec3 startAxis = b.subtract(a).normalize();
+//                    Vec3 endAxis = b.subtract(c).normalize();
+//                    curve.addSegment0(a, b, startAxis, endAxis);
+//                }
+//                curve.addLineSegment(seg.get(seg.size() - 2), seg.get(seg.size() - 1));
+                bridgeLines.put(list2.get(i), line);
             }
         }
 
-        // 通过索引获取曲线
-        public Curve getCurve(int index) {
-            for (Map.Entry<Set<Integer>, Curve> setCurveEntry : curves.entrySet()) {
-                var set = setCurveEntry.getKey();
+        // 通过索引获取线
+        public Line getLine(int index) {
+            for (Map.Entry<Set<Integer>, Line> setLineEntry : bridgeLines.entrySet()) {
+                var set = setLineEntry.getKey();
                 if (set.contains(index)) {
-                    return setCurveEntry.getValue();
+                    return setLineEntry.getValue();
                 }
             }
             return null;
