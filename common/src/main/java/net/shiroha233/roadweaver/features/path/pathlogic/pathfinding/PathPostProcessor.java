@@ -46,8 +46,10 @@ public final class PathPostProcessor {
         // 1. 路径简化
         List<BlockPos> simplified = simplifyPath(rawPath);
         boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, bridgeMinWaterDepth);
+        // 进一步：对连续水域段做“整段拉直”，确保跨河桥梁为一条直线
+        List<BlockPos> straightened = straightenBridgeRuns(simplified, bridgeMask);
         // 桥梁段不做曲线松弛/样条平滑，否则会出现弯桥
-        List<BlockPos> controlPoints = relaxPathSkippingBridge(simplified, bridgeMask);
+        List<BlockPos> controlPoints = relaxPathSkippingBridge(straightened, bridgeMask);
         if (controlPoints.size() < 2) return new ArrayList<>();
 
         // 2. 生成高密度样条曲线点集
@@ -413,5 +415,65 @@ public final class PathPostProcessor {
 
         relaxed.add(nodes.get(nodes.size() - 1));
         return relaxed;
+    }
+
+    /**
+     * 将连续的桥梁（水域）节点段拉直：
+     * - 以水域段两端“岸边节点”（水域段前后各一个点，若存在）为端点，定义桥梁直线方向
+     * - 仅修改水域段内部的节点坐标，使其按索引比例插值到这条直线上
+     *
+     * 这样做的原因：桥梁是否需要生成（span）与道路寻路结果强相关，
+     * 我们不希望改变水域识别逻辑，只希望让桥梁段的几何形状更稳定、可预测（直线）。
+     */
+    private static List<BlockPos> straightenBridgeRuns(List<BlockPos> nodes, boolean[] bridgeMask) {
+        if (nodes == null || nodes.size() < 3 || bridgeMask == null || bridgeMask.length == 0) {
+            return nodes;
+        }
+
+        int n = nodes.size();
+        if (bridgeMask.length != n) {
+            // 防御：mask 与 nodes 不一致时不做处理，避免索引越界
+            return nodes;
+        }
+
+        List<BlockPos> out = new ArrayList<>(nodes);
+        int i = 0;
+        while (i < n) {
+            if (!bridgeMask[i]) {
+                i++;
+                continue;
+            }
+
+            int runStart = i;
+            while (i < n && bridgeMask[i]) {
+                i++;
+            }
+            int runEnd = i - 1;
+
+            // 取“岸边节点”作为直线端点：runStart-1 与 runEnd+1
+            int entryIdx = Math.max(0, runStart - 1);
+            int exitIdx = Math.min(n - 1, runEnd + 1);
+            if (exitIdx <= entryIdx) {
+                continue;
+            }
+
+            BlockPos a = nodes.get(entryIdx);
+            BlockPos b = nodes.get(exitIdx);
+            int ax = a.getX();
+            int az = a.getZ();
+            int dx = b.getX() - ax;
+            int dz = b.getZ() - az;
+
+            // 仅调整水域内部点；岸边点本身保持不动，以保证与陆地道路无缝衔接
+            for (int k = runStart; k <= runEnd; k++) {
+                double t = (k - entryIdx) / (double) (exitIdx - entryIdx);
+                t = Math.max(0.0, Math.min(1.0, t));
+                int x = (int) Math.round(ax + dx * t);
+                int z = (int) Math.round(az + dz * t);
+                BlockPos old = out.get(k);
+                out.set(k, new BlockPos(x, old.getY(), z));
+            }
+        }
+        return out;
     }
 }
