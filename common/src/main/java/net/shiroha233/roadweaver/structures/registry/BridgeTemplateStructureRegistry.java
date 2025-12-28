@@ -1,11 +1,22 @@
 package net.shiroha233.roadweaver.structures.registry;
 
+import com.google.common.collect.Lists;
 import net.minecraft.core.*;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.StateHolder;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
@@ -48,17 +59,19 @@ public final class BridgeTemplateStructureRegistry {
 
             if (level != null) {
                 StructureTemplate template = level.getStructureManager().get(structure.templateId).orElse(null);
-                List<StructureTemplate.Palette> palettes = template != null ? getPalettes(template) : List.of();
-                if (template == null || palettes.isEmpty()) {
+                if (template == null) {
                     return;
                 }
                 size = template.getSize();
                 voxelGrid = new BlockState[size.getX()][size.getY()][size.getZ()];
 
-                var palette = palettes.get(0);
-                for (StructureTemplate.StructureBlockInfo info : palette.blocks()) {
-                    voxelGrid[info.pos().getX()][info.pos().getY()][info.pos().getZ()] = info.state();
-                }
+                // 这里不用mixin Accessor拿到调色板了，直接用保存NBT功能解析NBT
+                // 因为这里似乎不太好mixin
+                CompoundTag tag = template.save(new CompoundTag());
+                ListTag palette = tag.getList("palette", 10);
+                ListTag blocks = tag.getList("blocks", 10);
+
+                parseVoxel(palette, blocks);
             }
         }
 
@@ -137,19 +150,62 @@ public final class BridgeTemplateStructureRegistry {
             return structure;
         }
 
-        private static List<StructureTemplate.Palette> getPalettes(StructureTemplate tpl) {
-            try {
-                Field f = StructureTemplate.class.getDeclaredField("palettes");
-                f.setAccessible(true);
-                Object val = f.get(tpl);
-                if (val instanceof List<?> list) {
-                    @SuppressWarnings("unchecked")
-                    List<StructureTemplate.Palette> casted = (List<StructureTemplate.Palette>) list;
-                    return casted;
-                }
-            } catch (Exception ignored) {
+        private void parseVoxel(ListTag paletteTag, ListTag blocksTag) {
+            List<BlockState> palette = new ArrayList<>();
+
+            for (int i = 0; i < paletteTag.size(); i++) {
+                CompoundTag blockTag = paletteTag.getCompound(i);
+                BlockState blockState = readBlockState(blockTag);
+                palette.add(blockState);
             }
-            return List.of();
+
+            for (int i = 0; i < blocksTag.size(); i++) {
+                CompoundTag blockTag = blocksTag.getCompound(i);
+
+                ListTag pos = blockTag.getList("pos", 3);
+                int x = pos.getInt(0);
+                int y = pos.getInt(1);
+                int z = pos.getInt(2);
+
+                int state = blockTag.getInt("state");
+
+                if (x >= 0 && x < size.getX() && y >= 0 && y < size.getY() && z >= 0 && z < size.getZ()) {
+                    voxelGrid[x][y][z] = palette.get(state);
+                }
+            }
+        }
+
+        public static BlockState readBlockState(CompoundTag pTag) {
+            if (!pTag.contains("Name", 8)) {
+                return Blocks.AIR.defaultBlockState();
+            } else {
+                ResourceLocation resourcelocation = new ResourceLocation(pTag.getString("Name"));
+                Optional<? extends Holder<Block>> optional = BuiltInRegistries.BLOCK.asLookup().get(ResourceKey.create(Registries.BLOCK, resourcelocation));
+                if (optional.isEmpty()) {
+                    return Blocks.AIR.defaultBlockState();
+                } else {
+                    Block block = optional.get().value();
+                    BlockState blockstate = block.defaultBlockState();
+                    if (pTag.contains("Properties", 10)) {
+                        CompoundTag compoundtag = pTag.getCompound("Properties");
+                        StateDefinition<Block, BlockState> statedefinition = block.getStateDefinition();
+
+                        for(String s : compoundtag.getAllKeys()) {
+                            Property<?> property = statedefinition.getProperty(s);
+                            if (property != null) {
+                                blockstate = setValueHelper(blockstate, property, s, compoundtag, pTag);
+                            }
+                        }
+                    }
+
+                    return blockstate;
+                }
+            }
+        }
+
+        private static <S extends StateHolder<?, S>, T extends Comparable<T>> S setValueHelper(S pStateHolder, Property<T> pProperty, String pPropertyName, CompoundTag pPropertiesTag, CompoundTag pBlockStateTag) {
+            Optional<T> optional = pProperty.getValue(pPropertiesTag.getString(pPropertyName));
+            return optional.map(t -> pStateHolder.setValue(pProperty, t)).orElse(pStateHolder);
         }
     }
 
