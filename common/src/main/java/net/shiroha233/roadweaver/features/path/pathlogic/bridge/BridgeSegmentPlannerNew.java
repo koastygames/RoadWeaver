@@ -9,7 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
-import net.shiroha233.roadweaver.util.Curve;
+import net.shiroha233.roadweaver.util.Line;
 
 public final class BridgeSegmentPlannerNew {
     // 处理长距离桥梁生成
@@ -23,11 +23,11 @@ public final class BridgeSegmentPlannerNew {
      */
     public static boolean processSegment(
             WorldGenLevel world,
-            Curve curve,
+            Line line,
             Records.RoadSegmentPlacement seg,
             BlockPos middle,
             BlockPos prev) {
-        double bridgeLength = curve.getTotalLength();
+        double bridgeLength = line.getTotalLength();
 
         // 随机选择一个桥模板
         var bridge = BridgeTemplateStructureRegistry.choose(world.getLevel(), (int) bridgeLength);
@@ -47,7 +47,7 @@ public final class BridgeSegmentPlannerNew {
                 // 拿到一个测试点
                 Vec3 testPos = new Vec3(x, middle.getY(), z);
                 // 获取当前xz位置上的标架，根据此标架放置模板中的对应方块
-                Curve.Frame frame = curve.getFrame(testPos);
+                Line.Frame frame = line.getFrame(testPos);
 
                 Vec3 vec0 = testPos.subtract(frame.closestPoint);
                 double testX = vec0.dot(frame.tangent0);
@@ -63,7 +63,7 @@ public final class BridgeSegmentPlannerNew {
                     Vec3 vec = new Vec3(x, y, z).subtract(frame.closestPoint);
 
                     // 在标架下的坐标
-                    double localX = frame.globalT * bridgeLength;
+                    double localX = Math.min(Math.max(0, frame.globalT), 1) * bridgeLength;
                     double localY = vec.dot(frame.normal0);
                     double localZ = vec.dot(frame.binormal0);
 
