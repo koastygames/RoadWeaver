@@ -40,7 +40,6 @@ public class DimensionRoadSettingsScreen extends Screen {
     private List<ResourceLocation> dimensionsForList = new ArrayList<>();
 
     private Button roadsEnabledBtn;
-    private Button bridgeEnabledBtn;
     private Button pathfindingBtn;
     private Button roadFillBtn;
     private Button slopeLimitBtn;
@@ -165,12 +164,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                 .build();
         y += h + gap;
 
-        bridgeEnabledBtn = Button.builder(Component.empty(), b -> toggleBool("bridgeEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
-
         pathfindingBtn = Button.builder(Component.empty(), b -> cyclePathfindingAlgorithm())
                 .pos(x, y)
                 .size(w, h)
@@ -237,7 +230,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                 .build();
 
         addRenderableWidget(roadsEnabledBtn);
-        addRenderableWidget(bridgeEnabledBtn);
         addRenderableWidget(pathfindingBtn);
         addRenderableWidget(roadFillBtn);
         addRenderableWidget(slopeLimitBtn);
@@ -254,7 +246,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         boolean hasSelection = selectedDimension != null;
 
         roadsEnabledBtn.active = hasSelection;
-        bridgeEnabledBtn.active = hasSelection;
         pathfindingBtn.active = hasSelection;
         roadFillBtn.active = hasSelection;
         slopeLimitBtn.active = hasSelection;
@@ -268,8 +259,6 @@ public class DimensionRoadSettingsScreen extends Screen {
 
         roadsEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.roads",
                 s == null ? null : s.roadsEnabled()));
-        bridgeEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.bridge",
-                s == null ? null : s.bridgeEnabled()));
         pathfindingBtn.setMessage(pathfindingLine(s == null ? null : s.pathfindingAlgorithm()));
         roadFillBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.road_fill",
                 s == null ? null : s.roadFillEnabled()));
@@ -322,10 +311,6 @@ public class DimensionRoadSettingsScreen extends Screen {
             case "roadsEnabled" -> {
                 next = nextTriState(s.roadsEnabled());
                 s.setRoadsEnabled(next);
-            }
-            case "bridgeEnabled" -> {
-                next = nextTriState(s.bridgeEnabled());
-                s.setBridgeEnabled(next);
             }
             case "roadFillEnabled" -> {
                 next = nextTriState(s.roadFillEnabled());

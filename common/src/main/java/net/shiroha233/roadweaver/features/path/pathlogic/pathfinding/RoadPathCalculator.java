@@ -149,11 +149,16 @@ public final class RoadPathCalculator {
     /**
      * 提取道路跨度（桥梁、隧道等）
      * 
+     * @deprecated 桥梁检测已移至区块生成阶段（RealTimeBridgeDetector），
+     *             使用实际地形数据而非噪声预测，解决水域识别不准确的问题。
+     *             此方法保留仅为向后兼容，新代码请勿调用。
+     * 
      * @param segments 道路段落
      * @param level    服务端世界
      * @param cache    地形采样缓存
      * @param cfg      寻路配置快照
      */
+    @Deprecated
     public static List<Records.RoadSpan> extractSpans(List<Records.RoadSegmentPlacement> segments, 
                                                        ServerLevel level, 
                                                        TerrainSamplingCache cache,

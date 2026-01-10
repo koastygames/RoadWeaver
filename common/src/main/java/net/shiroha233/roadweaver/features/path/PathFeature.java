@@ -11,7 +11,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.phys.Vec3;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
@@ -21,20 +20,20 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationPlanner;
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationExecutor;
 import net.shiroha233.roadweaver.features.path.bridge.BuoyBuilder;
-import net.shiroha233.roadweaver.features.path.bridge.BuoyMarkerPlanner;
-import net.shiroha233.roadweaver.features.path.decoration.system.SkippedBridgeBankSignPlanner;
-import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeRangeCalculator;
-import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlanner;
-import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlannerNew;
+import net.shiroha233.roadweaver.features.path.pathlogic.bridge.RealTimeWaterDetector;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
-import net.shiroha233.roadweaver.features.path.pathlogic.surface.BridgeTransitionAdjuster;
-import net.shiroha233.roadweaver.features.path.pathlogic.surface.HeightProfileService;
-import net.shiroha233.roadweaver.util.Line;
+import net.shiroha233.roadweaver.features.path.pathlogic.surface.RealTimeHeightCalculator;
+import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadHeightCache;
 
 import java.util.*;
 
+/**
+ * 道路世界生成 Feature
+ * 核心职责：在区块生成阶段放置道路和浮标
+ */
 public class PathFeature extends Feature<PathFeatureConfig> {
+    
     public PathFeature(Codec<PathFeatureConfig> codec) {
         super(codec);
     }
@@ -48,7 +47,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
 
         ModConfig cfg = ConfigService.get();
         String dimId = server.dimension().location().toString();
-        // 按维度：是否生成道路（path 道路系统）
         if (!cfg.roadsEnabledForDimension(dimId))
             return false;
 
@@ -62,13 +60,11 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             return false;
 
         RandomSource random = ctx.random();
-        int averagingRadius = Math.max(0, cfg.averagingRadius());
-
         Set<BlockPos> processedMiddle = new HashSet<>();
         Set<Decoration> decorations = new HashSet<>();
+        
         for (Records.RoadData data : roadDataList) {
-            processRoadDataInChunk(world, server, currentChunk, data, processedMiddle, decorations, random, cfg,
-                    averagingRadius);
+            processRoadDataInChunk(world, server, currentChunk, data, processedMiddle, decorations, random, cfg);
         }
         DecorationExecutor.tryPlaceDecorations(decorations);
         return true;
@@ -81,242 +77,97 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             Set<BlockPos> processedMiddle,
             Set<Decoration> decorations,
             RandomSource random,
-            ModConfig cfg,
-            int averagingRadius) {
+            ModConfig cfg) {
         String dimId = server.dimension().location().toString();
-        // 按维度：是否生成道路（path 道路系统）
-        if (!cfg.roadsEnabledForDimension(dimId)) {
-            return;
-        }
+        if (!cfg.roadsEnabledForDimension(dimId)) return;
 
-        boolean bridgeEnabled = cfg.bridgeEnabledForDimension(dimId);
         boolean roadFillEnabled = cfg.roadFillEnabledForDimension(dimId);
         boolean interpolatedRoadbedFillEnabled = cfg.interpolatedRoadbedFillEnabledForDimension(dimId);
         int roadType = data.roadType();
-        if (roadType != 0 && roadType != 1) {
-            return;
-        }
+        if (roadType != 0 && roadType != 1) return;
+        
         int roadWidth = Math.max(1, data.width());
         List<BlockState> materials = data.materials();
         List<BlockState> slabMaterials = data.slabMaterials();
         List<Records.RoadSegmentPlacement> segments = data.roadSegmentList();
-        if (segments == null || segments.size() < 5)
-            return;
+        if (segments == null || segments.size() < 5) return;
 
-        List<BlockPos> middlePositions = segments.stream().map(Records.RoadSegmentPlacement::middlePos).toList();
-        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg,
-                dimId);
-        boolean[] isBridge = res.isBridge();
-        List<int[]> bridgeRanges = res.mergedRanges();
-        boolean[] skipSegments = res.skipSegments();
+        List<BlockPos> middlePositions = segments.stream()
+                .map(Records.RoadSegmentPlacement::middlePos).toList();
+        
+        // 实时高度计算
+        int[] baseYArr = RealTimeHeightCalculator.calculateHeights(
+                world, server, middlePositions, currentChunk, cfg);
 
-        BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments);
-
-        boolean useBuoysInstead = bridgeEnabled && cfg.bridgeUseBuoysInstead();
-        boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
-
-        int intervalBlocks = Math.max(4, cfg.buoyIntervalBlocks());
-        boolean[] buoyMarkersForBridge = (useBuoysInstead
-                ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks)
-                : null);
-        boolean[] buoyMarkersForSkipped = (useBuoysWhenSkipped
-                ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks)
-                : null);
-
-        java.util.List<Integer> targetY = data.targetY();
-        boolean slopeLimitEnabled = cfg.slopeLimitEnabledForDimension(dimId);
-        HeightProfileService.HeightProfile hp = HeightProfileService.build(
-                world,
-                middlePositions,
-                currentChunk,
-                averagingRadius,
-                slopeLimitEnabled,
-                cfg.maxSlopeStepPerTwoSegments(),
-                targetY);
-        boolean usePersisted = hp.usePersisted();
-        int[] smoothedYArr = hp.smoothedY();
-        int[] baseYArr;
-        if (usePersisted && targetY != null && targetY.size() == middlePositions.size()) {
-            baseYArr = targetY.stream().mapToInt(Integer::intValue).toArray();
-        } else {
-            baseYArr = smoothedYArr;
-        }
-
-        if (baseYArr != null && bridgeEnabled && !useBuoysInstead && !bridgeRanges.isEmpty()) {
-            baseYArr = BridgeTransitionAdjuster.adjust(baseYArr, bridgeRanges, cfg);
-        }
-
-        int deckY = server.getSeaLevel() + cfg.bridgeDeckClearance();
+        int seaLevel = server.getSeaLevel();
+        int minWaterDepth = Math.max(1, 2); // 最小水深固定为2格
+        
+        // 浮标模式（水域上放浮标）
+        int buoyInterval = Math.max(4, cfg.buoyIntervalBlocks());
+        
         int segmentIndex = 0;
-        BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
         for (int i = 2; i < segments.size() - 2; i++) {
             BlockPos middle = middlePositions.get(i);
-            if (!processedMiddle.add(middle))
-                continue;
+            if (!processedMiddle.add(middle)) continue;
+            
             segmentIndex++;
-            if (segmentIndex < 8 || segmentIndex > segments.size() - 8)
-                continue;
+            if (segmentIndex < 8 || segmentIndex > segments.size() - 8) continue;
+            
             ChunkPos middleChunk = new ChunkPos(middle);
-            if (!middleChunk.equals(currentChunk))
-                continue;
+            if (!middleChunk.equals(currentChunk)) continue;
 
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
 
-            int sea = server.getSeaLevel();
-            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, middle.getX(), middle.getZ());
-            int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, middle.getX(), middle.getZ());
-            int topYCenter = (motion > sea + 2) ? motion : surface;
+            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, 
+                    middle.getX(), middle.getZ());
+            int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, 
+                    middle.getX(), middle.getZ());
+            int topYCenter = (motion > seaLevel + 2) ? motion : surface;
             BlockPos averaged = new BlockPos(middle.getX(), topYCenter, middle.getZ());
-            int baseYForThis = (baseYArr != null ? baseYArr[i] : topYCenter);
+            int baseYForThis = (baseYArr != null && i < baseYArr.length) ? baseYArr[i] : topYCenter;
 
             Records.RoadSegmentPlacement seg = segments.get(i);
-            if (StructureAvoidanceService.shouldAvoid(world, middle)) {
-                continue;
-            }
-            if (skipSegments != null && i >= 0 && i < skipSegments.length && skipSegments[i]) {
-                // 超长水域跨度：整段跳过生成
-                if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length
-                        && buoyMarkersForSkipped[i]) {
-                    BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
+            if (StructureAvoidanceService.shouldAvoid(world, middle)) continue;
+            
+            // 检测是否在水域上（用于放置浮标）
+            boolean isWater = RealTimeWaterDetector.shouldBeBridge(
+                    world, middle.getX(), middle.getZ(), roadWidth, seaLevel, minWaterDepth);
+            
+            // 水域处理：放置浮标
+            if (isWater) {
+                // 按间隔放置浮标
+                if (segmentIndex % Math.max(1, buoyInterval / 4) == 0) {
+                    BuoyBuilder.placeBuoy(world, middle, seaLevel, random, cfg);
                 }
-                continue;
+                continue; // 水域上不铺路
             }
 
-            if (useBuoysInstead && isBridge != null && i >= 0 && i < isBridge.length && isBridge[i]) {
-                if (buoyMarkersForBridge != null && i < buoyMarkersForBridge.length && buoyMarkersForBridge[i]) {
-                    BuoyBuilder.placeBuoy(world, middle, server.getSeaLevel(), random, cfg);
-                }
-                // 浮标模式：水域跨度不放桥也不铺路，避免在水里生成"路堤"
-                continue;
-            }
-
-            if (bridgeEnabled && isBridge[i]) {
-                var line = bridgeSegment.getLine(i);
-                // 若桥曲线长度小于20，则沿用原桥生成方法
-                if (line == null || line.getTotalLength() <= 15) {
-                    BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY,
-                            segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+            // 普通道路处理
+            if (roadFillEnabled) {
+                if (interpolatedRoadbedFillEnabled) {
+                    net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter
+                            .adaptWithInterpolation(world, middle, i, middlePositions, baseYArr, 
+                                    roadWidth, random, cfg);
                 } else {
-                    // 尝试使用新的桥梁规划器处理长距离桥梁
-                    // 如果模板不可用，回退到简单桥梁生成
-                    boolean success = BridgeSegmentPlannerNew.processSegment(world, line, seg, middle, prev);
-                    if (!success) {
-                        // 模板桥梁不可用，回退到简单桥梁生成器
-                        BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis,
-                                deckY,
-                                segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
-                    }
-                }
-            } else {
-                // 按维度：道路填充（路基/地形适配）与插值路基填充开关
-                if (roadFillEnabled) {
-                    if (interpolatedRoadbedFillEnabled) {
-                        // 使用插值高度计算，确保与路面铺设的高度一致
-                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter
-                                .adaptWithInterpolation(
-                                        world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
-                    } else {
-                        // 回退到旧的“按路段统一高度”的路基填充（不使用插值）
-                        net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter
-                                .adaptWithoutInterpolation(
-                                        world, middle, roadWidth, baseYForThis, random, cfg);
-                    }
-                }
-
-                SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials,
-                        random, cfg);
-
-                // 跨海被跳过（超长水域跨度）时：在两端岸边放置提示路牌
-                // 仅在"岸边正常路段"触发一次；真正落地仍由 Decoration.placeAllowed 做表面与禁放判断
-                if (cfg.roadSignsEnabledForDimension(dimId)) {
-                    SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
-                            world,
-                            decorations,
-                            averaged,
-                            next,
-                            prev,
-                            roadWidth,
-                            skipSegments,
-                            i);
+                    net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter
+                            .adaptWithoutInterpolation(world, middle, roadWidth, baseYForThis, 
+                                    random, cfg);
                 }
             }
 
-            if (!isBridge[i] || cfg.bridgeKeepLamps()) {
-                DecorationPlanner.addDecoration(
-                        world,
-                        decorations,
-                        averaged,
-                        segmentIndex,
-                        next,
-                        prev,
-                        middlePositions,
-                        roadWidth,
-                        random,
-                        cfg,
-                        (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL));
-            }
-            // 路边结构现在通过预计算系统在 STRUCTURE_STARTS 阶段注入
-            // 参见 RoadsideStructurePrecomputer 和 StructureInjector
-        }
-    }
-
-    public static class BridgeSegment {
-        public final Map<Set<Integer>, Line> bridgeLines = new HashMap<>();
-
-        public BridgeSegment(boolean[] isBridge, List<Records.RoadSegmentPlacement> segments) {
-            List<List<Vec3>> list1 = new ArrayList<>();
-            List<Set<Integer>> list2 = new ArrayList<>();
-            list1.add(new ArrayList<>());
-            list2.add(new HashSet<>());
-            for (int i = 0; i < segments.size(); i++) {
-                if (isBridge[i]) {
-                    list1.get(list1.size() - 1).add(segments.get(i).middlePos().getCenter());
-                    list2.get(list1.size() - 1).add(i);
-                } else {
-                    if (!list1.get(list1.size() - 1).isEmpty()) {
-                        list1.add(new ArrayList<>());
-                        list2.add(new HashSet<>());
-                    }
-                }
-            }
-            if (list1.get(list1.size() - 1).isEmpty()) {
-                list1.remove(list1.size() - 1);
-                list2.remove(list2.size() - 1);
+            SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, 
+                    materials, slabMaterials, random, cfg);
+            
+            // 缓存已放置的道路高度
+            if (baseYArr != null && i < baseYArr.length) {
+                RoadHeightCache.cachePlacedHeight(server, middle.getX(), middle.getZ(), baseYArr[i]);
             }
 
-            for (int i = 0; i < list1.size(); i++) {
-                List<Vec3> seg = list1.get(i);
-
-                // 创建曲线
-                var line = new Line(seg.get(0), seg.get(seg.size() - 1));
-
-//                var curve = new Curve();
-//                for (int j = 0; j < seg.size() - 1; j++) {
-//                    curve.addLineSegment(seg.get(j), seg.get(j + 1));
-//                }
-//                for (int j = 0; j < seg.size() - 2; j++) {
-//                    Vec3 a = seg.get(j);
-//                    Vec3 b = seg.get(j + 1);
-//                    Vec3 c = seg.get(j + 2);
-//                    Vec3 startAxis = b.subtract(a).normalize();
-//                    Vec3 endAxis = b.subtract(c).normalize();
-//                    curve.addSegment0(a, b, startAxis, endAxis);
-//                }
-//                curve.addLineSegment(seg.get(seg.size() - 2), seg.get(seg.size() - 1));
-                bridgeLines.put(list2.get(i), line);
-            }
-        }
-
-        // 通过索引获取线
-        public Line getLine(int index) {
-            for (Map.Entry<Set<Integer>, Line> setLineEntry : bridgeLines.entrySet()) {
-                var set = setLineEntry.getKey();
-                if (set.contains(index)) {
-                    return setLineEntry.getValue();
-                }
-            }
-            return null;
+            // 装饰
+            DecorationPlanner.addDecoration(world, decorations, averaged, segmentIndex, next, prev,
+                    middlePositions, roadWidth, random, cfg,
+                    (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL));
         }
     }
 }

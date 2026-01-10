@@ -6,7 +6,10 @@
   "plugin": "net.shiroha233.roadweaver.mixin.MixinConfigPlugin",
   "mixins": [
     "MinecraftServerMixin",
-    "GenericFeatureMixin",
+    "TreeFeatureMixin",
+    "HugeMushroomFeatureMixin",
+    "HugeFungusFeatureMixin",
+    "GenericVegetationFeatureMixin",
     "dynamictree.DynamicTreeFeatureMixin",
     "ServerLevelStructureMixin",
     "PlayerDimensionChangeMixin"

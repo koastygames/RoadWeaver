@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.shiroha233.roadweaver.config.RoadGenerationConfig;
 import net.shiroha233.roadweaver.features.highway.HighwayRoadTypes;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
 import net.shiroha233.roadweaver.features.highway.pathfinding.HighwayPathCalculator;
@@ -49,7 +48,6 @@ public final class HighwayRoad {
 
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
-            RoadGenerationConfig adapted = genConfig.toRoadGenerationConfig();
             List<Records.RoadSegmentPlacement> rawSegments = HighwayPathCalculator.calculateHighwayPath(
                     rawStart, rawEnd, width, level, Math.max(1, maxSteps), cache, genConfig);
             if (rawSegments == null || rawSegments.size() < 3) return false;
@@ -58,8 +56,8 @@ public final class HighwayRoad {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 3) return false;
 
-            List<Records.RoadSpan> spans = net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator
-                    .extractSpans(segments, level, cache, adapted.pathfinding());
+            // 桥梁检测已移至区块生成阶段（RealTimeBridgeDetector），寻路阶段不再预计算 spans
+            List<Records.RoadSpan> spans = List.of();
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
             Records.RoadData rd = new Records.RoadData(

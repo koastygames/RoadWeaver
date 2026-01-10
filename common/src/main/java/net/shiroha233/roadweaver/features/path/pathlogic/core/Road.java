@@ -104,7 +104,9 @@ public final class Road {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return;
             
-            List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.pathfinding());
+            // 桥梁检测已移至区块生成阶段（RealTimeBridgeDetector），寻路阶段不再预计算 spans
+            // 这样可以使用实际地形数据而非噪声预测，解决水域识别不准确的问题
+            List<Records.RoadSpan> spans = List.of();
 
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
