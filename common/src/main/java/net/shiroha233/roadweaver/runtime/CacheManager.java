@@ -9,6 +9,7 @@ import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacyShardMigration;
+import net.shiroha233.roadweaver.persistence.sqlite.LegacySqliteMigration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,6 +73,7 @@ public final class CacheManager {
         
         // 3. 重置迁移状态（确保下次启动可以正常检查）
         LegacyShardMigration.reset();
+        LegacySqliteMigration.reset();
         
         LOGGER.debug("CacheManager: 所有缓存已清理");
     }

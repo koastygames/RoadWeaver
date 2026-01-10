@@ -31,11 +31,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 基于 SQLite 的道路数据存储
+ * 基于 H2 的道路数据存储
  * 
  * 优势：
+ * - 纯 Java 实现，无 native 依赖，避免平台审核问题
  * - 无需 LRU 缓存，数据直接存取数据库
- * - WAL 模式支持并发读写，不阻塞区块生成
+ * - 支持并发读写，不阻塞区块生成
  * - 空间索引加速矩形范围查询
  * - 自动持久化，无需手动 flush
  */
@@ -81,10 +82,9 @@ public final class RoadSqliteStorage {
                 }
             });
 
-    // SQL 语句
-    private static final String SQL_INSERT = "INSERT OR IGNORE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) "
-            +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    // SQL 语句（H2 兼容）
+    private static final String SQL_INSERT = "MERGE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) "
+            + "KEY (fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
     private static final String SQL_QUERY_RECT = "SELECT fingerprint, data FROM roads " +
             "WHERE max_x >= ? AND min_x <= ? AND max_z >= ? AND min_z <= ?";
@@ -123,7 +123,8 @@ public final class RoadSqliteStorage {
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
 
-            // 先检查是否已存在（快速路径）
+            // 先检查是否已存在（快速路径）- 使用 MERGE 语句时可以跳过这步
+            // 但保留检查可以避免不必要的序列化开销
             try (PreparedStatement checkStmt = conn.prepareStatement(SQL_EXISTS)) {
                 checkStmt.setLong(1, fingerprint);
                 try (ResultSet rs = checkStmt.executeQuery()) {
@@ -140,7 +141,7 @@ public final class RoadSqliteStorage {
                 return;
             }
 
-            // 插入数据库
+            // 插入数据库（H2 MERGE 语句自动处理重复）
             try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
                 stmt.setLong(1, fingerprint);
                 stmt.setInt(2, rd.width());

@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 结构点 SQLite 缓存（DAO/Storage）。
+ * 结构点 H2 缓存（DAO/Storage）。
  *
  * 职责：
  * - 结构点的持久化写入/查询
@@ -26,23 +26,23 @@ public final class StructureSqliteStorage {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
-    // 结构点来源：用于区分“预测缓存”与“手动/业务注册”
+    // 结构点来源：用于区分"预测缓存"与"手动/业务注册"
     public static final int SOURCE_PREDICTED = 0;
     public static final int SOURCE_MANUAL = 1;
     public static final int SOURCE_LEGACY = 2;
 
-    // 扫描 tile 的固定大小（chunk）。值越大：首次扫描更重，但总 tile 更少；值越小：更细粒度。
-    // 这里选 128 chunk（2048 block）在性能与粒度之间折中。
+    // 扫描 tile 的固定大小（chunk）
     public static final int SCAN_TILE_SIZE_CHUNKS = 128;
 
-    // 扫描占用超时（秒）：避免服务器崩溃/线程异常导致 tile 永久处于“占用中”
+    // 扫描占用超时（秒）
     private static final int SCAN_CLAIM_TIMEOUT_SECONDS = 10 * 60;
 
     private static final String META_POLICY_HASH = "policy_hash";
     private static final String META_LEGACY_MIGRATED = "legacy_migrated";
 
+    // H2 兼容的 SQL 语句
     private static final String SQL_INSERT_STRUCTURE =
-            "INSERT OR IGNORE INTO structures (x, z, structure_id, source) VALUES (?, ?, ?, ?)";
+            "MERGE INTO structures (x, z, structure_id, source) KEY (x, z, structure_id, source) VALUES (?, ?, ?, ?)";
 
     private static final String SQL_DELETE_POS_SOURCE =
             "DELETE FROM structures WHERE x = ? AND z = ? AND source = ?";
@@ -51,11 +51,9 @@ public final class StructureSqliteStorage {
             "SELECT x, z, structure_id FROM structures " +
             "WHERE x >= ? AND x <= ? AND z >= ? AND z <= ? AND source IN (%s)";
 
-    // 约定：
-    // - scanned_at < 0：正在扫描（绝对值为开始时间戳秒）
-    // - scanned_at > 0：已扫描完成（完成时间戳秒）
     private static final String SQL_CLAIM_SCAN_TILE =
-            "INSERT OR IGNORE INTO structure_scan_tiles (tile_x, tile_z, tile_size_chunks, scanned_at) VALUES (?, ?, ?, ?)";
+            "MERGE INTO structure_scan_tiles (tile_x, tile_z, tile_size_chunks, scanned_at) " +
+            "KEY (tile_x, tile_z, tile_size_chunks) VALUES (?, ?, ?, ?)";
 
     private static final String SQL_GET_SCAN_TILE =
             "SELECT scanned_at FROM structure_scan_tiles WHERE tile_x = ? AND tile_z = ? AND tile_size_chunks = ?";
@@ -64,7 +62,7 @@ public final class StructureSqliteStorage {
             "UPDATE structure_scan_tiles SET scanned_at = ? WHERE tile_x = ? AND tile_z = ? AND tile_size_chunks = ? AND scanned_at = ?";
 
     private static final String SQL_MARK_SCAN_TILE_DONE =
-            "UPDATE structure_scan_tiles SET scanned_at = strftime('%s','now') WHERE tile_x = ? AND tile_z = ? AND tile_size_chunks = ?";
+            "UPDATE structure_scan_tiles SET scanned_at = EXTRACT(EPOCH FROM CURRENT_TIMESTAMP) WHERE tile_x = ? AND tile_z = ? AND tile_size_chunks = ?";
 
     private static final String SQL_DELETE_SCAN_TILE =
             "DELETE FROM structure_scan_tiles WHERE tile_x = ? AND tile_z = ? AND tile_size_chunks = ?";
@@ -73,14 +71,14 @@ public final class StructureSqliteStorage {
             "SELECT v FROM structure_cache_meta WHERE k = ?";
 
     private static final String SQL_SET_META =
-            "INSERT INTO structure_cache_meta (k, v) VALUES (?, ?) " +
-            "ON CONFLICT(k) DO UPDATE SET v = excluded.v";
+            "MERGE INTO structure_cache_meta (k, v) KEY (k) VALUES (?, ?)";
 
     private static final String SQL_CLEAR_PREDICTED =
             "DELETE FROM structures WHERE source = " + SOURCE_PREDICTED;
 
     private static final String SQL_CLEAR_SCAN_TILES =
             "DELETE FROM structure_scan_tiles";
+
 
     private static String getMetaValue(ServerLevel level, String key) throws SQLException {
         Connection conn = RoadDatabaseManager.getConnection(level);
@@ -128,7 +126,6 @@ public final class StructureSqliteStorage {
                 return;
             }
 
-            // 配置变化：清理预测缓存与扫描标记（手动/遗留结构点保留）
             Connection conn = RoadDatabaseManager.getConnection(level);
             try (var stmt = conn.createStatement()) {
                 stmt.execute(SQL_CLEAR_PREDICTED);
@@ -147,48 +144,46 @@ public final class StructureSqliteStorage {
 
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_CLAIM_SCAN_TILE)) {
-                stmt.setInt(1, tileX);
-                stmt.setInt(2, tileZ);
-                stmt.setInt(3, SCAN_TILE_SIZE_CHUNKS);
-                long now = System.currentTimeMillis() / 1000L;
-                stmt.setLong(4, -now);
-                int changed = stmt.executeUpdate();
-                if (changed > 0) {
-                    return true;
-                }
-            }
-
-            // 已存在：判断是否已完成/正在扫描/需要抢占
-            long scannedAt;
+            long now = System.currentTimeMillis() / 1000L;
+            
+            // 先检查是否已存在
             try (PreparedStatement q = conn.prepareStatement(SQL_GET_SCAN_TILE)) {
                 q.setInt(1, tileX);
                 q.setInt(2, tileZ);
                 q.setInt(3, SCAN_TILE_SIZE_CHUNKS);
                 try (ResultSet rs = q.executeQuery()) {
-                    if (!rs.next()) return false;
-                    scannedAt = rs.getLong(1);
+                    if (rs.next()) {
+                        long scannedAt = rs.getLong(1);
+                        
+                        // 已完成
+                        if (scannedAt > 0) return false;
+                        
+                        long start = scannedAt < 0 ? -scannedAt : now - SCAN_CLAIM_TIMEOUT_SECONDS - 1;
+                        if (now - start < SCAN_CLAIM_TIMEOUT_SECONDS) {
+                            return false; // 正在扫描且未超时
+                        }
+                        
+                        // 超时抢占
+                        try (PreparedStatement steal = conn.prepareStatement(SQL_STEAL_SCAN_TILE)) {
+                            steal.setLong(1, -now);
+                            steal.setInt(2, tileX);
+                            steal.setInt(3, tileZ);
+                            steal.setInt(4, SCAN_TILE_SIZE_CHUNKS);
+                            steal.setLong(5, scannedAt);
+                            return steal.executeUpdate() > 0;
+                        }
+                    }
                 }
             }
-
-            // 已完成
-            if (scannedAt > 0) return false;
-
-            long now = System.currentTimeMillis() / 1000L;
-            long start = scannedAt < 0 ? -scannedAt : now - SCAN_CLAIM_TIMEOUT_SECONDS - 1;
-            if (now - start < SCAN_CLAIM_TIMEOUT_SECONDS) {
-                // 正在扫描且未超时
-                return false;
-            }
-
-            // 超时抢占：使用 scanned_at 作为乐观锁条件，避免并发抢占导致双扫
-            try (PreparedStatement steal = conn.prepareStatement(SQL_STEAL_SCAN_TILE)) {
-                steal.setLong(1, -now);
-                steal.setInt(2, tileX);
-                steal.setInt(3, tileZ);
-                steal.setInt(4, SCAN_TILE_SIZE_CHUNKS);
-                steal.setLong(5, scannedAt);
-                return steal.executeUpdate() > 0;
+            
+            // 不存在，插入新记录
+            try (PreparedStatement stmt = conn.prepareStatement(SQL_CLAIM_SCAN_TILE)) {
+                stmt.setInt(1, tileX);
+                stmt.setInt(2, tileZ);
+                stmt.setInt(3, SCAN_TILE_SIZE_CHUNKS);
+                stmt.setLong(4, -now);
+                stmt.executeUpdate();
+                return true;
             }
         } catch (SQLException e) {
             LOGGER.error("StructureSqliteStorage: claimScanTile failed", e);
@@ -243,7 +238,6 @@ public final class StructureSqliteStorage {
                     int z = p.getZ();
                     String id = info.structureId() == null ? "unknown" : info.structureId();
 
-                    // 手动/遗留来源：同一坐标只保留一个记录，后写入的 id 覆盖 unknown。
                     if (source != SOURCE_PREDICTED) {
                         del.setInt(1, x);
                         del.setInt(2, z);

@@ -39,71 +39,27 @@ configurations {
 
 shadowJar {
     exclude "architectury.common.json"
-    exclude "fabric.mod.json"
     configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
     archiveClassifier.set("dev-shadow")
     
-    // 重定位 SQLite JDBC 包，长度设为 10 以便进行二进制等长替换
-    // org.sqlite (10) -> net.road.w (10)
-    relocate 'org.sqlite', 'net.road.w'
+    // 重定位 H2 Database 包
+    relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
+    
+    // 重定位 SQLJet 包（避免与其他模组冲突）
+    relocate 'org.tmatesoft.sqljet', 'net.shiroha233.roadweaver.libs.sqljet'
+    relocate 'org.antlr.runtime', 'net.shiroha233.roadweaver.libs.antlr'
+    
+    // 排除不需要的文件
+    exclude 'META-INF/versions/**'
     
     // 强制更新 META-INF/services 里的类名
     mergeServiceFiles()
+    
+    // 排除 module-info.class 避免 JPMS 冲突
+    exclude 'module-info.class'
 }
 
-// 修复 SQLite Native 库中的 JNI 符号
-import java.nio.file.*
-task fixSqliteNatives {
-    doLast {
-        File file = shadowJar.archiveFile.get().asFile
-        if (!file.exists()) return
-
-        Path zipPath = file.toPath()
-        Map<String, String> env = new HashMap<>()
-        env.put("create", "false")
-        
-        FileSystem fs = FileSystems.newFileSystem(zipPath, null as ClassLoader)
-        try {
-            Files.walk(fs.getPath("/")).filter { 
-                it.toString().endsWith(".dll") || it.toString().endsWith(".so") || it.toString().endsWith(".dylib") 
-            }.forEach { nativePath ->
-                println "Patching native symbols in: " + nativePath
-                byte[] bytes = Files.readAllBytes(nativePath)
-                
-                // 替换 "org_sqlite" -> "net_road_w" (JNI 符号)
-                // 替换 "org/sqlite" -> "net/road/w" (内部路径)
-                bytes = replaceBytesInternal(bytes, "org_sqlite".getBytes("UTF-8"), "net_road_w".getBytes("UTF-8"))
-                bytes = replaceBytesInternal(bytes, "org/sqlite".getBytes("UTF-8"), "net/road/w".getBytes("UTF-8"))
-                
-                Files.write(nativePath, bytes)
-            }
-        } finally {
-            fs.close()
-        }
-    }
-}
-
-// 辅助方法：执行等长字节替换
-def replaceBytesInternal(byte[] source, byte[] target, byte[] replacement) {
-    if (target.length != replacement.length) return source
-    for (int i = 0; i <= source.length - target.length; i++) {
-        boolean match = true
-        for (int j = 0; j < target.length; j++) {
-            if (source[i + j] != target[j]) {
-                match = false
-                break
-            }
-        }
-        if (match) {
-            for (int j = 0; j < target.length; j++) {
-                source[i + j] = replacement[j]
-            }
-        }
-    }
-    return source
-}
-
-shadowJar.finalizedBy(fixSqliteNatives)
+// 移除原生库修改任务，改为纯Java方式处理SQLite依赖
 
 remapJar {
 	inputFile.set shadowJar.archiveFile
@@ -197,10 +153,16 @@ dependencies {
     modApi("me.shedaniel.cloth:cloth-config-forge:11.1.136")
     include("me.shedaniel.cloth:cloth-config-forge:11.1.136")
 
-    // SQLite JDBC - 道路数据持久化（内嵌到模组）
-    // developmentForge 确保开发环境下驱动可用
-    developmentForge("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
-    shadowSqlite("org.xerial:sqlite-jdbc:3.45.3.0") { transitive = false }
+    // H2 Database - 道路数据持久化（纯Java，无native依赖）
+    implementation("com.h2database:h2:2.2.224") { transitive = false }
+    shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
+
+    // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
+    implementation("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    // SQLJet 依赖 antlr-runtime
+    implementation("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+    shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees
     // 换成modCompileOnly可以临时关闭此mod的运行以测试非联动状态

@@ -79,11 +79,10 @@ gradle-local.properties
 /worldgen-roadweaver-analysis.md
 /nbt
 /AGENTS.md
-.cursor/rules/mc.mdc
+/.cursor/rules/mc.mdc
 /assets/
 /.kiro/
 /LostCities-1.20
 /twilightforest-fabric/
 /PasterDreamGradle/
-/twilightforest-fabric/
 /server/

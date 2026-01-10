@@ -28,11 +28,11 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 旧分片 NBT 数据迁移服务
  * 
- * 在首次访问 SQLite 数据库时，检测并导入旧的 r.rx.rz.nbt 分片文件。
+ * 在首次访问 H2 数据库时，检测并导入旧的 r.rx.rz.nbt 分片文件。
  * 迁移完成后会创建一个标记文件，避免重复迁移。
  * 
  * 旧数据路径: data/roadweaver/roads/<dimKey>/r.<rx>.<rz>.nbt
- * 新数据路径: data/roadweaver/<dimKey>/roads.db
+ * 新数据路径: data/roadweaver/<dimKey>/roads.mv.db (H2)
  */
 public final class LegacyShardMigration {
     private LegacyShardMigration() {}

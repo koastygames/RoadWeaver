@@ -8,20 +8,22 @@ import net.shiroha233.roadweaver.persistence.sqlite.RoadSqliteStorage;
 import java.util.List;
 
 /**
- * 道路数据存储（SQLite 实现）
+ * 道路数据存储（H2 实现）
  * 
  * 此类现在是 {@link RoadSqliteStorage} 的门面（Facade），
- * 保持向后兼容的 API，同时底层使用 SQLite 数据库。
+ * 保持向后兼容的 API，同时底层使用 H2 数据库。
  * 
  * 优势：
+ * - 纯 Java 实现，无 native 依赖，避免平台审核问题
  * - 无需 LRU 缓存，数据直接存取数据库
- * - WAL 模式支持并发读写，不阻塞区块生成
+ * - 支持并发读写，不阻塞区块生成
  * - 空间索引加速矩形范围查询
  * - 自动持久化，无需手动 flush
  * 
  * 旧数据迁移：
- * - 首次访问时会自动检测并导入旧的分片 NBT 文件（r.rx.rz.nbt）
- * - 迁移完成后创建标记文件，避免重复迁移
+ * - 首次访问时会自动检测并导入旧的 SQLite 数据库（roads.db）
+ * - 然后检测并导入旧的分片 NBT 文件（r.rx.rz.nbt）
+ * - 迁移完成后创建标记文件/重命名旧文件，避免重复迁移
  * - 迁移过程中使用 fingerprint 去重，不会产生重复数据
  */
 public final class RoadShardStorage {
@@ -44,7 +46,7 @@ public final class RoadShardStorage {
     }
 
     /**
-     * 刷新数据（SQLite 自动持久化，此方法执行 WAL 检查点）
+     * 刷新数据（H2 自动持久化，此方法执行检查点）
      */
     public static void flushAll(ServerLevel level) {
         RoadSqliteStorage.flushAll(level);
