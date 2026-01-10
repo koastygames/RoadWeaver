@@ -1,9 +1,7 @@
-
 .gradle/
 build/
 out/
 bin/
-
 
 /common/build/
 /common/.gradle/
@@ -37,10 +35,8 @@ logs/
 *.iws
 *.ipr
 
-
 .vscode/
 *.code-workspace
-
 
 .DS_Store
 .AppleDouble
@@ -75,10 +71,10 @@ gradle-local.properties
 
 /common/.gradle
 **/.gradle/
-.gradle/
 /worldgen-roadweaver-analysis.md
 /nbt
 /AGENTS.md
+/GEMINI.md
 /.cursor/rules/mc.mdc
 /assets/
 /.kiro/
