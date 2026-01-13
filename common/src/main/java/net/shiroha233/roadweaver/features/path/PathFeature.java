@@ -119,11 +119,12 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
 
-            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, 
+            // 使用 OCEAN_FLOOR_WG 获取真实地形高度（忽略植被，避免树木导致道路突起）
+            int oceanFloor = world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, 
                     middle.getX(), middle.getZ());
             int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, 
                     middle.getX(), middle.getZ());
-            int topYCenter = (motion > seaLevel + 2) ? motion : surface;
+            int topYCenter = (oceanFloor > seaLevel + 2) ? oceanFloor : surface;
             BlockPos averaged = new BlockPos(middle.getX(), topYCenter, middle.getZ());
             int baseYForThis = (baseYArr != null && i < baseYArr.length) ? baseYArr[i] : topYCenter;
 

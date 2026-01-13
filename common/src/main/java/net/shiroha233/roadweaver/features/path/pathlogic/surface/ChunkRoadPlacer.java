@@ -65,8 +65,8 @@ public final class ChunkRoadPlacer {
         int x = middle.getX();
         int z = middle.getZ();
         
-        // 1. 获取实际地形高度
-        int terrainHeight = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        // 1. 获取实际地形高度（使用 OCEAN_FLOOR_WG 忽略植被）
+        int terrainHeight = world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
         int seaLevel = server.getSeaLevel();
         
         // 如果地形高度低于海平面，使用 WORLD_SURFACE_WG

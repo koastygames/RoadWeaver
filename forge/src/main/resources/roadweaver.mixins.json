@@ -9,6 +9,7 @@
     "TreeFeatureMixin",
     "HugeMushroomFeatureMixin",
     "HugeFungusFeatureMixin",
+    "BambooFeatureMixin",
     "GenericVegetationFeatureMixin",
     "dynamictree.DynamicTreeFeatureMixin",
     "ServerLevelStructureMixin",

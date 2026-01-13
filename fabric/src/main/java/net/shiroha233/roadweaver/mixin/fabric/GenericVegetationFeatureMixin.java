@@ -15,8 +15,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 
 /**
  * 通用植物 Feature 拦截器
- * 用于兼容其他模组的树木（如 BOP、BYG 等）
- * 通过类名关键字判断是否为树木类 Feature
+ * 用于兼容模组树木（BYG、BOP 等）和 NBT 结构树
  */
 @Mixin(Feature.class)
 public class GenericVegetationFeatureMixin {
@@ -30,8 +29,7 @@ public class GenericVegetationFeatureMixin {
                                                     BlockPos pos,
                                                     CallbackInfoReturnable<Boolean> cir) {
         try {
-            // 只处理模组的树木类 Feature（原版已有专门的 Mixin）
-            if (roadweaver$isModdedTreeFeature()) {
+            if (roadweaver$isTreeLikeFeature(config)) {
                 if (RoadPositionQuery.isOnRoad(level, pos)) {
                     cir.setReturnValue(false);
                 }
@@ -40,20 +38,46 @@ public class GenericVegetationFeatureMixin {
     }
 
     /**
-     * 判断是否为模组的树木类 Feature
+     * 判断是否为树木类 Feature
      */
     @Unique
-    private boolean roadweaver$isModdedTreeFeature() {
+    private boolean roadweaver$isTreeLikeFeature(FeatureConfiguration config) {
         String className = this.getClass().getName().toLowerCase();
-        // 排除原版类（已有专门 Mixin）
-        if (className.startsWith("net.minecraft.")) return false;
         
-        // 检查类名是否包含树木相关关键字
-        return className.contains("tree") ||
-               className.contains("fungus") ||
-               className.contains("mushroom") ||
-               className.contains("bamboo") ||
-               className.contains("cactus") ||
-               className.contains("chorus");
+        // 排除已有专门 Mixin 的原版类
+        if (className.equals("net.minecraft.world.level.levelgen.feature.treefeature") ||
+            className.equals("net.minecraft.world.level.levelgen.feature.abstracthugemushroomfeature") ||
+            className.equals("net.minecraft.world.level.levelgen.feature.hugefungusfeature") ||
+            className.equals("net.minecraft.world.level.levelgen.feature.bamboofeature")) {
+            return false;
+        }
+        
+        // 检查 Feature 类名
+        if (roadweaver$containsTreeKeyword(className)) {
+            return true;
+        }
+        
+        // 检查配置类名（用于 NBT 结构树等）
+        if (config != null) {
+            String configName = config.getClass().getName().toLowerCase();
+            if (roadweaver$containsTreeKeyword(configName)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    @Unique
+    private boolean roadweaver$containsTreeKeyword(String name) {
+        return name.contains("tree") ||
+               name.contains("fungus") ||
+               name.contains("mushroom") ||
+               name.contains("bamboo") ||
+               name.contains("cactus") ||
+               name.contains("chorus") ||
+               name.contains("nbt") ||           // NBT 结构树
+               name.contains("structure") ||     // 结构树
+               name.contains("fromstructure");   // TYG 的 TreeFromStructure
     }
 }

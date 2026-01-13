@@ -18,9 +18,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * 这是原版 preliminarySurfaceLevel 使用的同一个密度函数，
  * 精度足够用于道路寻路，但速度快 10-50 倍。
  * 
+ * 坐标对齐：重要！
+ * - 原版 preliminarySurfaceLevel 使用 QuartPos.toBlock(QuartPos.fromBlock()) 进行4格对齐
+ * - 本类必须使用相同的坐标对齐方式，否则会产生1-3格的精度偏差
+ * - 对齐方式：(x >> 2) << 2，将坐标对齐到4格边界
+ * 
  * 限制：
  * - 不考虑水体、洞穴等细节（对道路寻路影响不大）
  * - 精度为 cellHeight（通常8格），而非逐格
+ * - 坐标按4格对齐，与原版行为一致
  */
 public final class FastHeightSampler {
     
@@ -62,7 +68,11 @@ public final class FastHeightSampler {
      * @return 估算的地表高度，精度为 cellHeight
      */
     public int sampleHeight(int x, int z) {
-        long key = packXZ(x, z);
+        // 对齐坐标到4格边界，匹配原版 preliminarySurfaceLevel 的行为
+        int alignedX = (x >> 2) << 2;
+        int alignedZ = (z >> 2) << 2;
+        
+        long key = packXZ(alignedX, alignedZ);
         Integer cached = heightCache.get(key);
         if (cached != null) {
             PerformanceMonitor.recordCacheHit();
@@ -72,7 +82,7 @@ public final class FastHeightSampler {
         PerformanceMonitor.recordCacheMiss();
         long startTime = System.nanoTime();
         
-        int height = computeHeight(x, z);
+        int height = computeHeight(alignedX, alignedZ);
         heightCache.put(key, height);
         
         long duration = System.nanoTime() - startTime;
@@ -87,7 +97,10 @@ public final class FastHeightSampler {
     public void prewarmRegion(int minX, int minZ, int maxX, int maxZ, int step) {
         for (int x = minX; x <= maxX; x += step) {
             for (int z = minZ; z <= maxZ; z += step) {
-                sampleHeight(x, z);
+                // 使用对齐坐标进行预热
+                int alignedX = (x >> 2) << 2;
+                int alignedZ = (z >> 2) << 2;
+                sampleHeight(alignedX, alignedZ);
             }
         }
     }

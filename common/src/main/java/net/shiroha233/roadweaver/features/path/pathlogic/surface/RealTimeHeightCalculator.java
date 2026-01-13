@@ -309,15 +309,22 @@ public final class RealTimeHeightCalculator {
     
     /**
      * 安全获取地形高度
+     * 
+     * 重要：使用 OCEAN_FLOOR_WG 而非 MOTION_BLOCKING_NO_LEAVES
+     * - MOTION_BLOCKING_NO_LEAVES 只排除树叶，但树干仍会被计入高度
+     * - OCEAN_FLOOR_WG 只计算固体地形方块，忽略所有植被（树干、树叶、草等）
+     * - 这样可以避免道路因树木而异常突起
      */
     private static int getTerrainHeightSafe(WorldGenLevel world, int x, int z, int seaLevel) {
         try {
-            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-            if (motion > seaLevel + 2) {
-                return motion;
+            // 使用 OCEAN_FLOOR_WG 获取真实地形高度（忽略植被）
+            int oceanFloor = world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
+            if (oceanFloor > seaLevel + 2) {
+                return oceanFloor;
             }
+            // 水下区域使用 WORLD_SURFACE_WG 作为备选
             int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
-            return Math.max(motion, surface);
+            return Math.max(oceanFloor, surface);
         } catch (Exception e) {
             return UNKNOWN_HEIGHT;
         }
