@@ -53,7 +53,7 @@ public final class RealTimeWaterDetector {
         // 获取表面高度（不含水）
         int surfaceY = world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
         // 获取运动阻挡高度（含水面）
-        int motionY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int motionY = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
         
         // 检查水深
         int waterDepth = motionY - surfaceY;
@@ -81,7 +81,7 @@ public final class RealTimeWaterDetector {
         }
         
         int surfaceY = world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
-        int motionY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int motionY = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
         
         // 验证是否为水
         if (motionY <= surfaceY) {
@@ -110,7 +110,7 @@ public final class RealTimeWaterDetector {
             return -1;
         }
         
-        int motionY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int motionY = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
         BlockPos waterSurfacePos = new BlockPos(x, motionY - 1, z);
         FluidState fluid = world.getFluidState(waterSurfacePos);
         

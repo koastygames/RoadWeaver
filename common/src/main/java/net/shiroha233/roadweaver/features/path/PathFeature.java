@@ -21,8 +21,8 @@ import net.shiroha233.roadweaver.features.path.decoration.system.DecorationPlann
 import net.shiroha233.roadweaver.features.path.decoration.system.SkippedBridgeBankSignPlanner;
 import net.shiroha233.roadweaver.features.path.bridge.BuoyBuilder;
 import net.shiroha233.roadweaver.features.path.bridge.BuoyMarkerPlanner;
+import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeContextCache;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeRangeCalculator;
-import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlanner;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlannerNew;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
@@ -119,7 +119,13 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         boolean[] skipSegments = res.skipSegments();
 
         // 构建桥梁段映射
-        BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments);
+        BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments, bridgeRanges);
+        
+        // 生成道路指纹（基于道路首尾坐标，确保跨区块一致）
+        BlockPos firstPos = middlePositions.get(0);
+        BlockPos lastPos = middlePositions.get(middlePositions.size() - 1);
+        long roadFingerprint = BridgeContextCache.generateRoadFingerprint(
+                firstPos.getX(), firstPos.getZ(), lastPos.getX(), lastPos.getZ());
 
         boolean useBuoysInstead = bridgeEnabled && cfg.bridgeUseBuoysInstead();
         boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
@@ -142,18 +148,37 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
 
         int deckY = server.getSeaLevel() + cfg.bridgeDeckClearance();
-        int segmentIndex = 0;
-        BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
+        
+        // 预计算每座桥梁的高度（基于端点道路高度）
+        Map<Integer, Integer> bridgeDeckYCache = new HashMap<>();
+        for (int[] range : bridgeRanges) {
+            int startIdx = range[0];
+            int endIdx = range[1];
+            
+            // 获取桥梁两端的道路高度
+            int startY = (baseYArr != null && startIdx > 0 && startIdx - 1 < baseYArr.length) 
+                    ? baseYArr[startIdx - 1] : deckY;
+            int endY = (baseYArr != null && endIdx + 1 < baseYArr.length) 
+                    ? baseYArr[endIdx + 1] : deckY;
+            
+            // 桥梁高度取两端较大值，确保不低于海平面
+            int bridgeY = Math.max(Math.max(startY, endY), server.getSeaLevel() + cfg.bridgeDeckClearance());
+            
+            // 缓存这座桥的高度
+            for (int idx = startIdx; idx <= endIdx; idx++) {
+                bridgeDeckYCache.put(idx, bridgeY);
+            }
+        }
         
         for (int i = 2; i < segments.size() - 2; i++) {
             BlockPos middle = middlePositions.get(i);
-            if (!processedMiddle.add(middle)) continue;
-            
-            segmentIndex++;
-            if (segmentIndex < 8 || segmentIndex > segments.size() - 8) continue;
-            
             ChunkPos middleChunk = new ChunkPos(middle);
             if (!middleChunk.equals(currentChunk)) continue;
+
+            if (!processedMiddle.add(middle)) continue;
+
+            int segmentIndex = i;
+            if (segmentIndex < 8 || segmentIndex > segments.size() - 8) continue;
 
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
@@ -188,42 +213,23 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 continue;
             }
 
-            // 桥梁处理
+            // 桥梁处理 - 统一使用模板桥梁
             if (bridgeEnabled && isBridge[i]) {
-                var line = bridgeSegment.getLine(i);
-                int rampN = Math.max(0, cfg.bridgeRampSegments());
-                boolean inRamp = false;
-                if (rampN > 0 && bridgeRanges != null && !bridgeRanges.isEmpty()) {
-                    for (int[] r : bridgeRanges) {
-                        if (i >= r[0] && i <= r[1]) {
-                            int dStart = i - r[0];
-                            int dEnd = r[1] - i;
-                            if (dStart < rampN || dEnd < rampN) {
-                                inRamp = true;
-                            }
-                            break;
-                        }
-                    }
+                var lineInfo = bridgeSegment.getLineInfo(i);
+                if (lineInfo != null && lineInfo.line.getTotalLength() > 3) {
+                    // 使用道路指纹 + 桥梁区间索引生成稳定的桥梁ID
+                    long bridgeId = BridgeContextCache.generateBridgeId(roadFingerprint, lineInfo.rangeIndex);
+                    
+                    // 使用预计算的桥梁高度（确保与道路对齐）
+                    int bridgeDeckY = bridgeDeckYCache.getOrDefault(i, deckY);
+                    
+                    // 使用模板桥梁规划器（通过缓存确保跨区块一致性）
+                    BridgeSegmentPlannerNew.processWithContext(
+                            world, server, currentChunk, bridgeId, lineInfo.line, bridgeDeckY);
+                    
+                    // 缓存桥梁高度
+                    RoadHeightCache.cachePlacedHeight(server, middle.getX(), middle.getZ(), bridgeDeckY);
                 }
-                // 若桥曲线长度小于5，则沿用简单桥生成方法
-                if (inRamp || line == null || line.getTotalLength() <= 5) {
-                    BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, 
-                            roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, 
-                            bridgeRanges, baseYArr, i, bridgeCtx);
-                } else {
-                    // 尝试使用模板桥梁规划器
-                    boolean success = BridgeSegmentPlannerNew.processSegment(world, line, seg, middle, prev, deckY);
-                    if (!success) {
-                        // 模板不可用，回退到简单桥梁生成器
-                        BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, 
-                                roadWidth, baseYForThis, deckY, segmentIndex, random, cfg, 
-                                bridgeRanges, baseYArr, i, bridgeCtx);
-                    }
-                }
-                
-                // 缓存桥梁高度（用于跨区块衔接）
-                int bridgeHeight = bridgeCtx.lastBridgeDeckY != null ? bridgeCtx.lastBridgeDeckY : deckY;
-                RoadHeightCache.cachePlacedHeight(server, middle.getX(), middle.getZ(), bridgeHeight);
             } else {
                 // 普通道路处理
                 if (roadFillEnabled) {
@@ -262,47 +268,60 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
     }
 
-    /** 桥梁段映射，用于获取桥梁曲线 */
+    /** 桥梁线信息 */
+    public static class BridgeLineInfo {
+        public final Line line;
+        public final int rangeIndex;
+        public final int startSegmentIdx;
+        public final int endSegmentIdx;
+        
+        public BridgeLineInfo(Line line, int rangeIndex, int startIdx, int endIdx) {
+            this.line = line;
+            this.rangeIndex = rangeIndex;
+            this.startSegmentIdx = startIdx;
+            this.endSegmentIdx = endIdx;
+        }
+    }
+
+    /** 桥梁段映射，用于获取桥梁曲线和区间索引 */
     public static class BridgeSegment {
-        public final Map<Set<Integer>, Line> bridgeLines = new HashMap<>();
+        private final Map<Integer, BridgeLineInfo> segmentToLineInfo = new HashMap<>();
 
-        public BridgeSegment(boolean[] isBridge, List<Records.RoadSegmentPlacement> segments) {
-            List<List<Vec3>> list1 = new ArrayList<>();
-            List<Set<Integer>> list2 = new ArrayList<>();
-            list1.add(new ArrayList<>());
-            list2.add(new HashSet<>());
-            
-            for (int i = 0; i < segments.size(); i++) {
-                if (isBridge[i]) {
-                    list1.get(list1.size() - 1).add(segments.get(i).middlePos().getCenter());
-                    list2.get(list2.size() - 1).add(i);
-                } else {
-                    if (!list1.get(list1.size() - 1).isEmpty()) {
-                        list1.add(new ArrayList<>());
-                        list2.add(new HashSet<>());
-                    }
+        public BridgeSegment(boolean[] isBridge, List<Records.RoadSegmentPlacement> segments, 
+                           List<int[]> bridgeRanges) {
+            // 使用 bridgeRanges 来确定桥梁区间，确保跨区块一致性
+            for (int rangeIdx = 0; rangeIdx < bridgeRanges.size(); rangeIdx++) {
+                int[] range = bridgeRanges.get(rangeIdx);
+                int startIdx = range[0];
+                int endIdx = range[1];
+                
+                if (startIdx >= segments.size() || endIdx >= segments.size()) continue;
+                if (startIdx > endIdx) continue;
+                
+                // 使用区间的起点和终点坐标构建 Line
+                BlockPos startPos = segments.get(startIdx).middlePos();
+                BlockPos endPos = segments.get(endIdx).middlePos();
+                
+                Vec3 start = new Vec3(startPos.getX(), 0, startPos.getZ());
+                Vec3 end = new Vec3(endPos.getX(), 0, endPos.getZ());
+                Line line = new Line(start, end);
+                
+                BridgeLineInfo info = new BridgeLineInfo(line, rangeIdx, startIdx, endIdx);
+                
+                // 将区间内所有段映射到同一个 LineInfo
+                for (int i = startIdx; i <= endIdx; i++) {
+                    segmentToLineInfo.put(i, info);
                 }
-            }
-            if (list1.get(list1.size() - 1).isEmpty()) {
-                list1.remove(list1.size() - 1);
-                list2.remove(list2.size() - 1);
-            }
-
-            for (int i = 0; i < list1.size(); i++) {
-                List<Vec3> seg = list1.get(i);
-                if (seg.size() < 2) continue;
-                var line = new Line(seg.get(0), seg.get(seg.size() - 1));
-                bridgeLines.put(list2.get(i), line);
             }
         }
 
+        public BridgeLineInfo getLineInfo(int index) {
+            return segmentToLineInfo.get(index);
+        }
+        
         public Line getLine(int index) {
-            for (Map.Entry<Set<Integer>, Line> entry : bridgeLines.entrySet()) {
-                if (entry.getKey().contains(index)) {
-                    return entry.getValue();
-                }
-            }
-            return null;
+            BridgeLineInfo info = segmentToLineInfo.get(index);
+            return info != null ? info.line : null;
         }
     }
 }

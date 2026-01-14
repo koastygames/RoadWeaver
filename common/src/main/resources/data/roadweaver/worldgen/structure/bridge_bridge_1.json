@@ -4,7 +4,7 @@
   "biomes": "#minecraft:is_overworld",
   "step": "surface_structures",
   "spawn_overrides": {},
-  "height_offset": 1,
-  "bridge_deck_start": 6,
-  "bridge_deck_end": 12
+  "height_offset": 0,
+  "bridge_deck_start": 5,
+  "bridge_deck_end": 11
 }
