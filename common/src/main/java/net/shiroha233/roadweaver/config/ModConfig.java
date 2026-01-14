@@ -95,6 +95,20 @@ public final class ModConfig {
     private int tunnelClearHeight;
     private boolean preventTreesOnRoad; // 阻止树木在道路上生成
 
+    // 桥梁配置
+    private boolean bridgeEnabled;
+    private int bridgeDeckClearance;
+    private int bridgeMaxLengthBlocks; // 超过该长度的水域跨度将跳过（0=不限制）
+    private boolean bridgeUseBuoysInstead; // 用浮标代替桥梁
+    private boolean bridgeUseBuoysWhenSkipped; // 当桥梁因超长跳过时，用浮标代替
+    private int bridgePierInterval;
+    private int bridgePierWidth;
+    private int bridgePierMaxHeight;
+    private boolean bridgeKeepLamps;
+    private int bridgeRampSegments;
+    private int bridgeMinLength; // 最小桥梁长度（段数），太短的桥跳过
+    private int bridgeMergeGap; // 桥梁区间合并间隔，间隔小于此值的区间合并
+
     // 路边结构配置
     private boolean roadsideStructuresEnabled;
     private int maxStructuresPerRoad; // 每条道路最多放置的结构数
@@ -198,6 +212,20 @@ public final class ModConfig {
         this.tunnelEnabled = false;
         this.tunnelClearHeight = 5;
         this.preventTreesOnRoad = true; // 默认开启
+
+        // 桥梁默认值
+        this.bridgeEnabled = true;
+        this.bridgeDeckClearance = 2;
+        this.bridgeMaxLengthBlocks = 100;
+        this.bridgeUseBuoysInstead = false;
+        this.bridgeUseBuoysWhenSkipped = false;
+        this.bridgePierInterval = 6;
+        this.bridgePierWidth = 1;
+        this.bridgePierMaxHeight = 20;
+        this.bridgeKeepLamps = true;
+        this.bridgeRampSegments = 4;
+        this.bridgeMinLength = 5; // 桥至少5段才建，避免小水坑
+        this.bridgeMergeGap = 8; // 间隔小于8段的桥梁区间合并
 
         // 维度覆盖默认值
         this.dimensionRoadSettings = new HashMap<>();
@@ -431,6 +459,40 @@ public final class ModConfig {
             tunnelClearHeight = 2;
         if (tunnelClearHeight > 16)
             tunnelClearHeight = 16;
+
+        // 桥梁字段校验
+        if (bridgeDeckClearance < 1)
+            bridgeDeckClearance = 1;
+        if (bridgeDeckClearance > 8)
+            bridgeDeckClearance = 8;
+        if (bridgeMaxLengthBlocks < 0)
+            bridgeMaxLengthBlocks = 0;
+        if (bridgeMaxLengthBlocks > 10000)
+            bridgeMaxLengthBlocks = 10000;
+        if (bridgePierInterval < 3)
+            bridgePierInterval = 3;
+        if (bridgePierInterval > 32)
+            bridgePierInterval = 32;
+        if (bridgePierWidth < 1)
+            bridgePierWidth = 1;
+        if (bridgePierWidth > 3)
+            bridgePierWidth = 3;
+        if (bridgePierMaxHeight < 6)
+            bridgePierMaxHeight = 6;
+        if (bridgePierMaxHeight > 64)
+            bridgePierMaxHeight = 64;
+        if (bridgeRampSegments < 0)
+            bridgeRampSegments = 0;
+        if (bridgeRampSegments > 12)
+            bridgeRampSegments = 12;
+        if (bridgeMinLength < 1)
+            bridgeMinLength = 1;
+        if (bridgeMinLength > 100)
+            bridgeMinLength = 100;
+        if (bridgeMergeGap < 1)
+            bridgeMergeGap = 1;
+        if (bridgeMergeGap > 50)
+            bridgeMergeGap = 50;
 
         // 浮标字段校验
         if (buoyIntervalBlocks < 4)
@@ -876,6 +938,103 @@ public final class ModConfig {
         this.preventTreesOnRoad = v;
     }
 
+    // 桥梁配置存取
+    public boolean bridgeEnabled() {
+        return bridgeEnabled;
+    }
+
+    public void setBridgeEnabled(boolean v) {
+        this.bridgeEnabled = v;
+    }
+
+    public int bridgeDeckClearance() {
+        return bridgeDeckClearance;
+    }
+
+    public void setBridgeDeckClearance(int v) {
+        this.bridgeDeckClearance = v;
+    }
+
+    public int bridgeMaxLengthBlocks() {
+        return bridgeMaxLengthBlocks;
+    }
+
+    public void setBridgeMaxLengthBlocks(int v) {
+        this.bridgeMaxLengthBlocks = v;
+    }
+
+    public boolean bridgeUseBuoysInstead() {
+        return bridgeUseBuoysInstead;
+    }
+
+    public void setBridgeUseBuoysInstead(boolean v) {
+        this.bridgeUseBuoysInstead = v;
+    }
+
+    public boolean bridgeUseBuoysWhenSkipped() {
+        return bridgeUseBuoysWhenSkipped;
+    }
+
+    public void setBridgeUseBuoysWhenSkipped(boolean v) {
+        this.bridgeUseBuoysWhenSkipped = v;
+    }
+
+    public int bridgePierInterval() {
+        return bridgePierInterval;
+    }
+
+    public void setBridgePierInterval(int v) {
+        this.bridgePierInterval = v;
+    }
+
+    public int bridgePierWidth() {
+        return bridgePierWidth;
+    }
+
+    public void setBridgePierWidth(int v) {
+        this.bridgePierWidth = v;
+    }
+
+    public int bridgePierMaxHeight() {
+        return bridgePierMaxHeight;
+    }
+
+    public void setBridgePierMaxHeight(int v) {
+        this.bridgePierMaxHeight = v;
+    }
+
+    public boolean bridgeKeepLamps() {
+        return bridgeKeepLamps;
+    }
+
+    public void setBridgeKeepLamps(boolean v) {
+        this.bridgeKeepLamps = v;
+    }
+
+    public int bridgeRampSegments() {
+        return bridgeRampSegments;
+    }
+
+    public void setBridgeRampSegments(int v) {
+        this.bridgeRampSegments = v;
+    }
+
+    public int bridgeMinLength() {
+        return bridgeMinLength;
+    }
+
+    public void setBridgeMinLength(int v) {
+        this.bridgeMinLength = v;
+    }
+
+    public int bridgeMergeGap() {
+        return bridgeMergeGap;
+    }
+
+    public void setBridgeMergeGap(int v) {
+        this.bridgeMergeGap = v;
+    }
+
     // 浮标配置存取
     public int buoyIntervalBlocks() {
         return buoyIntervalBlocks;
@@ -1099,6 +1258,11 @@ public final class ModConfig {
     public boolean roadsEnabledForDimension(String dimensionId) {
         DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
         return chooseBool(s == null ? null : s.roadsEnabled(), roadsEnabled());
+    }
+
+    public boolean bridgeEnabledForDimension(String dimensionId) {
+        DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
+        return chooseBool(s == null ? null : s.bridgeEnabled(), bridgeEnabled());
     }
 
     public PathfindingAlgorithm pathfindingAlgorithmForDimension(String dimensionId) {

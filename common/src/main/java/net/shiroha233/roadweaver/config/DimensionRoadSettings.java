@@ -10,6 +10,7 @@ package net.shiroha233.roadweaver.config;
 public final class DimensionRoadSettings {
 
     private Boolean roadsEnabled;
+    private Boolean bridgeEnabled;
     private ModConfig.PathfindingAlgorithm pathfindingAlgorithm;
     private Boolean roadFillEnabled;
     private Boolean slopeLimitEnabled;
@@ -27,6 +28,14 @@ public final class DimensionRoadSettings {
 
     public void setRoadsEnabled(Boolean v) {
         this.roadsEnabled = v;
+    }
+
+    public Boolean bridgeEnabled() {
+        return bridgeEnabled;
+    }
+
+    public void setBridgeEnabled(Boolean v) {
+        this.bridgeEnabled = v;
     }
 
     public ModConfig.PathfindingAlgorithm pathfindingAlgorithm() {
@@ -88,6 +97,7 @@ public final class DimensionRoadSettings {
     public DimensionRoadSettings copy() {
         DimensionRoadSettings out = new DimensionRoadSettings();
         out.roadsEnabled = this.roadsEnabled;
+        out.bridgeEnabled = this.bridgeEnabled;
         out.pathfindingAlgorithm = this.pathfindingAlgorithm;
         out.roadFillEnabled = this.roadFillEnabled;
         out.slopeLimitEnabled = this.slopeLimitEnabled;
@@ -100,6 +110,7 @@ public final class DimensionRoadSettings {
 
     public boolean isAllInherit() {
         return roadsEnabled == null
+                && bridgeEnabled == null
                 && pathfindingAlgorithm == null
                 && roadFillEnabled == null
                 && slopeLimitEnabled == null
