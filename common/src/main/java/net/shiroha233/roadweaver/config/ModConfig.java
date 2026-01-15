@@ -226,7 +226,7 @@ public final class ModConfig {
         this.bridgePierMaxHeight = 20;
         this.bridgeKeepLamps = true;
         this.bridgeRampSegments = 4;
-        this.bridgeMinWaterDepth = 2; // 水深至少2格才建桥
+        this.bridgeMinWaterDepth = 1; // 水深至少1格才建桥
         this.bridgeMinLength = 5; // 桥至少5段才建，避免小水坑
         this.bridgeMergeGap = 8; // 间隔小于8段的桥梁区间合并
 

@@ -112,9 +112,8 @@ public final class Road {
             RoadShardStorage.addRoad(level, rd);
             
             // 寻路完成后，预计算路边结构位置
-            // 如果区块还没生成，结构会在 STRUCTURE_STARTS 阶段注入，Beardifier 会自动处理地形
-            // 如果区块已经生成，则在 Feature 阶段通过 RoadsideStructurePlacer 放置（无地形适应）
-            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random);
+            // 传入 targetY 确保路边结构使用与道路一致的平滑后高度
+            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
         } finally {
             // 单条道路生成结束后清空噪声采样缓存，避免长时间占用内存
             cache.clear();
