@@ -78,6 +78,8 @@ public class GenericVegetationFeatureMixin {
                name.contains("chorus") ||
                name.contains("nbt") ||           // NBT 结构树
                name.contains("structure") ||     // 结构树
-               name.contains("fromstructure");   // TYG 的 TreeFromStructure
+               name.contains("fromstructure") || // TYG 的 TreeFromStructure
+               name.contains("template") ||      // RTF 的 TemplateFeature
+               name.contains("bush");            // RTF 的 BushFeature
     }
 }

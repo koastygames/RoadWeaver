@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.StateHolder;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -231,19 +232,46 @@ public final class BridgeTemplateStructureRegistry {
      * @return 选中的结构，如果没有符合条件的返回 null
      */
     public static BridgeTemplate choose(ServerLevel level, int seed) {
-        List<BridgeTemplate> all = getAll(level);
+        return choose(level, seed, null);
+    }
 
-        // 空列表保护：如果没有找到任何桥梁模板，返回 null
+    /**
+     * 根据群系选择桥模板结构（用于按群系区分桥梁样式）
+     */
+    public static BridgeTemplate choose(ServerLevel level, int seed, Holder<Biome> biome) {
+        List<BridgeTemplate> all = getAll(level);
         if (all == null || all.isEmpty()) {
             return null;
         }
 
+        List<BridgeTemplate> candidates = filterByBiome(all, biome);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        return chooseFromList(candidates, seed);
+    }
+
+    private static List<BridgeTemplate> filterByBiome(List<BridgeTemplate> all, Holder<Biome> biome) {
+        if (biome == null) {
+            return all;
+        }
+        List<BridgeTemplate> result = new ArrayList<>();
+        for (BridgeTemplate template : all) {
+            if (template.structure.biomes().contains(biome)) {
+                result.add(template);
+            }
+        }
+        return result;
+    }
+
+    private static BridgeTemplate chooseFromList(List<BridgeTemplate> candidates, int seed) {
         Random random = new Random(seed * 10000L + 2025 + 1225);
-        int randomIndex = random.nextInt(all.size());
+        int randomIndex = random.nextInt(candidates.size());
 
-        all.sort(Comparator.comparingInt(o -> o.id.getPath().hashCode()));
+        candidates.sort(Comparator.comparingInt(o -> o.id.getPath().hashCode()));
 
-        return all.get(randomIndex);
+        return candidates.get(randomIndex);
     }
 
     /**

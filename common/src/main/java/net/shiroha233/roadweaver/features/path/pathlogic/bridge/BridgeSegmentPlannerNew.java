@@ -2,10 +2,12 @@ package net.shiroha233.roadweaver.features.path.pathlogic.bridge;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Holder;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.phys.Vec3;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
@@ -29,8 +31,9 @@ public final class BridgeSegmentPlannerNew {
             BlockPos prev) {
         double bridgeLength = line.getTotalLength();
 
-        // 随机选择一个桥模板
-        var bridge = BridgeTemplateStructureRegistry.choose(world.getLevel(), (int) bridgeLength);
+        // 随机选择一个桥模板（按当前群系过滤）
+        Holder<Biome> biome = world.getBiome(middle);
+        var bridge = BridgeTemplateStructureRegistry.choose(world.getLevel(), (int) bridgeLength, biome);
 
         // 模板不可用时返回 false，由调用方回退到 BridgeSegmentPlanner
         if (bridge == null) {
