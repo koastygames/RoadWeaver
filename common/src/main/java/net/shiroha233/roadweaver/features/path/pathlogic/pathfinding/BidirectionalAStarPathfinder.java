@@ -222,7 +222,9 @@ final class BidirectionalAStarPathfinder {
         }
 
         // 3. 交给 PathPostProcessor 做样条平滑和宽度填充
-        return PathPostProcessor.process(rawPath, width, level, cache, cfg.bridgeMinWaterDepth());
+        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        rawPath = accurate.samplePathHeights(rawPath);
+        return PathPostProcessor.process(rawPath, width, level, cache, cfg.bridgeMinWaterDepth(), accurate);
     }
 
     private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {

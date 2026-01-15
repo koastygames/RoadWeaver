@@ -10,7 +10,6 @@ import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegi
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacyShardMigration;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacySqliteMigration;
-import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadHeightCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +26,6 @@ import org.slf4j.LoggerFactory;
  * 4. RoadsideStructureRegistry - 路边结构注册表缓存
  * 5. RoadPlanningService - 规划状态缓存
  * 6. ChunkGenTracker - 区块生成阶段追踪（轻量级）
- * 7. RoadHeightCache - 道路高度缓存（跨区块衔接）
  * 
  * 重要优化：树木阻拦只在区块生成阶段（WorldGenRegion）生效，
  * 生成完成后玩家种植的树木不受影响。
@@ -72,7 +70,6 @@ public final class CacheManager {
         RoadSpatialIndex.clearAllCache();
         RoadPlanningService.resetAll();
         ChunkGenTracker.clearAll();
-        RoadHeightCache.clearAll();  // 清理道路高度缓存
         
         // 3. 重置迁移状态（确保下次启动可以正常检查）
         LegacyShardMigration.reset();
@@ -98,7 +95,6 @@ public final class CacheManager {
         PendingStructureStorage.clearDimension(level.dimension().location());
         RoadsideStructureRegistry.clearCache(level.dimension());
         BridgeTemplateStructureRegistry.clearCache(level.dimension());
-        RoadHeightCache.clearDimension(level);  // 清理道路高度缓存
         
         LOGGER.debug("CacheManager: 维度 {} 的缓存已清理", level.dimension().location());
     }

@@ -9,14 +9,10 @@ import net.shiroha233.roadweaver.helpers.Records;
 
 import java.util.List;
 
-/**
- * 桥梁段规划器
- * 处理桥梁坡道、高度限制，调用 BridgeBuilder 放置桥梁
- */
 public final class BridgeSegmentPlanner {
-    private BridgeSegmentPlanner() {}
+    private BridgeSegmentPlanner() {
+    }
 
-    /** 桥梁生成上下文，跟踪桥梁区间状态 */
     public static final class Context {
         public boolean insideBridgeRange = false;
         public int currentRangeEnd = -1;
@@ -27,13 +23,12 @@ public final class BridgeSegmentPlanner {
         return new Context();
     }
 
-    /** 限制桥面高度变化 */
     private static int clampDeckY(int candidateDeckY,
-                                  Integer lastDeckY,
-                                  int deckY,
-                                  ModConfig cfg,
-                                  boolean inRamp,
-                                  boolean approachDeck) {
+            Integer lastDeckY,
+            int deckY,
+            ModConfig cfg,
+            boolean inRamp,
+            boolean approachDeck) {
         int segDeckY = candidateDeckY;
         if (lastDeckY != null) {
             int stepDeck = Math.max(0, Math.min(8, cfg.maxSlopeStepPerTwoSegments()));
@@ -61,24 +56,21 @@ public final class BridgeSegmentPlanner {
         return segDeckY;
     }
 
-    /**
-     * 处理单个桥梁段
-     */
     public static void processSegment(WorldGenLevel world,
-                                      Records.RoadSegmentPlacement seg,
-                                      BlockPos middle,
-                                      BlockPos prev,
-                                      BlockPos next,
-                                      int roadWidth,
-                                      int baseYForThis,
-                                      int deckY,
-                                      int segmentIndex,
-                                      RandomSource random,
-                                      ModConfig cfg,
-                                      List<int[]> bridgeRanges,
-                                      int[] baseYArr,
-                                      int i,
-                                      Context ctx) {
+            Records.RoadSegmentPlacement seg,
+            BlockPos middle,
+            BlockPos prev,
+            BlockPos next,
+            int roadWidth,
+            int baseYForThis,
+            int deckY,
+            int segmentIndex,
+            RandomSource random,
+            ModConfig cfg,
+            List<int[]> bridgeRanges,
+            int[] baseYArr,
+            int i,
+            Context ctx) {
         int segDeckY = deckY;
         boolean placePier = true;
         boolean placeRail = true;
@@ -112,7 +104,9 @@ public final class BridgeSegmentPlanner {
                         f = Math.max(0.0, Math.min(1.0, f));
                         int rampBaseY = baseYForThis;
                         if (baseYArr != null && baseYArr.length > 0) {
-                            // 坡道起点取桥梁区间外的点，确保与普通道路高度对接
+                            // 修复：坡道起点应该取桥梁区间外的点，确保与普通道路高度对接
+                            // r[0]-1 是桥梁入口前的最后一个普通路段
+                            // r[1]+1 是桥梁出口后的第一个普通路段
                             if (dStart < rampN) {
                                 int idx = Math.max(0, r[0] - 1);
                                 idx = Math.min(baseYArr.length - 1, idx);
@@ -133,7 +127,6 @@ public final class BridgeSegmentPlanner {
             }
         }
 
-        // 桥梁端点不放栏杆
         if (placeRail && !bridgeRanges.isEmpty()) {
             for (int[] r : bridgeRanges) {
                 if (i == r[0] || i == r[1]) {
@@ -146,14 +139,13 @@ public final class BridgeSegmentPlanner {
         segDeckY = clampDeckY(segDeckY, ctx.lastBridgeDeckY, deckY, cfg, inRamp, approachDeck);
         ctx.lastBridgeDeckY = segDeckY;
 
-        // 离开区间重置
         if (ctx.insideBridgeRange && i >= ctx.currentRangeEnd) {
             ctx.insideBridgeRange = false;
             ctx.currentRangeEnd = -1;
             ctx.lastBridgeDeckY = null;
         }
 
-        BridgeBuilder.placeSegment(world, seg, middle, prev, next, roadWidth, segDeckY, 
-                segmentIndex, random, cfg, placePier, placeRail);
+        BridgeBuilder.placeSegment(world, seg, middle, prev, next, roadWidth, segDeckY, segmentIndex, random, cfg,
+                placePier, placeRail);
     }
 }

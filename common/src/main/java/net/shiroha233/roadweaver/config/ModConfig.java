@@ -101,11 +101,13 @@ public final class ModConfig {
     private int bridgeMaxLengthBlocks; // 超过该长度的水域跨度将跳过（0=不限制）
     private boolean bridgeUseBuoysInstead; // 用浮标代替桥梁
     private boolean bridgeUseBuoysWhenSkipped; // 当桥梁因超长跳过时，用浮标代替
+    private int buoyIntervalBlocks; // 浮标间隔（方块）
     private int bridgePierInterval;
     private int bridgePierWidth;
     private int bridgePierMaxHeight;
     private boolean bridgeKeepLamps;
     private int bridgeRampSegments;
+    private int bridgeMinWaterDepth; // 最小水深，低于此值不建桥
     private int bridgeMinLength; // 最小桥梁长度（段数），太短的桥跳过
     private int bridgeMergeGap; // 桥梁区间合并间隔，间隔小于此值的区间合并
 
@@ -115,10 +117,6 @@ public final class ModConfig {
     private int smallStructureOffset; // 小型结构距道路中心的距离
     private int mediumStructureOffset; // 中型结构距道路中心的距离
     private int largeStructureOffset; // 大型结构距道路中心的距离
-
-    // 浮标配置
-    private int buoyIntervalBlocks; // 浮标间隔（方块）
-    private int minWaterDepth; // 水域检测最小深度（用于寻路避水和浮标放置）
 
     // 结构距离控制
     private int villageRoadOffset; // 村庄类结构的道路缩进距离（方块）
@@ -213,26 +211,24 @@ public final class ModConfig {
         this.tunnelClearHeight = 5;
         this.preventTreesOnRoad = true; // 默认开启
 
+        // 维度覆盖默认值
+        this.dimensionRoadSettings = new HashMap<>();
+
         // 桥梁默认值
         this.bridgeEnabled = true;
         this.bridgeDeckClearance = 2;
         this.bridgeMaxLengthBlocks = 100;
         this.bridgeUseBuoysInstead = false;
         this.bridgeUseBuoysWhenSkipped = false;
+        this.buoyIntervalBlocks = 32;
         this.bridgePierInterval = 6;
         this.bridgePierWidth = 1;
         this.bridgePierMaxHeight = 20;
         this.bridgeKeepLamps = true;
         this.bridgeRampSegments = 4;
+        this.bridgeMinWaterDepth = 2; // 水深至少2格才建桥
         this.bridgeMinLength = 5; // 桥至少5段才建，避免小水坑
         this.bridgeMergeGap = 8; // 间隔小于8段的桥梁区间合并
-
-        // 维度覆盖默认值
-        this.dimensionRoadSettings = new HashMap<>();
-
-        // 浮标默认值
-        this.buoyIntervalBlocks = 32;
-        this.minWaterDepth = 2;
 
         // 路边结构默认值
         this.roadsideStructuresEnabled = true;
@@ -469,6 +465,10 @@ public final class ModConfig {
             bridgeMaxLengthBlocks = 0;
         if (bridgeMaxLengthBlocks > 10000)
             bridgeMaxLengthBlocks = 10000;
+        if (buoyIntervalBlocks < 4)
+            buoyIntervalBlocks = 4;
+        if (buoyIntervalBlocks > 256)
+            buoyIntervalBlocks = 256;
         if (bridgePierInterval < 3)
             bridgePierInterval = 3;
         if (bridgePierInterval > 32)
@@ -485,20 +485,6 @@ public final class ModConfig {
             bridgeRampSegments = 0;
         if (bridgeRampSegments > 12)
             bridgeRampSegments = 12;
-        if (bridgeMinLength < 1)
-            bridgeMinLength = 1;
-        if (bridgeMinLength > 100)
-            bridgeMinLength = 100;
-        if (bridgeMergeGap < 1)
-            bridgeMergeGap = 1;
-        if (bridgeMergeGap > 50)
-            bridgeMergeGap = 50;
-
-        // 浮标字段校验
-        if (buoyIntervalBlocks < 4)
-            buoyIntervalBlocks = 4;
-        if (buoyIntervalBlocks > 256)
-            buoyIntervalBlocks = 256;
 
         // A* 寻路成本权重校验
         if (orthoStepCost < 0)
@@ -979,6 +965,14 @@ public final class ModConfig {
         this.bridgeUseBuoysWhenSkipped = v;
     }
 
+    public int buoyIntervalBlocks() {
+        return buoyIntervalBlocks;
+    }
+
+    public void setBuoyIntervalBlocks(int v) {
+        this.buoyIntervalBlocks = v;
+    }
+
     public int bridgePierInterval() {
         return bridgePierInterval;
     }
@@ -1019,6 +1013,14 @@ public final class ModConfig {
         this.bridgeRampSegments = v;
     }
 
+    public int bridgeMinWaterDepth() {
+        return bridgeMinWaterDepth;
+    }
+
+    public void setBridgeMinWaterDepth(int v) {
+        this.bridgeMinWaterDepth = v;
+    }
+
     public int bridgeMinLength() {
         return bridgeMinLength;
     }
@@ -1033,24 +1035,6 @@ public final class ModConfig {
 
     public void setBridgeMergeGap(int v) {
         this.bridgeMergeGap = v;
-    }
-
-    // 浮标配置存取
-    public int buoyIntervalBlocks() {
-        return buoyIntervalBlocks;
-    }
-
-    public void setBuoyIntervalBlocks(int v) {
-        this.buoyIntervalBlocks = v;
-    }
-
-    // 水域检测最小深度（用于寻路避水）
-    public int bridgeMinWaterDepth() {
-        return Math.max(1, minWaterDepth);
-    }
-
-    public void setBridgeMinWaterDepth(int v) {
-        this.minWaterDepth = v;
     }
 
     // A* 寻路成本权重

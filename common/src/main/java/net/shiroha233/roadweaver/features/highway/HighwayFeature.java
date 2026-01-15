@@ -104,8 +104,7 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
         int[] arr = new int[centers.size()];
         for (int i = 0; i < centers.size(); i++) {
             BlockPos c = centers.get(i);
-            // 使用 OCEAN_FLOOR_WG 获取真实地形高度（忽略植被，避免树木导致道路突起）
-            arr[i] = world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, c.getX(), c.getZ());
+            arr[i] = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, c.getX(), c.getZ());
         }
         return arr;
     }

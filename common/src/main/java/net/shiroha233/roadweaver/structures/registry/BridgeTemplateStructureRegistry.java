@@ -217,61 +217,33 @@ public final class BridgeTemplateStructureRegistry {
     }
 
     /**
-     * 根据条件选择一个桥模板结构（旧方法，保留兼容）
+     * 根据条件选择一个桥模板结构
+     * 
+     * @param level 服务端世界
+     * @param seed  随机种子
+     * @return 选中的结构，如果没有符合条件的返回 null
+     */
+    /**
+     * 根据条件选择一个桥模板结构
      * 
      * @param level 服务端世界
      * @param seed  随机种子
      * @return 选中的结构，如果没有符合条件的返回 null
      */
     public static BridgeTemplate choose(ServerLevel level, int seed) {
-        return chooseByBridgeId(level, seed, 0);
-    }
-    
-    /**
-     * 根据桥梁ID选择模板 - 确保同一座桥梁始终使用相同模板
-     * 
-     * @param level 服务端世界
-     * @param bridgeId 桥梁唯一ID（基于起点坐标生成）
-     * @param bridgeLength 桥梁长度（用于筛选合适的模板）
-     * @return 选中的结构，如果没有符合条件的返回 null
-     */
-    public static BridgeTemplate chooseByBridgeId(ServerLevel level, long bridgeId, int bridgeLength) {
         List<BridgeTemplate> all = getAll(level);
 
+        // 空列表保护：如果没有找到任何桥梁模板，返回 null
         if (all == null || all.isEmpty()) {
             return null;
         }
 
-        // 先按ID排序确保顺序稳定
-        List<BridgeTemplate> sorted = new ArrayList<>(all);
-        sorted.sort(Comparator.comparing(o -> o.id.toString()));
-        
-        // 使用桥梁ID作为种子，确保同一座桥梁始终选择相同模板
-        Random random = new Random(bridgeId);
-        int randomIndex = random.nextInt(sorted.size());
+        Random random = new Random(seed * 10000L + 2025 + 1225);
+        int randomIndex = random.nextInt(all.size());
 
-        return sorted.get(randomIndex);
-    }
-    
-    /**
-     * 根据模板ID获取模板
-     * 
-     * @param level 服务端世界
-     * @param templateId 模板资源ID
-     * @return 模板，如果不存在返回 null
-     */
-    public static BridgeTemplate getById(ServerLevel level, ResourceLocation templateId) {
-        if (templateId == null) return null;
-        
-        List<BridgeTemplate> all = getAll(level);
-        if (all == null || all.isEmpty()) return null;
-        
-        for (BridgeTemplate template : all) {
-            if (template.getId().equals(templateId)) {
-                return template;
-            }
-        }
-        return null;
+        all.sort(Comparator.comparingInt(o -> o.id.getPath().hashCode()));
+
+        return all.get(randomIndex);
     }
 
     /**

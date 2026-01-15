@@ -7,6 +7,7 @@ import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.config.PathfindingConfig;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.AccurateHeightSampler;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.PathPostProcessor;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingCache;
 import net.shiroha233.roadweaver.helpers.Records;
@@ -217,13 +218,16 @@ public final class HighwayBidirectionalAStarPathfinder {
             cur = cur.parent;
         }
 
+        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        rawPath = accurate.samplePathHeights(rawPath);
         return PathPostProcessor.process(
                 rawPath,
                 width,
                 level,
                 cache,
                 cfg.pathfinding().bridgeMinWaterDepth(),
-                PathPostProcessor.CurveMode.BEZIER_CASTELJAU);
+                PathPostProcessor.CurveMode.BEZIER_CASTELJAU,
+                accurate);
     }
 
     private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {

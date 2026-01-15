@@ -34,6 +34,7 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains("DynamicTree")) {
             return isModLoaded("dynamictrees");
         }
+
         return true;
     }
 

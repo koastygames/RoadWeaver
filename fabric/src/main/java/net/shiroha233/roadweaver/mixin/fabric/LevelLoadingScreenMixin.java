@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.tips.LoadingTipsRenderer;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.AccurateSamplingStats;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -59,5 +60,14 @@ public abstract class LevelLoadingScreenMixin {
                 hitRate, String.format("%.0f", samplesPerSec), totalSamples);
         x = (sw - font.width(debug)) / 2;
         graphics.drawString(font, debug, x, y, 0x80C0FF, false);
+
+        y += 12;
+        int hitRateAcc = AccurateSamplingStats.getCacheHitRatePercent();
+        double samplesPerSecAcc = AccurateSamplingStats.updateAndGetSamplesPerSecond();
+        long totalSamplesAcc = AccurateSamplingStats.getTotalBaseHeightSamples();
+        Component debug2 = Component.translatable("gui.roadweaver.initgen.debug2",
+                hitRateAcc, String.format("%.0f", samplesPerSecAcc), totalSamplesAcc);
+        x = (sw - font.width(debug2)) / 2;
+        graphics.drawString(font, debug2, x, y, 0x80C0FF, false);
     }
 }

@@ -10,19 +10,14 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.path.decoration.system.AboveColumnClearer;
 import net.shiroha233.roadweaver.helpers.Records;
 
-/**
- * 桥梁构建器
- * 负责放置桥面和桥墩
- */
+
+
 public final class BridgeBuilder {
     private BridgeBuilder() {}
 
     private static final BlockState DECK = Blocks.STONE_BRICKS.defaultBlockState();
     private static final BlockState PIER = Blocks.STONE_BRICKS.defaultBlockState();
 
-    /**
-     * 放置单个桥梁段
-     */
     public static void placeSegment(WorldGenLevel world,
                                     Records.RoadSegmentPlacement seg,
                                     BlockPos middle,
@@ -36,27 +31,26 @@ public final class BridgeBuilder {
                                     boolean placePier,
                                     boolean placeRail) {
         
-        // 使用段落自身的 positions 放置桥面，确保与普通道路宽度一致
+        // 1) 直接使用段落自身的positions来放置桥面，确保与普通道路宽度完全一致
+        //    同时对桥面上方进行清障处理，防止冰刺/地形挡住桥面
         for (BlockPos widthPos : seg.positions()) {
             BlockPos deckPos = new BlockPos(widthPos.getX(), deckY, widthPos.getZ());
             world.setBlock(deckPos, DECK, 3);
-            // 清理桥面上方遮挡
+            // 注意：AboveColumnClearer 约定传入的是“路面上方一格”，否则会把路面本身清掉
             AboveColumnClearer.clearAboveColumn(world, deckPos.above(), cfg);
         }
 
-        // 桥墩（按段间隔）
+        // 2) 桥墩（按段间隔）
         if (placePier) {
             int interval = Math.max(3, cfg.bridgePierInterval());
             if (segmentIndex % interval == 0) {
-                placePierUnder(world, middle.getX(), middle.getZ(), deckY - 1, 
-                        cfg.bridgePierMaxHeight(), cfg.bridgePierWidth());
+                placePierUnder(world, middle.getX(), middle.getZ(), deckY - 1, cfg.bridgePierMaxHeight(), cfg.bridgePierWidth());
             }
         }
     }
 
-    /** 放置桥墩 */
-    private static void placePierUnder(WorldGenLevel world, int x, int z, int fromY, 
-                                       int maxHeight, int pierWidth) {
+
+    private static void placePierUnder(WorldGenLevel world, int x, int z, int fromY, int maxHeight, int pierWidth) {
         int minY = world.getMinBuildHeight();
         int half = Math.max(0, pierWidth - 1);
         for (int dx = -half; dx <= half; dx++) {
@@ -65,7 +59,7 @@ public final class BridgeBuilder {
                 int h = 0;
                 while (y >= minY && h < maxHeight) {
                     BlockPos cur = new BlockPos(x + dx, y, z + dz);
-                    // 遇到可承重方块停止
+                    // 若当前方块可承重，则停止在其上方，不再继续向下
                     if (world.getBlockState(cur).isFaceSturdy(world, cur, Direction.UP)) {
                         break;
                     }

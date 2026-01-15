@@ -104,9 +104,7 @@ public final class Road {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return;
             
-            // 桥梁检测已移至区块生成阶段（RealTimeBridgeDetector），寻路阶段不再预计算 spans
-            // 这样可以使用实际地形数据而非噪声预测，解决水域识别不准确的问题
-            List<Records.RoadSpan> spans = List.of();
+            List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.pathfinding());
 
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
@@ -160,7 +158,8 @@ public final class Road {
             int hi = Math.min(n - 1, i + avg);
             for (int j = lo; j <= hi; j++) {
                 BlockPos sp = centers.get(j);
-                int yTop = cache.height(level, sp.getX(), sp.getZ());
+                // 使用二次精采样后的中心点高度，避免 FastHeightSampler 的趋势高度误差影响 targetY。
+                int yTop = sp.getY();
                 sum += yTop; cnt++;
             }
             base[i] = cnt > 0 ? (int) Math.round(sum / (double) cnt) : centers.get(i).getY();

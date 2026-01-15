@@ -18,15 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 这是原版 preliminarySurfaceLevel 使用的同一个密度函数，
  * 精度足够用于道路寻路，但速度快 10-50 倍。
  * 
- * 坐标对齐：重要！
- * - 原版 preliminarySurfaceLevel 使用 QuartPos.toBlock(QuartPos.fromBlock()) 进行4格对齐
- * - 本类必须使用相同的坐标对齐方式，否则会产生1-3格的精度偏差
- * - 对齐方式：(x >> 2) << 2，将坐标对齐到4格边界
- * 
- * 限制：
- * - 不考虑水体、洞穴等细节（对道路寻路影响不大）
- * - 精度为 cellHeight（通常8格），而非逐格
- * - 坐标按4格对齐，与原版行为一致
+ * 坐标对齐：
+ * - 原版 preliminarySurfaceLevel 使用 QuartPos 进行4格对齐
+ * - 本类使用相同的坐标对齐方式，保证精度一致
  */
 public final class FastHeightSampler {
     
@@ -55,8 +49,6 @@ public final class FastHeightSampler {
         var chunkSource = level.getChunkSource();
         RandomState randomState = chunkSource.getGeneratorState().randomState();
         NoiseRouter router = randomState.router();
-        
-        // 获取 NoiseSettings
         NoiseSettings settings = getNoiseSettings(level);
         
         return new FastHeightSampler(router.initialDensityWithoutJaggedness(), settings);
@@ -64,7 +56,6 @@ public final class FastHeightSampler {
     
     /**
      * 快速采样高度
-     * 
      * @return 估算的地表高度，精度为 cellHeight
      */
     public int sampleHeight(int x, int z) {
@@ -75,19 +66,11 @@ public final class FastHeightSampler {
         long key = packXZ(alignedX, alignedZ);
         Integer cached = heightCache.get(key);
         if (cached != null) {
-            PerformanceMonitor.recordCacheHit();
             return cached;
         }
         
-        PerformanceMonitor.recordCacheMiss();
-        long startTime = System.nanoTime();
-        
         int height = computeHeight(alignedX, alignedZ);
         heightCache.put(key, height);
-        
-        long duration = System.nanoTime() - startTime;
-        PerformanceMonitor.recordSample(duration);
-        
         return height;
     }
     
@@ -97,7 +80,6 @@ public final class FastHeightSampler {
     public void prewarmRegion(int minX, int minZ, int maxX, int maxZ, int step) {
         for (int x = minX; x <= maxX; x += step) {
             for (int z = minZ; z <= maxZ; z += step) {
-                // 使用对齐坐标进行预热
                 int alignedX = (x >> 2) << 2;
                 int alignedZ = (z >> 2) << 2;
                 sampleHeight(alignedX, alignedZ);
@@ -127,12 +109,10 @@ public final class FastHeightSampler {
     
     /**
      * 获取 NoiseSettings
-     * 注意：需要根据实际的 ChunkGenerator 类型处理
      */
     private static NoiseSettings getNoiseSettings(ServerLevel level) {
         var generator = level.getChunkSource().getGenerator();
         
-        // NoiseBasedChunkGenerator 的情况
         if (generator instanceof net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator noiseGen) {
             return noiseGen.generatorSettings().value().noiseSettings();
         }

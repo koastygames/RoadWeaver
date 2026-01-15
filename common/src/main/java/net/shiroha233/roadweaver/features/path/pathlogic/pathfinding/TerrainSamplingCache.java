@@ -17,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 
  * 线程安全：
  * - 使用 ConcurrentHashMap 保证多线程访问安全
- * - FastHeightSampler 内部也使用 ConcurrentHashMap
  */
 public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Long, Boolean> waterCache = new ConcurrentHashMap<>();
@@ -36,11 +35,6 @@ public final class TerrainSamplingCache {
 
     /**
      * 获取地表高度 - 使用快速采样
-     * 
-     * 原理：直接使用 NoiseRouter.initialDensityWithoutJaggedness 进行采样，
-     * 避免每次调用 getBaseHeight() 都创建新的 NoiseChunk。
-     * 
-     * 精度：cellHeight（通常8格），对道路寻路足够
      */
     public int height(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
@@ -60,7 +54,6 @@ public final class TerrainSamplingCache {
             }
         }
         
-        // 使用快速采样获取高度
         int h = fastSampler.sampleHeight(x, z);
         heightCache.put(key, h);
         return h;
@@ -75,13 +68,9 @@ public final class TerrainSamplingCache {
         }
         TerrainSamplingStats.recordCacheMiss();
 
-        // 修正：使用 BiomeSource 进行噪声采样，不加载区块
-        // 注意：getNoiseBiome 需要夸脱坐标 (x >> 2, y >> 2, z >> 2)
         var chunkSource = level.getChunkSource();
         var randomState = chunkSource.getGeneratorState().randomState();
         var biomeSource = chunkSource.getGenerator().getBiomeSource();
-
-        // 采样 Y=64 处的生物群系（海平面附近）
         Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, 16, z >> 2, randomState.sampler());
 
         boolean res = biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN);
@@ -90,14 +79,7 @@ public final class TerrainSamplingCache {
     }
 
     /**
-     * 获取海底/河床高度
-     * 
-     * 注意：FastHeightSampler 使用 initialDensityWithoutJaggedness，
-     * 不区分 OCEAN_FLOOR 和 MOTION_BLOCKING，因此这里使用相同的采样结果。
-     * 
-     * 对于道路寻路，这个简化是可接受的：
-     * - 水深计算仍然准确（seaLevel - oceanFloor）
-     * - 桥梁检测仍然有效
+     * 获取海底/河床高度 - 使用快速采样
      */
     public int oceanFloor(ServerLevel level, int x, int z) {
         long key = hashXZ(x, z);
@@ -117,7 +99,8 @@ public final class TerrainSamplingCache {
             }
         }
         
-        // 使用快速采样（与 height() 相同的实现）
+        // FastHeightSampler 使用 initialDensityWithoutJaggedness，
+        // 不区分 OCEAN_FLOOR 和 MOTION_BLOCKING，对道路寻路足够
         int h = fastSampler.sampleHeight(x, z);
         oceanFloorCache.put(key, h);
         return h;
@@ -157,29 +140,18 @@ public final class TerrainSamplingCache {
         }
         TerrainSamplingStats.recordCacheMiss();
 
-        // 使用多种方式检测水体，解决以下问题：
-        // 1. 浅滩(beach)不在 IS_RIVER/IS_OCEAN 群系标签中，但实际有水
-        // 2. 群系边界处噪声采样可能判断失误，导致跨海不建桥
-
-        int of = oceanFloor(level, x, z);  // OCEAN_FLOOR_WG：海底/河床高度
-        int h = height(level, x, z);        // MOTION_BLOCKING_NO_LEAVES：表面高度
+        int of = oceanFloor(level, x, z);
+        int h = height(level, x, z);
         int sea = level.getSeaLevel();
 
-        // 方法1：群系判断（原有逻辑）
-        // 适用于标准的河流/海洋群系
+        // 方法1：群系判断
         boolean isWaterBiome = isWaterLike(level, x, z);
         boolean biomeWater = isWaterBiome && of < sea;
 
-        // 方法2：高度差判断（新增逻辑）
-        // 核心原理：如果表面高度接近海平面，但海底明显更低，说明中间是水
-        // - h <= sea + 1：表面在海平面或略高（水面通常在 seaLevel）
-        // - of < h - 1：海底比表面低至少2格，说明有水深
-        // 这样可以检测到：浅滩、沼泽边缘、甚至非标准群系中的水体
+        // 方法2：高度差判断
         boolean heightWater = (h <= sea + 1) && (of < h - 1);
 
-        // 任一方法检测到水体即可
         boolean res = biomeWater || heightWater;
-
         columnWaterCache.put(key, res);
         return res;
     }
@@ -200,6 +172,20 @@ public final class TerrainSamplingCache {
         return biome;
     }
 
+    /**
+     * 预热指定区域的高度缓存
+     */
+    public void prewarmRegion(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int step) {
+        if (fastSampler == null) {
+            synchronized (this) {
+                if (fastSampler == null) {
+                    fastSampler = FastHeightSampler.create(level);
+                }
+            }
+        }
+        fastSampler.prewarmRegion(minX, minZ, maxX, maxZ, step);
+    }
+
     public void clear() {
         waterCache.clear();
         nearWaterCache.clear();
@@ -208,29 +194,8 @@ public final class TerrainSamplingCache {
         oceanFloorCache.clear();
         biomeCache.clear();
         
-        // 清理 FastHeightSampler 的内部缓存
         if (fastSampler != null) {
             fastSampler.clearCache();
         }
-    }
-    
-    /**
-     * 预热指定区域的高度缓存
-     * 
-     * 用于在 A* 寻路前批量采样可能的搜索区域，
-     * 提高缓存命中率。
-     */
-    public void prewarmRegion(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int step) {
-        // 惰性初始化快速采样器（双重检查锁定）
-        if (fastSampler == null) {
-            synchronized (this) {
-                if (fastSampler == null) {
-                    fastSampler = FastHeightSampler.create(level);
-                }
-            }
-        }
-        
-        // 批量预热
-        fastSampler.prewarmRegion(minX, minZ, maxX, maxZ, step);
     }
 }

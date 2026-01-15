@@ -11,9 +11,6 @@ public class Line {
         this.end = end;
     }
 
-    public Vec3 start() { return start; }
-    public Vec3 end() { return end; }
-
     public static class Frame {
         public Vec3 closestPoint;  // 最近点
         public Vec3 tangent;  // 切线
