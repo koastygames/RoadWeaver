@@ -28,10 +28,10 @@ public final class RoadDatabaseManager {
 
     private static volatile boolean H2_DRIVER_LOADED = false;
 
-    // H2 驱动类名（支持重定位后的包名）
+    // H2 驱动类名（支持重定位后的包名，开发环境优先）
     private static final String[] H2_DRIVERS = {
-            "net.shiroha233.roadweaver.libs.h2.Driver", // 生产环境 (Relocated)
-            "org.h2.Driver" // 开发环境 (Original)
+            "org.h2.Driver", // 开发环境 (Original) - 优先尝试
+            "net.shiroha233.roadweaver.libs.h2.Driver" // 生产环境 (Relocated)
     };
 
     // 按维度存储的数据库连接

@@ -154,14 +154,18 @@ dependencies {
     include("me.shedaniel.cloth:cloth-config-forge:11.1.136")
 
     // H2 Database - 道路数据持久化（纯Java，无native依赖）
-    implementation("com.h2database:h2:2.2.224") { transitive = false }
+    // compileOnly: 编译时, forgeRuntimeLibrary: 开发运行时, shadowSqlite: 生产打包
+    compileOnly("com.h2database:h2:2.2.224") { transitive = false }
+    forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
     shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
 
     // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
-    implementation("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    compileOnly("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    forgeRuntimeLibrary("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
     shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
     // SQLJet 依赖 antlr-runtime
-    implementation("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+    compileOnly("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+    forgeRuntimeLibrary("org.antlr:antlr-runtime:3.5.3") { transitive = false }
     shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees

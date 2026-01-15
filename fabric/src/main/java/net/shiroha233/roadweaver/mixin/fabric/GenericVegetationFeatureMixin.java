@@ -2,10 +2,13 @@ package net.shiroha233.roadweaver.mixin.fabric;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,21 +18,27 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 
 /**
  * 通用植物 Feature 拦截器
- * 用于兼容模组树木（BYG、BOP 等）和 NBT 结构树
+ * 拦截 ConfiguredFeature.place() 方法，这是所有 Feature 生成的统一入口
+ * 兼容 C2ME 的多线程世界生成和对象池优化
  */
-@Mixin(Feature.class)
-public class GenericVegetationFeatureMixin {
+@Mixin(ConfiguredFeature.class)
+public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F extends Feature<FC>> {
 
-    @Inject(method = "place(Lnet/minecraft/world/level/levelgen/feature/configurations/FeatureConfiguration;Lnet/minecraft/world/level/WorldGenLevel;Lnet/minecraft/world/level/chunk/ChunkGenerator;Lnet/minecraft/util/RandomSource;Lnet/minecraft/core/BlockPos;)Z",
-            at = @At("HEAD"), cancellable = true)
-    private void roadweaver$blockModdedTreesOnRoad(FeatureConfiguration config,
-                                                    WorldGenLevel level,
-                                                    ChunkGenerator generator,
-                                                    RandomSource random,
-                                                    BlockPos pos,
-                                                    CallbackInfoReturnable<Boolean> cir) {
+    @Shadow @Final public F feature;
+    @Shadow @Final public FC config;
+
+    /**
+     * 拦截 ConfiguredFeature.place() 方法
+     * 这是所有 Feature 生成的入口点，包括 C2ME 优化后的调用
+     */
+    @Inject(method = "place", at = @At("HEAD"), cancellable = true)
+    private void roadweaver$blockTreesOnRoad(WorldGenLevel level,
+                                              ChunkGenerator generator,
+                                              RandomSource random,
+                                              BlockPos pos,
+                                              CallbackInfoReturnable<Boolean> cir) {
         try {
-            if (roadweaver$isTreeLikeFeature(config)) {
+            if (roadweaver$isTreeLikeFeature()) {
                 if (RoadPositionQuery.isOnRoad(level, pos)) {
                     cir.setReturnValue(false);
                 }
@@ -41,31 +50,41 @@ public class GenericVegetationFeatureMixin {
      * 判断是否为树木类 Feature
      */
     @Unique
-    private boolean roadweaver$isTreeLikeFeature(FeatureConfiguration config) {
-        String className = this.getClass().getName().toLowerCase();
+    private boolean roadweaver$isTreeLikeFeature() {
+        if (this.feature == null) return false;
         
-        // 排除已有专门 Mixin 的原版类
-        if (className.equals("net.minecraft.world.level.levelgen.feature.treefeature") ||
-            className.equals("net.minecraft.world.level.levelgen.feature.abstracthugemushroomfeature") ||
-            className.equals("net.minecraft.world.level.levelgen.feature.hugefungusfeature") ||
-            className.equals("net.minecraft.world.level.levelgen.feature.bamboofeature")) {
+        String featureClassName = this.feature.getClass().getName().toLowerCase();
+        
+        // 排除已有专门 Mixin 的原版类（避免重复检查）
+        if (roadweaver$isVanillaTreeFeature(featureClassName)) {
             return false;
         }
         
         // 检查 Feature 类名
-        if (roadweaver$containsTreeKeyword(className)) {
+        if (roadweaver$containsTreeKeyword(featureClassName)) {
             return true;
         }
         
-        // 检查配置类名（用于 NBT 结构树等）
-        if (config != null) {
-            String configName = config.getClass().getName().toLowerCase();
+        // 检查配置类名
+        if (this.config != null) {
+            String configName = this.config.getClass().getName().toLowerCase();
             if (roadweaver$containsTreeKeyword(configName)) {
                 return true;
             }
         }
         
         return false;
+    }
+
+    /**
+     * 判断是否为已有专门 Mixin 的原版树木类
+     */
+    @Unique
+    private boolean roadweaver$isVanillaTreeFeature(String className) {
+        return className.equals("net.minecraft.world.level.levelgen.feature.treefeature") ||
+               className.equals("net.minecraft.world.level.levelgen.feature.abstracthugemushroomfeature") ||
+               className.equals("net.minecraft.world.level.levelgen.feature.hugefungusfeature") ||
+               className.equals("net.minecraft.world.level.levelgen.feature.bamboofeature");
     }
 
     @Unique
@@ -76,10 +95,10 @@ public class GenericVegetationFeatureMixin {
                name.contains("bamboo") ||
                name.contains("cactus") ||
                name.contains("chorus") ||
-               name.contains("nbt") ||           // NBT 结构树
-               name.contains("structure") ||     // 结构树
-               name.contains("fromstructure") || // TYG 的 TreeFromStructure
-               name.contains("template") ||      // RTF 的 TemplateFeature
-               name.contains("bush");            // RTF 的 BushFeature
+               name.contains("nbt") ||
+               name.contains("structure") ||
+               name.contains("fromstructure") ||
+               name.contains("template") ||
+               name.contains("bush");
     }
 }

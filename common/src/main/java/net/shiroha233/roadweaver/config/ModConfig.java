@@ -155,8 +155,8 @@ public final class ModConfig {
         this.structurePredictionDimensionWhitelist.add("minecraft:the_end");
         this.structurePredictionDimensionWhitelist.add("minecraft:the_end");
 
-        // 默认规划参数：初始64区块；动态规划开启，半径256区块
-        this.initialPlanRadiusChunks = 64;
+        // 默认规划参数：初始128区块；动态规划开启，半径256区块
+        this.initialPlanRadiusChunks = 128;
         this.dynamicPlanEnabled = true;
         this.dynamicPlanRadiusChunks = 256;
         this.dynamicPlanStrideChunks = Math.max(8, Math.min(64, this.dynamicPlanRadiusChunks / 2));
