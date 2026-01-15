@@ -1,21 +1,30 @@
 {
-    "required": true,
-    "minVersion": "0.8",
-    "package": "net.shiroha233.roadweaver.mixin.neoforge",
-    "compatibilityLevel": "JAVA_21",
-    "plugin": "net.shiroha233.roadweaver.mixin.MixinConfigPlugin",
-    "mixins": [
-        "MinecraftServerMixin",
-        "GenericFeatureMixin",
-        "ChunkStatusTasksMixin",
-        "dynamictree.DynamicTreeFeatureMixin"
-    ],
-    "client": [
-        "CreateWorldScreenMixin",
-        "CreateWorldScreenInitMixin",
-        "LevelLoadingScreenMixin"
-    ],
-    "injectors": {
-        "defaultRequire": 1
-    }
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.shiroha233.roadweaver.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "net.shiroha233.roadweaver.mixin.MixinConfigPlugin",
+  "mixins": [
+    "neoforge.MinecraftServerMixin",
+    "neoforge.TreeFeatureMixin",
+    "neoforge.HugeMushroomFeatureMixin",
+    "neoforge.HugeFungusFeatureMixin",
+    "neoforge.BambooFeatureMixin",
+    "neoforge.GenericVegetationFeatureMixin",
+    "neoforge.dynamictree.DynamicTreeFeatureMixin",
+    "neoforge.ServerLevelStructureMixin",
+    "neoforge.PlayerDimensionChangeMixin",
+    "neoforge.tyg.TreeFromStructureNBTFeatureMixin",
+    "neoforge.rtf.RTFTemplateFeatureMixin",
+    "neoforge.rtf.RTFBushFeatureMixin"
+  ],
+  "client": [
+    "neoforge.CreateWorldScreenMixin",
+    "neoforge.CreateWorldScreenInitMixin",
+    "neoforge.LevelLoadingScreenMixin",
+    "neoforge.BiomeGrassColorFailSafeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
 }

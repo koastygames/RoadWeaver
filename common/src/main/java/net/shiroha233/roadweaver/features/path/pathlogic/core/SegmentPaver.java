@@ -1,0 +1,137 @@
+package net.shiroha233.roadweaver.features.path.pathlogic.core;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.SlabBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.SlabType;
+import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.PresetService;
+import net.shiroha233.roadweaver.features.path.decoration.system.SurfacePlacementUtil;
+import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadHeightInterpolator;
+import net.shiroha233.roadweaver.helpers.Records;
+
+import java.util.List;
+
+/**
+ * 路面铺设器（重构版）
+ * 核心改进：每个方块根据其在中心线上的投影位置独立计算高度，消除斜向爬坡锯齿问题。
+ */
+public final class SegmentPaver {
+    private SegmentPaver() {
+    }
+
+    /**
+     * 铺设单个路段（新版：每方块独立高度）
+     * 
+     * @param world         世界
+     * @param seg           路段数据（中心点+覆盖方块列表）
+     * @param segmentIndex  当前路段在中心线中的索引
+     * @param centers       完整的道路中心点列表
+     * @param targetY       每个中心点的目标高度数组
+     * @param roadType      道路类型（0=人工，1=自然）
+     * @param materials     路面材质列表
+     * @param slabMaterials 半砖材质列表（可为空）
+     * @param random        随机源
+     * @param cfg           模组配置
+     */
+    public static void paveSegment(WorldGenLevel world,
+            Records.RoadSegmentPlacement seg,
+            int segmentIndex,
+            List<BlockPos> centers,
+            int[] targetY,
+            int roadType,
+            List<BlockState> materials,
+            List<BlockState> slabMaterials,
+            RandomSource random,
+            ModConfig cfg) {
+        List<BlockPos> positions = seg.positions();
+        if (positions.isEmpty())
+            return;
+
+        // 批量计算每个方块的插值高度
+        int[] heights = RoadHeightInterpolator.batchInterpolate(positions, segmentIndex, centers, targetY);
+
+        for (int i = 0; i < positions.size(); i++) {
+            BlockPos widthBlock = positions.get(i);
+            int y = heights[i];
+            BlockPos pos = new BlockPos(widthBlock.getX(), y, widthBlock.getZ());
+
+            // 结构避让：跳过位于结构边界框内的方块
+            if (StructureAvoidanceService.shouldAvoid(world, pos)) {
+                continue;
+            }
+
+            // 选择材质
+            // 重要：自然道路（roadType==1）应始终根据生物群系动态选择材质，
+            // 忽略存储在 RoadData 中的材质列表（那只是占位符/历史数据）
+            List<BlockState> baseMats;
+            if (roadType == 1) {
+                // 自然道路：优先使用预设中定义的生物群系材质，否则使用硬编码的默认材质
+                PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(
+                        world.getLevel().dimension().location(),
+                        world.getBiome(pos).unwrapKey().map(k -> k.location()).orElse(null));
+                if (biomePreset != null) {
+                    baseMats = PresetService.toBlockStatesFromIdsAllowEmpty(biomePreset.materials());
+                } else {
+                    baseMats = net.shiroha233.roadweaver.features.path.decoration.material.surface.BiomeRoadMaterialSelector
+                            .forBiome(world, pos);
+                }
+            } else if (materials != null && !materials.isEmpty()) {
+                // 人工道路：使用存储在 RoadData 中的材质
+                baseMats = materials;
+            } else {
+                baseMats = java.util.List.of();
+            }
+
+            // 放置路面方块
+            SurfacePlacementUtil.placeOnSurface(world, pos, baseMats, 0, random, cfg);
+
+            // 半砖平滑过渡：人工道路使用预设的 slabMaterials；自然道路按 biome 选择对应 natural 预设的 slabMaterials
+            List<BlockState> slabs;
+            if (roadType == 0) {
+                slabs = slabMaterials;
+            } else if (roadType == 1) {
+                PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(
+                        world.getLevel().dimension().location(),
+                        world.getBiome(pos).unwrapKey().map(k -> k.location()).orElse(null));
+                slabs = biomePreset != null ? PresetService.toBlockStatesFromIdsAllowEmpty(biomePreset.slabMaterials())
+                        : java.util.List.of();
+            } else {
+                slabs = java.util.List.of();
+            }
+
+            if (slabs != null && !slabs.isEmpty()) {
+                if (shouldPlaceSlab(widthBlock.getX(), widthBlock.getZ(), y, centers, targetY)) {
+                    BlockState slabState = slabs.get(random.nextInt(slabs.size()));
+                    if (slabState.getBlock() instanceof SlabBlock) {
+                        slabState = slabState.setValue(SlabBlock.TYPE, SlabType.BOTTOM);
+                    }
+                    world.setBlock(pos, slabState, 3);
+                }
+            }
+        }
+    }
+
+    /**
+     * 判断是否需要放置半砖进行平滑过渡
+     * 原理：检查当前位置的前后方向是否有高度变化
+     */
+    private static boolean shouldPlaceSlab(int x, int z, int currentY,
+            List<BlockPos> centers, int[] targetY) {
+        // 沿道路方向采样前后各1格的高度
+        int yAhead = RoadHeightInterpolator.getInterpolatedY(x + 1, z, centers, targetY);
+        int yBehind = RoadHeightInterpolator.getInterpolatedY(x - 1, z, centers, targetY);
+        int yLeft = RoadHeightInterpolator.getInterpolatedY(x, z + 1, centers, targetY);
+        int yRight = RoadHeightInterpolator.getInterpolatedY(x, z - 1, centers, targetY);
+
+        // 如果当前位置比某个相邻位置低，且那个方向是"上坡"，则放置半砖缓冲
+        boolean needsSlabX = (yAhead > currentY && yBehind >= currentY)
+                || (yBehind > currentY && yAhead >= currentY);
+        boolean needsSlabZ = (yLeft > currentY && yRight >= currentY)
+                || (yRight > currentY && yLeft >= currentY);
+
+        return needsSlabX || needsSlabZ;
+    }
+}

@@ -1,0 +1,23 @@
+ architectury {
+    common("fabric", "neoforge")
+}
+
+dependencies {
+    // Architectury API（作为 mod 依赖以启用 Loom 重映射）
+    modImplementation("dev.architectury:architectury:${project.architectury_version}")
+    compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
+    
+    // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（编译时依赖，运行时由平台模块提供）
+    compileOnly("org.tmatesoft.sqljet:sqljet:1.1.15")
+}
+ 
+sourceSets {
+    main {
+        java {
+            exclude 'net/shiroha233/roadweaver/client/gui/**'
+        }
+        resources {
+            exclude 'pack.mcmeta'
+        }
+    }
+}

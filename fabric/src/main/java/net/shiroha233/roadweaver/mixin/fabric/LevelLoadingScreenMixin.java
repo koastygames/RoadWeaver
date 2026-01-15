@@ -1,0 +1,73 @@
+package net.shiroha233.roadweaver.mixin.fabric;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.LevelLoadingScreen;
+import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.client.tips.LoadingTipsRenderer;
+import net.shiroha233.roadweaver.generation.InitialGenManager;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.AccurateSamplingStats;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(LevelLoadingScreen.class)
+public abstract class LevelLoadingScreenMixin {
+    @Inject(method = "render", at = @At("TAIL"))
+    private void roadweaver$renderProgress(GuiGraphics graphics, int mouseX, int mouseY, float partialTick,
+            CallbackInfo ci) {
+        LoadingTipsRenderer.render(graphics);
+        if (!InitialGenManager.isActive())
+            return;
+        int total = InitialGenManager.getTotal();
+        int done = InitialGenManager.getDone();
+
+        int generating = InitialGenManager.getGenerating();
+        int failed = InitialGenManager.getFailed();
+        int percent = (total <= 0) ? 0 : (int) Math.round(100.0 * done / Math.max(1, total));
+
+        Minecraft mc = Minecraft.getInstance();
+        var font = mc.font;
+        int sw = mc.getWindow().getGuiScaledWidth();
+        int sh = mc.getWindow().getGuiScaledHeight();
+
+        Component title = Component.translatable("gui.roadweaver.initgen.title");
+        Component summary = Component.translatable("gui.roadweaver.initgen.summary", total, generating, done,
+                failed);
+        Component progress = Component.translatable("gui.roadweaver.initgen.progress", done, total, percent);
+
+        int y = sh - 60;
+
+        int x = (sw - font.width(title)) / 2;
+        graphics.drawString(font, title, x, y, 0xFFFFFF, false);
+        y += 12;
+
+        x = (sw - font.width(summary)) / 2;
+        graphics.drawString(font, summary, x, y, 0xA0A0A0, false);
+        y += 12;
+
+        x = (sw - font.width(progress)) / 2;
+        graphics.drawString(font, progress, x, y, 0xA0FFA0, false);
+        y += 12;
+
+        // 显示缓存命中率和每秒噪声采样数
+        int hitRate = TerrainSamplingStats.getCacheHitRatePercent();
+        double samplesPerSec = TerrainSamplingStats.updateAndGetSamplesPerSecond();
+        long totalSamples = TerrainSamplingStats.getTotalNoiseSamples();
+        Component debug = Component.translatable("gui.roadweaver.initgen.debug",
+                hitRate, String.format("%.0f", samplesPerSec), totalSamples);
+        x = (sw - font.width(debug)) / 2;
+        graphics.drawString(font, debug, x, y, 0x80C0FF, false);
+
+        y += 12;
+        int hitRateAcc = AccurateSamplingStats.getCacheHitRatePercent();
+        double samplesPerSecAcc = AccurateSamplingStats.updateAndGetSamplesPerSecond();
+        long totalSamplesAcc = AccurateSamplingStats.getTotalBaseHeightSamples();
+        Component debug2 = Component.translatable("gui.roadweaver.initgen.debug2",
+                hitRateAcc, String.format("%.0f", samplesPerSecAcc), totalSamplesAcc);
+        x = (sw - font.width(debug2)) / 2;
+        graphics.drawString(font, debug2, x, y, 0x80C0FF, false);
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "forge:add_features",
+  "biomes": {
+    "type": "forge:not",
+    "value": "#roadweaver:empty_tag"
+  },
+  "features": [
+    "roadweaver:highway_feature_placed"
+  ],
+  "step": "top_layer_modification"
+}

@@ -1,0 +1,197 @@
+plugins {
+	id 'com.gradleup.shadow' version '8.3.6'
+}
+
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+loom {
+    runs {
+        client {
+            client()
+            name "NeoForge Client"
+            runDir "run/client"
+            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
+            programArgs "--username", "Player1"
+        }
+        server {
+            server()
+            name "NeoForge Server"
+            runDir "run/server"
+            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
+        }
+    }
+}
+
+configurations {
+    common
+    shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
+    shadowSqlite
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentNeoForge.extendsFrom common
+}
+
+shadowJar {
+    exclude "architectury.common.json"
+    exclude "fabric.mod.json"
+    configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
+    archiveClassifier.set("dev-shadow")
+    
+    // 重定位 H2 Database 包
+    relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
+    
+    // 重定位 SQLJet 包（避免与其他模组冲突）
+    relocate 'org.tmatesoft.sqljet', 'net.shiroha233.roadweaver.libs.sqljet'
+    relocate 'org.antlr.runtime', 'net.shiroha233.roadweaver.libs.antlr'
+    
+    // 排除不需要的文件
+    exclude 'META-INF/versions/**'
+    
+    // 强制更新 META-INF/services 里的类名
+    mergeServiceFiles()
+    
+    // 排除 module-info.class 避免 JPMS 冲突
+    exclude 'module-info.class'
+}
+
+remapJar {
+	inputFile.set shadowJar.archiveFile
+	dependsOn shadowJar
+}
+
+jar {
+	archiveClassifier.set("dev")
+	from("${rootProject.projectDir}/LICENSE") {
+		rename { "${it}_${base.archivesName.get()}"}
+	}
+	
+	manifest {
+		attributes([
+			'Specification-Title'     : 'RoadWeaver',
+			'Specification-Vendor'    : 'shiroha233',
+			'Specification-Version'   : '1',
+			'Implementation-Title'    : project.name,
+			'Implementation-Version'  : project.version,
+			'Implementation-Vendor'   : 'shiroha233'
+		])
+	}
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://maven.shedaniel.me/"
+        name "Shedaniel Maven"
+    }
+    maven {
+        url = "https://api.modrinth.com/maven"
+        name = "Modrinth Maven"
+    }
+    maven {
+        url "https://bmclapi2.bangbang93.com/maven/"
+        name "NeoForge Mirror"
+    }
+    maven {
+        url "https://maven.neoforged.net/releases/"
+        name "NeoForge"
+    }
+    maven {
+        url "https://maven.architectury.dev/"
+        name "Architectury"
+    }
+    maven {
+        url "https://cursemaven.com"
+        name "CurseMaven"
+    }
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    def replaceProperties = [
+        minecraft_version: '1.21.1',
+        minecraft_version_range: '[1.21.1,1.22)',
+        neoforge_version: project.neoforge_version,
+        neoforge_version_range: '[21.1,)',
+        loader_version_range: '[4,)',
+        mod_id: 'roadweaver',
+        mod_name: 'RoadWeaver',
+        mod_version: project.version,
+        mod_authors: 'shiroha233',
+        mod_description: 'Automatically generates roads between structures'
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
+    }
+}
+
+dependencies {
+    // Common 模块 - 添加源代码到编译路径
+    common(project(path: ":common", configuration: "namedElements")) { transitive false }
+    shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive false }
+
+    // NeoForge 平台
+    neoForge "net.neoforged:neoforge:${neoforge_version}"
+
+    // Optional compat mods (dev only)
+    // TODO: 等待这些模组更新到 1.21.1 后取消注释
+    // modCompileOnly("maven.modrinth:s3dmwKy5:xxx") { transitive = false } // GlitchCore
+    // modCompileOnly("maven.modrinth:e0bNACJD:xxx") { transitive = false } // SereneSeasons NeoForge 1.21.1
+    // modCompileOnly("maven.modrinth:distanthorizons:xxx") { transitive = false } // Distant Horizons
+
+    // Architectury API - 使用 Jar-in-Jar 内嵌
+    modApi("dev.architectury:architectury-neoforge:${project.architectury_version}")
+    include("dev.architectury:architectury-neoforge:${project.architectury_version}")
+
+    // Cloth Config API for NeoForge - Jar-in-Jar include
+    modApi("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
+    include("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
+    
+    // DynamicTrees - 可选依赖，用于 Mixin 兼容
+    modCompileOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
+    modRuntimeOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
+
+    // Touhou Little Maid (车万女仆)
+    modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
+
+    // H2 Database - 道路数据持久化（纯Java，无native依赖）
+    implementation("com.h2database:h2:2.2.224") { transitive = false }
+    shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
+
+    // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
+    implementation("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    // SQLJet 依赖 antlr-runtime
+    implementation("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+    shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+}
+
+// Source JAR 组装（合并 common 源码）
+sourcesJar {
+    // Avoid duplicate entries when merging common sources
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    def commonSources = project(":common").sourcesJar
+    dependsOn commonSources
+    from commonSources.archiveFile.map { zipTree(it) }
+}
+
+components.java {
+    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+        skip()
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            // Avoid JPMS split-package: keep top-level network package only in common
+        }
+        resources {
+            exclude 'assets/roadweaver/lang/*.json'
+        }
+    }
+}

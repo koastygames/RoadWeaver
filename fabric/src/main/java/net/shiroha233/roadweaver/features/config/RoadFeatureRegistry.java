@@ -1,0 +1,53 @@
+package net.shiroha233.roadweaver.features.config;
+
+import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
+import net.fabricmc.fabric.api.biome.v1.BiomeSelectors;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
+import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.features.highway.HighwayFeature;
+import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
+import net.shiroha233.roadweaver.features.path.PathFeature;
+import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
+
+public final class RoadFeatureRegistry {
+    private RoadFeatureRegistry() {
+    }
+
+    public static void register() {
+        Feature<PathFeatureConfig> feature = new PathFeature(PathFeatureConfig.CODEC);
+        ResourceKey<Feature<?>> featureKey = ResourceKey.create(
+                Registries.FEATURE,
+                ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"));
+        Registry.register(BuiltInRegistries.FEATURE, featureKey, feature);
+
+        Feature<HighwayFeatureConfig> highwayFeature = new HighwayFeature(HighwayFeatureConfig.CODEC);
+        ResourceKey<Feature<?>> highwayFeatureKey = ResourceKey.create(
+                Registries.FEATURE,
+                ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"));
+        Registry.register(BuiltInRegistries.FEATURE, highwayFeatureKey, highwayFeature);
+
+        // 使用现有数据包中的 placed_feature 键完成注入（该 JSON 仅作为 Hook，不承载预设）
+        ResourceKey<PlacedFeature> placedKey = ResourceKey.create(
+                Registries.PLACED_FEATURE,
+                ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature_placed"));
+        BiomeModifications.addFeature(
+                BiomeSelectors.all(),
+                GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
+                placedKey);
+
+        ResourceKey<PlacedFeature> highwayPlacedKey = ResourceKey.create(
+                Registries.PLACED_FEATURE,
+                ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature_placed"));
+        BiomeModifications.addFeature(
+                BiomeSelectors.all(),
+                GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
+                highwayPlacedKey);
+    }
+}
