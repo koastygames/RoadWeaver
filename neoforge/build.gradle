@@ -159,15 +159,19 @@ dependencies {
     modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
 
     // H2 Database - 道路数据持久化（纯Java，无native依赖）
-    implementation("com.h2database:h2:2.2.224") { transitive = false }
+    forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
     shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
 
     // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
-    implementation("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+    forgeRuntimeLibrary("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
     shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
     // SQLJet 依赖 antlr-runtime
-    implementation("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+    forgeRuntimeLibrary("org.antlr:antlr-runtime:3.5.3") { transitive = false }
     shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+
+    forgeRuntimeLibrary("org.apache.lucene:lucene-core:8.11.2") { transitive = false }
+    forgeRuntimeLibrary("org.apache.lucene:lucene-analyzers-common:8.11.2") { transitive = false }
+    forgeRuntimeLibrary("org.apache.lucene:lucene-queryparser:8.11.2") { transitive = false }
 }
 
 // Source JAR 组装（合并 common 源码）

@@ -86,120 +86,17 @@ public final class LegacySqliteMigration {
     
     /**
      * 执行实际的数据迁移
+     * 使用 SQLJet 纯 Java 读取器，无需 native 库
      */
     private static int performMigration(ServerLevel level, Path sqlitePath) {
-        // 方案1：尝试使用 SQLite JDBC 驱动（如果可用）
-        try {
-            Class.forName("org.sqlite.JDBC");
-            return migrateUsingSqliteDriver(level, sqlitePath);
-        } catch (ClassNotFoundException e) {
-            LOGGER.info("LegacySqliteMigration: SQLite 驱动不可用，尝试备用方案");
-        }
-        
-        // 方案2：使用 H2 的 CSV 导出/导入功能
-        return migrateUsingCsvExport(level, sqlitePath);
+        // 直接使用 SQLJet 纯 Java 方案，避免动态类加载
+        return migrateUsingSqlJet(level, sqlitePath);
     }
     
     /**
-     * 方案1：使用 SQLite JDBC 驱动直接读取
+     * 使用 SQLJet 纯 Java 读取器进行迁移
      */
-    private static int migrateUsingSqliteDriver(ServerLevel level, Path sqlitePath) {
-        int totalMigrated = 0;
-        
-        try {
-            String sqliteUrl = "jdbc:sqlite:" + sqlitePath.toAbsolutePath();
-            
-            try (Connection sqliteConn = DriverManager.getConnection(sqliteUrl)) {
-                Connection h2Conn = RoadDatabaseManager.getConnection(level);
-                
-                // 迁移 roads 表
-                totalMigrated += migrateTable(sqliteConn, h2Conn, "roads",
-                    "MERGE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) " +
-                    "KEY (fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                
-                // 迁移 structures 表（如果存在）
-                if (tableExists(sqliteConn, "structures")) {
-                    migrateTable(sqliteConn, h2Conn, "structures",
-                        "MERGE INTO structures (x, z, structure_id, source) " +
-                        "KEY (x, z, structure_id, source) VALUES (?, ?, ?, ?)");
-                }
-                
-                // 迁移 structure_scan_tiles 表（如果存在）
-                if (tableExists(sqliteConn, "structure_scan_tiles")) {
-                    migrateTable(sqliteConn, h2Conn, "structure_scan_tiles",
-                        "MERGE INTO structure_scan_tiles (tile_x, tile_z, tile_size_chunks, scanned_at) " +
-                        "KEY (tile_x, tile_z, tile_size_chunks) VALUES (?, ?, ?, ?)");
-                }
-                
-                // 迁移 structure_cache_meta 表（如果存在）
-                if (tableExists(sqliteConn, "structure_cache_meta")) {
-                    migrateTable(sqliteConn, h2Conn, "structure_cache_meta",
-                        "MERGE INTO structure_cache_meta (k, v) KEY (k) VALUES (?, ?)");
-                }
-                
-                LOGGER.info("LegacySqliteMigration: 迁移完成 - 维度: {}, 道路数: {}", 
-                    level.dimension().location(), totalMigrated);
-            }
-        } catch (Exception e) {
-            LOGGER.error("LegacySqliteMigration: 使用 SQLite 驱动迁移失败", e);
-            return -1;
-        }
-        
-        return totalMigrated;
-    }
-    
-    /**
-     * 迁移单个表
-     */
-    private static int migrateTable(Connection source, Connection target, String tableName, String insertSql) {
-        int count = 0;
-        
-        try (Statement stmt = source.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM " + tableName)) {
-            
-            ResultSetMetaData meta = rs.getMetaData();
-            int columnCount = meta.getColumnCount();
-            
-            try (PreparedStatement pstmt = target.prepareStatement(insertSql)) {
-                while (rs.next()) {
-                    for (int i = 1; i <= columnCount; i++) {
-                        pstmt.setObject(i, rs.getObject(i));
-                    }
-                    pstmt.addBatch();
-                    count++;
-                    
-                    // 每1000条提交一次
-                    if (count % 1000 == 0) {
-                        pstmt.executeBatch();
-                        LOGGER.info("LegacySqliteMigration: 已迁移 {} 表 {} 条记录...", tableName, count);
-                    }
-                }
-                pstmt.executeBatch();
-            }
-            
-            LOGGER.info("LegacySqliteMigration: 表 {} 迁移完成，共 {} 条记录", tableName, count);
-        } catch (Exception e) {
-            LOGGER.warn("LegacySqliteMigration: 迁移表 {} 失败", tableName, e);
-        }
-        
-        return count;
-    }
-    
-    /**
-     * 检查表是否存在
-     */
-    private static boolean tableExists(Connection conn, String tableName) {
-        try (ResultSet rs = conn.getMetaData().getTables(null, null, tableName, null)) {
-            return rs.next();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    /**
-     * 方案2：使用 SQLJet 纯 Java 读取器（无需 native 库）
-     */
-    private static int migrateUsingCsvExport(ServerLevel level, Path sqlitePath) {
+    private static int migrateUsingSqlJet(ServerLevel level, Path sqlitePath) {
         LOGGER.info("LegacySqliteMigration: 使用 SQLJet 纯 Java 读取器进行迁移");
         LOGGER.info("LegacySqliteMigration: SQLite 文件路径: {}", sqlitePath.toAbsolutePath());
         
@@ -311,30 +208,9 @@ public final class LegacySqliteMigration {
     
     /**
      * 尝试修复 WAL 模式数据库，使其可以被 SQLJet 读取
+     * 通过直接修改文件头将 WAL 模式改为传统模式
      */
     private static boolean tryFixWalMode(Path sqlitePath) {
-        // 尝试使用 SQLite JDBC 驱动执行 checkpoint
-        try {
-            Class.forName("org.sqlite.JDBC");
-            LOGGER.info("LegacySqliteMigration: 尝试使用 SQLite JDBC 执行 WAL checkpoint...");
-            
-            String url = "jdbc:sqlite:" + sqlitePath.toAbsolutePath();
-            try (Connection conn = DriverManager.getConnection(url);
-                 Statement stmt = conn.createStatement()) {
-                // 执行 checkpoint 将 WAL 合并到主数据库
-                stmt.execute("PRAGMA wal_checkpoint(TRUNCATE)");
-                // 切换到 DELETE 模式（传统 rollback journal）
-                stmt.execute("PRAGMA journal_mode=DELETE");
-                LOGGER.info("LegacySqliteMigration: WAL checkpoint 成功");
-                return true;
-            }
-        } catch (ClassNotFoundException e) {
-            LOGGER.info("LegacySqliteMigration: SQLite JDBC 驱动不可用，无法执行 checkpoint");
-        } catch (SQLException e) {
-            LOGGER.warn("LegacySqliteMigration: WAL checkpoint 失败: {}", e.getMessage());
-        }
-        
-        // 备用方案：直接删除 WAL 和 SHM 文件，并修改文件头
         File sqliteFile = sqlitePath.toFile();
         File walFile = new File(sqliteFile.getAbsolutePath() + "-wal");
         File shmFile = new File(sqliteFile.getAbsolutePath() + "-shm");

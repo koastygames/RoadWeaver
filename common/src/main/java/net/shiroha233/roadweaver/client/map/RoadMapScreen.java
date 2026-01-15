@@ -107,7 +107,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // this.renderBackground(g, mouseX, mouseY, partialTick);
+        this.renderBackground(g, mouseX, mouseY, partialTick);
         
         // 地图纹理
         g.blit(MAP_TEXTURE, mapX, mapY, mapW, mapH, 0, 0, 
@@ -213,8 +213,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
         // 右键菜单
         contextMenu.render(g, this.font, mouseX, mouseY, this.width, this.height);
-
-        super.render(g, mouseX, mouseY, partialTick);
     }
 
     private void renderManualModePreview(GuiGraphics g, int mouseX, int mouseY,

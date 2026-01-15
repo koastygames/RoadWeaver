@@ -56,14 +56,14 @@ dependencies {
 	modRuntimeOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
 	
 	// H2 Database - 道路数据持久化（纯Java，无native依赖）
-	implementation("com.h2database:h2:2.2.224") { transitive = false }
+	common("com.h2database:h2:2.2.224") { transitive = false }
 	include("com.h2database:h2:2.2.224") { transitive = false }
 	
 	// SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
-	implementation("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+	common("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
 	include("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
 	// SQLJet 依赖 antlr-runtime
-	implementation("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+	common("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 	include("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 }
 
