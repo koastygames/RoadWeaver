@@ -101,6 +101,11 @@ public class MapNetworkForge {
         });
     }
 
+    /**
+     * 处理传送请求 - 使用异步区块加载避免阻塞主线程
+     * 原理：getChunk() 是同步调用，会阻塞主线程等待区块加载完成。
+     * 改用 getChunkFuture() 异步加载区块，加载完成后再在主线程执行传送。
+     */
     private static void handleTeleportRequest(final MapNetworkPayloads.MapTeleportPayload payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer sp)) return;
@@ -110,14 +115,27 @@ public class MapNetworkForge {
                 PacketDistributor.sendToPlayer(sp, new MapNetworkPayloads.MapTeleportAckPayload(false, 0, 0, 0));
                 return;
             }
+            
             var level = sp.serverLevel();
             int x = payload.x();
             int z = payload.z();
-            level.getChunk(x >> 4, z >> 4);
-            int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-            if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
-            sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
-            PacketDistributor.sendToPlayer(sp, new MapNetworkPayloads.MapTeleportAckPayload(true, x, ty, z));
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            
+            // 异步加载区块，避免阻塞主线程
+            level.getChunkSource().getChunkFuture(chunkX, chunkZ, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, true)
+                .thenAccept(either -> {
+                    // 区块加载完成后，回到主线程执行传送
+                    level.getServer().execute(() -> {
+                        // 再次检查玩家是否仍在线
+                        if (sp.isRemoved() || sp.hasDisconnected()) return;
+                        
+                        int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                        if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
+                        sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
+                        PacketDistributor.sendToPlayer(sp, new MapNetworkPayloads.MapTeleportAckPayload(true, x, ty, z));
+                    });
+                });
         });
     }
 

@@ -65,6 +65,7 @@ public class MapNetworkFabric {
                 .thenAccept(outPayload -> context.server().execute(() -> ServerPlayNetworking.send(sp, outPayload)));
         });
 
+        // 传送请求：使用异步区块加载避免阻塞主线程
         ServerPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.TP_REQ, (payload, context) -> {
             int x = payload.x();
             int z = payload.z();
@@ -76,11 +77,22 @@ public class MapNetworkFabric {
                     return;
                 }
                 var level = sp.serverLevel();
-                level.getChunk(x >> 4, z >> 4);
-                int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
-                sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
-                ServerPlayNetworking.send(sp, new MapNetworkPayloads.MapTeleportAckPayload(true, x, ty, z));
+                int chunkX = x >> 4;
+                int chunkZ = z >> 4;
+                
+                // 异步加载区块，避免阻塞主线程
+                level.getChunkSource().getChunkFuture(chunkX, chunkZ, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, true)
+                    .thenAccept(either -> {
+                        // 区块加载完成后，回到主线程执行传送
+                        context.server().execute(() -> {
+                            if (sp.isRemoved() || sp.hasDisconnected()) return;
+                            
+                            int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                            if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
+                            sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
+                            ServerPlayNetworking.send(sp, new MapNetworkPayloads.MapTeleportAckPayload(true, x, ty, z));
+                        });
+                    });
             });
         });
 
