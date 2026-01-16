@@ -17,7 +17,7 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
     private final Consumer<ResourceLocation> onSelect;
 
     public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<ResourceLocation> onSelect) {
-        super(minecraft, width, height, top, top + height);
+        super(minecraft, width, height, top, 22);
         this.onSelect = onSelect;
     }
 

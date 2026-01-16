@@ -302,6 +302,14 @@ public class MaterialPresetEditorScreen extends Screen {
         return handled;
     }
 
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (blockCandidateWidget != null && blockCandidateWidget.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) {
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
     private void loadPresets() {
         presets.clear();
         originalIds.clear();

@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.config.structure;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -280,14 +281,71 @@ public final class StructureDiscoveryService {
     /**
      * 尝试从当前上下文获取结构注册表
      * 
-     * 注意：客户端结构发现已移除反射实现，改为依赖：
-     * 1. 服务端在玩家进入世界时主动调用 discoverFromLevel()
-     * 2. 缓存文件（structure_cache.json）
+     * 支持：
+     * - 客户端已连接服务器（ClientLevel）
+     * - 客户端创建世界界面（WorldCreationContext）
      */
     public static void tryDiscoverFromCurrentContext() {
-        // 客户端不再使用反射获取注册表，避免模组审核问题
-        // 结构发现主要依赖服务端调用和缓存文件
-        LOGGER.debug("tryDiscoverFromCurrentContext: 跳过客户端反射获取，使用缓存文件");
+        // 只在客户端执行
+        if (Platform.getEnvironment() != Env.CLIENT) {
+            return;
+        }
+
+        try {
+            RegistryAccess access = ClientRegistryAccessHelper.tryGetClientRegistryAccess();
+            if (access != null) {
+                discoverFromRegistryAccess(access);
+            }
+        } catch (Exception e) {
+            // 静默失败，避免加载阶段刷屏
+        }
+    }
+
+    /**
+     * 客户端注册表访问帮助类（内部类，避免外层类加载客户端依赖）
+     */
+    private static class ClientRegistryAccessHelper {
+        static RegistryAccess tryGetClientRegistryAccess() {
+            try {
+                // 使用反射加载 Minecraft 类，避免在服务端加载时失败
+                Class<?> minecraftClass = Class.forName("net.minecraft.client.Minecraft");
+                Object mc = minecraftClass.getMethod("getInstance").invoke(null);
+                if (mc == null) return null;
+
+                // 1) 优先从客户端世界获取
+                var levelField = minecraftClass.getDeclaredField("level");
+                levelField.setAccessible(true);
+                Object level = levelField.get(mc);
+                if (level != null) {
+                    var registryAccessMethod = level.getClass().getMethod("registryAccess");
+                    return (RegistryAccess) registryAccessMethod.invoke(level);
+                }
+
+                // 2) 退化：从创建世界界面获取 WorldCreationContext
+                var screenField = minecraftClass.getDeclaredField("screen");
+                screenField.setAccessible(true);
+                Object screen = screenField.get(mc);
+                if (screen == null) return null;
+
+                Class<?> createWorldScreenClass = Class.forName("net.minecraft.client.gui.screens.worldselection.CreateWorldScreen");
+                if (!createWorldScreenClass.isInstance(screen)) return null;
+
+                var uiStateField = createWorldScreenClass.getDeclaredField("uiState");
+                uiStateField.setAccessible(true);
+                Object uiState = uiStateField.get(screen);
+                if (uiState == null) return null;
+
+                var getSettingsMethod = uiState.getClass().getMethod("getSettings");
+                Object context = getSettingsMethod.invoke(uiState);
+                if (context == null) return null;
+
+                var worldgenLoadContextMethod = context.getClass().getMethod("worldgenLoadContext");
+                return (RegistryAccess) worldgenLoadContextMethod.invoke(context);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to get client registry access: {}", e.getMessage());
+                return null;
+            }
+        }
     }
     
     /**

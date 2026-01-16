@@ -12,7 +12,7 @@ public class PresetListWidget extends ContainerObjectSelectionList<PresetListWid
     private final Consumer<PresetEntry> onSelect;
 
     public PresetListWidget(Minecraft minecraft, int width, int height, int top, int bottom, Consumer<PresetEntry> onSelect) {
-        super(minecraft, width, height, top, bottom);
+        super(minecraft, width, height, top, 28);
         this.onSelect = onSelect;
     }
 

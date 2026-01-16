@@ -15,7 +15,7 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
     private boolean active = true;
 
     public MultiDimensionListWidget(Minecraft minecraft, int width, int height, int top, int bottom, Set<ResourceLocation> selectedDimensions) {
-        super(minecraft, width, height, top, bottom);
+        super(minecraft, width, height, top, 20);
         this.selectedDimensions = selectedDimensions;
     }
 

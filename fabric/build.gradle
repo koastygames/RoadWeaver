@@ -10,6 +10,7 @@ architectury {
 configurations {
 	common
 	shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
+	shadowSqlite // 用于打包数据库依赖
 	compileClasspath.extendsFrom common
 	runtimeClasspath.extendsFrom common
 	developmentFabric.extendsFrom common
@@ -48,23 +49,24 @@ dependencies {
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
 	
-	modRuntimeOnly "maven.modrinth:VSNURh3q:${project.c2me_version}"
-	
-	modCompileOnly "maven.modrinth:mOgUt4GM:${project.modmenu_version}"
-	modRuntimeOnly "maven.modrinth:mOgUt4GM:${project.modmenu_version}"
-	modCompileOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
-	modRuntimeOnly "maven.modrinth:eXts2L7r:${project.placeholder_api_version}"
+	// 可选开发模组
+	modLocalRuntime("maven.modrinth:mOgUt4GM:${project.modmenu_version}")
+	modRuntimeOnly("maven.modrinth:mOgUt4GM:${project.modmenu_version}")
 	
 	// H2 Database - 道路数据持久化（纯Java，无native依赖）
-	common("com.h2database:h2:2.2.224") { transitive = false }
-	include("com.h2database:h2:2.2.224") { transitive = false }
-	
+	// compileOnly: 编译时, modLocalRuntime: 开发运行时（避免 Architectury Transformer 处理）, shadowSqlite: 生产打包
+	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
+	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
+	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
+
 	// SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
-	common("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
-	include("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+	compileOnly("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+	modLocalRuntime("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
+	shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
 	// SQLJet 依赖 antlr-runtime
-	common("org.antlr:antlr-runtime:3.5.3") { transitive = false }
-	include("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+	compileOnly("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+	modLocalRuntime("org.antlr:antlr-runtime:3.5.3") { transitive = false }
+	shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 }
 
 processResources {
@@ -77,8 +79,24 @@ processResources {
 
 shadowJar {
 	exclude "architectury.common.json"
-	configurations = [project.configurations.shadowCommon]
+	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
 	archiveClassifier.set("dev-shadow")
+	
+	// 重定位 H2 Database 包
+	relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
+	
+	// 重定位 SQLJet 包（避免与其他模组冲突）
+	relocate 'org.tmatesoft.sqljet', 'net.shiroha233.roadweaver.libs.sqljet'
+	relocate 'org.antlr.runtime', 'net.shiroha233.roadweaver.libs.antlr'
+	
+	// 排除不需要的文件
+	exclude 'META-INF/versions/**'
+	
+	// 强制更新 META-INF/services 里的类名
+	mergeServiceFiles()
+	
+	// 排除 module-info.class 避免 JPMS 冲突
+	exclude 'module-info.class'
 }
 
 remapJar {
@@ -93,28 +111,28 @@ jar {
 		rename { "${it}_${base.archivesName.get()}"}
 	}
 }
+
 sourcesJar {
-    // Avoid duplicate entries when merging common sources
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    def commonSources = project(':common').sourcesJar
-    dependsOn commonSources
-    from commonSources.archiveFile.map { zipTree(it) }
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	def commonSources = project(':common').sourcesJar
+	dependsOn commonSources
+	from commonSources.archiveFile.map { zipTree(it) }
 }
 
 components.java {
-    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
-        skip()
-    }
+	withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
+		skip()
+	}
 }
 
 sourceSets {
-    main {
-        java {
-            // Avoid JPMS split-package with shaded common (network package) in dev runtime
-        }
-        resources {
-            exclude 'assets/roadweaver/lang/*.json'
-            exclude 'pack.mcmeta'
-        }
-    }
+	main {
+		java {
+			// Avoid JPMS split-package with shaded common (network package) in dev runtime
+		}
+		resources {
+			exclude 'assets/roadweaver/lang/*.json'
+			exclude 'pack.mcmeta'
+		}
+	}
 }

@@ -25,7 +25,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     private static final Map<String, Optional<ResourceLocation>> MOD_ICON_CACHE = new HashMap<>();
 
     public StructureListWidget(Minecraft minecraft, int width, int height, int top) {
-        super(minecraft, width, height, top, top + height);
+        super(minecraft, width, height, top, 24);
     }
 
     public void clearEntries() {
