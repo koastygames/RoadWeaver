@@ -8,7 +8,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 
@@ -153,9 +152,6 @@ public final class RoadPlanningService {
             int maxBlockX, int maxBlockZ,
             List<BlockPos> out,
             Set<Long> seenPos) {
-        // 迁移 legacy 并触发一次预测扫描（若启用预测）：结构点统一进 SQLite
-        StructureCacheMigrator.migrateLegacyIfNeeded(level);
-
         // 内部按 tile 扫描去重，重复调用不会重复计算。
         // 注意：是否实际执行预测/验证，由 StructureIndexService 根据配置开关 + 维度白名单判定。
         StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);

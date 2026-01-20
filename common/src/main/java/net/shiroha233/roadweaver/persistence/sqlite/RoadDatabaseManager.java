@@ -62,14 +62,6 @@ public final class RoadDatabaseManager {
     }
 
     /**
-     * 获取旧 SQLite 数据库文件路径（用于迁移）
-     */
-    static Path getLegacySqliteDbPath(ServerLevel level) {
-        Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
-        return worldRoot.resolve(DB_DIR).resolve(dimKey(level)).resolve("roads.db");
-    }
-
-    /**
      * 确保 H2 驱动可用
      * 
      * 由于 Forge 的 TransformingClassLoader 不会自动扫描模组 JAR 中的 SPI 服务文件，
@@ -153,23 +145,6 @@ public final class RoadDatabaseManager {
 
                 CONNECTIONS.put(key, conn);
                 LOGGER.debug("RoadDatabaseManager: 已创建维度 {} 的 H2 数据库连接", dimKey(level));
-
-                // 检查并执行旧数据迁移
-                try {
-                    // 1. 先检查 SQLite 迁移
-                    int sqliteMigrated = LegacySqliteMigration.migrateIfNeeded(level);
-                    if (sqliteMigrated > 0) {
-                        LOGGER.info("RoadDatabaseManager: 维度 {} 已从 SQLite 迁移 {} 条道路数据", dimKey(level), sqliteMigrated);
-                    }
-                    
-                    // 2. 再检查 NBT 分片迁移
-                    int nbtMigrated = LegacyShardMigration.migrateIfNeeded(level);
-                    if (nbtMigrated > 0) {
-                        LOGGER.info("RoadDatabaseManager: 维度 {} 已从 NBT 迁移 {} 条道路数据", dimKey(level), nbtMigrated);
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn("RoadDatabaseManager: 旧数据迁移失败，不影响正常使用", e);
-                }
 
                 return conn;
 

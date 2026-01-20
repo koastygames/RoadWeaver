@@ -43,10 +43,6 @@ shadowJar {
     // 重定位 H2 Database 包
     relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
     
-    // 重定位 SQLJet 包（避免与其他模组冲突）
-    relocate 'org.tmatesoft.sqljet', 'net.shiroha233.roadweaver.libs.sqljet'
-    relocate 'org.antlr.runtime', 'net.shiroha233.roadweaver.libs.antlr'
-    
     // 排除不需要的文件
     exclude 'META-INF/versions/**'
     
@@ -161,13 +157,6 @@ dependencies {
     // H2 Database - 道路数据持久化（纯Java，无native依赖）
     forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
     shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
-
-    // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
-    forgeRuntimeLibrary("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
-    shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
-    // SQLJet 依赖 antlr-runtime
-    forgeRuntimeLibrary("org.antlr:antlr-runtime:3.5.3") { transitive = false }
-    shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 
     forgeRuntimeLibrary("org.apache.lucene:lucene-core:8.11.2") { transitive = false }
     forgeRuntimeLibrary("org.apache.lucene:lucene-analyzers-common:8.11.2") { transitive = false }
