@@ -45,10 +45,6 @@ shadowJar {
     // 重定位 H2 Database 包
     relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
     
-    // 重定位 SQLJet 包（避免与其他模组冲突）
-    relocate 'org.tmatesoft.sqljet', 'net.shiroha233.roadweaver.libs.sqljet'
-    relocate 'org.antlr.runtime', 'net.shiroha233.roadweaver.libs.antlr'
-    
     // 排除不需要的文件
     exclude 'META-INF/versions/**'
     
@@ -59,7 +55,7 @@ shadowJar {
     exclude 'module-info.class'
 }
 
-// 移除原生库修改任务，改为纯Java方式处理SQLite依赖
+// 移除原生库修改任务，改为纯 Java 方式处理数据库依赖
 
 remapJar {
 	inputFile.set shadowJar.archiveFile
@@ -158,15 +154,6 @@ dependencies {
     compileOnly("com.h2database:h2:2.2.224") { transitive = false }
     forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
     shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
-
-    // SQLJet - 纯Java SQLite读取器，用于旧数据迁移（无native依赖）
-    compileOnly("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
-    forgeRuntimeLibrary("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
-    shadowSqlite("org.tmatesoft.sqljet:sqljet:1.1.15") { transitive = false }
-    // SQLJet 依赖 antlr-runtime
-    compileOnly("org.antlr:antlr-runtime:3.5.3") { transitive = false }
-    forgeRuntimeLibrary("org.antlr:antlr-runtime:3.5.3") { transitive = false }
-    shadowSqlite("org.antlr:antlr-runtime:3.5.3") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees
     // 换成modCompileOnly可以临时关闭此mod的运行以测试非联动状态

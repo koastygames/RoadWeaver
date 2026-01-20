@@ -7,7 +7,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.search.StructureIndexService;
@@ -259,8 +258,6 @@ public final class PathBranchPlanningService {
         ArrayList<BlockPos> out = new ArrayList<>();
         HashSet<Long> seen = new HashSet<>();
 
-        // 迁移 legacy 并按需触发预测扫描：结构点统一走 SQLite
-        StructureCacheMigrator.migrateLegacyIfNeeded(level);
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePredictionEnabled()
@@ -270,8 +267,8 @@ public final class PathBranchPlanningService {
         }
 
         int[] sources = allowPredicted
-                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
-                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
         List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, sources);
         if (cached != null && !cached.isEmpty()) {
             for (Records.StructureInfo info : cached) {

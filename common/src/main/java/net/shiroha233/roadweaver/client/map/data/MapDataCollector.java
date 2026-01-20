@@ -11,7 +11,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,16 +54,13 @@ public final class MapDataCollector {
         int minZ = spawn.getZ() - radiusBlocks;
         int maxZ = spawn.getZ() + radiusBlocks;
 
-        // 迁移旧结构点（WorldDataProvider）到 SQLite：地图后续统一从 SQLite 取数。
-        StructureCacheMigrator.migrateLegacyIfNeeded(level);
-
         // 从 SQLite 读取结构点：预测点是否纳入取决于配置开关 + 维度白名单
         boolean allowPredicted = cfg != null
                 && cfg.structurePredictionEnabled()
                 && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
         int[] src = allowPredicted
-                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
-                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
         List<Records.StructureInfo> cachedInfos = StructureSqliteStorage.queryRect(level, minX, minZ, maxX, maxZ, src);
         java.util.HashMap<Long, Records.StructureInfo> bestInfoByPos = new java.util.HashMap<>();
         java.util.HashSet<BlockPos> structuresSet = new java.util.HashSet<>();
@@ -144,8 +140,6 @@ public final class MapDataCollector {
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
         List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
 
-        StructureCacheMigrator.migrateLegacyIfNeeded(level);
-
         // 触发一次扫描（若启用预测）：保证 SQLite 中有 predicted 数据
         StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
 
@@ -154,8 +148,8 @@ public final class MapDataCollector {
                 && cfg.structurePredictionEnabled()
                 && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
         int[] src = allowPredicted
-                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
-                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
 
         java.util.List<Records.StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, src);
         java.util.HashMap<Long, Records.StructureInfo> bestInfoByPos = new java.util.HashMap<>();
@@ -236,15 +230,13 @@ public final class MapDataCollector {
         List<Records.StructureConnection> connections = provider.getStructureConnections(level);
         List<Records.StructureConnection> highwayConnections = provider.getHighwayConnections(level);
 
-        StructureCacheMigrator.migrateLegacyIfNeeded(level);
-
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePredictionEnabled()
                 && cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString());
         int[] src = allowPredicted
-                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY, StructureSqliteStorage.SOURCE_PREDICTED}
-                : new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_LEGACY};
+                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
+                : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
 
         final long r2 = (long) Math.max(0, radiusBlocks) * (long) Math.max(0, radiusBlocks);
         java.util.function.BiPredicate<Integer, Integer> inAOI = (x, z) -> {
