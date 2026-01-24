@@ -189,11 +189,6 @@
   "config.roadweaver.bridge_keep_lamps.tooltip": "If enabled, keep road lamps/markers on bridge spans.",
   "config.roadweaver.bridge_ramp_segments": "Ramp Segments",
   "config.roadweaver.bridge_ramp_segments.tooltip": "Number of segments used to smoothly ramp from ground height to deck height at both bridge ends.",
-  "tip.roadweaver.loading.1": "Press H to open the RoadWeaver map.",
-  "tip.roadweaver.loading.2": "You can configure the initial planning radius in the RoadWeaver settings.",
-  "tip.roadweaver.loading.3": "A large initial planning radius may significantly slow down new world creation.",
-  "tip.roadweaver.loading.4": "Initial loading is to ensure you have a complete road when entering the world.",
-  "tip.roadweaver.loading.5": "Don't tp into the area where the road has not been paved!",
   "gui.roadweaver.preset_editor.title": "Custom Road Material Preset",
   "gui.roadweaver.preset_editor.search": "Search blocks...",
   "gui.roadweaver.preset_editor.name": "Preset name",
@@ -270,5 +265,13 @@
   "config.roadweaver.structure_selection.folder.select_all": "Select all in this folder",
   "config.roadweaver.structure_selection.folder.deselect_all": "Deselect all in this folder",
   "config.roadweaver.structure_selection.dimension": "Dimension: %s",
-  "config.roadweaver.structure_selection.dimension.all": "All"
+  "config.roadweaver.structure_selection.dimension.all": "All",
+  "config.roadweaver.category.test": "Testing",
+  "config.roadweaver.loading_tips_enabled": "Enable Loading Tips",
+  "config.roadweaver.loading_tips_enabled.tooltip": "Show RoadWeaver related tips and tricks in the bottom right corner of the world loading screen.",
+  "tip.roadweaver.loading.1": "Press H to open the RoadWeaver map.",
+  "tip.roadweaver.loading.2": "You can configure the initial planning radius in the RoadWeaver settings.",
+  "tip.roadweaver.loading.3": "A large initial planning radius may significantly slow down new world creation.",
+  "tip.roadweaver.loading.4": "Initial loading is to ensure you have a complete road when entering the world.",
+  "tip.roadweaver.loading.5": "Don't tp into the area where the road has not been paved!"
 }

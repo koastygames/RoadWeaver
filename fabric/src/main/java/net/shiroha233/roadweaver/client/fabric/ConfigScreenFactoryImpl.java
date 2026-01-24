@@ -1087,6 +1087,19 @@ public class ConfigScreenFactoryImpl {
                                                 })
                                                 .build());
 
+                ConfigCategory testCategory = builder
+                                .getOrCreateCategory(Component.translatable("config.roadweaver.category.test"));
+                testCategory.addEntry(eb
+                                .startBooleanToggle(Component.translatable("config.roadweaver.loading_tips_enabled"),
+                                                conf.loadingTipsEnabled())
+                                .setDefaultValue(defaultConf.loadingTipsEnabled())
+                                .setTooltip(Component.translatable("config.roadweaver.loading_tips_enabled.tooltip"))
+                                .setSaveConsumer(v -> {
+                                        if (v != null)
+                                                conf.setLoadingTipsEnabled(v);
+                                })
+                                .build());
+
                 return builder.build();
         }
 }

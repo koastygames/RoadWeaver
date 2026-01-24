@@ -139,6 +139,9 @@ public final class ModConfig {
     private double heuristicWeight;
     private double deviationWeight;
 
+    // 测试栏配置
+    private boolean loadingTipsEnabled;
+
     public ModConfig() {
         this.villagePredictionEnabled = true;
         this.structurePredictionEnabled = true;
@@ -254,6 +257,9 @@ public final class ModConfig {
         this.waterProximityCost = 20;
         this.heuristicWeight = 15.0;
         this.deviationWeight = 0.5;
+
+        // 测试栏默认值
+        this.loadingTipsEnabled = true;
     }
 
     public boolean villagePredictionEnabled() {
@@ -1116,6 +1122,15 @@ public final class ModConfig {
 
     public void setDeviationWeight(double v) {
         this.deviationWeight = v;
+    }
+
+    // 测试栏配置存取
+    public boolean loadingTipsEnabled() {
+        return loadingTipsEnabled;
+    }
+
+    public void setLoadingTipsEnabled(boolean v) {
+        this.loadingTipsEnabled = v;
     }
 
     // 路边结构配置存取
