@@ -270,5 +270,8 @@
   "config.roadweaver.structure_selection.folder.select_all": "Select all in this folder",
   "config.roadweaver.structure_selection.folder.deselect_all": "Deselect all in this folder",
   "config.roadweaver.structure_selection.dimension": "Dimension: %s",
-  "config.roadweaver.structure_selection.dimension.all": "All"
+  "config.roadweaver.structure_selection.dimension.all": "All",
+  "config.roadweaver.category.test": "Testing",
+  "config.roadweaver.loading_tips_enabled": "Enable Loading Tips",
+  "config.roadweaver.loading_tips_enabled.tooltip": "Show RoadWeaver related tips and tricks in the bottom right corner of the world loading screen."
 }

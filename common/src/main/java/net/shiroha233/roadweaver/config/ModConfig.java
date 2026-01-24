@@ -139,6 +139,9 @@ public final class ModConfig {
     private double heuristicWeight;
     private double deviationWeight;
 
+    // 测试栏配置
+    private boolean loadingTipsEnabled;
+
     public ModConfig() {
         this.villagePredictionEnabled = true;
         this.structurePredictionEnabled = true;
@@ -254,6 +257,9 @@ public final class ModConfig {
         this.waterProximityCost = 20;
         this.heuristicWeight = 15.0;
         this.deviationWeight = 0.5;
+
+        // 测试栏默认值
+        this.loadingTipsEnabled = true;
     }
 
     public boolean villagePredictionEnabled() {
@@ -283,13 +289,10 @@ public final class ModConfig {
     }
 
     public boolean isStructurePredictionEnabledForDimension(String dimensionId) {
-        if (!structurePredictionEnabled())
+        if (!structurePredictionEnabled() || dimensionId == null || dimensionId.isEmpty())
             return false;
-        if (dimensionId == null || dimensionId.isEmpty())
-            return false;
-        if (structurePredictionDimensionWhitelist == null || structurePredictionDimensionWhitelist.isEmpty())
-            return false;
-        return structurePredictionDimensionWhitelist.contains(dimensionId);
+        return structurePredictionDimensionWhitelist != null
+                && structurePredictionDimensionWhitelist.contains(dimensionId);
     }
 
     public int predictRadiusChunks() {
@@ -330,24 +333,14 @@ public final class ModConfig {
             structureWhitelist = new ArrayList<>();
         if (structureBlacklist == null)
             structureBlacklist = new ArrayList<>();
-
-        // 结构预测开关：若新字段缺失，则沿用旧字段值
-        if (structurePredictionEnabled == null) {
+        if (structurePredictionEnabled == null)
             structurePredictionEnabled = villagePredictionEnabled;
-        }
-
-        // 维度白名单：若缺失字段则填充默认维度；若用户显式清空则尊重（=不在任何维度预测）
         if (structurePredictionDimensionWhitelist == null) {
-            structurePredictionDimensionWhitelist = new ArrayList<>();
-            structurePredictionDimensionWhitelist.add("minecraft:overworld");
-            structurePredictionDimensionWhitelist.add("minecraft:the_nether");
-            structurePredictionDimensionWhitelist.add("minecraft:the_end");
+            structurePredictionDimensionWhitelist = new ArrayList<>(
+                    List.of("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"));
         }
-
         if (predictRadiusChunks <= 0)
             predictRadiusChunks = 1024;
-
-        // 道路系统总开关：缺失字段时保持旧行为（启用）
         if (roadsEnabled == null)
             roadsEnabled = true;
         if (initialPlanRadiusChunks <= 0)
@@ -369,54 +362,22 @@ public final class ModConfig {
             highwayDynamicPlanEnabled = true;
         if (highwaySlopeLimitEnabled == null)
             highwaySlopeLimitEnabled = true;
-        if (highwayGridBlocks < 128)
-            highwayGridBlocks = 128;
-        if (highwayGridBlocks > 20000)
-            highwayGridBlocks = 20000;
-        if (highwayRoadWidth < 1)
-            highwayRoadWidth = 1;
-        if (highwayRoadWidth > 31)
-            highwayRoadWidth = 31;
-        if (highwaySlopeRunBlocks < 1)
+        highwayGridBlocks = Math.max(128, Math.min(20000, highwayGridBlocks));
+        highwayRoadWidth = Math.max(1, Math.min(31, highwayRoadWidth));
+        if (highwaySlopeRunBlocks < 1 || highwaySlopeRunBlocks > 64)
             highwaySlopeRunBlocks = 5;
-        if (highwaySlopeRunBlocks > 64)
-            highwaySlopeRunBlocks = 64;
-        if (highwaySlopeRiseBlocks < 0)
-            highwaySlopeRiseBlocks = 0;
-        if (highwaySlopeRiseBlocks > 16)
-            highwaySlopeRiseBlocks = 16;
-        if (highwayAStarStep < 4)
-            highwayAStarStep = 32;
-        if (highwayAStarStep > 128)
-            highwayAStarStep = 128;
-        if (highwayAStarMaxSteps < 1000)
-            highwayAStarMaxSteps = 1000;
-        if (highwayAStarMaxSteps > 200000)
-            highwayAStarMaxSteps = 200000;
-        if (highwayFloatingWeight < 0)
-            highwayFloatingWeight = 0;
-        if (highwayPenetrationWeight < 0)
-            highwayPenetrationWeight = 0;
-        if (aStarStep > 128)
-            aStarStep = 128; // 步数上限
-        if (aStarMaxSteps < 3000)
-            aStarMaxSteps = 3000; // 最小步数下限
-        if (aStarMaxSteps > 100000)
-            aStarMaxSteps = 100000; // 最大步数上限
-        if (causewayMaxDepth < 0)
-            causewayMaxDepth = 0;// 最小填充深度
-        if (causewayMaxDepth > 12)
-            causewayMaxDepth = 12;// 最大填充深度
-        if (maxSlopeStepPerTwoSegments < 0)
-            maxSlopeStepPerTwoSegments = 0;// 最小斜坡步数
-        if (maxSlopeStepPerTwoSegments > 8)
-            maxSlopeStepPerTwoSegments = 8;// 最大斜坡步数
+        highwaySlopeRiseBlocks = Math.max(0, Math.min(16, highwaySlopeRiseBlocks));
+        highwayAStarStep = Math.max(4, Math.min(128, highwayAStarStep));
+        highwayAStarMaxSteps = Math.max(1000, Math.min(200000, highwayAStarMaxSteps));
+        highwayFloatingWeight = Math.max(0, highwayFloatingWeight);
+        highwayPenetrationWeight = Math.max(0, highwayPenetrationWeight);
+        aStarStep = Math.min(128, aStarStep);
+        aStarMaxSteps = Math.max(3000, Math.min(100000, aStarMaxSteps));
+        causewayMaxDepth = Math.max(0, Math.min(12, causewayMaxDepth));
+        maxSlopeStepPerTwoSegments = Math.max(0, Math.min(8, maxSlopeStepPerTwoSegments));
 
         // computeThreads 校验：0=自动模式，>0 时限制上限，防止配置过大
-        if (computeThreads < 0)
-            computeThreads = 0;
-        if (computeThreads > 128)
-            computeThreads = 128;
+        computeThreads = Math.max(0, Math.min(128, computeThreads));
 
         // 线程占空比校验：1-100，0 或异常值回退到 50%（推荐）
         if (threadDutyCycle < 1 || threadDutyCycle > 100)
@@ -439,108 +400,39 @@ public final class ModConfig {
         // 这里不做额外校验，仅保证反序列化时 null/缺失字段不会影响
 
         // 新增字段校验
-        if (roadWidth < 0)
-            roadWidth = 0; // 0=自动
-        if (roadWidth > 15)
-            roadWidth = 15; // 宽度上限合理限制
-        if (lampInterval < 1)
-            lampInterval = 59; // 保底
-        if (lampInterval > 2048)
-            lampInterval = 2048;
-        if (roadClearHeight < 1)
-            roadClearHeight = 4;
-        if (roadClearHeight > 16)
-            roadClearHeight = 16;
-        if (tunnelClearHeight < 2)
-            tunnelClearHeight = 2;
-        if (tunnelClearHeight > 16)
-            tunnelClearHeight = 16;
+        roadWidth = Math.max(0, Math.min(15, roadWidth));
+        lampInterval = Math.max(1, Math.min(2048, lampInterval));
+        roadClearHeight = Math.max(1, Math.min(16, roadClearHeight));
+        tunnelClearHeight = Math.max(2, Math.min(16, tunnelClearHeight));
 
-        // 桥梁字段校验
-        if (bridgeDeckClearance < 1)
-            bridgeDeckClearance = 1;
-        if (bridgeDeckClearance > 8)
-            bridgeDeckClearance = 8;
-        if (bridgeMaxLengthBlocks < 0)
-            bridgeMaxLengthBlocks = 0;
-        if (bridgeMaxLengthBlocks > 10000)
-            bridgeMaxLengthBlocks = 10000;
-        if (buoyIntervalBlocks < 4)
-            buoyIntervalBlocks = 4;
-        if (buoyIntervalBlocks > 256)
-            buoyIntervalBlocks = 256;
-        if (bridgePierInterval < 3)
-            bridgePierInterval = 3;
-        if (bridgePierInterval > 32)
-            bridgePierInterval = 32;
-        if (bridgePierWidth < 1)
-            bridgePierWidth = 1;
-        if (bridgePierWidth > 3)
-            bridgePierWidth = 3;
-        if (bridgePierMaxHeight < 6)
-            bridgePierMaxHeight = 6;
-        if (bridgePierMaxHeight > 64)
-            bridgePierMaxHeight = 64;
-        if (bridgeRampSegments < 0)
-            bridgeRampSegments = 0;
-        if (bridgeRampSegments > 12)
-            bridgeRampSegments = 12;
+        bridgeDeckClearance = Math.max(1, Math.min(8, bridgeDeckClearance));
+        bridgeMaxLengthBlocks = Math.max(0, Math.min(10000, bridgeMaxLengthBlocks));
+        buoyIntervalBlocks = Math.max(4, Math.min(256, buoyIntervalBlocks));
+        bridgePierInterval = Math.max(3, Math.min(32, bridgePierInterval));
+        bridgePierWidth = Math.max(1, Math.min(3, bridgePierWidth));
+        bridgePierMaxHeight = Math.max(6, Math.min(64, bridgePierMaxHeight));
+        bridgeRampSegments = Math.max(0, Math.min(12, bridgeRampSegments));
 
-        // A* 寻路成本权重校验
-        if (orthoStepCost < 0)
-            orthoStepCost = 0;
-        if (diagStepCost < 0)
-            diagStepCost = 0;
-        if (elevationWeight < 0)
-            elevationWeight = 0;
-        if (biomeWeight < 0)
-            biomeWeight = 0;
-        if (stabilityWeight < 0)
-            stabilityWeight = 0;
-        if (waterDepthWeight < 0)
-            waterDepthWeight = 0;
-        if (nearWaterCost < 0)
-            nearWaterCost = 0;
-        if (waterProximityCost < 0)
-            waterProximityCost = 0;
-        if (heuristicWeight < 0)
-            heuristicWeight = 0;
-        if (deviationWeight < 0)
-            deviationWeight = 0;
+        orthoStepCost = Math.max(0, orthoStepCost);
+        diagStepCost = Math.max(0, diagStepCost);
+        elevationWeight = Math.max(0, elevationWeight);
+        biomeWeight = Math.max(0, biomeWeight);
+        stabilityWeight = Math.max(0, stabilityWeight);
+        waterDepthWeight = Math.max(0, waterDepthWeight);
+        nearWaterCost = Math.max(0, nearWaterCost);
+        waterProximityCost = Math.max(0, waterProximityCost);
+        heuristicWeight = Math.max(0, heuristicWeight);
+        deviationWeight = Math.max(0, deviationWeight);
 
-        // 路边结构配置校验
-        if (maxStructuresPerRoad < 0)
-            maxStructuresPerRoad = 0;
-        if (maxStructuresPerRoad > 20)
-            maxStructuresPerRoad = 20;
-        if (smallStructureOffset < 1)
-            smallStructureOffset = 1;
-        if (smallStructureOffset > 64)
-            smallStructureOffset = 64;
-        if (mediumStructureOffset < 1)
-            mediumStructureOffset = 1;
-        if (mediumStructureOffset > 64)
-            mediumStructureOffset = 64;
-        if (largeStructureOffset < 1)
-            largeStructureOffset = 1;
-        if (largeStructureOffset > 64)
-            largeStructureOffset = 64;
+        maxStructuresPerRoad = Math.max(0, Math.min(20, maxStructuresPerRoad));
+        smallStructureOffset = Math.max(1, Math.min(64, smallStructureOffset));
+        mediumStructureOffset = Math.max(1, Math.min(64, mediumStructureOffset));
+        largeStructureOffset = Math.max(1, Math.min(64, largeStructureOffset));
 
-        // 结构距离控制校验
-        if (villageRoadOffset < 0)
-            villageRoadOffset = 0;
-        if (villageRoadOffset > 256)
-            villageRoadOffset = 256;
-        if (otherStructureRoadOffset < 0)
-            otherStructureRoadOffset = 0;
-        if (otherStructureRoadOffset > 256)
-            otherStructureRoadOffset = 256;
-        if (structureRoadOffset < 0)
-            structureRoadOffset = 0;
-        if (structureRoadOffset > 256)
-            structureRoadOffset = 256;
+        villageRoadOffset = Math.max(0, Math.min(256, villageRoadOffset));
+        otherStructureRoadOffset = Math.max(0, Math.min(256, otherStructureRoadOffset));
+        structureRoadOffset = Math.max(0, Math.min(256, structureRoadOffset));
 
-        // 按维度配置：保底非空，并清理“全继承”的空条目，避免配置文件膨胀
         if (dimensionRoadSettings == null) {
             dimensionRoadSettings = new HashMap<>();
         } else {
@@ -551,7 +443,6 @@ public final class ModConfig {
         }
     }
 
-    // 初始规划半径
     public int initialPlanRadiusChunks() {
         return initialPlanRadiusChunks;
     }
@@ -560,7 +451,6 @@ public final class ModConfig {
         this.initialPlanRadiusChunks = v;
     }
 
-    // 动态规划开关
     public boolean dynamicPlanEnabled() {
         return dynamicPlanEnabled;
     }
@@ -569,7 +459,6 @@ public final class ModConfig {
         this.dynamicPlanEnabled = v;
     }
 
-    // 动态规划半径
     public int dynamicPlanRadiusChunks() {
         return dynamicPlanRadiusChunks;
     }
@@ -578,7 +467,6 @@ public final class ModConfig {
         this.dynamicPlanRadiusChunks = v;
     }
 
-    // 动态规划触发步进
     public int dynamicPlanStrideChunks() {
         return dynamicPlanStrideChunks;
     }
@@ -587,7 +475,6 @@ public final class ModConfig {
         this.dynamicPlanStrideChunks = v;
     }
 
-    // 道路系统总开关
     public boolean roadsEnabled() {
         return roadsEnabled == null || roadsEnabled;
     }
@@ -652,7 +539,6 @@ public final class ModConfig {
         this.generationThreads = v;
     }
 
-    // 计算线程池线程数（0=自动，>0=固定值）
     public int computeThreads() {
         return computeThreads;
     }
@@ -677,7 +563,6 @@ public final class ModConfig {
         this.maxConcurrentGenerations = v;
     }
 
-    // 线程占空比（1-100%），用于控制CPU使用率
     public int threadDutyCycle() {
         return threadDutyCycle;
     }
@@ -686,7 +571,6 @@ public final class ModConfig {
         this.threadDutyCycle = Math.max(1, Math.min(100, v));
     }
 
-    // A* 采样步长
     public int aStarStep() {
         return aStarStep;
     }
@@ -695,7 +579,6 @@ public final class ModConfig {
         this.aStarStep = v;
     }
 
-    // A* 最大步数
     public int aStarMaxSteps() {
         return aStarMaxSteps;
     }
@@ -744,7 +627,6 @@ public final class ModConfig {
         this.pathfindingAlgorithm = v;
     }
 
-    // 新增：道路宽度（0=自动）
     public int roadWidth() {
         return roadWidth;
     }
@@ -753,7 +635,6 @@ public final class ModConfig {
         this.roadWidth = v;
     }
 
-    // 新增：路牌系统开关
     public boolean roadSignsEnabled() {
         return roadSignsEnabled;
     }
@@ -762,7 +643,6 @@ public final class ModConfig {
         this.roadSignsEnabled = v;
     }
 
-    // 新增：高度平滑插值路基填充
     public boolean interpolatedRoadbedFillEnabled() {
         return interpolatedRoadbedFillEnabled == null || interpolatedRoadbedFillEnabled;
     }
@@ -771,7 +651,6 @@ public final class ModConfig {
         this.interpolatedRoadbedFillEnabled = v;
     }
 
-    // 新增：路灯间隔（段）
     public int lampInterval() {
         return lampInterval;
     }
@@ -788,7 +667,6 @@ public final class ModConfig {
         this.roadClearHeight = v;
     }
 
-    // 路网连边算法
     public PlanningAlgorithm planningAlgorithm() {
         return planningAlgorithm;
     }
@@ -797,7 +675,6 @@ public final class ModConfig {
         this.planningAlgorithm = v;
     }
 
-    // 公路（Highway）配置存取
     public boolean highwayEnabled() {
         return highwayEnabled;
     }
@@ -832,7 +709,6 @@ public final class ModConfig {
 
     public int highwayPlanningRadiusBlocks() {
         int grid = Math.max(1, highwayGridBlocks);
-        // 1x1 cell：覆盖范围约等于 1 * grid；3x3 cell：覆盖范围约等于 2 * grid
         return highwayDynamicPlanEnabled() ? (grid * 2) : grid;
     }
 
@@ -924,7 +800,6 @@ public final class ModConfig {
         this.preventTreesOnRoad = v;
     }
 
-    // 桥梁配置存取
     public boolean bridgeEnabled() {
         return bridgeEnabled;
     }
@@ -1037,7 +912,6 @@ public final class ModConfig {
         this.bridgeMergeGap = v;
     }
 
-    // A* 寻路成本权重
     public double orthoStepCost() {
         return orthoStepCost;
     }
@@ -1207,11 +1081,8 @@ public final class ModConfig {
     }
 
     private DimensionRoadSettings getDimensionRoadSettingsInternal(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty())
-            return null;
-        if (dimensionRoadSettings == null || dimensionRoadSettings.isEmpty())
-            return null;
-        return dimensionRoadSettings.get(dimensionId);
+        return (dimensionId == null || dimensionId.isEmpty() || dimensionRoadSettings == null) ? null
+                : dimensionRoadSettings.get(dimensionId);
     }
 
     private static boolean chooseBool(Boolean override, boolean globalValue) {
@@ -1227,18 +1098,14 @@ public final class ModConfig {
     }
 
     public void removeDimensionRoadSettingsIfAllInherit(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty())
-            return;
-        if (dimensionRoadSettings == null)
+        if (dimensionId == null || dimensionId.isEmpty() || dimensionRoadSettings == null)
             return;
         DimensionRoadSettings s = dimensionRoadSettings.get(dimensionId);
-        if (s != null && s.isAllInherit()) {
+        if (s != null && s.isAllInherit())
             dimensionRoadSettings.remove(dimensionId);
-        }
     }
 
     // -------- 维度优先、全局兜底：effective 读取方法 --------
-
     public boolean roadsEnabledForDimension(String dimensionId) {
         DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
         return chooseBool(s == null ? null : s.roadsEnabled(), roadsEnabled());
@@ -1257,7 +1124,6 @@ public final class ModConfig {
 
     public boolean roadFillEnabledForDimension(String dimensionId) {
         DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
-        // roadFillEnabled 只控制“RoadTerrainAdapter 路基/地形适配”这部分。
         return chooseBool(s == null ? null : s.roadFillEnabled(), roadFillEnabled());
     }
 
@@ -1284,5 +1150,14 @@ public final class ModConfig {
     public boolean interpolatedRoadbedFillEnabledForDimension(String dimensionId) {
         DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
         return chooseBool(s == null ? null : s.interpolatedRoadbedFillEnabled(), interpolatedRoadbedFillEnabled());
+    }
+
+    // 测试栏配置存取
+    public boolean loadingTipsEnabled() {
+        return loadingTipsEnabled;
+    }
+
+    public void setLoadingTipsEnabled(boolean v) {
+        this.loadingTipsEnabled = v;
     }
 }

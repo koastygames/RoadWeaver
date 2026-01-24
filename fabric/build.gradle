@@ -89,6 +89,14 @@ shadowJar {
     
     // 排除不需要的文件
     exclude 'META-INF/versions/**'
+    // 排除 H2 中可能触发审查的动态编译/网络服务相关类
+    // SourceCompiler 会使用 JavaCompiler/Groovy 动态编译，Server/tools 可能被视为网络服务能力
+    exclude 'org/h2/util/SourceCompiler*'
+    exclude 'org/h2/tools/**'
+    exclude 'org/h2/server/**'
+    exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
+    exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
+    exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
     
     // 强制更新 META-INF/services 里的类名
     mergeServiceFiles()
