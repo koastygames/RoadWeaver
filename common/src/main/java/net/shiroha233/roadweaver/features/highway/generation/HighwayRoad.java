@@ -110,7 +110,7 @@ public final class HighwayRoad {
             int hi = Math.min(n - 1, i + avg);
             for (int j = lo; j <= hi; j++) {
                 BlockPos sp = centers.get(j);
-                int yTop = cache.height(level, sp.getX(), sp.getZ());
+                int yTop = sp.getY();
                 sum += yTop;
                 cnt++;
             }

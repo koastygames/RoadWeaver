@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.features.path.pathlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadHeightInterpolator;
 import net.shiroha233.roadweaver.helpers.Records;
 
 import java.util.*;
@@ -32,7 +33,7 @@ public final class PathPostProcessor {
                                                              ServerLevel level,
                                                              TerrainSamplingCache cache,
                                                              int bridgeMinWaterDepth) {
-        return process(rawPath, width, level, cache, bridgeMinWaterDepth, CurveMode.CATMULL_ROM);
+        return process(rawPath, width, level, cache, bridgeMinWaterDepth, CurveMode.CATMULL_ROM, null);
     }
 
     public static List<Records.RoadSegmentPlacement> process(List<BlockPos> rawPath,
@@ -41,11 +42,37 @@ public final class PathPostProcessor {
                                                              TerrainSamplingCache cache,
                                                              int bridgeMinWaterDepth,
                                                              CurveMode curveMode) {
+        return process(rawPath, width, level, cache, bridgeMinWaterDepth, curveMode, null);
+    }
+
+    public static List<Records.RoadSegmentPlacement> process(List<BlockPos> rawPath,
+                                                             int width,
+                                                             ServerLevel level,
+                                                             TerrainSamplingCache cache,
+                                                             int bridgeMinWaterDepth,
+                                                             AccurateHeightSampler accurate) {
+        return process(rawPath, width, level, cache, bridgeMinWaterDepth, CurveMode.CATMULL_ROM, accurate);
+    }
+
+    public static List<Records.RoadSegmentPlacement> process(List<BlockPos> rawPath,
+                                                             int width,
+                                                             ServerLevel level,
+                                                             TerrainSamplingCache cache,
+                                                             int bridgeMinWaterDepth,
+                                                             CurveMode curveMode,
+                                                             AccurateHeightSampler accurate) {
         if (rawPath == null || rawPath.size() < 2) return new ArrayList<>();
+
+        int[] rawTargetY = new int[rawPath.size()];
+        for (int i = 0; i < rawPath.size(); i++) {
+            rawTargetY[i] = rawPath.get(i).getY();
+        }
+
+        AccurateHeightSampler accurateSampler = accurate != null ? accurate : AccurateHeightSampler.create(level);
 
         // 1. 路径简化
         List<BlockPos> simplified = simplifyPath(rawPath);
-        boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, bridgeMinWaterDepth);
+        boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, bridgeMinWaterDepth, accurateSampler);
         // 进一步：对连续水域段做“整段拉直”，确保跨河桥梁为一条直线
         List<BlockPos> straightened = straightenBridgeRuns(simplified, bridgeMask);
         // 桥梁段不做曲线松弛/样条平滑，否则会出现弯桥
@@ -104,8 +131,10 @@ public final class PathPostProcessor {
             }
             
             if (currentDist >= nextCenterDist || i == splinePoints.size() - 1) {
-                int y = RoadPathCalculator.heightSampler(cache, (int)Math.round(p.x), (int)Math.round(p.z), level);
-                BlockPos centerPos = new BlockPos((int)Math.round(p.x), y, (int)Math.round(p.z));
+                int cx = (int) Math.round(p.x);
+                int cz = (int) Math.round(p.z);
+                int y = RoadHeightInterpolator.getInterpolatedY(cx, cz, rawPath, rawTargetY);
+                BlockPos centerPos = new BlockPos(cx, y, cz);
                 
                 if (centers.isEmpty() || !centers.get(centers.size() - 1).equals(centerPos)) {
                     centers.add(centerPos);
@@ -279,20 +308,29 @@ public final class PathPostProcessor {
     private static boolean[] detectBridgeMask(List<BlockPos> nodes,
                                               ServerLevel level,
                                               TerrainSamplingCache cache,
-                                              int bridgeMinWaterDepth) {
+                                              int bridgeMinWaterDepth,
+                                              AccurateHeightSampler accurate) {
         int n = nodes.size();
         boolean[] mask = new boolean[n];
         int minDepth = Math.max(1, bridgeMinWaterDepth);
         int sea = level.getSeaLevel();
+        AccurateHeightSampler sampler = accurate != null ? accurate : AccurateHeightSampler.create(level);
         for (int i = 0; i < n; i++) {
             BlockPos p = nodes.get(i);
-            boolean isWater = RoadPathCalculator.isColumnWater(cache, p.getX(), p.getZ(), level);
-            if (!isWater) {
+
+            // 预筛：绝大多数陆地点不需要 baseHeight 精采样
+            boolean isWaterBiome = RoadPathCalculator.isWaterLike(cache, p.getX(), p.getZ(), level);
+            if (!isWaterBiome) {
                 mask[i] = false;
                 continue;
             }
-            int oceanFloor = RoadPathCalculator.oceanFloorSampler(cache, p.getX(), p.getZ(), level);
-            int waterDepth = Math.max(0, sea - oceanFloor);
+
+            int oceanFloor = sampler.oceanFloorWg(p.getX(), p.getZ());
+            int surfaceY = sampler.worldSurfaceWg(p.getX(), p.getZ());
+            boolean biomeWater = oceanFloor < sea;
+            boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
+            boolean waterColumn = biomeWater || heightWater;
+            int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;
             mask[i] = waterDepth >= minDepth;
         }
         return mask;

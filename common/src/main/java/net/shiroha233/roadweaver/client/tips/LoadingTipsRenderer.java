@@ -3,6 +3,8 @@ package net.shiroha233.roadweaver.client.tips;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.config.ModConfig;
 
 import java.util.List;
 
@@ -44,6 +46,12 @@ public final class LoadingTipsRenderer {
             return;
         }
         if (TIPS.isEmpty()) {
+            return;
+        }
+
+        // 检查配置是否启用 Tips
+        ModConfig config = ConfigService.get();
+        if (config != null && !config.loadingTipsEnabled()) {
             return;
         }
 

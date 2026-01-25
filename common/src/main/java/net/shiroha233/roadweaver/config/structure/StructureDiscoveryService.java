@@ -3,7 +3,6 @@ package net.shiroha233.roadweaver.config.structure;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
-import dev.architectury.utils.Env;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -281,76 +280,14 @@ public final class StructureDiscoveryService {
     /**
      * 尝试从当前上下文获取结构注册表
      * 
-     * 支持：
-     * - 客户端已连接服务器（ClientLevel）
-     * - 客户端创建世界界面（WorldCreationContext）
+     * 注意：客户端结构发现已移除反射实现，改为依赖：
+     * 1. 服务端在玩家进入世界时主动调用 discoverFromLevel()
+     * 2. 缓存文件（structure_cache.json）
      */
     public static void tryDiscoverFromCurrentContext() {
-        // 只在客户端执行
-        if (Platform.getEnvironment() != Env.CLIENT) {
-            return;
-        }
-        
-        try {
-            // 尝试从客户端获取（使用反射避免直接引用客户端类）
-            RegistryAccess access = ClientRegistryAccessHelper.tryGetClientRegistryAccess();
-            if (access != null) {
-                discoverFromRegistryAccess(access);
-            }
-        } catch (Exception e) {
-            // 静默失败，避免在某些加载阶段刷屏日志
-        }
-    }
-    
-    /**
-     * 客户端注册表访问帮助类（内部类，避免外层类加载客户端依赖）
-     */
-    private static class ClientRegistryAccessHelper {
-        static RegistryAccess tryGetClientRegistryAccess() {
-            try {
-                // 使用反射加载 Minecraft 类，避免在服务端加载时失败
-                Class<?> minecraftClass = Class.forName("net.minecraft.client.Minecraft");
-                Object mc = minecraftClass.getMethod("getInstance").invoke(null);
-                if (mc == null) return null;
-                
-                // 获取 level 字段
-                var levelField = minecraftClass.getDeclaredField("level");
-                levelField.setAccessible(true);
-                Object level = levelField.get(mc);
-                
-                if (level != null) {
-                    // 调用 level.registryAccess()
-                    var registryAccessMethod = level.getClass().getMethod("registryAccess");
-                    RegistryAccess access = (RegistryAccess) registryAccessMethod.invoke(level);
-                    return access;
-                }
-                
-                // 尝试从 CreateWorldScreen 获取
-                var screenField = minecraftClass.getDeclaredField("screen");
-                screenField.setAccessible(true);
-                Object screen = screenField.get(mc);
-                
-                if (screen != null) {
-                    Class<?> createWorldScreenClass = Class.forName("net.minecraft.client.gui.screens.worldselection.CreateWorldScreen");
-                    if (createWorldScreenClass.isInstance(screen)) {
-                        var uiStateField = createWorldScreenClass.getDeclaredField("uiState");
-                        uiStateField.setAccessible(true);
-                        var uiState = uiStateField.get(screen);
-                        
-                        var getSettingsMethod = uiState.getClass().getMethod("getSettings");
-                        Object context = getSettingsMethod.invoke(uiState);
-                        
-                        if (context != null) {
-                            var worldgenLoadContextMethod = context.getClass().getMethod("worldgenLoadContext");
-                            return (RegistryAccess) worldgenLoadContextMethod.invoke(context);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                // 静默失败
-            }
-            return null;
-        }
+        // 客户端不再使用反射获取注册表，避免模组审核问题
+        // 结构发现主要依赖服务端调用和缓存文件
+        LOGGER.debug("tryDiscoverFromCurrentContext: 跳过客户端反射获取，使用缓存文件");
     }
     
     /**

@@ -45,6 +45,7 @@ public final class RoadsideStructurePrecomputer {
      * @param width    道路宽度
      * @param cache    地形采样缓存
      * @param random   随机源
+     * @param targetY  道路平滑后的目标高度列表（与 segments 一一对应）
      * @return 预计算的结构数量
      */
     public static int precomputeStructures(ServerLevel level,
@@ -52,7 +53,8 @@ public final class RoadsideStructurePrecomputer {
                                            List<Records.RoadSpan> spans,
                                            int width,
                                            TerrainSamplingCache cache,
-                                           RandomSource random) {
+                                           RandomSource random,
+                                           List<Integer> targetY) {
         if (segments == null || segments.size() < 10) {
             return 0;
         }
@@ -172,7 +174,8 @@ public final class RoadsideStructurePrecomputer {
             
             int placeX = middle.getX() + (int) Math.round(perpX * centerOffset);
             int placeZ = middle.getZ() + (int) Math.round(perpZ * centerOffset);
-            int placeY = cache.height(level, placeX, placeZ);
+            // 使用道路平滑后的目标高度，确保路边结构与道路高度一致
+            int placeY = (targetY != null && i < targetY.size()) ? targetY.get(i) : cache.height(level, placeX, placeZ);
             
             // 锚点在结构角落，需要从中心点反推锚点位置
             // 旋转后结构的延伸方向不同，需要相应调整

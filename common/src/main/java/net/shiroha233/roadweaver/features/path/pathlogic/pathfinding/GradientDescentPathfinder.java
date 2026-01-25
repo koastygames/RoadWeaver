@@ -174,7 +174,9 @@ final class GradientDescentPathfinder {
             c = c.parent;
         }
         Collections.reverse(rawPath);
-        return PathPostProcessor.process(rawPath, width, level, cache, bridgeMinWaterDepth);
+        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        rawPath = accurate.samplePathHeights(rawPath);
+        return PathPostProcessor.process(rawPath, width, level, cache, bridgeMinWaterDepth, accurate);
     }
 
     private static int manhattan2d(BlockPos a, BlockPos b) {

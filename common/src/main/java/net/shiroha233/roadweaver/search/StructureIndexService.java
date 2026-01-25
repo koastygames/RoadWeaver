@@ -5,7 +5,6 @@ import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.helpers.Records;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureCacheMigrator;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,10 +73,6 @@ public final class StructureIndexService {
         if (level == null) {
             return List.of();
         }
-
-        // 迁移旧结构点（WorldDataProvider 持久化）到 SQLite，一次性执行。
-        // 原理：地图/规划后续统一走 SQLite 查询，避免旧存档丢点，且避免在内存中维护大列表。
-        StructureCacheMigrator.migrateLegacyIfNeeded(level);
 
         ModConfig cfg = ConfigService.get();
         if (cfg == null || !cfg.structurePredictionEnabled()) {

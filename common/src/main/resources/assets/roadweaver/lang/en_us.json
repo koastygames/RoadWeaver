@@ -165,6 +165,7 @@
   "gui.roadweaver.initgen.summary": "Total: %s  Generating: %s  Done: %s  Failed: %s",
   "gui.roadweaver.initgen.progress": "Progress: %s/%s (%s%%)",
   "gui.roadweaver.initgen.debug": "Cache: %s%% | Noise: %s/s | Total: %s",
+  "gui.roadweaver.initgen.debug2": "Accurate: %s%% | BaseHeight: %s/s | Total: %s",
   "config.roadweaver.category.bridge": "Bridges",
   "config.roadweaver.bridge_enabled": "Enable Bridges",
   "config.roadweaver.bridge_enabled.tooltip": "Build elevated decks over water spans identified by the path analyzer.",
@@ -269,5 +270,8 @@
   "config.roadweaver.structure_selection.folder.select_all": "Select all in this folder",
   "config.roadweaver.structure_selection.folder.deselect_all": "Deselect all in this folder",
   "config.roadweaver.structure_selection.dimension": "Dimension: %s",
-  "config.roadweaver.structure_selection.dimension.all": "All"
+  "config.roadweaver.structure_selection.dimension.all": "All",
+  "config.roadweaver.category.test": "Testing",
+  "config.roadweaver.loading_tips_enabled": "Enable Loading Tips",
+  "config.roadweaver.loading_tips_enabled.tooltip": "Show RoadWeaver related tips and tricks in the bottom right corner of the world loading screen."
 }

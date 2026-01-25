@@ -29,7 +29,6 @@ public final class StructureSqliteStorage {
     // 结构点来源：用于区分"预测缓存"与"手动/业务注册"
     public static final int SOURCE_PREDICTED = 0;
     public static final int SOURCE_MANUAL = 1;
-    public static final int SOURCE_LEGACY = 2;
 
     // 扫描 tile 的固定大小（chunk）
     public static final int SCAN_TILE_SIZE_CHUNKS = 128;
@@ -38,7 +37,6 @@ public final class StructureSqliteStorage {
     private static final int SCAN_CLAIM_TIMEOUT_SECONDS = 10 * 60;
 
     private static final String META_POLICY_HASH = "policy_hash";
-    private static final String META_LEGACY_MIGRATED = "legacy_migrated";
 
     // H2 兼容的 SQL 语句
     private static final String SQL_INSERT_STRUCTURE =
@@ -101,7 +99,7 @@ public final class StructureSqliteStorage {
 
     private static int[] normalizeSources(int[] sources) {
         if (sources == null || sources.length == 0) {
-            return new int[]{SOURCE_PREDICTED, SOURCE_MANUAL, SOURCE_LEGACY};
+            return new int[]{SOURCE_PREDICTED, SOURCE_MANUAL};
         }
         return sources;
     }
@@ -259,25 +257,6 @@ public final class StructureSqliteStorage {
             }
         } catch (SQLException e) {
             LOGGER.error("StructureSqliteStorage: addStructures failed", e);
-        }
-    }
-
-    public static boolean isLegacyMigrated(ServerLevel level) {
-        if (level == null) return false;
-        try {
-            String v = getMetaValue(level, META_LEGACY_MIGRATED);
-            return "1".equals(v);
-        } catch (SQLException e) {
-            return false;
-        }
-    }
-
-    public static void markLegacyMigrated(ServerLevel level) {
-        if (level == null) return;
-        try {
-            setMetaValue(level, META_LEGACY_MIGRATED, "1");
-        } catch (SQLException e) {
-            LOGGER.error("StructureSqliteStorage: markLegacyMigrated failed", e);
         }
     }
 

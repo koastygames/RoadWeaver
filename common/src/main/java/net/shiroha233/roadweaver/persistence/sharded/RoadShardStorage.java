@@ -19,12 +19,6 @@ import java.util.List;
  * - 支持并发读写，不阻塞区块生成
  * - 空间索引加速矩形范围查询
  * - 自动持久化，无需手动 flush
- * 
- * 旧数据迁移：
- * - 首次访问时会自动检测并导入旧的 SQLite 数据库（roads.db）
- * - 然后检测并导入旧的分片 NBT 文件（r.rx.rz.nbt）
- * - 迁移完成后创建标记文件/重命名旧文件，避免重复迁移
- * - 迁移过程中使用 fingerprint 去重，不会产生重复数据
  */
 public final class RoadShardStorage {
     private RoadShardStorage() {}

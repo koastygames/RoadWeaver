@@ -171,6 +171,7 @@
   "gui.roadweaver.initgen.summary": "总数: %s  生成中: %s  已完成: %s  失败: %s",
   "gui.roadweaver.initgen.progress": "进度: %s/%s (%s%%)",
   "gui.roadweaver.initgen.debug": "缓存命中: %s%% | 噪声采样: %s/秒 | 总计: %s",
+  "gui.roadweaver.initgen.debug2": "精确采样: %s%% | BaseHeight: %s/秒 | 总计: %s",
   "config.roadweaver.category.bridge": "桥梁",
   "config.roadweaver.bridge_enabled": "启用桥梁",
   "config.roadweaver.bridge_enabled.tooltip": "在路径分析标记的水域跨越区段上架设高架桥面。",
@@ -281,5 +282,8 @@
   "config.roadweaver.structure_selection.folder.select_all": "全选此文件夹",
   "config.roadweaver.structure_selection.folder.deselect_all": "取消全选此文件夹",
   "config.roadweaver.structure_selection.dimension": "维度：%s",
-  "config.roadweaver.structure_selection.dimension.all": "全部"
+  "config.roadweaver.structure_selection.dimension.all": "全部",
+  "config.roadweaver.category.test": "测试栏",
+  "config.roadweaver.loading_tips_enabled": "启用加载界面 Tips",
+  "config.roadweaver.loading_tips_enabled.tooltip": "在世界加载界面右下角显示 RoadWeaver 相关的提示和技巧。"
 }

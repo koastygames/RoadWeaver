@@ -34,6 +34,18 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains("DynamicTree")) {
             return isModLoaded("dynamictrees");
         }
+        
+        // Oh-The-Trees-Youll-Grow 相关的 Mixin
+        if (mixinClassName.contains("TreeFromStructureNBTFeatureMixin")) {
+            return isModLoaded("ohthetreesyoullgrow");
+        }
+        
+        // ReTerraForged 相关的 Mixin
+        if (mixinClassName.contains("RTFTemplateFeatureMixin") || 
+            mixinClassName.contains("RTFBushFeatureMixin")) {
+            return isModLoaded("reterraforged");
+        }
+
         return true;
     }
 

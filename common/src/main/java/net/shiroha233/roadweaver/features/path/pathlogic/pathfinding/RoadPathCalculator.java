@@ -53,7 +53,13 @@ public final class RoadPathCalculator {
                     cache);
         }
 
-        return calculateDirect(startGround, endGround, width, level, maxSteps, cache, cfg, pathCfg);
+        List<Records.RoadSegmentPlacement> fastSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, cfg, pathCfg);
+        if (fastSegments == null || fastSegments.isEmpty()) {
+            return fastSegments;
+        }
+
+        // 精采样已在寻路重建阶段对 rawPath 节点完成，并通过插值传递到中心点。
+        return fastSegments;
     }
 
     private static List<Records.RoadSegmentPlacement> calculateDirect(BlockPos startGround,
@@ -166,6 +172,8 @@ public final class RoadPathCalculator {
             centers.add(seg.middlePos());
         }
 
+        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+
         // 从配置快照读取最小水深阈值
         int minWaterDepth = cfg.bridgeMinWaterDepth();
         int sea = level.getSeaLevel();
@@ -174,14 +182,31 @@ public final class RoadPathCalculator {
         int waterStart = -1;
         for (int i = 0; i < centers.size(); i++) {
             BlockPos p = centers.get(i);
-            // 检测是否是水体且水深达到阈值
-            boolean isWater = isColumnWater(cache, p.getX(), p.getZ(), level);
-            int waterDepth = 0;
-            if (isWater) {
-                int oceanFloor = oceanFloorSampler(cache, p.getX(), p.getZ(), level);
-                waterDepth = Math.max(0, sea - oceanFloor);
+
+            // 检测是否是水体且水深达到阈值（使用 getBaseHeight 二次采样，避免 FastHeightSampler 偏差）
+            boolean isWaterBiome = isWaterLike(cache, p.getX(), p.getZ(), level);
+            if (!isWaterBiome) {
+                if (!inWater) {
+                    continue;
+                }
+                // 从水域回到陆地，结束桥梁跨度
+                int startIdx = Math.max(0, waterStart - 1);
+                int endIdx = i;
+                BlockPos start = centers.get(startIdx);
+                BlockPos end = centers.get(Math.min(endIdx, centers.size() - 1));
+                spans.add(new Records.RoadSpan(start, end, Records.SpanType.BRIDGE));
+                inWater = false;
+                waterStart = -1;
+                continue;
             }
-            boolean water = isWater && waterDepth >= minWaterDepth;
+
+            int oceanFloor = accurate.oceanFloorWg(p.getX(), p.getZ());
+            int surfaceY = accurate.worldSurfaceWg(p.getX(), p.getZ());
+            boolean biomeWater = oceanFloor < sea;
+            boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
+            boolean waterColumn = biomeWater || heightWater;
+            int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;
+            boolean water = waterColumn && waterDepth >= minWaterDepth;
             
             if (water && !inWater) {
                 inWater = true;
@@ -211,8 +236,9 @@ public final class RoadPathCalculator {
         for (int i = 1; i < centers.size(); i++) {
             BlockPos a = centers.get(i - 1);
             BlockPos b = centers.get(i);
-            int ya = heightSampler(cache, a.getX(), a.getZ(), level);
-            int yb = heightSampler(cache, b.getX(), b.getZ(), level);
+            // 隧道识别只看坡度：优先使用二次精采样后的中心点高度
+            int ya = a.getY();
+            int yb = b.getY();
             int dy = Math.abs(yb - ya);
             boolean steep = dy >= SLOPE_ABS_THRESHOLD;
             if (steep) {

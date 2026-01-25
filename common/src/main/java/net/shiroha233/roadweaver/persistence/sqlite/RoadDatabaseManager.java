@@ -26,13 +26,8 @@ public final class RoadDatabaseManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
-    private static volatile boolean H2_DRIVER_LOADED = false;
-
-    // H2 驱动类名（支持重定位后的包名）
-    private static final String[] H2_DRIVERS = {
-            "net.shiroha233.roadweaver.libs.h2.Driver", // 生产环境 (Relocated)
-            "org.h2.Driver" // 开发环境 (Original)
-    };
+    // H2 驱动实例（用于 Forge 类加载器兼容）
+    private static volatile java.sql.Driver H2_DRIVER_INSTANCE = null;
 
     // 按维度存储的数据库连接
     private static final ConcurrentHashMap<String, Connection> CONNECTIONS = new ConcurrentHashMap<>();
@@ -67,56 +62,39 @@ public final class RoadDatabaseManager {
     }
 
     /**
-     * 获取旧 SQLite 数据库文件路径（用于迁移）
+     * 确保 H2 驱动可用
+     * 
+     * 由于 Forge 的 TransformingClassLoader 不会自动扫描模组 JAR 中的 SPI 服务文件，
+     * 我们需要手动注册驱动。这里直接实例化驱动类（不使用 Class.forName），
+     * 避免模组审核系统标记为"动态类加载"。
      */
-    static Path getLegacySqliteDbPath(ServerLevel level) {
-        Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
-        return worldRoot.resolve(DB_DIR).resolve(dimKey(level)).resolve("roads.db");
-    }
-
-    private static void ensureH2DriverLoaded() throws SQLException {
-        if (H2_DRIVER_LOADED)
-            return;
-        synchronized (RoadDatabaseManager.class) {
-            if (H2_DRIVER_LOADED)
+    private static void ensureH2DriverAvailable() throws SQLException {
+        // 1. 首先检查 SPI 是否已自动注册（适用于 Fabric/NeoForge）
+        try {
+            java.sql.Driver driver = DriverManager.getDriver("jdbc:h2:");
+            if (driver != null) {
+                LOGGER.debug("RoadDatabaseManager: H2 驱动已通过 SPI 自动注册");
                 return;
-
-            ClassNotFoundException lastException = null;
-
-            for (String driverName : H2_DRIVERS) {
-                try {
-                    Class.forName(driverName, true, RoadDatabaseManager.class.getClassLoader());
-                    H2_DRIVER_LOADED = true;
-                    LOGGER.info("RoadDatabaseManager: H2 驱动已加载: {}", driverName);
-                    return;
-                } catch (ClassNotFoundException e) {
-                    lastException = e;
-                }
-
-                try {
-                    ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
-                    if (contextLoader != null) {
-                        Class.forName(driverName, true, contextLoader);
-                        H2_DRIVER_LOADED = true;
-                        LOGGER.info("RoadDatabaseManager: H2 驱动已通过上下文类加载器加载: {}", driverName);
-                        return;
+            }
+        } catch (SQLException ignored) {
+            // SPI 未注册，继续手动注册
+        }
+        
+        // 2. 手动注册驱动（适用于 Forge 类加载器）
+        if (H2_DRIVER_INSTANCE == null) {
+            synchronized (RoadDatabaseManager.class) {
+                if (H2_DRIVER_INSTANCE == null) {
+                    try {
+                        // 直接实例化驱动类，不使用 Class.forName()
+                        // 编译时会解析为重定位后的类名
+                        H2_DRIVER_INSTANCE = new org.h2.Driver();
+                        DriverManager.registerDriver(H2_DRIVER_INSTANCE);
+                        LOGGER.info("RoadDatabaseManager: H2 驱动已手动注册");
+                    } catch (Exception e) {
+                        throw new SQLException("Failed to register H2 driver", e);
                     }
-                } catch (ClassNotFoundException e) {
-                    lastException = e;
-                }
-
-                try {
-                    Class.forName(driverName);
-                    H2_DRIVER_LOADED = true;
-                    LOGGER.info("RoadDatabaseManager: H2 驱动已通过系统类加载器加载: {}", driverName);
-                    return;
-                } catch (ClassNotFoundException e) {
-                    lastException = e;
                 }
             }
-
-            throw new SQLException("H2 driver not found. Tried: " + java.util.Arrays.toString(H2_DRIVERS),
-                    lastException);
         }
     }
 
@@ -141,7 +119,7 @@ public final class RoadDatabaseManager {
                 Path dbPath = getDbPath(level);
                 Files.createDirectories(dbPath.getParent());
 
-                ensureH2DriverLoaded();
+                ensureH2DriverAvailable();
 
                 // H2 连接 URL，使用 MVStore 引擎，SQLite 兼容模式
                 // FILE_LOCK=NO 避免多进程锁问题（Minecraft 单进程）
@@ -167,23 +145,6 @@ public final class RoadDatabaseManager {
 
                 CONNECTIONS.put(key, conn);
                 LOGGER.debug("RoadDatabaseManager: 已创建维度 {} 的 H2 数据库连接", dimKey(level));
-
-                // 检查并执行旧数据迁移
-                try {
-                    // 1. 先检查 SQLite 迁移
-                    int sqliteMigrated = LegacySqliteMigration.migrateIfNeeded(level);
-                    if (sqliteMigrated > 0) {
-                        LOGGER.info("RoadDatabaseManager: 维度 {} 已从 SQLite 迁移 {} 条道路数据", dimKey(level), sqliteMigrated);
-                    }
-                    
-                    // 2. 再检查 NBT 分片迁移
-                    int nbtMigrated = LegacyShardMigration.migrateIfNeeded(level);
-                    if (nbtMigrated > 0) {
-                        LOGGER.info("RoadDatabaseManager: 维度 {} 已从 NBT 迁移 {} 条道路数据", dimKey(level), nbtMigrated);
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn("RoadDatabaseManager: 旧数据迁移失败，不影响正常使用", e);
-                }
 
                 return conn;
 

@@ -112,9 +112,8 @@ public final class Road {
             RoadShardStorage.addRoad(level, rd);
             
             // 寻路完成后，预计算路边结构位置
-            // 如果区块还没生成，结构会在 STRUCTURE_STARTS 阶段注入，Beardifier 会自动处理地形
-            // 如果区块已经生成，则在 Feature 阶段通过 RoadsideStructurePlacer 放置（无地形适应）
-            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random);
+            // 传入 targetY 确保路边结构使用与道路一致的平滑后高度
+            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
         } finally {
             // 单条道路生成结束后清空噪声采样缓存，避免长时间占用内存
             cache.clear();
@@ -158,7 +157,8 @@ public final class Road {
             int hi = Math.min(n - 1, i + avg);
             for (int j = lo; j <= hi; j++) {
                 BlockPos sp = centers.get(j);
-                int yTop = cache.height(level, sp.getX(), sp.getZ());
+                // 使用二次精采样后的中心点高度，避免 FastHeightSampler 的趋势高度误差影响 targetY。
+                int yTop = sp.getY();
                 sum += yTop; cnt++;
             }
             base[i] = cnt > 0 ? (int) Math.round(sum / (double) cnt) : centers.get(i).getY();
