@@ -4,8 +4,8 @@
 		{
 			"rolls": {
 				"type": "minecraft:binomial",
-				"n": 8,
-				"p": 0.3
+				"n": 5,
+				"p": 0.5
 			},
 			"bonus_rolls": 0.1,
 			"entries": [
@@ -19,7 +19,7 @@
 							"count": {
 								"type": "minecraft:uniform",
 								"min": 1,
-								"max": 3
+								"max": 4
 							}
 						}
 					]
@@ -29,8 +29,8 @@
 		{
 			"rolls": {
 				"type": "minecraft:binomial",
-				"n": 10,
-				"p": 0.5
+				"n": 6,
+				"p": 0.6
 			},
 			"bonus_rolls": 0.1,
 			"entries": [
@@ -50,19 +50,34 @@
 					"type": "minecraft:tag",
 					"name": "roadweaver:stained_glass",
 					"expand": true,
-					"quality": 0.2
+					"weight": 2
 				},
 				{
 					"type": "minecraft:tag",
 					"name": "minecraft:wool",
 					"expand": true,
-					"weight": 2
+					"weight": 3
 				},
 				{
 					"type": "minecraft:tag",
 					"name": "minecraft:wool_carpets",
 					"expand": true,
 					"weight": 2
+				},
+				{
+					"type": "minecraft:item",
+					"name": "minecraft:amethyst_shard",
+					"functions": [
+						{
+							"function": "minecraft:set_count",
+							"count": {
+								"type": "minecraft:binomial",
+								"n": 4,
+								"p": 0.25
+							}
+						}
+					],
+					"quality": 0.2
 				}
 			]
 		}
