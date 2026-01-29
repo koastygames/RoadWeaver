@@ -2,6 +2,21 @@
 	"type": "minecraft:chest",
 	"pools": [
 		{
+			"rolls": 1,
+			"entries": [
+				{
+					"type": "minecraft:item",
+					"name": "minecraft:recovery_compass",
+					"conditions": [
+						{
+							"condition": "minecraft:random_chance",
+							"chance": 0.05
+						}
+					]
+				}
+			]
+		},
+		{
 			"rolls": {
 				"type": "minecraft:binomial",
 				"n": 5,
@@ -21,7 +36,13 @@
 								"max": 3
 							}
 						}
-					]
+					],
+					"weight": 7
+				},
+				{
+					"type": "minecraft:item",
+					"name": "minecraft:redstone_block",
+					"quality": 0.5
 				}
 			]
 		},
@@ -47,8 +68,7 @@
 							}
 						}
 					],
-					"weight": 3,
-					"quality": 0.1
+					"weight": 4
 				},
 				{
 					"type": "minecraft:tag",
@@ -64,8 +84,13 @@
 							}
 						}
 					],
-					"weight": 2,
-					"quality": 0.2
+					"weight": 4,
+					"quality": 0.3
+				},
+				{
+					"type": "minecraft:tag",
+					"name": "minecraft:redstone_ores",
+					"expand": true
 				}
 			]
 		}
