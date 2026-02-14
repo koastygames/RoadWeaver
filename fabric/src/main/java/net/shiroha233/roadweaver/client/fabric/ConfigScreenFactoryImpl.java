@@ -906,6 +906,16 @@ public class ConfigScreenFactoryImpl {
                                                 conf.setLoadingTipsEnabled(v);
                                 })
                                 .build());
+                testCategory.addEntry(eb
+                                .startBooleanToggle(Component.translatable("config.roadweaver.loading_progress_enabled"),
+                                                conf.loadingProgressEnabled())
+                                .setDefaultValue(defaultConf.loadingProgressEnabled())
+                                .setTooltip(Component.translatable("config.roadweaver.loading_progress_enabled.tooltip"))
+                                .setSaveConsumer(v -> {
+                                        if (v != null)
+                                                conf.setLoadingProgressEnabled(v);
+                                })
+                                .build());
 
                 return builder.build();
         }

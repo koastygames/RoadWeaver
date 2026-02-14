@@ -141,6 +141,7 @@ public final class ModConfig {
 
     // 测试栏配置
     private boolean loadingTipsEnabled;
+    private boolean loadingProgressEnabled;
 
     public ModConfig() {
         this.villagePredictionEnabled = true;
@@ -260,6 +261,7 @@ public final class ModConfig {
 
         // 测试栏默认值
         this.loadingTipsEnabled = true;
+        this.loadingProgressEnabled = true;
     }
 
     public boolean villagePredictionEnabled() {
@@ -1159,5 +1161,13 @@ public final class ModConfig {
 
     public void setLoadingTipsEnabled(boolean v) {
         this.loadingTipsEnabled = v;
+    }
+
+    public boolean loadingProgressEnabled() {
+        return loadingProgressEnabled;
+    }
+
+    public void setLoadingProgressEnabled(boolean v) {
+        this.loadingProgressEnabled = v;
     }
 }

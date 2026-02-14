@@ -273,5 +273,7 @@
   "config.roadweaver.structure_selection.dimension.all": "All",
   "config.roadweaver.category.test": "Testing",
   "config.roadweaver.loading_tips_enabled": "Enable Loading Tips",
-  "config.roadweaver.loading_tips_enabled.tooltip": "Show RoadWeaver related tips and tricks in the bottom right corner of the world loading screen."
+  "config.roadweaver.loading_tips_enabled.tooltip": "Show RoadWeaver related tips and tricks in the bottom right corner of the world loading screen.",
+  "config.roadweaver.loading_progress_enabled": "Enable Loading Progress",
+  "config.roadweaver.loading_progress_enabled.tooltip": "Show RoadWeaver generation progress information on the world loading screen."
 }

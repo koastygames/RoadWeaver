@@ -285,5 +285,7 @@
   "config.roadweaver.structure_selection.dimension.all": "全部",
   "config.roadweaver.category.test": "测试栏",
   "config.roadweaver.loading_tips_enabled": "启用加载界面 Tips",
-  "config.roadweaver.loading_tips_enabled.tooltip": "在世界加载界面右下角显示 RoadWeaver 相关的提示和技巧。"
+  "config.roadweaver.loading_tips_enabled.tooltip": "在世界加载界面右下角显示 RoadWeaver 相关的提示和技巧。",
+  "config.roadweaver.loading_progress_enabled": "启用加载进度显示",
+  "config.roadweaver.loading_progress_enabled.tooltip": "在世界加载界面显示 RoadWeaver 的生成进度信息。"
 }
