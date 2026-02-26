@@ -93,7 +93,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         boolean roadFillEnabled = cfg.roadFillEnabledForDimension(dimId);
         boolean interpolatedRoadbedFillEnabled = cfg.interpolatedRoadbedFillEnabledForDimension(dimId);
         int roadType = data.roadType();
-        if (roadType != 0 && roadType != 1) {
+        if (roadType != 0 && roadType != 1 && roadType != 3) {
             return;
         }
         int roadWidth = Math.max(1, data.width());

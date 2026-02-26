@@ -228,6 +228,57 @@ public class ConfigScreenFactoryImpl {
                                 .setMin(0).setSaveConsumer(v -> conf.setHighwayPenetrationWeight(v))
                                 .build());
 
+                // Long Drive（长途旅行）
+                ConfigCategory longDrive = builder
+                                .getOrCreateCategory(Component.translatable("config.roadweaver.category.long_drive"));
+                longDrive.addEntry(eb
+                                .startBooleanToggle(Component.translatable("config.roadweaver.long_drive_enabled"),
+                                                conf.longDriveEnabled())
+                                .setDefaultValue(defaultConf.longDriveEnabled())
+                                .setTooltip(Component.translatable("config.roadweaver.long_drive_enabled.tooltip"))
+                                .setSaveConsumer(v -> conf.setLongDriveEnabled(v))
+                                .build());
+                longDrive.addEntry(eb
+                                .startIntField(Component.translatable("config.roadweaver.long_drive_road_width"),
+                                                conf.longDriveRoadWidth())
+                                .setDefaultValue(defaultConf.longDriveRoadWidth())
+                                .setTooltip(Component.translatable("config.roadweaver.long_drive_road_width.tooltip"))
+                                .setMin(1).setMax(15)
+                                .setSaveConsumer(v -> conf.setLongDriveRoadWidth(v))
+                                .build());
+                longDrive.addEntry(eb
+                                .startIntField(Component.translatable("config.roadweaver.long_drive_a_star_step"),
+                                                conf.longDriveAStarStep())
+                                .setDefaultValue(defaultConf.longDriveAStarStep())
+                                .setTooltip(Component.translatable("config.roadweaver.long_drive_a_star_step.tooltip"))
+                                .setMin(4).setMax(128)
+                                .setSaveConsumer(v -> conf.setLongDriveAStarStep(v))
+                                .build());
+                longDrive.addEntry(eb
+                                .startIntField(Component.translatable("config.roadweaver.long_drive_segment_length"),
+                                                conf.longDriveSegmentLength())
+                                .setDefaultValue(defaultConf.longDriveSegmentLength())
+                                .setTooltip(Component.translatable("config.roadweaver.long_drive_segment_length.tooltip"))
+                                .setMin(50).setMax(5000)
+                                .setSaveConsumer(v -> conf.setLongDriveSegmentLength(v))
+                                .build());
+                longDrive.addEntry(eb
+                                .startIntField(Component.translatable("config.roadweaver.long_drive_lead_distance"),
+                                                conf.longDriveLeadDistance())
+                                .setDefaultValue(defaultConf.longDriveLeadDistance())
+                                .setTooltip(Component.translatable("config.roadweaver.long_drive_lead_distance.tooltip"))
+                                .setMin(200).setMax(10000)
+                                .setSaveConsumer(v -> conf.setLongDriveLeadDistance(v))
+                                .build());
+                longDrive.addEntry(eb
+                                .startDoubleField(Component.translatable("config.roadweaver.long_drive_direction_bias"),
+                                                conf.longDriveDirectionBias())
+                                .setDefaultValue(defaultConf.longDriveDirectionBias())
+                                .setTooltip(Component.translatable("config.roadweaver.long_drive_direction_bias.tooltip"))
+                                .setMin(0).setMax(1000)
+                                .setSaveConsumer(v -> conf.setLongDriveDirectionBias(v))
+                                .build());
+
                 // Road Generation
                 ConfigCategory roadGen = builder.getOrCreateCategory(
                                 Component.translatable("config.roadweaver.category.road_generation"));

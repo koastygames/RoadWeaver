@@ -86,6 +86,11 @@ public final class InitialGenManager {
             RoadPlanningService.initialPlan(level);
         }
 
+        // 长途旅行模式：初始生成第一段主干道
+        if (ConfigService.get().longDriveEnabled()) {
+            net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService.initialPlan(level);
+        }
+
         // 统计总数
         WorldDataProvider provider = WorldDataProvider.getInstance();
         if (ConfigService.get().highwayEnabled()) {

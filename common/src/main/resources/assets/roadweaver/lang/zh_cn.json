@@ -287,5 +287,18 @@
   "config.roadweaver.loading_tips_enabled": "启用加载界面 Tips",
   "config.roadweaver.loading_tips_enabled.tooltip": "在世界加载界面右下角显示 RoadWeaver 相关的提示和技巧。",
   "config.roadweaver.loading_progress_enabled": "启用加载进度显示",
-  "config.roadweaver.loading_progress_enabled.tooltip": "在世界加载界面显示 RoadWeaver 的生成进度信息。"
+  "config.roadweaver.loading_progress_enabled.tooltip": "在世界加载界面显示 RoadWeaver 的生成进度信息。",
+  "config.roadweaver.category.long_drive": "长途旅行",
+  "config.roadweaver.long_drive_enabled": "启用长途旅行模式",
+  "config.roadweaver.long_drive_enabled.tooltip": "开启后会从出生点沿一个随机大方向生成一条无限延伸的主干道，灵感来自《长途旅行》游戏。",
+  "config.roadweaver.long_drive_road_width": "主干道宽度（方块）",
+  "config.roadweaver.long_drive_road_width.tooltip": "长途旅行主干道的铺设宽度。",
+  "config.roadweaver.long_drive_a_star_step": "寻路采样步长（方块）",
+  "config.roadweaver.long_drive_a_star_step.tooltip": "贪婪前进寻路器的网格采样步长。",
+  "config.roadweaver.long_drive_segment_length": "每段延伸步数",
+  "config.roadweaver.long_drive_segment_length.tooltip": "每次延伸主干道时贪婪寻路的最大步数。",
+  "config.roadweaver.long_drive_lead_distance": "路头领先距离（方块）",
+  "config.roadweaver.long_drive_lead_distance.tooltip": "主干道路头始终保持领先最近玩家至少该距离。",
+  "config.roadweaver.long_drive_direction_bias": "方向偏好权重",
+  "config.roadweaver.long_drive_direction_bias.tooltip": "道路倾向于沿大方向前进的强度。数值越大，道路越直。"
 }

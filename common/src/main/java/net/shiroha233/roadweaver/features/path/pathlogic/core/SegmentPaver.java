@@ -79,7 +79,7 @@ public final class SegmentPaver {
                             .forBiome(world, pos);
                 }
             } else if (materials != null && !materials.isEmpty()) {
-                // 人工道路：使用存储在 RoadData 中的材质
+                // 人工道路 / 长途旅行：使用存储在 RoadData 中的材质
                 baseMats = materials;
             } else {
                 baseMats = java.util.List.of();
@@ -90,7 +90,7 @@ public final class SegmentPaver {
 
             // 半砖平滑过渡：人工道路使用预设的 slabMaterials；自然道路按 biome 选择对应 natural 预设的 slabMaterials
             List<BlockState> slabs;
-            if (roadType == 0) {
+            if (roadType == 0 || roadType == 3) {
                 slabs = slabMaterials;
             } else if (roadType == 1) {
                 PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(

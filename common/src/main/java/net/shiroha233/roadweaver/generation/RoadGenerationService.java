@@ -48,6 +48,7 @@ public final class RoadGenerationService {
         RUNNING_COUNT.clear();
         RoadPlanningService.resetAll();
         HighwayCellPathPlanningService.resetAll();
+        net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService.resetAll();
     }
 
     /**

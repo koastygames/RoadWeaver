@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
+import net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
@@ -62,6 +63,11 @@ public final class ServerPlanningHooks {
             if (ConfigService.get().highwayEnabled()) {
                 HighwayPlanningService.initialPlanAsync(level);
             }
+
+            // 长途旅行模式：初始生成第一段主干道
+            if (ConfigService.get().longDriveEnabled()) {
+                LongDrivePlanningService.initialPlan(level);
+            }
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -73,6 +79,8 @@ public final class ServerPlanningHooks {
                     } else {
                         RoadPlanningService.planAroundPlayer(p);
                     }
+                    // 长途旅行：检查是否需要延伸主干道
+                    LongDrivePlanningService.tickPlayer(p);
                 }
             }
 
@@ -96,8 +104,9 @@ public final class ServerPlanningHooks {
             RoadGenerationService.onServerStopping();
             HighwayPlanningService.resetAll();
             HighwayCellPathPlanningService.resetAll();
+            LongDrivePlanningService.resetAll();
             SignTextService.clearPending();
-            CacheManager.onServerStopping(server.getAllLevels()); // 统一清理所有缓存
+            CacheManager.onServerStopping(server.getAllLevels());
             ComputeService.shutdownNow();
         });
     }

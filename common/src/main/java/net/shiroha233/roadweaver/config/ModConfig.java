@@ -139,6 +139,14 @@ public final class ModConfig {
     private double heuristicWeight;
     private double deviationWeight;
 
+    // 长途旅行（Long Drive）配置
+    private boolean longDriveEnabled;
+    private int longDriveRoadWidth;
+    private int longDriveAStarStep;
+    private int longDriveSegmentLength;
+    private int longDriveLeadDistance;
+    private double longDriveDirectionBias;
+
     // 测试栏配置
     private boolean loadingTipsEnabled;
     private boolean loadingProgressEnabled;
@@ -258,6 +266,14 @@ public final class ModConfig {
         this.waterProximityCost = 20;
         this.heuristicWeight = 15.0;
         this.deviationWeight = 0.5;
+
+        // 长途旅行默认值
+        this.longDriveEnabled = false;
+        this.longDriveRoadWidth = 5;
+        this.longDriveAStarStep = 16;
+        this.longDriveSegmentLength = 500;
+        this.longDriveLeadDistance = 1000;
+        this.longDriveDirectionBias = 150.0;
 
         // 测试栏默认值
         this.loadingTipsEnabled = true;
@@ -443,6 +459,13 @@ public final class ModConfig {
             } catch (Throwable ignored) {
             }
         }
+
+        // 长途旅行字段校验
+        longDriveRoadWidth = Math.max(1, Math.min(15, longDriveRoadWidth));
+        longDriveAStarStep = Math.max(4, Math.min(128, longDriveAStarStep));
+        longDriveSegmentLength = Math.max(50, Math.min(5000, longDriveSegmentLength));
+        longDriveLeadDistance = Math.max(200, Math.min(10000, longDriveLeadDistance));
+        longDriveDirectionBias = Math.max(0, Math.min(1000, longDriveDirectionBias));
     }
 
     public int initialPlanRadiusChunks() {
@@ -1152,6 +1175,55 @@ public final class ModConfig {
     public boolean interpolatedRoadbedFillEnabledForDimension(String dimensionId) {
         DimensionRoadSettings s = getDimensionRoadSettingsInternal(dimensionId);
         return chooseBool(s == null ? null : s.interpolatedRoadbedFillEnabled(), interpolatedRoadbedFillEnabled());
+    }
+
+    // 长途旅行配置存取
+    public boolean longDriveEnabled() {
+        return longDriveEnabled;
+    }
+
+    public void setLongDriveEnabled(boolean v) {
+        this.longDriveEnabled = v;
+    }
+
+    public int longDriveRoadWidth() {
+        return longDriveRoadWidth;
+    }
+
+    public void setLongDriveRoadWidth(int v) {
+        this.longDriveRoadWidth = Math.max(1, Math.min(15, v));
+    }
+
+    public int longDriveAStarStep() {
+        return longDriveAStarStep;
+    }
+
+    public void setLongDriveAStarStep(int v) {
+        this.longDriveAStarStep = Math.max(4, Math.min(128, v));
+    }
+
+    public int longDriveSegmentLength() {
+        return longDriveSegmentLength;
+    }
+
+    public void setLongDriveSegmentLength(int v) {
+        this.longDriveSegmentLength = Math.max(50, Math.min(5000, v));
+    }
+
+    public int longDriveLeadDistance() {
+        return longDriveLeadDistance;
+    }
+
+    public void setLongDriveLeadDistance(int v) {
+        this.longDriveLeadDistance = Math.max(200, Math.min(10000, v));
+    }
+
+    public double longDriveDirectionBias() {
+        return longDriveDirectionBias;
+    }
+
+    public void setLongDriveDirectionBias(double v) {
+        this.longDriveDirectionBias = Math.max(0, Math.min(1000, v));
     }
 
     // 测试栏配置存取
