@@ -56,8 +56,6 @@ public final class ModConfig {
     }
 
 
-    // ==================== 子配置访问 ====================
-
     public StructurePredictionConfig structurePrediction() { return structurePrediction; }
     public PlanningConfig planning() { return planning; }
     public PathfindingCostConfig pathfindingCost() { return pathfindingCost; }
@@ -69,8 +67,6 @@ public final class ModConfig {
     public RoadsideStructureConfig roadsideStructure() { return roadsideStructure; }
     public ClientConfig client() { return client; }
 
-    // ==================== Client 配置快捷访问 ====================
-
     public boolean loadingTipsEnabled() {
         return client.loadingTipsEnabled();
     }
@@ -78,8 +74,6 @@ public final class ModConfig {
     public boolean loadingProgressEnabled() {
         return client.loadingProgressEnabled();
     }
-
-    // ==================== 维度覆盖 ====================
 
     public Map<String, DimensionRoadSettings> dimensionRoadSettings() {
         return dimensionRoadSettings;
@@ -112,8 +106,6 @@ public final class ModConfig {
         return override != null ? override : globalValue;
     }
 
-    // ==================== 维度优先读取方法 ====================
-
     public boolean roadsEnabledForDimension(String dimId) {
         DimensionRoadSettings s = getDimSettings(dimId);
         return chooseBool(s == null ? null : s.roadsEnabled(), roadAppearance.roadsEnabled());
@@ -128,11 +120,6 @@ public final class ModConfig {
         DimensionRoadSettings s = getDimSettings(dimId);
         PathfindingCostConfig.PathfindingAlgorithm v = (s == null) ? null : s.pathfindingAlgorithm();
         return v != null ? v : pathfindingCost.pathfindingAlgorithm();
-    }
-
-    public boolean roadFillEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.roadFillEnabled(), roadAppearance.roadFillEnabled());
     }
 
     public boolean tunnelEnabled() {
@@ -166,13 +153,6 @@ public final class ModConfig {
         DimensionRoadSettings s = getDimSettings(dimId);
         return chooseBool(s == null ? null : s.roadSignsEnabled(), roadAppearance.roadSignsEnabled());
     }
-
-    public boolean interpolatedRoadbedFillEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.interpolatedRoadbedFillEnabled(), roadAppearance.interpolatedRoadbedFillEnabled());
-    }
-
-    // ==================== Highway 配置快捷访问 ====================
 
     public boolean hierarchicalPathfindingEnabled() {
         return pathfindingCost.hierarchicalPathfindingEnabled();
@@ -226,8 +206,6 @@ public final class ModConfig {
         return highway.dynamicPlanEnabled();
     }
 
-    // ==================== 结构预测维度白名单 ====================
-
     public List<String> structurePredictionDimensionWhitelist() {
         return structurePrediction.dimensionWhitelist();
     }
@@ -236,8 +214,6 @@ public final class ModConfig {
         structurePrediction.setDimensionWhitelist(v);
     }
 
-    // ==================== 结构预测配置快捷访问 ====================
-
     public boolean structurePredictionEnabled() {
         return structurePrediction.enabled();
     }
@@ -245,8 +221,6 @@ public final class ModConfig {
     public boolean structureAvoidanceEnabled() {
         return structurePrediction.structureAvoidanceEnabled();
     }
-
-    // ==================== Bridge 配置快捷访问 ====================
 
     public boolean bridgeEnabled() {
         return bridge.enabled();
@@ -303,8 +277,6 @@ public final class ModConfig {
     public int bridgeMinWaterDepth() {
         return bridge.minWaterDepth();
     }
-
-    // ==================== RoadAppearance 配置快捷访问 ====================
 
     public int maxSlopeStepPerTwoSegments() {
         return roadAppearance.maxSlopeStepPerTwoSegments();

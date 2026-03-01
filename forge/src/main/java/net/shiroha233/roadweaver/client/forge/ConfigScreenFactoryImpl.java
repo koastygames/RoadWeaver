@@ -29,37 +29,26 @@ public class ConfigScreenFactoryImpl {
 
         ConfigEntryBuilder eb = builder.entryBuilder();
 
-        // 结构预测配置
         buildStructurePredictionCategory(builder, eb, conf, defaultConf);
         
-        // 路网规划配置
         buildPlanningCategory(builder, eb, conf, defaultConf);
         
-        // 高速公路配置
         buildHighwayCategory(builder, eb, conf, defaultConf);
         
-        // 长途驾驶配置
         buildLongDriveCategory(builder, eb, conf, defaultConf);
         
-        // 道路生成配置
         buildRoadGenerationCategory(builder, eb, conf, defaultConf);
         
-        // 地形设置
         buildSurfaceSettingsCategory(builder, eb, conf, defaultConf);
         
-        // 桥梁配置
         buildBridgeCategory(builder, eb, conf, defaultConf);
         
-        // 路边结构配置
         buildRoadsideStructuresCategory(builder, eb, conf, defaultConf);
         
-        // 性能配置
         buildPerformanceCategory(builder, eb, conf, defaultConf);
         
-        // 寻路代价配置
         buildPathfindingCostsCategory(builder, eb, conf, defaultConf);
         
-        // 客户端配置
         buildClientCategory(builder, eb, conf, defaultConf);
 
         return builder.build();
@@ -419,28 +408,6 @@ public class ConfigScreenFactoryImpl {
                 .setDefaultValue(def.slopeLimitEnabled())
                 .setTooltip(Component.translatable("config.roadweaver.slope_limit_enabled.tooltip"))
                 .setSaveConsumer(cfg::setSlopeLimitEnabled)
-                .build());
-
-        category.addEntry(eb
-                .startBooleanToggle(Component.translatable("config.roadweaver.road_fill_enabled"), cfg.roadFillEnabled())
-                .setDefaultValue(def.roadFillEnabled())
-                .setTooltip(Component.translatable("config.roadweaver.road_fill_enabled.tooltip"))
-                .setSaveConsumer(cfg::setRoadFillEnabled)
-                .build());
-
-        category.addEntry(eb
-                .startBooleanToggle(Component.translatable("config.roadweaver.interpolated_roadbed_fill_enabled"), cfg.interpolatedRoadbedFillEnabled())
-                .setDefaultValue(def.interpolatedRoadbedFillEnabled())
-                .setTooltip(Component.translatable("config.roadweaver.interpolated_roadbed_fill_enabled.tooltip"))
-                .setSaveConsumer(cfg::setInterpolatedRoadbedFillEnabled)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.causeway_max_depth"), cfg.causewayMaxDepth())
-                .setDefaultValue(def.causewayMaxDepth())
-                .setTooltip(Component.translatable("config.roadweaver.causeway_max_depth.tooltip"))
-                .setMin(0).setMax(12)
-                .setSaveConsumer(cfg::setCausewayMaxDepth)
                 .build());
 
         category.addEntry(eb

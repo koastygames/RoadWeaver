@@ -27,7 +27,6 @@ import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.BridgeTransitionAdjuster;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.HeightProfileService;
-import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BuoyBuilder;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BuoyMarkerPlanner;
 import net.shiroha233.roadweaver.features.path.decoration.system.SkippedBridgeBankSignPlanner;
@@ -97,9 +96,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
 
         boolean bridgeEnabled = cfg.bridgeEnabledForDimension(dimId);
-        boolean roadFillEnabled = cfg.roadFillEnabledForDimension(dimId);
-        boolean interpolatedRoadbedFillEnabled = cfg.interpolatedRoadbedFillEnabledForDimension(dimId);
-        
         int roadType = data.roadType();
         if (roadType != 0 && roadType != 1 && roadType != 3) {
             return;
@@ -214,16 +210,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                     }
                 }
             } else {
-                if (roadFillEnabled) {
-                    if (interpolatedRoadbedFillEnabled) {
-                        RoadTerrainAdapter.adaptWithInterpolation(
-                                world, middle, i, middlePositions, baseYArr, roadWidth, random, cfg);
-                    } else {
-                        RoadTerrainAdapter.adaptWithoutInterpolation(
-                                world, middle, roadWidth, baseYForThis, random, cfg);
-                    }
-                }
-
                 SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials,
                         random, cfg);
 

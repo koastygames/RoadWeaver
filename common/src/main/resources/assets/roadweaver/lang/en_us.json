@@ -1,4 +1,4 @@
-{
+﻿{
   "category.roadweaver": "RoadWeaver",
   "gui.roadweaver.config": "Config",
   "gui.roadweaver.config_button": "RoadWeaver Config",
@@ -88,10 +88,6 @@
   "config.roadweaver.max_slope_step_per_two_segments.tooltip": "Maximum Y change allowed across 2 segments when slope limiting is enabled.",
   "config.roadweaver.slope_limit_enabled": "Enable Slope Limiting",
   "config.roadweaver.slope_limit_enabled.tooltip": "When enabled, the road height profile will be smoothed by limiting steep slopes.",
-  "config.roadweaver.road_fill_enabled": "Enable Road Fill",
-  "config.roadweaver.road_fill_enabled.tooltip": "When disabled, RoadWeaver will only place surface blocks. Note: Highway system no longer uses roadbed fill, this setting only applies to normal roads.",
-  "config.roadweaver.interpolated_roadbed_fill_enabled": "Interpolated Roadbed Fill",
-  "config.roadweaver.interpolated_roadbed_fill_enabled.tooltip": "When enabled, terrain adaptation uses interpolated heights. Note: This setting only applies to normal roads; highways always skip fill.",
   "config.roadweaver.road_width": "Road Width",
   "config.roadweaver.road_width.tooltip": "Specify road width (in blocks).",
   "config.roadweaver.village_road_offset": "Village-Road Distance",
@@ -104,7 +100,6 @@
   "config.roadweaver.lamp_interval.tooltip": "Place a lamp/marker every N segments; larger values place fewer lamps.",
   "config.roadweaver.road_clear_height": "Road Clear Height (blocks)",
   "config.roadweaver.road_clear_height.tooltip": "Vertical space cleared above the road surface in non-tunnel mode. Higher values carve more headroom but may cut into nearby terrain or structures.",
-  "config.roadweaver.causeway_max_depth": "Max Backfill Depth (blocks)",
   "config.roadweaver.prevent_trees_on_road": "Prevent Trees on Roads",
   "config.roadweaver.prevent_trees_on_road.tooltip": "When enabled, trees and large plants (bamboo, huge fungi) will not generate on or near roads. This prevents floating trees caused by road cutting.",
   "text.autoconfig.roadweaver.option.generationThreads": "Generation Threads",

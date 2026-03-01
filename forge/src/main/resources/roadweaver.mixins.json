@@ -16,7 +16,9 @@
     "forge.PlayerDimensionChangeMixin",
     "forge.tyg.TreeFromStructureNBTFeatureMixin",
     "forge.rtf.RTFTemplateFeatureMixin",
-    "forge.rtf.RTFBushFeatureMixin"
+    "forge.rtf.RTFBushFeatureMixin",
+    "forge.BeardifierMixin",
+    "forge.StructureManagerAccessor"
   ],
   "client": [
     "forge.CreateWorldScreenMixin",

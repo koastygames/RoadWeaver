@@ -15,27 +15,21 @@ public final class RoadAppearanceConfig implements SubConfig {
     private int averagingRadius = RoadConstants.DEFAULT_AVERAGING_RADIUS;
     private int roadWidth = RoadConstants.DEFAULT_ROAD_WIDTH;
     private boolean roadSignsEnabled = false;
-    private Boolean interpolatedRoadbedFillEnabled = true;
     private int lampInterval = RoadConstants.DEFAULT_LAMP_INTERVAL;
     private int roadClearHeight = RoadConstants.DEFAULT_ROAD_CLEAR_HEIGHT;
     private boolean tunnelEnabled = false;
     private int tunnelClearHeight = RoadConstants.DEFAULT_TUNNEL_CLEAR_HEIGHT;
     private boolean preventTreesOnRoad = true;
-    private Boolean roadFillEnabled = true;
     private int maxSlopeStepPerTwoSegments = RoadConstants.DEFAULT_MAX_SLOPE_STEP;
     private boolean slopeLimitEnabled = true;
-    private int causewayMaxDepth = RoadConstants.DEFAULT_CAUSEWAY_MAX_DEPTH;
 
     @Override
     public void sanitize() {
         if (roadsEnabled == null) roadsEnabled = true;
-        if (interpolatedRoadbedFillEnabled == null) interpolatedRoadbedFillEnabled = true;
-        if (roadFillEnabled == null) roadFillEnabled = true;
         roadWidth = Math.max(0, Math.min(RoadConstants.ROAD_WIDTH_MAX, roadWidth));
         lampInterval = Math.max(RoadConstants.LAMP_INTERVAL_MIN, Math.min(RoadConstants.LAMP_INTERVAL_MAX, lampInterval));
         roadClearHeight = Math.max(RoadConstants.ROAD_CLEAR_HEIGHT_MIN, Math.min(RoadConstants.ROAD_CLEAR_HEIGHT_MAX, roadClearHeight));
         tunnelClearHeight = Math.max(RoadConstants.TUNNEL_CLEAR_HEIGHT_MIN, Math.min(RoadConstants.TUNNEL_CLEAR_HEIGHT_MAX, tunnelClearHeight));
-        causewayMaxDepth = Math.max(0, Math.min(RoadConstants.CAUSEWAY_MAX_DEPTH_MAX, causewayMaxDepth));
         maxSlopeStepPerTwoSegments = Math.max(0, Math.min(RoadConstants.MAX_SLOPE_STEP_MAX, maxSlopeStepPerTwoSegments));
     }
 
@@ -50,16 +44,13 @@ public final class RoadAppearanceConfig implements SubConfig {
         copy.averagingRadius = this.averagingRadius;
         copy.roadWidth = this.roadWidth;
         copy.roadSignsEnabled = this.roadSignsEnabled;
-        copy.interpolatedRoadbedFillEnabled = this.interpolatedRoadbedFillEnabled;
         copy.lampInterval = this.lampInterval;
         copy.roadClearHeight = this.roadClearHeight;
         copy.tunnelEnabled = this.tunnelEnabled;
         copy.tunnelClearHeight = this.tunnelClearHeight;
         copy.preventTreesOnRoad = this.preventTreesOnRoad;
-        copy.roadFillEnabled = this.roadFillEnabled;
         copy.maxSlopeStepPerTwoSegments = this.maxSlopeStepPerTwoSegments;
         copy.slopeLimitEnabled = this.slopeLimitEnabled;
-        copy.causewayMaxDepth = this.causewayMaxDepth;
         return copy;
     }
 
@@ -79,8 +70,6 @@ public final class RoadAppearanceConfig implements SubConfig {
     public void setRoadWidth(int v) { this.roadWidth = v; }
     public boolean roadSignsEnabled() { return roadSignsEnabled; }
     public void setRoadSignsEnabled(boolean v) { this.roadSignsEnabled = v; }
-    public boolean interpolatedRoadbedFillEnabled() { return interpolatedRoadbedFillEnabled == null || interpolatedRoadbedFillEnabled; }
-    public void setInterpolatedRoadbedFillEnabled(boolean v) { this.interpolatedRoadbedFillEnabled = v; }
     public int lampInterval() { return lampInterval; }
     public void setLampInterval(int v) { this.lampInterval = v; }
     public int roadClearHeight() { return roadClearHeight; }
@@ -91,12 +80,8 @@ public final class RoadAppearanceConfig implements SubConfig {
     public void setTunnelClearHeight(int v) { this.tunnelClearHeight = v; }
     public boolean preventTreesOnRoad() { return preventTreesOnRoad; }
     public void setPreventTreesOnRoad(boolean v) { this.preventTreesOnRoad = v; }
-    public boolean roadFillEnabled() { return roadFillEnabled == null || roadFillEnabled; }
-    public void setRoadFillEnabled(boolean v) { this.roadFillEnabled = v; }
     public int maxSlopeStepPerTwoSegments() { return maxSlopeStepPerTwoSegments; }
     public void setMaxSlopeStepPerTwoSegments(int v) { this.maxSlopeStepPerTwoSegments = v; }
     public boolean slopeLimitEnabled() { return slopeLimitEnabled; }
     public void setSlopeLimitEnabled(boolean v) { this.slopeLimitEnabled = v; }
-    public int causewayMaxDepth() { return causewayMaxDepth; }
-    public void setCausewayMaxDepth(int v) { this.causewayMaxDepth = v; }
 }

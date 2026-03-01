@@ -32,12 +32,10 @@ public class DimensionRoadSettingsScreen extends Screen {
     private Button roadsEnabledBtn;
     private Button bridgeEnabledBtn;
     private Button pathfindingBtn;
-    private Button roadFillBtn;
     private Button slopeLimitBtn;
     private Button highwayEnabledBtn;
     private Button roadsideStructuresBtn;
     private Button roadSignsBtn;
-    private Button interpolatedRoadbedFillBtn;
     private Button resetDimensionBtn;
     private Button cancelBtn;
     private Button doneBtn;
@@ -153,10 +151,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                 .pos(x, y).size(w, BUTTON_HEIGHT).build();
         y += BUTTON_HEIGHT + BUTTON_GAP;
 
-        roadFillBtn = Button.builder(Component.empty(), b -> toggleBool("roadFillEnabled"))
-                .pos(x, y).size(w, BUTTON_HEIGHT).build();
-        y += BUTTON_HEIGHT + BUTTON_GAP;
-
         slopeLimitBtn = Button.builder(Component.empty(), b -> toggleBool("slopeLimitEnabled"))
                 .pos(x, y).size(w, BUTTON_HEIGHT).build();
         y += BUTTON_HEIGHT + BUTTON_GAP;
@@ -170,10 +164,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         y += BUTTON_HEIGHT + BUTTON_GAP;
 
         roadSignsBtn = Button.builder(Component.empty(), b -> toggleBool("roadSignsEnabled"))
-                .pos(x, y).size(w, BUTTON_HEIGHT).build();
-        y += BUTTON_HEIGHT + BUTTON_GAP;
-
-        interpolatedRoadbedFillBtn = Button.builder(Component.empty(), b -> toggleBool("interpolatedRoadbedFillEnabled"))
                 .pos(x, y).size(w, BUTTON_HEIGHT).build();
         y += BUTTON_HEIGHT + 10;
 
@@ -195,12 +185,10 @@ public class DimensionRoadSettingsScreen extends Screen {
         addRenderableWidget(roadsEnabledBtn);
         addRenderableWidget(bridgeEnabledBtn);
         addRenderableWidget(pathfindingBtn);
-        addRenderableWidget(roadFillBtn);
         addRenderableWidget(slopeLimitBtn);
         addRenderableWidget(highwayEnabledBtn);
         addRenderableWidget(roadsideStructuresBtn);
         addRenderableWidget(roadSignsBtn);
-        addRenderableWidget(interpolatedRoadbedFillBtn);
         addRenderableWidget(resetDimensionBtn);
         addRenderableWidget(cancelBtn);
         addRenderableWidget(doneBtn);
@@ -212,12 +200,10 @@ public class DimensionRoadSettingsScreen extends Screen {
         roadsEnabledBtn.active = hasSelection;
         bridgeEnabledBtn.active = hasSelection;
         pathfindingBtn.active = hasSelection;
-        roadFillBtn.active = hasSelection;
         slopeLimitBtn.active = hasSelection;
         highwayEnabledBtn.active = hasSelection;
         roadsideStructuresBtn.active = hasSelection;
         roadSignsBtn.active = hasSelection;
-        interpolatedRoadbedFillBtn.active = hasSelection;
         resetDimensionBtn.active = hasSelection;
 
         DimensionRoadSettings s = getWorkingSettings(selectedDimension);
@@ -227,8 +213,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         bridgeEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.bridge",
                 s == null ? null : s.bridgeEnabled()));
         pathfindingBtn.setMessage(pathfindingLine(s == null ? null : s.pathfindingAlgorithm()));
-        roadFillBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.road_fill",
-                s == null ? null : s.roadFillEnabled()));
         slopeLimitBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.height_smoothing",
                 s == null ? null : s.slopeLimitEnabled()));
         highwayEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.highway",
@@ -237,8 +221,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                         s == null ? null : s.roadsideStructuresEnabled()));
         roadSignsBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.road_signs",
                 s == null ? null : s.roadSignsEnabled()));
-        interpolatedRoadbedFillBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.interpolated_roadbed_fill",
-                        s == null ? null : s.interpolatedRoadbedFillEnabled()));
     }
 
     private static Component triStateLine(String optionKey, Boolean v) {
@@ -277,10 +259,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                 next = nextTriState(s.bridgeEnabled());
                 s.setBridgeEnabled(next);
             }
-            case "roadFillEnabled" -> {
-                next = nextTriState(s.roadFillEnabled());
-                s.setRoadFillEnabled(next);
-            }
             case "slopeLimitEnabled" -> {
                 next = nextTriState(s.slopeLimitEnabled());
                 s.setSlopeLimitEnabled(next);
@@ -296,10 +274,6 @@ public class DimensionRoadSettingsScreen extends Screen {
             case "roadSignsEnabled" -> {
                 next = nextTriState(s.roadSignsEnabled());
                 s.setRoadSignsEnabled(next);
-            }
-            case "interpolatedRoadbedFillEnabled" -> {
-                next = nextTriState(s.interpolatedRoadbedFillEnabled());
-                s.setInterpolatedRoadbedFillEnabled(next);
             }
             default -> {
                 return;

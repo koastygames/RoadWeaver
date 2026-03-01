@@ -91,7 +91,7 @@ public final class Road {
     }
 
     private static int getRandomWidth(RandomSource rnd, PathFeatureConfig cfg) {
-        return 3;
+        return 0;
     }
     
     private static List<Integer> computeTargetY(ServerLevel level, List<RoadSegmentPlacement> segments, 
