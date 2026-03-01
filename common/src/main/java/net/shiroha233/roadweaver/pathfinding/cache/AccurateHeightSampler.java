@@ -78,55 +78,40 @@ public final class AccurateHeightSampler {
         oceanFloorCache.clear();
     }
 
-    /**
-     * 对原始折线路径节点进行精采样，未采样点做线性插值
-     */
-    public List<BlockPos> samplePathHeights(List<BlockPos> path) {
+    public List<BlockPos> samplePathHeights(List<BlockPos> path, int divisor) {
         if (path == null || path.isEmpty()) return path;
+        int div = Math.max(1, divisor);
+        if (div == 1) {
+            return sampleEveryNode(path);
+        }
+        return sampleWithSubdivision(path, div);
+    }
 
+    private List<BlockPos> sampleEveryNode(List<BlockPos> path) {
+        List<BlockPos> out = new ArrayList<>(path.size());
+        for (BlockPos p : path) {
+            out.add(new BlockPos(p.getX(), surfaceHeight(p.getX(), p.getZ()), p.getZ()));
+        }
+        return out;
+    }
+
+    private List<BlockPos> sampleWithSubdivision(List<BlockPos> path, int divisor) {
         int n = path.size();
-        int stride;
-        if (n <= 512) stride = 1;
-        else if (n <= 2048) stride = 2;
-        else if (n <= 8192) stride = 4;
-        else stride = 8;
+        if (n == 1) return sampleEveryNode(path);
 
-        int[] sampledY = new int[n];
-        boolean[] sampled = new boolean[n];
-
-        for (int i = 0; i < n; i += stride) {
-            BlockPos p = path.get(i);
-            sampledY[i] = surfaceHeight(p.getX(), p.getZ());
-            sampled[i] = true;
-        }
-
-        int lastIdx = n - 1;
-        if (!sampled[lastIdx]) {
-            BlockPos p = path.get(lastIdx);
-            sampledY[lastIdx] = surfaceHeight(p.getX(), p.getZ());
-            sampled[lastIdx] = true;
-        }
-
-        int prev = -1;
-        for (int i = 0; i < n; i++) {
-            if (!sampled[i]) continue;
-            if (prev >= 0 && i > prev + 1) {
-                int y0 = sampledY[prev];
-                int y1 = sampledY[i];
-                int span = i - prev;
-                for (int j = prev + 1; j < i; j++) {
-                    double t = (j - prev) / (double) span;
-                    sampledY[j] = (int) Math.round(y0 + (y1 - y0) * t);
-                }
+        List<BlockPos> out = new ArrayList<>((n - 1) * divisor + 1);
+        for (int i = 0; i < n - 1; i++) {
+            BlockPos a = path.get(i);
+            BlockPos b = path.get(i + 1);
+            for (int k = 0; k < divisor; k++) {
+                double t = (double) k / divisor;
+                int x = (int) Math.round(a.getX() + (b.getX() - a.getX()) * t);
+                int z = (int) Math.round(a.getZ() + (b.getZ() - a.getZ()) * t);
+                out.add(new BlockPos(x, surfaceHeight(x, z), z));
             }
-            prev = i;
         }
-
-        List<BlockPos> out = new ArrayList<>(n);
-        for (int i = 0; i < n; i++) {
-            BlockPos p = path.get(i);
-            out.add(new BlockPos(p.getX(), sampledY[i], p.getZ()));
-        }
+        BlockPos last = path.get(n - 1);
+        out.add(new BlockPos(last.getX(), surfaceHeight(last.getX(), last.getZ()), last.getZ()));
         return out;
     }
 }

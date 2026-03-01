@@ -35,26 +35,37 @@ public final class HighwayPathCalculator {
         BlockPos start = new BlockPos(sx, startIn.getY(), sz);
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
-        BlockPos startGround = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
-        BlockPos endGround = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
-
-        if (cfg.hierarchicalPathfindingEnabled()) {
-            TerrainCachePrewarmer.prewarmAlongRoute(
-                    startGround,
-                    endGround,
-                    level,
-                    Math.max(500, maxSteps / 4),
-                    cache);
+        boolean accurateSampling = cfg.pathfindingCost() != null && cfg.pathfindingCost().isAccurateSampling();
+        if (accurateSampling) {
+            cache.enableHighPrecision(level);
         }
 
-        return HighwayBidirectionalAStarPathfinder.calculateLandPath(
-                startGround,
-                endGround,
-                width,
-                level,
-                maxSteps,
-                cache,
-                cfg);
+        try {
+            BlockPos startGround = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
+            BlockPos endGround = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
+
+            if (cfg.hierarchicalPathfindingEnabled()) {
+                TerrainCachePrewarmer.prewarmAlongRoute(
+                        startGround,
+                        endGround,
+                        level,
+                        Math.max(500, maxSteps / 4),
+                        cache);
+            }
+
+            return HighwayBidirectionalAStarPathfinder.calculateLandPath(
+                    startGround,
+                    endGround,
+                    width,
+                    level,
+                    maxSteps,
+                    cache,
+                    cfg);
+        } finally {
+            if (accurateSampling) {
+                cache.disableHighPrecision();
+            }
+        }
     }
 
     private static int snapToGrid(int v, int gridSize) {

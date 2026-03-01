@@ -11,6 +11,9 @@ public final class PathfindingCostConfig implements SubConfig {
     /** 寻路算法枚举 */
     public enum PathfindingAlgorithm { ASTAR_BASIC, ASTAR_BIDIRECTIONAL, GRADIENT_DESCENT, POTENTIAL_FIELD }
 
+    /** 采样精度模式枚举 */
+    public enum SamplingPrecision { NORMAL, HIGH, ULTRA_HIGH }
+
     private double orthoStepCost = RoadConstants.DEFAULT_ORTHO_STEP_COST;
     private double diagStepCost = RoadConstants.DEFAULT_DIAG_STEP_COST;
     private int elevationWeight = RoadConstants.DEFAULT_ELEVATION_WEIGHT;
@@ -25,6 +28,8 @@ public final class PathfindingCostConfig implements SubConfig {
     private int aStarMaxSteps = RoadConstants.DEFAULT_ASTAR_MAX_STEPS;
     private boolean hierarchicalPathfindingEnabled = false;
     private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
+    private int accurateSamplingDivisor = RoadConstants.DEFAULT_ACCURATE_SAMPLING_DIVISOR;
+    private SamplingPrecision samplingPrecision = SamplingPrecision.NORMAL;
 
     @Override
     public void sanitize() {
@@ -42,6 +47,10 @@ public final class PathfindingCostConfig implements SubConfig {
         aStarMaxSteps = Math.max(RoadConstants.ASTAR_MAX_STEPS_MIN,
                 Math.min(RoadConstants.ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
         if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
+        if (samplingPrecision == null) samplingPrecision = SamplingPrecision.NORMAL;
+        if (accurateSamplingDivisor <= 1) accurateSamplingDivisor = 0;
+        else if (accurateSamplingDivisor <= 3) accurateSamplingDivisor = 2;
+        else accurateSamplingDivisor = 4;
     }
 
     @Override
@@ -61,6 +70,8 @@ public final class PathfindingCostConfig implements SubConfig {
         copy.aStarMaxSteps = this.aStarMaxSteps;
         copy.hierarchicalPathfindingEnabled = this.hierarchicalPathfindingEnabled;
         copy.pathfindingAlgorithm = this.pathfindingAlgorithm;
+        copy.accurateSamplingDivisor = this.accurateSamplingDivisor;
+        copy.samplingPrecision = this.samplingPrecision;
         return copy;
     }
 
@@ -94,6 +105,14 @@ public final class PathfindingCostConfig implements SubConfig {
     public void setPathfindingAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
     public PathfindingAlgorithm algorithm() { return pathfindingAlgorithm; }
     public void setAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
+    public int accurateSamplingDivisor() { return accurateSamplingDivisor; }
+    public void setAccurateSamplingDivisor(int v) { this.accurateSamplingDivisor = v; }
+    public SamplingPrecision samplingPrecision() { return samplingPrecision; }
+    public void setSamplingPrecision(SamplingPrecision v) { this.samplingPrecision = v; }
+    /** 寻路阶段是否使用精确采样（HIGH / ULTRA_HIGH） */
+    public boolean isAccurateSampling() { return samplingPrecision != SamplingPrecision.NORMAL; }
+    /** 是否需要后处理二次精化（NORMAL / ULTRA_HIGH 需要，HIGH 不需要） */
+    public boolean needsRefinement() { return samplingPrecision != SamplingPrecision.HIGH; }
     public int effectiveAStarStep() {
         if (aStarStep < RoadConstants.ASTAR_STEP_MIN) return RoadConstants.DEFAULT_ASTAR_STEP;
         if (aStarStep > RoadConstants.ASTAR_STEP_MAX) return RoadConstants.ASTAR_STEP_MAX;

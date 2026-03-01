@@ -54,7 +54,7 @@ public final class BasicAStarPathfinder implements Pathfinder {
                 if (current == null) break;
 
                 if (manhattan2d(current.pos, end) < d * 2) {
-                    List<RoadSegmentPlacement> segments = reconstructPath(current, width, level, cache);
+                    List<RoadSegmentPlacement> segments = reconstructPath(current, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
                     return segments != null ? PathResult.success(segments) : PathResult.failure();
                 }
 
@@ -121,13 +121,16 @@ public final class BasicAStarPathfinder implements Pathfinder {
     }
 
     private List<RoadSegmentPlacement> reconstructPath(Node endNode, int width,
-                                                        ServerLevel level, TerrainSamplingCache cache) {
+                                                        ServerLevel level, TerrainSamplingCache cache,
+                                                        int samplingDivisor, boolean needsRefinement) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node c = endNode;
         while (c != null) { rawPath.add(c.pos); c = c.parent; }
         Collections.reverse(rawPath);
         AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
-        rawPath = accurate.samplePathHeights(rawPath);
+        if (needsRefinement) {
+            rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
+        }
         return PathPostProcessor.process(rawPath, width, level, cache,
                 RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
     }

@@ -40,24 +40,30 @@ public final class RoadPathCalculator {
         BlockPos start = new BlockPos(sx, startIn.getY(), sz);
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
-        BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
-        BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
-
-        if (pathCfg.hierarchicalPathfindingEnabled()) {
-            TerrainCachePrewarmer.prewarmAlongRoute(
-                    startGround,
-                    endGround,
-                    level,
-                    Math.max(500, maxSteps / 4),
-                    cache);
+        boolean accurateSampling = pathCfg.isAccurateSampling();
+        if (accurateSampling) {
+            cache.enableHighPrecision(level);
         }
 
-        List<RoadSegmentPlacement> fastSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, pathCfg);
-        if (fastSegments == null || fastSegments.isEmpty()) {
-            return fastSegments;
-        }
+        try {
+            BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
+            BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
-        return fastSegments;
+            if (pathCfg.hierarchicalPathfindingEnabled()) {
+                TerrainCachePrewarmer.prewarmAlongRoute(
+                        startGround,
+                        endGround,
+                        level,
+                        Math.max(500, maxSteps / 4),
+                        cache);
+            }
+
+            return calculateDirect(startGround, endGround, width, level, maxSteps, cache, pathCfg);
+        } finally {
+            if (accurateSampling) {
+                cache.disableHighPrecision();
+            }
+        }
     }
 
     private static List<RoadSegmentPlacement> calculateDirect(BlockPos startGround,

@@ -212,7 +212,12 @@ public final class HighwayBidirectionalAStarPathfinder {
         }
 
         AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
-        rawPath = accurate.samplePathHeights(rawPath);
+        PathfindingCostConfig costCfg = cfg.pathfindingCost();
+        boolean needsRefinement = costCfg == null || costCfg.needsRefinement();
+        if (needsRefinement) {
+            int divisor = costCfg != null ? costCfg.accurateSamplingDivisor() : 0;
+            rawPath = accurate.samplePathHeights(rawPath, divisor);
+        }
         return PathPostProcessor.process(
                 rawPath,
                 width,

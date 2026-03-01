@@ -162,6 +162,10 @@ public final class RoadConstants {
     public static final int BELOW_DEPTH_1 = 1;
     public static final int BELOW_DEPTH_2 = 2;
 
+    // ==================== 精确采样参数 ====================
+
+    public static final int DEFAULT_ACCURATE_SAMPLING_DIVISOR = 0;
+
     // ==================== 梯度下降寻路参数 ====================
 
     public static final int GRADIENT_DESCENT_STEPS_MULTIPLIER = 3;

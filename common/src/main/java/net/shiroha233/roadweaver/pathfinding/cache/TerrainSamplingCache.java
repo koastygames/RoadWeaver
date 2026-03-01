@@ -19,6 +19,8 @@ public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Long, Holder<Biome>> biomeCache = new ConcurrentHashMap<>();
 
     private volatile FastHeightSampler fastSampler;
+    private volatile AccurateHeightSampler accurateSampler;
+    private volatile boolean highPrecisionMode = false;
 
     private static long hashXZ(int x, int z) {
         return ((long) x << 32) | (z & 0xffffffffL);
@@ -32,8 +34,14 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        ensureFastSampler(level);
-        int h = fastSampler.sampleHeight(x, z);
+        int h;
+        if (highPrecisionMode) {
+            ensureAccurateSampler(level);
+            h = accurateSampler.surfaceHeight(x, z);
+        } else {
+            ensureFastSampler(level);
+            h = fastSampler.sampleHeight(x, z);
+        }
         heightCache.put(key, h);
         return h;
     }
@@ -63,8 +71,14 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        ensureFastSampler(level);
-        int h = fastSampler.sampleHeight(x, z);
+        int h;
+        if (highPrecisionMode) {
+            ensureAccurateSampler(level);
+            h = accurateSampler.oceanFloorWg(x, z);
+        } else {
+            ensureFastSampler(level);
+            h = fastSampler.sampleHeight(x, z);
+        }
         oceanFloorCache.put(key, h);
         return h;
     }
@@ -132,6 +146,23 @@ public final class TerrainSamplingCache {
         fastSampler.prewarmRegion(minX, minZ, maxX, maxZ, step);
     }
 
+    public void enableHighPrecision(ServerLevel level) {
+        this.highPrecisionMode = true;
+        heightCache.clear();
+        oceanFloorCache.clear();
+        ensureAccurateSampler(level);
+    }
+
+    public void disableHighPrecision() {
+        this.highPrecisionMode = false;
+        heightCache.clear();
+        oceanFloorCache.clear();
+    }
+
+    public boolean isHighPrecisionMode() {
+        return highPrecisionMode;
+    }
+
     public void clear() {
         waterCache.clear();
         nearWaterCache.clear();
@@ -140,6 +171,7 @@ public final class TerrainSamplingCache {
         oceanFloorCache.clear();
         biomeCache.clear();
         if (fastSampler != null) fastSampler.clearCache();
+        if (accurateSampler != null) accurateSampler.clear();
     }
 
     private void ensureFastSampler(ServerLevel level) {
@@ -147,6 +179,16 @@ public final class TerrainSamplingCache {
             synchronized (this) {
                 if (fastSampler == null) {
                     fastSampler = FastHeightSampler.create(level);
+                }
+            }
+        }
+    }
+
+    private void ensureAccurateSampler(ServerLevel level) {
+        if (accurateSampler == null) {
+            synchronized (this) {
+                if (accurateSampler == null) {
+                    accurateSampler = AccurateHeightSampler.create(level);
                 }
             }
         }

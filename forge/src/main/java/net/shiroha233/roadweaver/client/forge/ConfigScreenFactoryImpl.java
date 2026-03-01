@@ -693,6 +693,22 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startIntSlider(Component.translatable("config.roadweaver.accurate_sampling_divisor"), cfg.accurateSamplingDivisor(), 0, 4)
+                .setDefaultValue(def.accurateSamplingDivisor())
+                .setTooltip(Component.translatable("config.roadweaver.accurate_sampling_divisor.tooltip"))
+                .setSaveConsumer(cfg::setAccurateSamplingDivisor)
+                .build());
+
+        category.addEntry(eb
+                .startEnumSelector(Component.translatable("config.roadweaver.sampling_precision"),
+                        PathfindingCostConfig.SamplingPrecision.class, cfg.samplingPrecision())
+                .setDefaultValue(def.samplingPrecision())
+                .setTooltip(Component.translatable("config.roadweaver.sampling_precision.tooltip"))
+                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.sampling_precision.option." + v.name().toLowerCase(Locale.ROOT)))
+                .setSaveConsumer(cfg::setSamplingPrecision)
+                .build());
+
+        category.addEntry(eb
                 .startDoubleField(Component.translatable("config.roadweaver.ortho_step_cost"), cfg.orthoStepCost())
                 .setDefaultValue(def.orthoStepCost())
                 .setTooltip(Component.translatable("config.roadweaver.ortho_step_cost.tooltip"))

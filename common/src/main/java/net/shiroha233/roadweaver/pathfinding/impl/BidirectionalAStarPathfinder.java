@@ -75,7 +75,7 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
 
                 if (meet != null) {
                     List<RoadSegmentPlacement> segments = reconstructPath(meet.forward, meet.backward,
-                            width, level, cache);
+                            width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
                     return segments != null ? PathResult.success(segments) : PathResult.failure();
                 }
             }
@@ -159,7 +159,8 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
 
     private List<RoadSegmentPlacement> reconstructPath(Node meetForward, Node meetBackward,
                                                         int width, ServerLevel level,
-                                                        TerrainSamplingCache cache) {
+                                                        TerrainSamplingCache cache,
+                                                        int samplingDivisor, boolean needsRefinement) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
         while (cur != null) { rawPath.add(cur.pos); cur = cur.parent; }
@@ -171,7 +172,9 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
         while (cur != null) { rawPath.add(cur.pos); cur = cur.parent; }
 
         AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
-        rawPath = accurate.samplePathHeights(rawPath);
+        if (needsRefinement) {
+            rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
+        }
         return PathPostProcessor.process(rawPath, width, level, cache,
                 RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
     }
