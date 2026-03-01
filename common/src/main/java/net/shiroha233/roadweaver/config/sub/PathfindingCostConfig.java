@@ -9,7 +9,7 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 public final class PathfindingCostConfig implements SubConfig {
 
     /** 寻路算法枚举 */
-    public enum PathfindingAlgorithm { ASTAR_BASIC, ASTAR_BIDIRECTIONAL, GRADIENT_DESCENT }
+    public enum PathfindingAlgorithm { ASTAR_BASIC, ASTAR_BIDIRECTIONAL, GRADIENT_DESCENT, POTENTIAL_FIELD }
 
     private double orthoStepCost = RoadConstants.DEFAULT_ORTHO_STEP_COST;
     private double diagStepCost = RoadConstants.DEFAULT_DIAG_STEP_COST;

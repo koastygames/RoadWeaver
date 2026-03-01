@@ -125,6 +125,7 @@
   "config.roadweaver.pathfinding_algorithm.option.astar_basic": "Basic A*",
   "config.roadweaver.pathfinding_algorithm.option.astar_bidirectional": "Bidirectional A*",
   "config.roadweaver.pathfinding_algorithm.option.gradient_descent": "Gradient Descent (fluid-like)",
+  "config.roadweaver.pathfinding_algorithm.option.potential_field": "Potential Field (contour-following)",
   "config.roadweaver.use_bidirectional_a_star": "Use Bidirectional A* (experimental)",
   "config.roadweaver.use_bidirectional_a_star.tooltip": "Toggle between classic single-direction A* and bidirectional A* that searches from both endpoints.",
   "gui.roadweaver.map.menu.teleport": "Teleport here",

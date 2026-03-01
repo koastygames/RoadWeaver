@@ -343,7 +343,8 @@ public class DimensionRoadSettingsScreen extends Screen {
         return switch (v) {
             case ASTAR_BASIC -> PathfindingCostConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL;
             case ASTAR_BIDIRECTIONAL -> PathfindingCostConfig.PathfindingAlgorithm.GRADIENT_DESCENT;
-            case GRADIENT_DESCENT -> null;
+            case GRADIENT_DESCENT -> PathfindingCostConfig.PathfindingAlgorithm.POTENTIAL_FIELD;
+            case POTENTIAL_FIELD -> null;
         };
     }
 

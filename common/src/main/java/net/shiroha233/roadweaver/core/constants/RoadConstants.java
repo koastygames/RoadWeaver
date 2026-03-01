@@ -167,6 +167,19 @@ public final class RoadConstants {
     public static final int GRADIENT_DESCENT_STEPS_MULTIPLIER = 3;
     public static final double GRADIENT_DESCENT_SUCCESS_DISTANCE_FACTOR = 1.5;
 
+    // ==================== 势场法寻路参数 ====================
+
+    public static final int POTENTIAL_FIELD_STEPS_MULTIPLIER = 4;
+    public static final double POTENTIAL_FIELD_SUCCESS_DISTANCE_FACTOR = 1.5;
+    public static final double POTENTIAL_FIELD_HEURISTIC_DAMPING = 0.6;
+    public static final double DEFAULT_CONTOUR_DISCOUNT = 0.45;
+    public static final double DEFAULT_SOFT_GRADE_LIMIT = 0.08;
+    public static final double DEFAULT_HARD_GRADE_LIMIT = 0.15;
+    public static final double DEFAULT_SOFT_GRADE_PENALTY = 600.0;
+    public static final double DEFAULT_HARD_GRADE_PENALTY = 6000.0;
+    public static final double DEFAULT_GRADIENT_ALIGN_PENALTY = 80.0;
+    public static final double DEFAULT_PF_WATER_BASE_PENALTY = 800.0;
+
     // ==================== 空间索引参数 ====================
 
     public static final int SPATIAL_INDEX_GRID_SIZE = 8;
