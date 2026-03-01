@@ -7,6 +7,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * 地图快照缓存 - 线程安全的缓存管理
+ */
 public final class MapSnapshotCache {
     private static final ConcurrentHashMap<ResourceLocation, MapSnapshot> SNAPSHOTS = new ConcurrentHashMap<>();
     private static final AtomicInteger CLEAR_SEQ = new AtomicInteger();
@@ -23,6 +27,7 @@ public final class MapSnapshotCache {
         if (s == null) SNAPSHOTS.remove(dimensionId);
         else SNAPSHOTS.put(dimensionId, s);
     }
+    
     public static void scheduleClear(long delayMs) {
         int token = CLEAR_SEQ.incrementAndGet();
         long d = Math.max(0L, delayMs);
@@ -33,6 +38,7 @@ public final class MapSnapshotCache {
             }
         }, delayed);
     }
+    
     public static void cancelClear() {
         CLEAR_SEQ.incrementAndGet();
     }
@@ -42,3 +48,5 @@ public final class MapSnapshotCache {
         SNAPSHOTS.clear();
     }
 }
+
+

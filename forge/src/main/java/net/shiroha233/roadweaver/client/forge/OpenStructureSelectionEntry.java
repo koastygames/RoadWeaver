@@ -15,10 +15,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 打开结构选择界面的配置条目
+ * 结构选择界面入口
  */
 public class OpenStructureSelectionEntry extends AbstractConfigListEntry<Void> {
-
     private Rectangle lastArea;
 
     public OpenStructureSelectionEntry() {
@@ -30,9 +29,7 @@ public class OpenStructureSelectionEntry extends AbstractConfigListEntry<Void> {
         return null;
     }
 
-    public void setValue(Void value) {
-        // no-op: this entry only acts as a button
-    }
+    public void setValue(Void value) {}
 
     @Override
     public Optional<Void> getDefaultValue() {

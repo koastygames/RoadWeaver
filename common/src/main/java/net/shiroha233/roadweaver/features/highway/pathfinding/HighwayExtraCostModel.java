@@ -3,18 +3,16 @@ package net.shiroha233.roadweaver.features.highway.pathfinding;
 import net.minecraft.core.BlockPos;
 
 /**
- * Highway 额外成本模型（浮空/穿透）。
+ * Highway 额外成本模型
  */
 public final class HighwayExtraCostModel {
     private HighwayExtraCostModel() {}
 
     /**
-     * 基于“理想高度剖面”的额外成本。
-     *
-     * 原理：
-     * - 以起点/终点的地表高度作为端点高度，做线性插值，得到当前位置的理想高度 refY。
-     * - groundY < refY：需要高架/桥梁（浮空），按差值 * floatingWeight 计费。
-     * - groundY > refY：需要切割/隧道（穿透），按差值 * penetrationWeight 计费。
+     * 基于理想高度剖面计算额外成本
+     * 原理：线性插值起终点高度得到理想高度，与实际地表高度比较
+     * - 地表低于理想高度：需要高架/桥梁（浮空成本）
+     * - 地表高于理想高度：需要切割/隧道（穿透成本）
      */
     public static double profileCost(BlockPos groundPos,
                                      BlockPos startGround,

@@ -1,7 +1,9 @@
 package net.shiroha233.roadweaver.persistence;
 
 import dev.architectury.injectables.annotations.ExpectPlatform;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 
@@ -11,8 +13,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 跨平台世界数据访问抽象（Common）。
- * 使用 @ExpectPlatform 提供平台端实现提供者。
+ * 跨平台世界数据访问抽象，由 Fabric/Forge 平台端提供实现
  */
 public abstract class WorldDataProvider {
 
@@ -21,33 +22,30 @@ public abstract class WorldDataProvider {
         throw new AssertionError();
     }
 
-    // 结构位置（用于幂等性检查）
-    public abstract Records.StructureLocationData getStructureLocations(ServerLevel level);
-    public abstract void setStructureLocations(ServerLevel level, Records.StructureLocationData data);
+    public abstract StructureLocationData getStructureLocations(ServerLevel level);
+    public abstract void setStructureLocations(ServerLevel level, StructureLocationData data);
 
-    // 结构连接（道路规划）
-    public abstract List<Records.StructureConnection> getStructureConnections(ServerLevel level);
-    public abstract void setStructureConnections(ServerLevel level, List<Records.StructureConnection> connections);
+    public abstract List<StructureConnection> getStructureConnections(ServerLevel level);
+    public abstract void setStructureConnections(ServerLevel level, List<StructureConnection> connections);
 
-    // Highway 结构连接（公路规划）
-    // 说明：Highway 使用独立列表存储，避免与 Path 共用同一连接队列导致状态/调度互相污染。
-    public abstract List<Records.StructureConnection> getHighwayConnections(ServerLevel level);
-    public abstract void setHighwayConnections(ServerLevel level, List<Records.StructureConnection> connections);
-    
-    // 规划覆盖：tile 键集合与中心点映射
+    public abstract List<StructureConnection> getHighwayConnections(ServerLevel level);
+    public abstract void setHighwayConnections(ServerLevel level, List<StructureConnection> connections);
+
     public abstract Set<Long> getPlannedTileKeys(ServerLevel level);
     public abstract void setPlannedTileKeys(ServerLevel level, Set<Long> keys);
     public abstract Map<Long, Long> getPlannedTileCenters(ServerLevel level);
     public abstract void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers);
-    
-    // 便捷方法：添加单个结构位置
+
+    /**
+     * 添加单个结构位置（幂等）
+     */
     public void addStructureLocation(ServerLevel level, BlockPos pos) {
-        Records.StructureLocationData data = getStructureLocations(level);
+        StructureLocationData data = getStructureLocations(level);
         List<BlockPos> locations = new ArrayList<>(data != null ? data.structureLocations() : new ArrayList<>());
-        List<Records.StructureInfo> infos = new ArrayList<>(data != null ? data.structureInfos() : new ArrayList<>());
+        List<StructureInfo> infos = new ArrayList<>(data != null ? data.structureInfos() : new ArrayList<>());
         if (!locations.contains(pos)) {
             locations.add(pos);
-            setStructureLocations(level, new Records.StructureLocationData(locations, infos));
+            setStructureLocations(level, new StructureLocationData(locations, infos));
         }
     }
 }

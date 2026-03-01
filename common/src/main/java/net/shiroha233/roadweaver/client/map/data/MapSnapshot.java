@@ -1,7 +1,9 @@
 package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.ConnectionStatus;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.core.model.StructureInfo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -9,9 +11,12 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 地图快照数据 - 不可变数据结构
+ */
 public class MapSnapshot {
     private final List<BlockPos> structures;
-    private final List<Records.StructureConnection> connections;
+    private final List<StructureConnection> connections;
     private final Map<BlockPos, String> structureNames;
     private final List<List<BlockPos>> roadPolylines;
 
@@ -21,14 +26,14 @@ public class MapSnapshot {
     private final int maxZ;
 
     public MapSnapshot(List<BlockPos> structures,
-                       List<Records.StructureConnection> connections,
-                       List<Records.StructureInfo> structureInfos,
+                       List<StructureConnection> connections,
+                       List<StructureInfo> structureInfos,
                        List<List<BlockPos>> roadPolylines) {
         this.structures = Collections.unmodifiableList(new ArrayList<>(structures != null ? structures : List.of()));
         this.connections = Collections.unmodifiableList(new ArrayList<>(connections != null ? connections : List.of()));
         Map<BlockPos, String> nm = new HashMap<>();
         if (structureInfos != null) {
-            for (Records.StructureInfo info : structureInfos) nm.put(info.pos(), info.structureId());
+            for (StructureInfo info : structureInfos) nm.put(info.pos(), info.structureId());
         }
         this.structureNames = Collections.unmodifiableMap(nm);
         List<List<BlockPos>> rp = new ArrayList<>();
@@ -46,7 +51,7 @@ public class MapSnapshot {
             if (p.getX() > maxX) maxX = p.getX();
             if (p.getZ() > maxZ) maxZ = p.getZ();
         }
-        for (Records.StructureConnection c : this.connections) {
+        for (StructureConnection c : this.connections) {
             BlockPos a = c.from();
             BlockPos b = c.to();
             if (a.getX() < minX) minX = a.getX();
@@ -77,7 +82,7 @@ public class MapSnapshot {
     }
 
     public List<BlockPos> structures() { return structures; }
-    public List<Records.StructureConnection> connections() { return connections; }
+    public List<StructureConnection> connections() { return connections; }
     public String structureName(BlockPos pos) { return structureNames.get(pos); }
     public List<List<BlockPos>> roadPolylines() { return roadPolylines; }
 
@@ -89,16 +94,16 @@ public class MapSnapshot {
     public int structuresCount() { return structures.size(); }
 
     public int plannedCount() {
-        return (int) connections.stream().filter(c -> c.status() == Records.ConnectionStatus.PLANNED).count();
+        return (int) connections.stream().filter(c -> c.status() == ConnectionStatus.PLANNED).count();
     }
     public int generatingCount() {
-        return (int) connections.stream().filter(c -> c.status() == Records.ConnectionStatus.GENERATING).count();
+        return (int) connections.stream().filter(c -> c.status() == ConnectionStatus.GENERATING).count();
     }
     public int completedCount() {
-        return (int) connections.stream().filter(c -> c.status() == Records.ConnectionStatus.COMPLETED).count();
+        return (int) connections.stream().filter(c -> c.status() == ConnectionStatus.COMPLETED).count();
     }
     public int failedCount() {
-        return (int) connections.stream().filter(c -> c.status() == Records.ConnectionStatus.FAILED).count();
+        return (int) connections.stream().filter(c -> c.status() == ConnectionStatus.FAILED).count();
     }
 
     public static MapSnapshot empty() {

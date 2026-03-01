@@ -9,7 +9,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import java.util.List;
 
 /**
- * Highway 路面放置工具。
+ * Highway 路面放置工具
  */
 public final class HighwaySurfacePlacementUtil {
     private HighwaySurfacePlacementUtil() {}

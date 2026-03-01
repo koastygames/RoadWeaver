@@ -4,7 +4,7 @@ import com.mojang.serialization.Codec;
 import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
 
 /**
- * Highway Feature 空配置。
+ * Highway Feature 配置
  */
 public final class HighwayFeatureConfig implements FeatureConfiguration {
     public static final Codec<HighwayFeatureConfig> CODEC = Codec.unit(new HighwayFeatureConfig());

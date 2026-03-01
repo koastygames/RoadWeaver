@@ -4,8 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 道路“预设”配置（放在 config/roadweaver_presets.json）。
- * 统一管理道路宽度候选与材质组合（方块ID）。
+ * 道路预设配置数据容器
  */
 public final class PresetConfig {
     public List<List<String>> materials;

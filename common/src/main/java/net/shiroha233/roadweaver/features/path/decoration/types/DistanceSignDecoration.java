@@ -5,15 +5,17 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
-import net.shiroha233.roadweaver.helpers.Records;
 
-
+/**
+ * 距离路牌装饰
+ */
 public class DistanceSignDecoration extends OrientedDecoration implements BiomeWoodAware {
     private final boolean isStart;
     private final String signText;
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public DistanceSignDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world, boolean isStart, String distanceText) {
         super(pos, direction, world);
@@ -55,7 +57,7 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
     }
 }

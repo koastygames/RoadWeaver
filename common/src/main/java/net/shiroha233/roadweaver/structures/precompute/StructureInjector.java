@@ -21,36 +21,20 @@ import java.util.List;
 
 /**
  * 结构注入器
- * 
- * 在区块 STRUCTURE_STARTS 阶段被 Mixin 调用，
- * 将预计算的路边结构注入到区块的结构数据中。
- * 
- * 这样做的好处：
- * 1. 结构在噪声生成之前就存在，Beardifier 可以自动处理地形适应
- * 2. 结构会自动保存到区块数据
- * 3. 与原版结构系统完全兼容
  */
 public final class StructureInjector {
     private StructureInjector() {}
     
     private static final Logger LOGGER = LoggerFactory.getLogger("RoadWeaver/StructureInjector");
     
-    /**
-     * 在区块的 STRUCTURE_STARTS 阶段注入预计算的结构
-     * 
-     * @param level  服务端世界
-     * @param chunk  正在生成的区块
-     */
     public static void injectPendingStructures(ServerLevel level, ChunkAccess chunk) {
         ChunkPos chunkPos = chunk.getPos();
         
-        // 获取该区块的待放置结构
         List<PendingRoadsideStructure> pending = PendingStructureStorage.getPendingStructures(level, chunkPos);
         if (pending.isEmpty()) {
             return;
         }
         
-        // 获取必要的管理器
         Registry<Structure> structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
         StructureManager structureManager = level.structureManager();
         StructureTemplateManager templateManager = level.getStructureManager();
@@ -59,17 +43,14 @@ public final class StructureInjector {
         
         for (PendingRoadsideStructure pendingStructure : pending) {
             try {
-                // 获取结构定义
                 Structure structure = structureRegistry.get(pendingStructure.structureId());
                 if (structure == null) {
                     LOGGER.warn("Structure {} not found in registry, skipping", pendingStructure.structureId());
                     continue;
                 }
                 
-                // 创建结构片段（支持 RoadsideStructure 和 SpawnCabinStructure）
                 SimpleTemplatePiece piece;
                 if (structure instanceof RoadsideStructure roadsideStructure) {
-                    // 路边结构：包含生物生成和战利品配置
                     piece = new SimpleTemplatePiece(
                         templateManager,
                         roadsideStructure.templateId(),
@@ -80,7 +61,6 @@ public final class StructureInjector {
                         roadsideStructure.lootConfigs()
                     );
                 } else if (structure instanceof SpawnCabinStructure spawnCabin) {
-                    // 初始小屋：暂不支持生物/战利品
                     piece = new SimpleTemplatePiece(
                         templateManager,
                         spawnCabin.templateId(),
@@ -93,15 +73,13 @@ public final class StructureInjector {
                     continue;
                 }
                 
-                // 创建 StructureStart
                 StructureStart start = new StructureStart(
                     structure,
                     chunkPos,
-                    0, // references
+                    0,
                     new net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer(List.of(piece))
                 );
                 
-                // 注入到区块（使用 section 0，原版也是这样做的）
                 SectionPos sectionPos = SectionPos.of(chunkPos, 0);
                 structureManager.setStartForStructure(sectionPos, structure, start, chunk);
                 
@@ -118,7 +96,6 @@ public final class StructureInjector {
                 injectedCount, chunkPos.x, chunkPos.z);
         }
         
-        // 标记已处理
         PendingStructureStorage.markAsInjected(level, chunkPos);
     }
 }

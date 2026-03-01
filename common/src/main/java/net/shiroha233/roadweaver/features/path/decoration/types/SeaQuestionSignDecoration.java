@@ -5,13 +5,16 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
-import net.shiroha233.roadweaver.helpers.Records;
 
+/**
+ * 海域问号路牌
+ */
 public class SeaQuestionSignDecoration extends OrientedDecoration implements BiomeWoodAware {
     private final boolean isStart;
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public SeaQuestionSignDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world, boolean isStart) {
         super(pos, direction, world);
@@ -54,7 +57,7 @@ public class SeaQuestionSignDecoration extends OrientedDecoration implements Bio
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
     }
 }

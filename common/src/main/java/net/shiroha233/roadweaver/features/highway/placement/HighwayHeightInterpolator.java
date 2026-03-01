@@ -5,8 +5,7 @@ import net.minecraft.core.BlockPos;
 import java.util.List;
 
 /**
- * Highway 高度插值器。
- * 逻辑与 Path 道路一致：根据中心线投影点对 targetY 做线性插值。
+ * Highway 高度插值器
  */
 public final class HighwayHeightInterpolator {
     private HighwayHeightInterpolator() {}

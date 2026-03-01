@@ -17,16 +17,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 长途旅行主干道规划服务。
- * 维护主干道"路头"位置，确保路头始终领先玩家 leadDistance 格。
+ * 长途驾驶主干道规划服务
+ * 维护主干道"路头"位置，确保路头始终领先玩家 leadDistance 格
  */
 public final class LongDrivePlanningService {
-    private LongDrivePlanningService() {}
-
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
     private static final ConcurrentHashMap<Level, RoadHead> ROAD_HEADS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Level, AtomicBoolean> EXTENDING = new ConcurrentHashMap<>();
+
+    private LongDrivePlanningService() {}
 
     public static void resetAll() {
         ROAD_HEADS.clear();
@@ -34,12 +34,12 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 初始规划：从出生点开始生成第一段主干道。
+     * 初始规划
      */
     public static void initialPlan(ServerLevel level) {
         if (level == null) return;
         ModConfig cfg = ConfigService.get();
-        if (!cfg.longDriveEnabled()) return;
+        if (!cfg.longDrive().enabled()) return;
 
         BlockPos spawn = level.getSharedSpawnPos();
         int sy = level.getHeight(
@@ -63,23 +63,22 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 玩家移动时检查是否需要延伸主干道。
+     * 玩家移动时检查是否需要延伸主干道
      */
     public static void tickPlayer(ServerPlayer player) {
         if (player == null) return;
         ServerLevel level = player.serverLevel();
         ModConfig cfg = ConfigService.get();
-        if (!cfg.longDriveEnabled()) return;
+        if (!cfg.longDrive().enabled()) return;
 
         RoadHead head = ROAD_HEADS.get(level);
         if (head == null) return;
 
-        int leadDist = cfg.longDriveLeadDistance();
+        int leadDist = cfg.longDrive().leadDistance();
         double dx = head.pos.getX() - player.getX();
         double dz = head.pos.getZ() - player.getZ();
         double distSq = dx * dx + dz * dz;
 
-        // 路头与玩家距离不足 leadDistance 时，异步延伸
         if (distSq < (long) leadDist * leadDist) {
             AtomicBoolean extending = EXTENDING.computeIfAbsent(level, l -> new AtomicBoolean(false));
             if (!extending.compareAndSet(false, true)) return;
@@ -116,7 +115,7 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 基于世界种子计算主干道大方向（归一化 XZ 向量）。
+     * 基于世界种子计算主干道大方向（归一化 XZ 向量）
      */
     static double[] computeDirection(ServerLevel level) {
         long seed = level.getSeed();

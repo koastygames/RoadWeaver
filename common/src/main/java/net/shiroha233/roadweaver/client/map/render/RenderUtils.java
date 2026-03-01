@@ -2,6 +2,9 @@ package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.GuiGraphics;
 
+/**
+ * 渲染工具类 - 提供基础图形绘制方法
+ */
 public final class RenderUtils {
     private RenderUtils() {}
 

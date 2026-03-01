@@ -2,6 +2,9 @@ package net.shiroha233.roadweaver.network.forge;
 
 import net.minecraft.resources.ResourceLocation;
 
+/**
+ * Forge 平台网络桥接实现
+ */
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}
 

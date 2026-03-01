@@ -13,11 +13,6 @@ import java.util.List;
 
 /**
  * 地图笔记编辑界面 - 采用类似原版书与笔的风格
- * 
- * 设计原理：
- * 1. 使用原版书本纹理作为背景
- * 2. 支持多行文本输入
- * 3. 保存笔记到 ClientMapNotes
  */
 public class NoteEditScreen extends Screen {
     private static final ResourceLocation BOOK_TEXTURE = new ResourceLocation("minecraft", "textures/gui/book.png");

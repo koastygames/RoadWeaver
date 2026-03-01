@@ -15,10 +15,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 打开“按维度道路功能控制”界面的配置条目。
+ * 维度道路设置界面入口
  */
 public class OpenDimensionRoadSettingsEntry extends AbstractConfigListEntry<Void> {
-
     private Rectangle lastArea;
 
     public OpenDimensionRoadSettingsEntry() {
@@ -30,9 +29,7 @@ public class OpenDimensionRoadSettingsEntry extends AbstractConfigListEntry<Void
         return null;
     }
 
-    public void setValue(Void value) {
-        // no-op: this entry only acts as a button
-    }
+    public void setValue(Void value) {}
 
     @Override
     public Optional<Void> getDefaultValue() {
@@ -47,11 +44,9 @@ public class OpenDimensionRoadSettingsEntry extends AbstractConfigListEntry<Void
 
         Font font = Minecraft.getInstance().font;
         Component label = getDisplayedFieldName();
-        if (label != null) {
-            int color = getPreferredTextColor();
-            int textY = y + (entryHeight - font.lineHeight) / 2;
-            g.drawString(font, label, x + 4, textY, color, false);
-        }
+        int color = getPreferredTextColor();
+        int textY = y + (entryHeight - font.lineHeight) / 2;
+        g.drawString(font, label, x + 4, textY, color, false);
     }
 
     @Override

@@ -17,7 +17,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import java.util.Map;
 
 /**
- * Highway 结构避让服务：放置阶段避免破坏地表建筑。
+ * Highway 结构避让服务
  */
 public final class HighwayStructureAvoidanceService {
     private HighwayStructureAvoidanceService() {}

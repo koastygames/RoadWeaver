@@ -16,47 +16,37 @@ import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
- * Forge 平台的结构注册
+ * Forge 结构注册
  */
 public final class StructureRegistryForge {
     private StructureRegistryForge() {}
     
-    // StructurePieceType 注册器
     public static final DeferredRegister<StructurePieceType> STRUCTURE_PIECE_TYPES =
             DeferredRegister.create(Registries.STRUCTURE_PIECE, RoadWeaver.MOD_ID);
     
-    // StructureType 注册器
     public static final DeferredRegister<StructureType<?>> STRUCTURE_TYPES =
             DeferredRegister.create(Registries.STRUCTURE_TYPE, RoadWeaver.MOD_ID);
     
-    // 简单模板片段类型（需要 StructureTemplateManager）
     public static final RegistryObject<StructurePieceType> SIMPLE_TEMPLATE =
             STRUCTURE_PIECE_TYPES.register("simple_template",
                 () -> (StructurePieceType.StructureTemplateType) SimpleTemplatePiece::new);
     
-    // 路边结构类型
     public static final RegistryObject<StructureType<RoadsideStructure>> ROADSIDE =
             STRUCTURE_TYPES.register("roadside",
                 () -> () -> RoadsideStructure.CODEC);
     
-    // 初始小屋结构类型
     public static final RegistryObject<StructureType<SpawnCabinStructure>> SPAWN_CABIN =
             STRUCTURE_TYPES.register("spawn_cabin",
                 () -> () -> SpawnCabinStructure.CODEC);
 
-    // 桥梁模板类型
     public static final RegistryObject<StructureType<BridgeTemplateStructure>> BRIDGE_TEMPLATE =
             STRUCTURE_TYPES.register("bridge",
                     () -> () -> BridgeTemplateStructure.CODEC);
     
-    /**
-     * 注册到事件总线
-     */
     public static void register(IEventBus modBus) {
         STRUCTURE_PIECE_TYPES.register(modBus);
         STRUCTURE_TYPES.register(modBus);
         
-        // 注册完成后设置静态引用（延迟到注册完成后）
         modBus.addListener((FMLCommonSetupEvent event) -> {
             event.enqueueWork(() -> {
                 ModStructurePieceTypes.setSimpleTemplate(SIMPLE_TEMPLATE.get());

@@ -14,15 +14,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * GUI 物品渲染安全包装。
- *
- * 原理：
- * - 某些模组会在 ItemColor/BlockColor 回调里直接访问 Minecraft.player / Minecraft.level。
- * - 当我们在主菜单/配置界面打开 Screen 时，这些字段可能为 null，从而在渲染 ItemStack 时崩溃。
- *
- * 解决：
- * - 对 {@link GuiGraphics#renderFakeItem(ItemStack, int, int)} 做 try/catch，失败时渲染占位符。
- * - 为避免每帧重复抛异常，分别缓存“无世界上下文会失败”的物品与“任何情况下都失败”的物品。
+ * GUI 物品渲染安全包装
  */
 public final class SafeGuiItemRenderer {
 
@@ -42,7 +34,6 @@ public final class SafeGuiItemRenderer {
 
         ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (key == null) {
-            // 极少数情况下 item key 取不到，这里直接兜底。
             try {
                 g.renderFakeItem(stack, x, y);
                 return true;
@@ -67,7 +58,6 @@ public final class SafeGuiItemRenderer {
             g.renderFakeItem(stack, x, y);
             return true;
         } catch (Throwable t) {
-            // 注意：不要把“仅在无世界时失败”的物品永久拉黑，否则会影响在游戏内正常显示。
             if (hasWorldContext) {
                 BROKEN_ALWAYS.add(key);
             } else {

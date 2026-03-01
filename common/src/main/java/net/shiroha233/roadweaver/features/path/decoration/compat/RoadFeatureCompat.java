@@ -6,6 +6,9 @@ import net.minecraft.world.level.block.Blocks;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * 道路生成兼容层
+ */
 public final class RoadFeatureCompat {
     private RoadFeatureCompat() {}
 

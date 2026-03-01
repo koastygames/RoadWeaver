@@ -9,11 +9,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Mixin 配置插件，用于条件加载可选模组的 Mixin。
- * 当目标模组未安装时，跳过对应的 Mixin，避免类加载失败。
+ * Mixin 配置插件
  */
 public class MixinConfigPlugin implements IMixinConfigPlugin {
-
     @Override
     public void onLoad(String mixinPackage) {}
 
@@ -24,12 +22,10 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // Oh-The-Trees-Youll-Grow 相关的 Mixin
         if (mixinClassName.contains("TreeFromStructureNBTFeatureMixin")) {
             return isModLoaded("ohthetreesyoullgrow");
         }
         
-        // ReTerraForged 相关的 Mixin
         if (mixinClassName.contains("RTFTemplateFeatureMixin") || 
             mixinClassName.contains("RTFBushFeatureMixin")) {
             return isModLoaded("reterraforged");

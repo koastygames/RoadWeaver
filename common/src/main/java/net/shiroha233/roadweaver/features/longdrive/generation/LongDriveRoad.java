@@ -2,14 +2,20 @@ package net.shiroha233.roadweaver.features.longdrive.generation;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.shiroha233.roadweaver.features.longdrive.LongDriveRoadTypes;
+import net.shiroha233.roadweaver.core.model.RoadData;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
+import net.shiroha233.roadweaver.core.model.RoadSpan;
+import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.features.longdrive.config.LongDriveGenerationConfig;
 import net.shiroha233.roadweaver.features.longdrive.pathfinding.GreedyForwardPathfinder;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingCache;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.pathfinding.PathResult;
+import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,10 +23,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 长途旅行主干道生成器。
- * 使用 Highway 材质 + Path 机制（路基/路灯/半砖），roadType=LONG_DRIVE(3)。
+ * 长途驾驶主干道生成器
+ * 使用 Highway 材质 + Path 机制（路基/路灯/半砖），roadType=LONG_DRIVE(3)
  */
 public final class LongDriveRoad {
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
+
     private final ServerLevel level;
     private final BlockPos start;
     private final double dirX;
@@ -37,7 +45,7 @@ public final class LongDriveRoad {
     }
 
     /**
-     * 生成一段主干道。
+     * 生成一段主干道
      * @param maxSteps 贪婪寻路最大步数
      * @return 路径末端位置，null 表示失败
      */
@@ -45,24 +53,30 @@ public final class LongDriveRoad {
         if (level == null || genConfig == null) return null;
         int width = Math.max(1, genConfig.roadWidth());
 
-        // 长途旅行使用 Highway 材质（灰色混凝土 + 白色中线），roadType 标记为 LONG_DRIVE
-        List<BlockState> materials = List.of(
-                net.minecraft.world.level.block.Blocks.GRAY_CONCRETE.defaultBlockState());
-        List<BlockState> slabMaterials = List.of(
-                net.minecraft.world.level.block.Blocks.GRAY_CONCRETE.defaultBlockState());
+        List<BlockState> materials = List.of(Blocks.GRAY_CONCRETE.defaultBlockState());
+        List<BlockState> slabMaterials = List.of(Blocks.GRAY_CONCRETE.defaultBlockState());
 
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
-            List<Records.RoadSegmentPlacement> segments = GreedyForwardPathfinder.findPath(
+            GreedyForwardPathfinder pathfinder = new GreedyForwardPathfinder();
+            PathResult result = pathfinder.findPath(
                     start, dirX, dirZ, maxSteps, width, level, cache,
-                    genConfig.pathfinding(), genConfig.directionBias());
+                    genConfig.pathfindingCost(), genConfig.directionBias());
+
+            if (!result.success() || result.segments().size() < 3) return null;
+
+            List<BlockPos> rawPath = result.segments().stream()
+                    .map(RoadSegmentPlacement::middlePos)
+                    .toList();
+            List<RoadSegmentPlacement> segments = PathPostProcessor.process(
+                    rawPath, width, level, cache, genConfig.bridgeMinWaterDepth());
+
             if (segments == null || segments.size() < 3) return null;
 
-            List<Records.RoadSpan> spans = RoadPathCalculator.extractSpans(
-                    segments, level, cache, genConfig.pathfinding());
+            List<RoadSpan> spans = extractSpans(segments, level, cache);
             List<Integer> targetY = computeTargetY(segments, spans);
 
-            Records.RoadData rd = new Records.RoadData(
+            RoadData rd = new RoadData(
                     width, LongDriveRoadTypes.LONG_DRIVE,
                     materials, slabMaterials, segments, spans, targetY);
             RoadShardStorage.addRoad(level, rd);
@@ -70,26 +84,59 @@ public final class LongDriveRoad {
             BlockPos last = segments.get(segments.size() - 1).middlePos();
             return last;
         } catch (Throwable t) {
-            org.slf4j.LoggerFactory.getLogger("roadweaver")
-                    .warn("LongDriveRoad: generation failed from {}", start, t);
+            LOGGER.warn("LongDriveRoad: generation failed from {}", start, t);
             return null;
         } finally {
             cache.clear();
         }
     }
 
-    private List<Integer> computeTargetY(List<Records.RoadSegmentPlacement> segments,
-                                         List<Records.RoadSpan> spans) {
+    private List<RoadSpan> extractSpans(List<RoadSegmentPlacement> segments,
+                                        ServerLevel level, TerrainSamplingCache cache) {
+        List<RoadSpan> spans = new ArrayList<>();
+        int minWaterDepth = genConfig.bridgeMinWaterDepth();
+        
+        int i = 0;
+        while (i < segments.size()) {
+            BlockPos pos = segments.get(i).middlePos();
+            int oceanFloor = cache.oceanFloor(level, pos.getX(), pos.getZ());
+            int waterDepth = Math.max(0, level.getSeaLevel() - oceanFloor);
+            
+            if (waterDepth >= minWaterDepth) {
+                int start = i;
+                while (i < segments.size()) {
+                    BlockPos p = segments.get(i).middlePos();
+                    int floor = cache.oceanFloor(level, p.getX(), p.getZ());
+                    int depth = Math.max(0, level.getSeaLevel() - floor);
+                    if (depth < minWaterDepth) break;
+                    i++;
+                }
+                if (i > start) {
+                    spans.add(new RoadSpan(
+                            segments.get(start).middlePos(),
+                            segments.get(i - 1).middlePos(),
+                            SpanType.BRIDGE));
+                }
+            } else {
+                i++;
+            }
+        }
+        return spans;
+    }
+
+    private List<Integer> computeTargetY(List<RoadSegmentPlacement> segments, List<RoadSpan> spans) {
         int n = segments.size();
         List<BlockPos> centers = new ArrayList<>(n);
-        for (Records.RoadSegmentPlacement s : segments) centers.add(s.middlePos());
+        for (RoadSegmentPlacement s : segments) centers.add(s.middlePos());
 
         boolean[] isBridge = new boolean[n];
         if (spans != null && !spans.isEmpty()) {
             Map<Long, Integer> indexMap = new HashMap<>();
-            for (int i = 0; i < centers.size(); i++) indexMap.put(centers.get(i).asLong(), i);
-            for (Records.RoadSpan sp : spans) {
-                if (sp.type() != Records.SpanType.BRIDGE) continue;
+            for (int i = 0; i < centers.size(); i++) {
+                indexMap.put(centers.get(i).asLong(), i);
+            }
+            for (RoadSpan sp : spans) {
+                if (sp.type() != SpanType.BRIDGE) continue;
                 Integer si = indexMap.get(sp.start().asLong());
                 Integer ei = indexMap.get(sp.end().asLong());
                 if (si == null || ei == null) continue;
@@ -130,6 +177,7 @@ public final class LongDriveRoad {
             while (i < n && !isBridge[i]) i++;
             int e = i - 1;
             if (s > e) continue;
+            
             for (int ii = s + 1; ii <= e; ii++) {
                 int y = smoothed[ii];
                 int py = smoothed[ii - 1];
@@ -142,6 +190,7 @@ public final class LongDriveRoad {
                 }
                 smoothed[ii] = y;
             }
+            
             for (int ii = e - 1; ii >= s; ii--) {
                 int y = smoothed[ii];
                 int ny = smoothed[ii + 1];

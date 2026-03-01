@@ -12,12 +12,19 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+/**
+ * 维度列表组件
+ */
 public class DimensionListWidget extends ContainerObjectSelectionList<DimensionListWidget.Entry> {
-
+    private static final int ROW_HEIGHT = 22;
+    private static final int BG_COLOR = 0xAA0A0A0A;
+    private static final int ACTIVE_BG = 0xFF3A3A3A;
+    private static final int HOVER_BG = 0xAA2A2A2A;
+    
     private final Consumer<ResourceLocation> onSelect;
 
     public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<ResourceLocation> onSelect) {
-        super(minecraft, width, height, top, top + height, 22);
+        super(minecraft, width, height, top, top + height, ROW_HEIGHT);
         this.onSelect = onSelect;
     }
 
@@ -25,7 +32,7 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         int x0 = getRowLeft();
         int x1 = x0 + width;
-        graphics.fill(x0, y0, x1, y1, 0xAA0A0A0A);
+        graphics.fill(x0, y0, x1, y1, BG_COLOR);
         super.render(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -50,11 +57,9 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         return getRowLeft() + getRowWidth() + 6;
     }
 
-    public record Row(ResourceLocation dimensionId, Component title, Component subtitle) {
-    }
+    public record Row(ResourceLocation dimensionId, Component title, Component subtitle) {}
 
-    public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {
-    }
+    public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {}
 
     private static final class RowEntry extends Entry {
         private final Row row;
@@ -70,14 +75,7 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         @Override
         public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
                            int mouseX, int mouseY, boolean hovering, float partialTick) {
-            int bg;
-            if (active) {
-                bg = 0xFF3A3A3A;
-            } else if (hovering) {
-                bg = 0xAA2A2A2A;
-            } else {
-                bg = 0;
-            }
+            int bg = active ? ACTIVE_BG : (hovering ? HOVER_BG : 0);
             if (bg != 0) {
                 graphics.fill(left, top, left + width, top + height, bg);
             }
@@ -90,7 +88,6 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
             }
 
             int textX = left + 16;
-
             String titleStr = row.title().getString();
             int titleMax = Math.max(maxTextWidth - mc.font.width("…"), 0);
             String titleCut = mc.font.plainSubstrByWidth(titleStr, titleMax);

@@ -12,8 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.Objects;
-
 /**
  * Mixin 用于在创建世界界面添加 RoadWeaver 配置按钮
  */
@@ -27,7 +25,7 @@ public abstract class CreateWorldScreenMixin extends GridLayoutTab {
     @Inject(method = "<init>", at = @At("TAIL"))
     private void addConfigButton(CallbackInfo ci) {
         Button configButton = Button.builder(
-                Objects.requireNonNull(Component.translatable("gui.roadweaver.config_button")),
+                Component.translatable("gui.roadweaver.config_button"),
                 button -> {
                     Minecraft mc = Minecraft.getInstance();
                     if (mc != null && mc.screen instanceof CreateWorldScreen screen) {
@@ -37,6 +35,6 @@ public abstract class CreateWorldScreenMixin extends GridLayoutTab {
                 .width(210)
                 .build();
         int row = net.minecraft.SharedConstants.getCurrentVersion().isStable() ? 4 : 5;
-        this.layout.addChild(Objects.requireNonNull(configButton), row, 0, Objects.requireNonNull(this.layout.newCellSettings().alignHorizontallyCenter()));
+        this.layout.addChild(configButton, row, 0, this.layout.newCellSettings().alignHorizontallyCenter());
     }
 }

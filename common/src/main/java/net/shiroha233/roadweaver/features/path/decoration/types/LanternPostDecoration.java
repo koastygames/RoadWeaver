@@ -4,12 +4,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 
+/**
+ * 灯笼柱装饰
+ */
 public class LanternPostDecoration extends OrientedDecoration implements BiomeWoodAware {
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public LanternPostDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world) {
         super(pos, direction, world);
@@ -27,7 +30,7 @@ public class LanternPostDecoration extends OrientedDecoration implements BiomeWo
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
     }
 }

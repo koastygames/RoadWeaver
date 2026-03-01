@@ -5,26 +5,19 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
-import net.shiroha233.roadweaver.config.PathfindingConfig;
+import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.AccurateHeightSampler;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.PathPostProcessor;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingCache;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
+import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.*;
 
 /**
- * Highway 专用双向 A*。
- *
- * 和 path 的实现保持同样的整体结构（双向 openSet + meet 合并 + PathPostProcessor 后处理），
- * 但额外引入两类成本：
- *
- * - 浮空成本：道路“理想高度剖面”高于地表时，视为需要高架/桥梁，按差值计费。
- * - 障碍穿透成本：道路“理想高度剖面”低于地表时，视为需要切割/隧道，按差值计费。
- *
- * 这样 Highway 能在“绕路/高架/隧道”之间做权衡，而不是简单绕开。
+ * Highway 双向 A* 寻路器
  */
 public final class HighwayBidirectionalAStarPathfinder {
     private HighwayBidirectionalAStarPathfinder() {}
@@ -32,13 +25,13 @@ public final class HighwayBidirectionalAStarPathfinder {
     private static final int BIOME_BASE_COST = 12;
     private static final double HEURISTIC_EPSILON = 0.2;
 
-    public static List<Records.RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
-                                                                       BlockPos endGround,
-                                                                       int width,
-                                                                       ServerLevel level,
-                                                                       int maxSteps,
-                                                                       TerrainSamplingCache cache,
-                                                                       HighwayGenerationConfig cfg) {
+    public static List<RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
+                                                               BlockPos endGround,
+                                                               int width,
+                                                               ServerLevel level,
+                                                               int maxSteps,
+                                                               TerrainSamplingCache cache,
+                                                               HighwayGenerationConfig cfg) {
         if (startGround == null || endGround == null || level == null || cache == null || cfg == null) {
             return null;
         }
@@ -46,7 +39,7 @@ public final class HighwayBidirectionalAStarPathfinder {
             return Collections.emptyList();
         }
 
-        PathfindingConfig pathCfg = cfg.pathfinding();
+        PathfindingCostConfig pathCfg = cfg.pathfindingCost();
         int d = pathCfg.effectiveAStarStep();
         int[][] neighborOffsets = new int[][]{
                 {d, 0}, {-d, 0}, {0, d}, {0, -d},
@@ -68,7 +61,7 @@ public final class HighwayBidirectionalAStarPathfinder {
         nodesB.put(endGround, endNode);
 
         int stepsBudget = Math.max(1, maxSteps);
-        int dutyCycle = pathCfg.threadDutyCycle();
+        int dutyCycle = cfg.threadDutyCycle();
         ThreadPoolManager.resetThrottle();
 
         while (!openF.isEmpty() && !openB.isEmpty() && stepsBudget-- > 0) {
@@ -125,7 +118,7 @@ public final class HighwayBidirectionalAStarPathfinder {
 
         closedThis.add(current.pos);
 
-        PathfindingConfig pathCfg = cfg.pathfinding();
+        PathfindingCostConfig pathCfg = cfg.pathfindingCost();
 
         for (int[] off : neighborOffsets) {
             if (Thread.currentThread().isInterrupted()) {
@@ -196,12 +189,12 @@ public final class HighwayBidirectionalAStarPathfinder {
         return null;
     }
 
-    private static List<Records.RoadSegmentPlacement> reconstructPath(Node meetForward,
-                                                                      Node meetBackward,
-                                                                      int width,
-                                                                      ServerLevel level,
-                                                                      TerrainSamplingCache cache,
-                                                                      HighwayGenerationConfig cfg) {
+    private static List<RoadSegmentPlacement> reconstructPath(Node meetForward,
+                                                              Node meetBackward,
+                                                              int width,
+                                                              ServerLevel level,
+                                                              TerrainSamplingCache cache,
+                                                              HighwayGenerationConfig cfg) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
         while (cur != null) {
@@ -225,12 +218,12 @@ public final class HighwayBidirectionalAStarPathfinder {
                 width,
                 level,
                 cache,
-                cfg.pathfinding().bridgeMinWaterDepth(),
-                PathPostProcessor.CurveMode.BEZIER_CASTELJAU,
+                cfg.bridgeMinWaterDepth(),
+                SplineHelper.CurveMode.BEZIER_CASTELJAU,
                 accurate);
     }
 
-    private static double heuristic(BlockPos a, BlockPos b, PathfindingConfig cfg) {
+    private static double heuristic(BlockPos a, BlockPos b, PathfindingCostConfig cfg) {
         int dx = a.getX() - b.getX();
         int dz = a.getZ() - b.getZ();
         double dxzApprox = Math.abs(dx) + Math.abs(dz) - 0.6 * Math.min(Math.abs(dx), Math.abs(dz));
@@ -266,10 +259,6 @@ public final class HighwayBidirectionalAStarPathfinder {
         return cache.isNearWaterLike(level, x, z, 16);
     }
 
-    /**
-        * 计算地形稳定性：检查四个方向的高度差。
-        * 使用 A* 步长采样，确保采样点与邻居网格对齐，提高缓存命中率。
-        */
     private static int calculateTerrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level, int step) {
         int cost = 0;
         if (Math.abs(heightSampler(cache, pos.getX() + step, pos.getZ(), level) - y) > 0) cost++;

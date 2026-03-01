@@ -1,9 +1,11 @@
 package net.shiroha233.roadweaver.network.forge;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
@@ -12,15 +14,24 @@ import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
-import net.minecraft.world.level.levelgen.Heightmap;
+import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.util.ComputeService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import net.shiroha233.roadweaver.util.ComputeService;
 import java.util.function.Supplier;
 
+/**
+ * Forge 平台地图网络通信实现
+ */
 public class MapNetworkForge {
     private static final String VERSION = "1";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
@@ -38,10 +49,12 @@ public class MapNetworkForge {
         CHANNEL.registerMessage(id++, ManualConnectC2S.class, ManualConnectC2S::encode, ManualConnectC2S::decode, ManualConnectC2S::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
+    // 客户端请求地图快照
     public static class RequestMapSnapshotC2S {
         public final int requestSeq;
         public final ResourceLocation requestedDimensionId;
         public final int minX, minZ, maxX, maxZ;
+
         public RequestMapSnapshotC2S(int requestSeq, ResourceLocation requestedDimensionId, int minX, int minZ, int maxX, int maxZ) {
             this.requestSeq = requestSeq;
             this.requestedDimensionId = requestedDimensionId;
@@ -50,6 +63,7 @@ public class MapNetworkForge {
             this.maxX = maxX;
             this.maxZ = maxZ;
         }
+
         public static void encode(RequestMapSnapshotC2S msg, FriendlyByteBuf buf) {
             buf.writeVarInt(msg.requestSeq);
             buf.writeResourceLocation(msg.requestedDimensionId);
@@ -58,6 +72,7 @@ public class MapNetworkForge {
             buf.writeVarInt(msg.maxX);
             buf.writeVarInt(msg.maxZ);
         }
+
         public static RequestMapSnapshotC2S decode(FriendlyByteBuf buf) {
             int requestSeq = buf.readVarInt();
             ResourceLocation requestedDimensionId = buf.readResourceLocation();
@@ -67,6 +82,7 @@ public class MapNetworkForge {
             int maxZ = buf.readVarInt();
             return new RequestMapSnapshotC2S(requestSeq, requestedDimensionId, minX, minZ, maxX, maxZ);
         }
+
         public static void handle(RequestMapSnapshotC2S msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
             var player = c.getSender();
@@ -75,13 +91,13 @@ public class MapNetworkForge {
                 int cz = (int) Math.round(player.getZ());
                 int computedRadiusBlocks;
                 try {
-                    net.shiroha233.roadweaver.config.ModConfig cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-                    if (cfg.highwayEnabled()) {
-                        computedRadiusBlocks = Math.max(16, cfg.highwayPlanningRadiusBlocks());
+                    ModConfig cfg = ConfigService.get();
+                    if (cfg.highway().enabled()) {
+                        computedRadiusBlocks = Math.max(16, cfg.highway().planningRadiusBlocks());
                     } else {
-                        int radiusChunks = cfg.dynamicPlanEnabled()
-                                ? cfg.dynamicPlanRadiusChunks()
-                                : cfg.initialPlanRadiusChunks();
+                        int radiusChunks = cfg.planning().dynamicPlanEnabled()
+                                ? cfg.planning().dynamicPlanRadiusChunks()
+                                : cfg.planning().initialPlanRadiusChunks();
                         computedRadiusBlocks = Math.max(1, radiusChunks) * 16;
                     }
                 } catch (Throwable t) {
@@ -90,7 +106,6 @@ public class MapNetworkForge {
                 final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
                 CompletableFuture
                     .supplyAsync(() -> {
-                        // 不信任客户端传来的维度：以服务端玩家当前所处维度为准（防止伪造/竞态）。
                         var level = player.serverLevel();
                         ResourceLocation actualDimensionId = level.dimension().location();
                         MapSnapshot snap = MapDataCollector.build(level, msg.minX, msg.minZ, msg.maxX, msg.maxZ, cx, cz, radiusBlocksFinal);
@@ -106,25 +121,30 @@ public class MapNetworkForge {
         CHANNEL.sendToServer(new RequestMapSnapshotC2S(requestSeq, dimensionId, minX, minZ, maxX, maxZ));
     }
 
+    // 服务端发送地图快照
     public static class MapSnapshotS2C {
         public final int requestSeq;
         public final ResourceLocation dimensionId;
         public final MapSnapshot snapshot;
+
         public MapSnapshotS2C(int requestSeq, ResourceLocation dimensionId, MapSnapshot s) {
             this.requestSeq = requestSeq;
             this.dimensionId = dimensionId;
             this.snapshot = s;
         }
+
         public static void encode(MapSnapshotS2C msg, FriendlyByteBuf buf) {
             buf.writeVarInt(msg.requestSeq);
             buf.writeResourceLocation(msg.dimensionId);
             MapSnapshotCodec.write(buf, msg.snapshot);
         }
+
         public static MapSnapshotS2C decode(FriendlyByteBuf buf) {
             int requestSeq = buf.readVarInt();
             ResourceLocation dimensionId = buf.readResourceLocation();
             return new MapSnapshotS2C(requestSeq, dimensionId, MapSnapshotCodec.read(buf));
         }
+
         public static void handle(MapSnapshotS2C msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
             c.enqueueWork(() -> {
@@ -135,20 +155,29 @@ public class MapNetworkForge {
         }
     }
 
+    // 客户端请求传送
     public static class TeleportC2S {
         public final int x, y, z;
-        public TeleportC2S(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
+
+        public TeleportC2S(int x, int y, int z) { 
+            this.x = x; 
+            this.y = y; 
+            this.z = z; 
+        }
+
         public static void encode(TeleportC2S msg, FriendlyByteBuf buf) {
             buf.writeVarInt(msg.x);
             buf.writeVarInt(msg.y);
             buf.writeVarInt(msg.z);
         }
+
         public static TeleportC2S decode(FriendlyByteBuf buf) {
             int x = buf.readVarInt();
             int y = buf.readVarInt();
             int z = buf.readVarInt();
             return new TeleportC2S(x, y, z);
         }
+
         public static void handle(TeleportC2S msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
             c.enqueueWork(() -> {
@@ -170,12 +199,33 @@ public class MapNetworkForge {
         }
     }
 
+    // 服务端传送确认
     public static class TeleportAckS2C {
         public final boolean ok;
         public final int x, y, z;
-        public TeleportAckS2C(boolean ok, int x, int y, int z) { this.ok = ok; this.x = x; this.y = y; this.z = z; }
-        public static void encode(TeleportAckS2C msg, FriendlyByteBuf buf) { buf.writeBoolean(msg.ok); buf.writeVarInt(msg.x); buf.writeVarInt(msg.y); buf.writeVarInt(msg.z); }
-        public static TeleportAckS2C decode(FriendlyByteBuf buf) { boolean ok = buf.readBoolean(); int x = buf.readVarInt(); int y = buf.readVarInt(); int z = buf.readVarInt(); return new TeleportAckS2C(ok, x, y, z); }
+
+        public TeleportAckS2C(boolean ok, int x, int y, int z) { 
+            this.ok = ok; 
+            this.x = x; 
+            this.y = y; 
+            this.z = z; 
+        }
+
+        public static void encode(TeleportAckS2C msg, FriendlyByteBuf buf) { 
+            buf.writeBoolean(msg.ok); 
+            buf.writeVarInt(msg.x); 
+            buf.writeVarInt(msg.y); 
+            buf.writeVarInt(msg.z); 
+        }
+
+        public static TeleportAckS2C decode(FriendlyByteBuf buf) { 
+            boolean ok = buf.readBoolean(); 
+            int x = buf.readVarInt(); 
+            int y = buf.readVarInt(); 
+            int z = buf.readVarInt(); 
+            return new TeleportAckS2C(ok, x, y, z); 
+        }
+
         public static void handle(TeleportAckS2C msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
             c.enqueueWork(() -> {
@@ -193,16 +243,32 @@ public class MapNetworkForge {
         CHANNEL.sendToServer(new TeleportC2S(x, y, z));
     }
 
+    // 客户端请求手动连接
     public static class ManualConnectC2S {
         public final int ax, az, bx, bz;
-        public ManualConnectC2S(int ax, int az, int bx, int bz) { this.ax = ax; this.az = az; this.bx = bx; this.bz = bz; }
-        public static void encode(ManualConnectC2S msg, FriendlyByteBuf buf) {
-            buf.writeVarInt(msg.ax); buf.writeVarInt(msg.az); buf.writeVarInt(msg.bx); buf.writeVarInt(msg.bz);
+
+        public ManualConnectC2S(int ax, int az, int bx, int bz) { 
+            this.ax = ax; 
+            this.az = az; 
+            this.bx = bx; 
+            this.bz = bz; 
         }
+
+        public static void encode(ManualConnectC2S msg, FriendlyByteBuf buf) {
+            buf.writeVarInt(msg.ax); 
+            buf.writeVarInt(msg.az); 
+            buf.writeVarInt(msg.bx); 
+            buf.writeVarInt(msg.bz);
+        }
+
         public static ManualConnectC2S decode(FriendlyByteBuf buf) {
-            int ax = buf.readVarInt(); int az = buf.readVarInt(); int bx = buf.readVarInt(); int bz = buf.readVarInt();
+            int ax = buf.readVarInt(); 
+            int az = buf.readVarInt(); 
+            int bx = buf.readVarInt(); 
+            int bz = buf.readVarInt();
             return new ManualConnectC2S(ax, az, bx, bz);
         }
+
         public static void handle(ManualConnectC2S msg, Supplier<NetworkEvent.Context> ctx) {
             NetworkEvent.Context c = ctx.get();
             c.enqueueWork(() -> {
@@ -216,19 +282,22 @@ public class MapNetworkForge {
                 }
 
                 var level = sp.serverLevel();
-                net.shiroha233.roadweaver.persistence.WorldDataProvider provider = net.shiroha233.roadweaver.persistence.WorldDataProvider.getInstance();
-                java.util.List<net.shiroha233.roadweaver.helpers.Records.StructureConnection> origin = provider.getStructureConnections(level);
-                java.util.List<net.shiroha233.roadweaver.helpers.Records.StructureConnection> list = origin != null ? new java.util.ArrayList<>(origin) : new java.util.ArrayList<>();
-                net.minecraft.core.BlockPos a = new net.minecraft.core.BlockPos(msg.ax, 0, msg.az);
-                net.minecraft.core.BlockPos b = new net.minecraft.core.BlockPos(msg.bx, 0, msg.bz);
+                WorldDataProvider provider = WorldDataProvider.getInstance();
+                List<StructureConnection> origin = provider.getStructureConnections(level);
+                List<StructureConnection> list = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
+                BlockPos a = new BlockPos(msg.ax, 0, msg.az);
+                BlockPos b = new BlockPos(msg.bx, 0, msg.bz);
                 boolean exists = false;
-                for (net.shiroha233.roadweaver.helpers.Records.StructureConnection sc : list) {
-                    net.minecraft.core.BlockPos f = sc.from();
-                    net.minecraft.core.BlockPos t = sc.to();
-                    if ((f.equals(a) && t.equals(b)) || (f.equals(b) && t.equals(a))) { exists = true; break; }
+                for (StructureConnection sc : list) {
+                    BlockPos f = sc.from();
+                    BlockPos t = sc.to();
+                    if ((f.equals(a) && t.equals(b)) || (f.equals(b) && t.equals(a))) { 
+                        exists = true; 
+                        break; 
+                    }
                 }
                 if (!exists) {
-                    list.add(new net.shiroha233.roadweaver.helpers.Records.StructureConnection(a, b, net.shiroha233.roadweaver.helpers.Records.ConnectionStatus.PLANNED));
+                    list.add(new StructureConnection(a, b, ConnectionStatus.PLANNED));
                     provider.setStructureConnections(level, list);
                 }
             });

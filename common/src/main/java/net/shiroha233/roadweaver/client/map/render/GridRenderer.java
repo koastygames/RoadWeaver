@@ -4,6 +4,9 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 
+/**
+ * 网格渲染器 - 绘制地图网格和刻度
+ */
 public final class GridRenderer {
     private GridRenderer() {}
 

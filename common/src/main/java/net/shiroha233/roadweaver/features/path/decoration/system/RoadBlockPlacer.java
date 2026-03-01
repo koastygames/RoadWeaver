@@ -10,9 +10,11 @@ import net.shiroha233.roadweaver.config.ModConfig;
 
 import java.util.List;
 
+/**
+ * 道路方块放置器
+ */
 public final class RoadBlockPlacer {
-    private RoadBlockPlacer() {
-    }
+    private RoadBlockPlacer() {}
 
     public static void placeRoadBlock(WorldGenLevel world,
             BlockState blockBelow,
@@ -30,14 +32,13 @@ public final class RoadBlockPlacer {
             roadFillEnabled = cfg.roadFillEnabledForDimension(dimId);
         }
 
-        final int MAX_CAUSEWAY_DEPTH = Math.max(0, Math.min(12, (cfg == null ? 1 : cfg.causewayMaxDepth())));
+        final int MAX_CAUSEWAY_DEPTH = Math.max(0, Math.min(12, (cfg == null ? 1 : cfg.roadAppearance().causewayMaxDepth())));
         BlockPos below1 = surfacePos.below();
         BlockPos below2 = surfacePos.below(2);
         boolean sturdy1 = world.getBlockState(below1).isFaceSturdy(world, below1, Direction.UP);
         boolean sturdy2 = world.getBlockState(below2).isFaceSturdy(world, below2, Direction.UP);
 
         if (!roadFillEnabled) {
-            // 仅放置一层路面，不做向下堤道填充
             world.setBlock(below1, chosen, 3);
         } else if (!sturdy1 && !sturdy2) {
             BlockPos cursor = below2;

@@ -20,7 +20,8 @@ import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
 import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.ConnectionStatus;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import net.shiroha233.roadweaver.util.ComputeService;
 
@@ -29,12 +30,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * 道路地图界面 - 重构版
- * 
- * 设计原理：
- * 1. 协调者模式：Screen 只负责协调各个组件，不包含复杂逻辑
- * 2. 单一职责：渲染、输入、状态管理分别委托给专门的类
- * 3. 可测试性：核心逻辑在独立类中，便于单元测试
+ * 道路地图界面
  */
 public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private static final ResourceLocation MAP_TEXTURE = new ResourceLocation("roadweaver", "textures/gui/map.png");
@@ -135,15 +131,15 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
         int thickness = computeThickness();
 
-        // 道路折线的 LOD：缩放较远时不绘制折线，改用连接直线（避免“只剩细节线段”导致层级渲染失效）。
+        // 道路折线的 LOD：缩放较远时不绘制折线，改用连接直线（避免"只剩细节线段"导致层级渲染失效）。
         int lodStep = GridRenderer.computeGridStep(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
                 view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(), MapTheme.GRID_TARGET_PX);
         boolean renderRoadPolylines = !snapshot.roadPolylines().isEmpty() && lodStep <= 256;
         
         // 连接线（排除已完成的，因为会用道路折线表示）
-        List<Records.StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
+        List<StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
         if (renderRoadPolylines) {
-            connForLines.removeIf(c -> c.status() == Records.ConnectionStatus.COMPLETED);
+            connForLines.removeIf(c -> c.status() == ConnectionStatus.COMPLETED);
         }
         MapRenderers.renderConnections(g, connForLines,
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
@@ -539,12 +535,12 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private int getRadiusBlocks() {
         try {
             var cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-            if (cfg.highwayEnabled()) {
-                return Math.max(16, cfg.highwayPlanningRadiusBlocks());
+            if (cfg.highway().enabled()) {
+                return Math.max(16, cfg.highway().planningRadiusBlocks());
             } else {
-                int radiusChunks = cfg.dynamicPlanEnabled()
-                        ? cfg.dynamicPlanRadiusChunks()
-                        : cfg.initialPlanRadiusChunks();
+                int radiusChunks = cfg.planning().dynamicPlanEnabled()
+                        ? cfg.planning().dynamicPlanRadiusChunks()
+                        : cfg.planning().initialPlanRadiusChunks();
                 return Math.max(1, radiusChunks) * 16;
             }
         } catch (Throwable t) {

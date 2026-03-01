@@ -14,8 +14,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 材料预设编辑器入口
+ */
 public class OpenPresetEditorEntry extends AbstractConfigListEntry<Void> {
-
     private Rectangle lastArea;
 
     public OpenPresetEditorEntry() {
@@ -27,9 +29,7 @@ public class OpenPresetEditorEntry extends AbstractConfigListEntry<Void> {
         return null;
     }
 
-    public void setValue(Void value) {
-        // no-op: this entry only acts as a button
-    }
+    public void setValue(Void value) {}
 
     @Override
     public Optional<Void> getDefaultValue() {

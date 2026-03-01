@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver.client.map.ui;
 
 /**
- * 简单矩形记录类 - 替代 int[] bounds，提供更清晰的语义
+ * 简单矩形记录类
  */
 public record Rect(int x, int y, int width, int height) {
     
@@ -12,7 +12,6 @@ public record Rect(int x, int y, int width, int height) {
         return px >= x && px <= right() && py >= y && py <= bottom();
     }
     
-    /** 调整位置使矩形保持在屏幕内 */
     public Rect clampToScreen(int screenW, int screenH, int margin) {
         int nx = x;
         int ny = y;

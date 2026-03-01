@@ -10,12 +10,15 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Half;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.WoodTrapdoorMapper;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
+import net.shiroha233.roadweaver.features.path.decoration.material.WoodTrapdoorMapper;
 
+/**
+ * 路灯装饰
+ */
 public class LamppostDecoration extends OrientedDecoration implements BiomeWoodAware {
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public LamppostDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world) {
         super(pos, direction, world);
@@ -57,8 +60,7 @@ public class LamppostDecoration extends OrientedDecoration implements BiomeWoodA
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
     }
-
 }

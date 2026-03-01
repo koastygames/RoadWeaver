@@ -14,8 +14,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 结构预测维度白名单入口
+ */
 public class OpenStructurePredictionDimensionWhitelistEntry extends AbstractConfigListEntry<Void> {
-
     private Rectangle lastArea;
 
     public OpenStructurePredictionDimensionWhitelistEntry() {
@@ -27,9 +29,7 @@ public class OpenStructurePredictionDimensionWhitelistEntry extends AbstractConf
         return null;
     }
 
-    public void setValue(Void value) {
-        // no-op: this entry only acts as a button
-    }
+    public void setValue(Void value) {}
 
     @Override
     public Optional<Void> getDefaultValue() {

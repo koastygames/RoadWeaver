@@ -11,18 +11,15 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * 路牌文本服务
+ */
 public final class SignTextService {
     private SignTextService() {}
 
-    // 说明：写牌子文本属于“非关键逻辑”，但如果直接通过 ServerLevel#getBlockEntity
-    // 会在区块未加载时触发同步加载（进而推进世界生成链路，导致其他模组的 Feature 崩溃被放大）。
-    // 因此这里做成：
-    // 1) 仅在 chunk 已加载时写入
-    // 2) 否则放入延迟队列，在后续 tick 中重试
     private static final int MAX_RETRY_TICKS = 200;
     private static final int PROCESS_BUDGET_PER_TICK = 64;
-    private static final ConcurrentLinkedQueue<PendingWrite> PENDING =
-            new ConcurrentLinkedQueue<>();
+    private static final ConcurrentLinkedQueue<PendingWrite> PENDING = new ConcurrentLinkedQueue<>();
 
     private enum PendingType {
         DISTANCE,
@@ -65,7 +62,6 @@ public final class SignTextService {
     }
 
     private static boolean tryWriteDistanceSign(ServerLevel sLevel, BlockPos pos, String text) {
-        // 避免在世界生成阶段触发“同步加载区块”（ChunkCache#getChunk 会阻塞等待生成）。
         LevelChunk chunk = sLevel.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
         if (chunk == null) return false;
         BlockEntity be = chunk.getBlockEntity(pos);
@@ -101,7 +97,6 @@ public final class SignTextService {
     }
 
     private static boolean tryWriteSeaQuestionSign(ServerLevel sLevel, BlockPos pos) {
-        // 同上：只在区块已加载时尝试写入文本。
         LevelChunk chunk = sLevel.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
         if (chunk == null) return false;
         BlockEntity be = chunk.getBlockEntity(pos);

@@ -3,6 +3,9 @@ package net.shiroha233.roadweaver.network;
 import dev.architectury.injectables.annotations.ExpectPlatform;
 import net.minecraft.resources.ResourceLocation;
 
+/**
+ * 客户端网络桥接
+ */
 public final class ClientNetBridge {
     private ClientNetBridge() {}
 

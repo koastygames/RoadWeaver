@@ -19,7 +19,6 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 /**
  * 通用植物 Feature 拦截器
  * 拦截 ConfiguredFeature.place() 方法，这是所有 Feature 生成的统一入口
- * 兼容 C2ME 的多线程世界生成和对象池优化
  */
 @Mixin(ConfiguredFeature.class)
 public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F extends Feature<FC>> {
@@ -27,10 +26,6 @@ public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F ex
     @Shadow @Final public F feature;
     @Shadow @Final public FC config;
 
-    /**
-     * 拦截 ConfiguredFeature.place() 方法
-     * 这是所有 Feature 生成的入口点，包括 C2ME 优化后的调用
-     */
     @Inject(method = "place", at = @At("HEAD"), cancellable = true)
     private void roadweaver$blockTreesOnRoad(WorldGenLevel level,
                                               ChunkGenerator generator,
@@ -46,26 +41,20 @@ public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F ex
         } catch (Throwable ignored) {}
     }
 
-    /**
-     * 判断是否为树木类 Feature
-     */
     @Unique
     private boolean roadweaver$isTreeLikeFeature() {
         if (this.feature == null) return false;
         
         String featureClassName = this.feature.getClass().getName().toLowerCase();
         
-        // 排除已有专门 Mixin 的原版类（避免重复检查）
         if (roadweaver$isVanillaTreeFeature(featureClassName)) {
             return false;
         }
         
-        // 检查 Feature 类名
         if (roadweaver$containsTreeKeyword(featureClassName)) {
             return true;
         }
         
-        // 检查配置类名
         if (this.config != null) {
             String configName = this.config.getClass().getName().toLowerCase();
             if (roadweaver$containsTreeKeyword(configName)) {
@@ -76,9 +65,6 @@ public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F ex
         return false;
     }
 
-    /**
-     * 判断是否为已有专门 Mixin 的原版树木类
-     */
     @Unique
     private boolean roadweaver$isVanillaTreeFeature(String className) {
         return className.equals("net.minecraft.world.level.levelgen.feature.treefeature") ||

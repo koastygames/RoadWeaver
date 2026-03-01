@@ -24,23 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 桥模板结构注册中心
- * 
- * 从世界的 Structure 注册表中读取所有 BridgeTemplateStructure，
- * 提供根据条件筛选和选择结构的方法。
- * 
- * 数据来源：datapack 中的 worldgen/structure/*.json
  */
 public final class BridgeTemplateStructureRegistry {
 
     private BridgeTemplateStructureRegistry() {
     }
 
-    // 缓存：每个世界的桥模板结构列表
     private static final Map<ResourceKey<?>, List<BridgeTemplate>> CACHE = new ConcurrentHashMap<>();
 
-    /**
-     * 桥模板结构
-     */
     public static class BridgeTemplate {
         private final ResourceLocation id;
         private final Holder<Structure> holder;
@@ -62,8 +53,6 @@ public final class BridgeTemplateStructureRegistry {
                 size = template.getSize();
                 voxelGrid = new BlockState[size.getX()][size.getY()][size.getZ()];
 
-                // 这里不用mixin Accessor拿到调色板了，直接用保存NBT功能解析NBT
-                // 因为这里似乎不太好mixin
                 CompoundTag tag = template.save(new CompoundTag());
                 ListTag palette = tag.getList("palette", 10);
                 ListTag blocks = tag.getList("blocks", 10);
@@ -72,38 +61,18 @@ public final class BridgeTemplateStructureRegistry {
             }
         }
 
-        /**
-         * 判断给定的坐标点是否在体素网格范围内
-         *
-         * @param x X坐标值
-         * @param y Y坐标值
-         * @param z Z坐标值
-         * @return 如果坐标点在体素网格范围内返回true，否则返回false
-         */
         public boolean isInVoxelGrid(double x, double y, double z) {
             int originalX = (int) Math.floor(x);
-            int originalY = (int) Math.floor(y + structure.heightOffset + 1); // 从路面高度计y坐标
+            int originalY = (int) Math.floor(y + structure.heightOffset + 1);
             int originalZ = (int) Math.floor(z + 0.01 + size.getZ() / 2.0);
 
             return originalX >= 0 && originalX < size.getX() && originalY < size.getY() && originalZ >= 0
                     && originalZ < size.getZ();
         }
 
-        /**
-         * 获取给定坐标处的体素块状态
-         *
-         * @param x X坐标值
-         * @param y Y坐标值
-         * @param z Z坐标值
-         * @return 给定坐标处的体素块状态，如果不存在则返回 null
-         */
         public BlockState getBlock(double x, double y, double z) {
-            // 映射回原始体素坐标
-            // 原始X坐标由曲线参数决定
             int originalX = (int) Math.floor(x);
-
-            // 原始Y和Z坐标由局部坐标决定（考虑网格中心）
-            int originalY = (int) Math.floor(y + structure.heightOffset + 1); // 从路面高度计y坐标
+            int originalY = (int) Math.floor(y + structure.heightOffset + 1);
             int originalZ = (int) Math.floor(z + 0.01 + size.getZ() / 2.0);
 
             if (originalX < 0 || originalX >= size.getX() || originalY >= size.getY() || originalZ < 0
@@ -111,7 +80,6 @@ public final class BridgeTemplateStructureRegistry {
                 return null;
             }
 
-            // 高度过低的话会重复模板中最低的块(地基)进行放置
             if (originalY < 0) {
                 originalY = 0;
             }
@@ -206,38 +174,15 @@ public final class BridgeTemplateStructureRegistry {
         }
     }
 
-    /**
-     * 获取所有已注册的桥模板结构
-     * 
-     * @param level 服务端世界（用于获取注册表）
-     * @return 桥模板结构列表
-     */
     public static List<BridgeTemplate> getAll(ServerLevel level) {
         ResourceKey<?> dimensionKey = level.dimension();
         return CACHE.computeIfAbsent(dimensionKey, k -> loadFromRegistry(level));
     }
 
-    /**
-     * 根据条件选择一个桥模板结构
-     * 
-     * @param level 服务端世界
-     * @param seed  随机种子
-     * @return 选中的结构，如果没有符合条件的返回 null
-     */
-    /**
-     * 根据条件选择一个桥模板结构
-     * 
-     * @param level 服务端世界
-     * @param seed  随机种子
-     * @return 选中的结构，如果没有符合条件的返回 null
-     */
     public static BridgeTemplate choose(ServerLevel level, int seed) {
         return choose(level, seed, null);
     }
 
-    /**
-     * 根据群系选择桥模板结构（用于按群系区分桥梁样式）
-     */
     public static BridgeTemplate choose(ServerLevel level, int seed, Holder<Biome> biome) {
         List<BridgeTemplate> all = getAll(level);
         if (all == null || all.isEmpty()) {
@@ -274,9 +219,6 @@ public final class BridgeTemplateStructureRegistry {
         return candidates.get(randomIndex);
     }
 
-    /**
-     * 从注册表加载所有桥模板结构
-     */
     private static List<BridgeTemplate> loadFromRegistry(ServerLevel level) {
         List<BridgeTemplate> result = new ArrayList<>();
         RegistryAccess registryAccess = level.registryAccess();
@@ -287,7 +229,6 @@ public final class BridgeTemplateStructureRegistry {
             ResourceLocation id = entry.getKey().location();
             Structure structure = entry.getValue();
 
-            // 只收集 BridgeTemplateStructure 类型
             if (structure instanceof BridgeTemplateStructure roadsideStructure) {
                 Holder<Structure> holder = structureRegistry.getHolderOrThrow(entry.getKey());
                 result.add(new BridgeTemplate(id, holder, roadsideStructure, level));
@@ -297,16 +238,10 @@ public final class BridgeTemplateStructureRegistry {
         return result;
     }
 
-    /**
-     * 清除缓存（在世界卸载或重载时调用）
-     */
     public static void clearCache() {
         CACHE.clear();
     }
 
-    /**
-     * 清除指定维度的缓存
-     */
     public static void clearCache(ResourceKey<?> dimensionKey) {
         CACHE.remove(dimensionKey);
     }
