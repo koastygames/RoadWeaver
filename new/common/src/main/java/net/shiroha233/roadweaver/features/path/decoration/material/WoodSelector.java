@@ -12,7 +12,7 @@ import net.shiroha233.roadweaver.core.model.WoodAssets;
 import java.util.Optional;
 
 /**
- * 木材选择器：根据生物群系选择合适的木材类型。
+ * 木材选择器
  */
 public final class WoodSelector {
     private WoodSelector() {}

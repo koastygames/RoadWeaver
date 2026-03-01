@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 材料预设管理服务：加载、保存、查询道路材料预设
+ * 材料预设管理服务
  */
 public final class PresetService {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");

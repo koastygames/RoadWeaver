@@ -18,7 +18,6 @@ import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 
 /**
  * Fabric Feature 注册
- * 职责：注册道路和高速公路 Feature 到世界生成系统
  */
 public final class RoadFeatureRegistry {
     private RoadFeatureRegistry() {}

@@ -34,7 +34,7 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 初始规划：从出生点开始生成第一段主干道
+     * 初始规划
      */
     public static void initialPlan(ServerLevel level) {
         if (level == null) return;

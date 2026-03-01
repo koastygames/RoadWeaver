@@ -17,7 +17,6 @@ import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
  * Forge 结构注册
- * 职责：注册路边结构、桥梁模板、出生小屋等结构类型
  */
 public final class StructureRegistryForge {
     private StructureRegistryForge() {}

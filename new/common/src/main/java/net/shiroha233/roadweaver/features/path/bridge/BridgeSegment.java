@@ -8,8 +8,6 @@ import java.util.*;
 
 /**
  * 桥梁段数据结构
- * 
- * 职责：管理桥梁段的几何信息，提供桥梁曲线查询
  */
 public class BridgeSegment {
     private final Map<Set<Integer>, Line> bridgeLines = new HashMap<>();

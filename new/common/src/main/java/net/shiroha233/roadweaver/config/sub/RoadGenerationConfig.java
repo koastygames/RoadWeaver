@@ -17,6 +17,7 @@ public final class RoadGenerationConfig implements SubConfig {
     private boolean slopeLimitEnabled = true;
     private int maxSlopeStepPerTwoSegments = RoadConstants.DEFAULT_MAX_SLOPE_STEP;
     private PathfindingCostConfig pathfinding = new PathfindingCostConfig();
+    private int bridgeMinWaterDepth = RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH;
 
     /**
      * 从 HighwayGenerationConfig 创建 RoadGenerationConfig
@@ -36,6 +37,7 @@ public final class RoadGenerationConfig implements SubConfig {
         if (highwayConfig.pathfindingCost() != null) {
             cfg.pathfinding = highwayConfig.pathfindingCost().snapshot();
         }
+        cfg.bridgeMinWaterDepth = highwayConfig.bridgeMinWaterDepth();
 
         cfg.sanitize();
         return cfg;
@@ -48,7 +50,7 @@ public final class RoadGenerationConfig implements SubConfig {
             return cfg;
         }
 
-        cfg.effectiveRoadWidth = config.roadsEnabledForDimension(null) ? config.averagingRadius() : 0;
+        cfg.effectiveRoadWidth = config.roadAppearance().roadWidth();
         cfg.allowArtificial = config.roadAppearance().allowArtificial();
         cfg.allowNatural = config.roadAppearance().allowNatural();
         cfg.averagingRadius = config.averagingRadius();
@@ -59,6 +61,7 @@ public final class RoadGenerationConfig implements SubConfig {
         if (pf != null) {
             cfg.pathfinding = pf.snapshot();
         }
+        cfg.bridgeMinWaterDepth = config.bridge().minWaterDepth();
 
         cfg.sanitize();
         return cfg;
@@ -85,6 +88,7 @@ public final class RoadGenerationConfig implements SubConfig {
         copy.slopeLimitEnabled = this.slopeLimitEnabled;
         copy.maxSlopeStepPerTwoSegments = this.maxSlopeStepPerTwoSegments;
         copy.pathfinding = (PathfindingCostConfig) this.pathfinding.snapshot();
+        copy.bridgeMinWaterDepth = this.bridgeMinWaterDepth;
         return copy;
     }
 
@@ -114,5 +118,9 @@ public final class RoadGenerationConfig implements SubConfig {
 
     public PathfindingCostConfig pathfinding() {
         return pathfinding;
+    }
+
+    public int bridgeMinWaterDepth() {
+        return bridgeMinWaterDepth;
     }
 }

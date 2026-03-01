@@ -13,8 +13,6 @@ import java.util.List;
 
 /**
  * 结构道路偏移服务
- * 
- * 职责：根据结构类型决定道路端点需要从结构点向外缩进多少格，在寻路完成后裁剪路径
  */
 public final class StructureRoadOffsetService {
     private StructureRoadOffsetService() {}

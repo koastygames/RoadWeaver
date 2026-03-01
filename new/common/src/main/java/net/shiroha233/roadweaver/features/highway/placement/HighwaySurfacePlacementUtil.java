@@ -10,7 +10,6 @@ import java.util.List;
 
 /**
  * Highway 路面放置工具
- * 职责：提供统一的路面放置和清障接口
  */
 public final class HighwaySurfacePlacementUtil {
     private HighwaySurfacePlacementUtil() {}

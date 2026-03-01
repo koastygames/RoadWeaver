@@ -9,7 +9,6 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * 世界生成数据提供者
- * 职责：生成 Feature 和 PlacedFeature 数据
  */
 public class ModWorldGenerator extends FabricDynamicRegistryProvider {
     public ModWorldGenerator(FabricDataOutput output, CompletableFuture<HolderLookup.Provider> registriesFuture) {

@@ -19,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 路边结构注册中心
- * 职责：从世界 Structure 注册表读取 RoadsideStructure，提供条件筛选和权重选择
  */
 public final class RoadsideStructureRegistry {
     private RoadsideStructureRegistry() {}

@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Highway 规划服务
- * 职责：基于世界坐标网格生成高速公路连接边，支持滚动窗口和动态规划
  */
 public final class HighwayPlanningService {
     private HighwayPlanningService() {}

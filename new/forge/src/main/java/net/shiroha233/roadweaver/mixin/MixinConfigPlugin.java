@@ -10,7 +10,6 @@ import java.util.Set;
 
 /**
  * Mixin 配置插件
- * 职责：条件加载兼容性 Mixin,避免在目标模组未安装时加载失败
  */
 public class MixinConfigPlugin implements IMixinConfigPlugin {
     @Override

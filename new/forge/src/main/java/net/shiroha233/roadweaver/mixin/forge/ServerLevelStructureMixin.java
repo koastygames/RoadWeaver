@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Mixin 钩入区块的 STRUCTURE_STARTS 阶段
- * 职责：在原版结构生成完成后注入预计算的路边结构
  */
 @Mixin(ServerLevel.class)
 public class ServerLevelStructureMixin {

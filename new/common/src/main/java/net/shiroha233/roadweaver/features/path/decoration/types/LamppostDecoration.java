@@ -15,7 +15,7 @@ import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAwar
 import net.shiroha233.roadweaver.features.path.decoration.material.WoodTrapdoorMapper;
 
 /**
- * 路灯装饰：石砖+围栏+红石灯+日光传感器的路灯结构。
+ * 路灯装饰
  */
 public class LamppostDecoration extends OrientedDecoration implements BiomeWoodAware {
     private WoodAssets wood;

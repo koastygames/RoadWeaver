@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 精确高度采样器：使用 ChunkGenerator#getBaseHeight 对路径节点进行二次精采样
+ * 精确高度采样器
  */
 public final class AccurateHeightSampler {
     private final ServerLevel level;

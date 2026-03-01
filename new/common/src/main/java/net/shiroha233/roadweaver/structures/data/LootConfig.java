@@ -15,7 +15,6 @@ import java.util.List;
 
 /**
  * 结构战利品配置
- * 职责：定义结构中战利品容器的位置和战利品表，支持数据驱动配置
  */
 public record LootConfig(
     ResourceLocation lootTable,

@@ -6,7 +6,6 @@ import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 
 /**
  * Highway 生成配置快照
- * 职责：提供不可变的高速公路生成参数快照
  */
 public record HighwayGenerationConfig(
         PathfindingCostConfig pathfindingCost,

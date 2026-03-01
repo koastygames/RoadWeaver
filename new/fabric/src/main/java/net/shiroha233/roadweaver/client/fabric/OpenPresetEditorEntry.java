@@ -16,7 +16,6 @@ import java.util.Optional;
 
 /**
  * 材料预设编辑器入口
- * 职责：在配置界面中提供按钮打开材料预设编辑界面
  */
 public class OpenPresetEditorEntry extends AbstractConfigListEntry<Void> {
     private Rectangle lastArea;

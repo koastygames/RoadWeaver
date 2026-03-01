@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 生物群系道路材料选择器：根据生物群系选择合适的道路材料。
+ * 生物群系道路材料选择器
  */
 public final class BiomeRoadMaterialSelector {
     private BiomeRoadMaterialSelector() {}

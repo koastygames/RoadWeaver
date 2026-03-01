@@ -18,8 +18,6 @@ import java.util.Map;
 
 /**
  * 结构避让服务
- * 
- * 职责：检测方块位置是否在结构边界框内，避免道路破坏结构建筑
  */
 public final class StructureAvoidanceService {
     private StructureAvoidanceService() {}

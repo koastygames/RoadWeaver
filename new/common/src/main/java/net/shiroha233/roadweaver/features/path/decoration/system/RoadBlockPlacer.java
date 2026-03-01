@@ -11,7 +11,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import java.util.List;
 
 /**
- * 道路方块放置器：负责放置道路方块和路基填充。
+ * 道路方块放置器
  */
 public final class RoadBlockPlacer {
     private RoadBlockPlacer() {}

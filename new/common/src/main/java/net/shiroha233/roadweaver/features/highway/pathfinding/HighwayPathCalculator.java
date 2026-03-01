@@ -11,7 +11,6 @@ import java.util.List;
 
 /**
  * Highway 路径计算器
- * 职责：端点网格对齐、缓存预热、调用寻路器
  */
 public final class HighwayPathCalculator {
     private HighwayPathCalculator() {}

@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 桥模板结构注册中心
- * 职责：从世界 Structure 注册表读取 BridgeTemplateStructure，解析体素网格，提供选择方法
  */
 public final class BridgeTemplateStructureRegistry {
 

@@ -6,7 +6,7 @@ import net.minecraft.server.level.ServerLevel;
 import java.util.*;
 
 /**
- * 缓存预热器：通过粗步长 A* 沿路线预填充地形采样缓存
+ * 缓存预热器
  */
 public final class TerrainCachePrewarmer {
     private TerrainCachePrewarmer() {}

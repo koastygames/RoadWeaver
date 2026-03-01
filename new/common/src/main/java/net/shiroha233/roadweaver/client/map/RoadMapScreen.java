@@ -30,12 +30,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * 道路地图界面 - 重构版
- * 
- * 设计原理：
- * 1. 协调者模式：Screen 只负责协调各个组件，不包含复杂逻辑
- * 2. 单一职责：渲染、输入、状态管理分别委托给专门的类
- * 3. 可测试性：核心逻辑在独立类中，便于单元测试
+ * 道路地图界面
  */
 public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private static final ResourceLocation MAP_TEXTURE = new ResourceLocation("roadweaver", "textures/gui/map.png");

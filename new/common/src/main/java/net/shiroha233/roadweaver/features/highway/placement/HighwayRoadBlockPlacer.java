@@ -12,7 +12,6 @@ import java.util.List;
 
 /**
  * Highway 方块放置器
- * 职责：放置路面方块、简单路基填充与清障
  */
 public final class HighwayRoadBlockPlacer {
     private HighwayRoadBlockPlacer() {}

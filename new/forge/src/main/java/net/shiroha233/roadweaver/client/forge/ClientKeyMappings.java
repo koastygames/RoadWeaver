@@ -11,7 +11,6 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * Forge 客户端按键映射注册
- * 职责：注册模组的按键绑定
  */
 @Mod.EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class ClientKeyMappings {

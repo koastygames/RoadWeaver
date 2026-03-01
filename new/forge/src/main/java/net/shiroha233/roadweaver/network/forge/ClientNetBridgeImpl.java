@@ -4,7 +4,6 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Forge 平台网络桥接实现
- * 职责：提供客户端网络请求的平台特定入口
  */
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}

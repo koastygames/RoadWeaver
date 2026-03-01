@@ -13,7 +13,6 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * Fabric 客户端初始化
- * 职责：注册客户端网络接收器、按键绑定、连接事件监听
  */
 public class ClientInit implements ClientModInitializer {
     public static KeyMapping OPEN_MAP;

@@ -12,7 +12,6 @@ import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 
 /**
  * 桥梁建造器
- * 职责：放置桥面、桥墩，处理桥面上方清障
  */
 public final class BridgeBuilder {
     private BridgeBuilder() {}

@@ -9,7 +9,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 快速高度采样器：绕过 getBaseHeight() 的 NoiseChunk 创建开销，直接使用 DensityFunction 采样
+ * 快速高度采样器
  */
 public final class FastHeightSampler {
 

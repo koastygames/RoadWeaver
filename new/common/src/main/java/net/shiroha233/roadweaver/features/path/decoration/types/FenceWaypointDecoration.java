@@ -8,7 +8,7 @@ import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
 import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 
 /**
- * 围栏路标装饰：简单的围栏+火把路标。
+ * 围栏路标装饰
  */
 public class FenceWaypointDecoration extends Decoration implements BiomeWoodAware {
     private WoodAssets wood;

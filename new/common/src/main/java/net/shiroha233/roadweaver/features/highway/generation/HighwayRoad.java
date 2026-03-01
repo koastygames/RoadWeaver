@@ -25,7 +25,6 @@ import java.util.Map;
 
 /**
  * Highway 道路生成器
- * 职责：执行高速公路生成流程（寻路、后处理、持久化）
  */
 public final class HighwayRoad {
     private final ServerLevel level;
@@ -60,7 +59,7 @@ public final class HighwayRoad {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 3) return false;
 
-            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, adapted.pathfinding());
+            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, adapted.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
             RoadData rd = new RoadData(

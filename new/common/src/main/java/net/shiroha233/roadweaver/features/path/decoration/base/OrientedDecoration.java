@@ -8,7 +8,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 
 /**
- * 定向装饰基类：支持根据道路方向旋转的装饰物。
+ * 定向装饰基类
  */
 public abstract class OrientedDecoration extends Decoration {
 

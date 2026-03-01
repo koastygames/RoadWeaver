@@ -24,7 +24,6 @@ import java.util.List;
 
 /**
  * Forge 服务端规划钩子
- * 职责：监听服务器生命周期事件,触发道路规划和生成
  */
 public final class ServerPlanningHooks {
     private ServerPlanningHooks() {}

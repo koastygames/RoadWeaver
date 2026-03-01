@@ -10,7 +10,7 @@ import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAwar
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 
 /**
- * 海域问号路牌：当桥梁被跳过时在岸边放置的提示牌。
+ * 海域问号路牌
  */
 public class SeaQuestionSignDecoration extends OrientedDecoration implements BiomeWoodAware {
     private final boolean isStart;

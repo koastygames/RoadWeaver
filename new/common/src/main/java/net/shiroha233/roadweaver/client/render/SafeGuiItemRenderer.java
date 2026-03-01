@@ -15,10 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * GUI 物品渲染安全包装
- * 职责：对 GuiGraphics#renderFakeItem 做 try/catch，失败时渲染占位符，缓存失败物品避免重复异常
- * 
- * 原理：某些模组在 ItemColor/BlockColor 回调里直接访问 Minecraft.player/level，
- * 主菜单/配置界面打开时这些字段可能为 null 导致崩溃
  */
 public final class SafeGuiItemRenderer {
 

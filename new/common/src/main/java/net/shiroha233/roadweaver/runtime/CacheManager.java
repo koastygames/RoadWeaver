@@ -15,7 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 统一缓存生命周期管理器，集中处理启动初始化、停止清理、维度卸载清理
+ * 统一缓存生命周期管理器
  */
 public final class CacheManager {
     private CacheManager() {}
@@ -23,7 +23,7 @@ public final class CacheManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
     /**
-     * 服务器启动时初始化：清理可能残留的旧缓存
+     * 服务器启动时初始化
      */
     public static void onServerStarted() {
         RoadsideStructureRegistry.clearCache();
@@ -34,7 +34,7 @@ public final class CacheManager {
     }
 
     /**
-     * 服务器停止时清理所有缓存，顺序：磁盘刷写 → 数据库关闭 → 内存清理
+     * 服务器停止时清理所有缓存
      */
     public static void onServerStopping(Iterable<ServerLevel> levels) {
         for (ServerLevel level : levels) {

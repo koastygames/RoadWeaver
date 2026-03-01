@@ -6,7 +6,6 @@ import java.util.List;
 
 /**
  * 桥梁过渡调整器
- * 负责在桥梁与普通路段的连接处进行高度平滑过渡
  */
 public final class BridgeTransitionAdjuster {
     private BridgeTransitionAdjuster() {}

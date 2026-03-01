@@ -26,7 +26,6 @@ import java.util.Optional;
 
 /**
  * 初始小屋结构类型
- * 职责：定义出生点附近的初始小屋结构
  */
 public class SpawnCabinStructure extends Structure {
     

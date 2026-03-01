@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 道路规划服务，负责初始规划、动态规划及连接合并
+ * 道路规划服务
  */
 public final class RoadPlanningService {
     private RoadPlanningService() {}

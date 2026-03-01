@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 两阶段寻路管理器：对路径分段执行基于步幅采样 + 线性插值的高度精修
+ * 两阶段寻路管理器
  */
 public final class TwoStagePathfindingManager {
     private TwoStagePathfindingManager() {}

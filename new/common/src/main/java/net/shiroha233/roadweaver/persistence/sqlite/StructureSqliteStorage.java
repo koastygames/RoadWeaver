@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 结构点 H2 缓存，负责结构点持久化、扫描 tile 标记、缓存策略管理
+ * 结构点 H2 缓存
  */
 public final class StructureSqliteStorage {
     private StructureSqliteStorage() {}

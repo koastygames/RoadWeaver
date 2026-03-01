@@ -6,7 +6,6 @@ import net.shiroha233.datagen.ModWorldGenerator;
 
 /**
  * Fabric 数据生成器入口
- * 职责：注册数据生成提供者
  */
 public class RoadWeaverDataGenerator implements DataGeneratorEntrypoint {
     @Override

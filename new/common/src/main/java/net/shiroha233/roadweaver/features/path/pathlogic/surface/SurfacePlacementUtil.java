@@ -9,7 +9,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import java.util.List;
 
 /**
- * 表面放置工具：提供路面方块放置的高层接口
+ * 表面放置工具
  */
 public final class SurfacePlacementUtil {
     private SurfacePlacementUtil() {}

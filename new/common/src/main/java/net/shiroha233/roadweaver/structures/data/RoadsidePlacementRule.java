@@ -9,7 +9,6 @@ import java.util.Set;
 
 /**
  * 路边结构放置规则
- * 职责：定义单个结构类型的放置条件（允许的群系、最小道路长度）
  */
 public record RoadsidePlacementRule(
     Set<BiomeCategory> allowedBiomes,

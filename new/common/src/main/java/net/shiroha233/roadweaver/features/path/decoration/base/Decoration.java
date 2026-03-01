@@ -9,7 +9,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.features.path.decoration.compat.RoadFeatureCompat;
 
 /**
- * 装饰基类：提供位置计算和放置检查。
+ * 装饰基类
  */
 public abstract class Decoration {
     private BlockPos placePos;

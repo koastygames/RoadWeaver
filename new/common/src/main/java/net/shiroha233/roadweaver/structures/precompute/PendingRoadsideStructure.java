@@ -8,7 +8,6 @@ import net.minecraft.world.level.block.Rotation;
 
 /**
  * 待放置的路边结构信息
- * 职责：存储预计算的结构放置数据，在区块 STRUCTURE_STARTS 阶段注入
  */
 public record PendingRoadsideStructure(
     ResourceLocation structureId,

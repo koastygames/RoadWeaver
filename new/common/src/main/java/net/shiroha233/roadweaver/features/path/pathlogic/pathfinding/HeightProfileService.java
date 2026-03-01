@@ -10,7 +10,6 @@ import java.util.List;
 
 /**
  * 高度轮廓服务
- * 负责构建道路的高度轮廓，包括地形采样、平均化和坡度限制
  */
 public final class HeightProfileService {
     private HeightProfileService() {}
@@ -63,7 +62,6 @@ public final class HeightProfileService {
                 baseYArr[ii] = (int) Math.round(hs.stream().mapToInt(Integer::intValue).average().orElse(middlePositions.get(ii).getY()));
             }
         }
-        // 如果关闭限坡平滑，则直接返回基于平均的高度，不再进行每两段的步进限制
         if (!slopeLimitEnabled) {
             int[] noSmoothed = new int[n];
             for (int ii = 0; ii < n; ii++) noSmoothed[ii] = baseYArr[ii];

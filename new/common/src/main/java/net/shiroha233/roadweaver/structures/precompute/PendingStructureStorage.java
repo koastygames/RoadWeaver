@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 预计算结构存储服务
- * 职责：存储道路规划阶段预计算的结构位置，供区块生成阶段使用
  */
 public final class PendingStructureStorage {
     private PendingStructureStorage() {}

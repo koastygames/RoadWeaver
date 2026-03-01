@@ -24,7 +24,6 @@ import java.util.Set;
 
 /**
  * Highway 世界生成 Feature 入口
- * 职责：从持久化层读取高速公路数据并触发分段铺设
  */
 public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
     public HighwayFeature(Codec<HighwayFeatureConfig> codec) {

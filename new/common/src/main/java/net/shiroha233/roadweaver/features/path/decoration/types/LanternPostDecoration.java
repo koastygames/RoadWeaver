@@ -9,7 +9,7 @@ import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoratio
 import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 
 /**
- * 灯笼柱装饰：围栏+灯笼的简单照明结构。
+ * 灯笼柱装饰
  */
 public class LanternPostDecoration extends OrientedDecoration implements BiomeWoodAware {
     private WoodAssets wood;

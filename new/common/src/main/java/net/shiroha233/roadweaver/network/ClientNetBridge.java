@@ -4,8 +4,7 @@ import dev.architectury.injectables.annotations.ExpectPlatform;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * 客户端网络桥接 - 跨平台网络通信抽象层
- * 职责：提供客户端到服务端的网络请求接口，通过 @ExpectPlatform 实现 Fabric/Forge 平台适配
+ * 客户端网络桥接
  */
 public final class ClientNetBridge {
     private ClientNetBridge() {}

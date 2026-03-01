@@ -32,8 +32,6 @@ import java.util.Locale;
 
 /**
  * 结构位置预测服务
- * 
- * 职责：基于种子和噪声预测结构位置
  */
 public final class StructurePredictor {
     private StructurePredictor() {

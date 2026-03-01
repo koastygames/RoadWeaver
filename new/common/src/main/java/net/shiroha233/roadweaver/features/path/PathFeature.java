@@ -9,9 +9,12 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.features.path.bridge.BridgeSegment;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
@@ -19,12 +22,12 @@ import net.shiroha233.roadweaver.features.path.decoration.system.DecorationExecu
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationPlanner;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeRangeCalculator;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlanner;
+import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BridgeSegmentPlannerNew;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.SegmentPaver;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidanceService;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.BridgeTransitionAdjuster;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.HeightProfileService;
 import net.shiroha233.roadweaver.features.path.pathlogic.surface.RoadTerrainAdapter;
-
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BuoyBuilder;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BuoyMarkerPlanner;
 import net.shiroha233.roadweaver.features.path.decoration.system.SkippedBridgeBankSignPlanner;
@@ -33,9 +36,7 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import java.util.*;
 
 /**
- * 普通道路世界生成 Feature
- * 
- * 职责：在区块生成阶段读取持久化的道路数据并生成道路
+ * 道路世界生成 Feature
  */
 public class PathFeature extends Feature<PathFeatureConfig> {
     public PathFeature(Codec<PathFeatureConfig> codec) {
@@ -105,18 +106,20 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
         
         int roadWidth = Math.max(1, data.width());
-        var segments = data.roadSegmentList();
+        List<BlockState> materials = data.materials();
+        List<BlockState> slabMaterials = data.slabMaterials();
+        List<RoadSegmentPlacement> segments = data.roadSegmentList();
         if (segments == null || segments.size() < 5)
             return;
 
-        var middlePositions = segments.stream().map(seg -> seg.middlePos()).toList();
+        List<BlockPos> middlePositions = segments.stream().map(RoadSegmentPlacement::middlePos).toList();
         BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg,
                 dimId);
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
         boolean[] skipSegments = res.skipSegments();
 
-        new BridgeSegment(isBridge, segments);
+        BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments);
 
         boolean useBuoysInstead = bridgeEnabled && cfg.bridgeUseBuoysInstead();
         boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
@@ -170,13 +173,18 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
 
-            int baseYForThis = (baseYArr != null ? baseYArr[i] : middle.getY());
+            int sea = server.getSeaLevel();
+            int motion = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, middle.getX(), middle.getZ());
+            int surface = world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, middle.getX(), middle.getZ());
+            int topYCenter = (motion > sea + 2) ? motion : surface;
+            BlockPos averaged = new BlockPos(middle.getX(), topYCenter, middle.getZ());
+            int baseYForThis = (baseYArr != null ? baseYArr[i] : topYCenter);
 
-            var seg = segments.get(i);
+            RoadSegmentPlacement seg = segments.get(i);
             if (StructureAvoidanceService.shouldAvoid(world, middle)) {
                 continue;
             }
-            
+
             if (skipSegments != null && i >= 0 && i < skipSegments.length && skipSegments[i]) {
                 if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length
                         && buoyMarkersForSkipped[i]) {
@@ -193,8 +201,18 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             }
 
             if (bridgeEnabled && isBridge[i]) {
-                BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY,
-                        segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                var line = bridgeSegment.getLine(i);
+                if (line == null || line.getTotalLength() <= 15) {
+                    BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis, deckY,
+                            segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                } else {
+                    boolean success = BridgeSegmentPlannerNew.processSegment(world, line, seg, middle, prev);
+                    if (!success) {
+                        BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis,
+                                deckY,
+                                segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                    }
+                }
             } else {
                 if (roadFillEnabled) {
                     if (interpolatedRoadbedFillEnabled) {
@@ -206,12 +224,10 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                     }
                 }
 
-                SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, data.materials(),
-                        data.slabMaterials(),
+                SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials,
                         random, cfg);
 
                 if (cfg.roadSignsEnabledForDimension(dimId)) {
-                    BlockPos averaged = new BlockPos(middle.getX(), baseYForThis, middle.getZ());
                     SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
                             world,
                             decorations,
@@ -225,7 +241,6 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             }
 
             if (!isBridge[i] || cfg.bridgeKeepLamps()) {
-                BlockPos averaged = new BlockPos(middle.getX(), baseYForThis, middle.getZ());
                 DecorationPlanner.addDecoration(
                         world,
                         decorations,

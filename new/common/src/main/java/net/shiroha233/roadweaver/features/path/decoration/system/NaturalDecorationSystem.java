@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 自然装饰系统：提供自然风格的道路装饰（灯笼柱等）。
+ * 自然装饰系统
  */
 public final class NaturalDecorationSystem {
     private NaturalDecorationSystem() {}

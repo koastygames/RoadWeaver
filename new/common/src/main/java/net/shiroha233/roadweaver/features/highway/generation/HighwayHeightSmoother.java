@@ -5,8 +5,7 @@ import net.minecraft.core.BlockPos;
 import java.util.List;
 
 /**
- * Highway 高度平滑器
- * 职责：实现限坡平滑算法，确保相邻段高度差不超过配置的坡度限制
+ * Highway 高度平滑器实现限坡平滑算法，确保相邻段高度差不超过配置的坡度限制
  */
 public final class HighwayHeightSmoother {
     private HighwayHeightSmoother() {}

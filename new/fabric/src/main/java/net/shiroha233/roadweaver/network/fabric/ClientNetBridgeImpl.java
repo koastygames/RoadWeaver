@@ -4,7 +4,6 @@ import net.minecraft.resources.ResourceLocation;
 
 /**
  * Fabric 平台网络桥接实现
- * 职责：将 @ExpectPlatform 调用转发到 Fabric 网络层
  */
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}

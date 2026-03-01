@@ -10,7 +10,7 @@ import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureAvoidance
 import java.util.Set;
 
 /**
- * 跳过桥梁岸边路牌规划器：当桥梁因超长被跳过时在岸边放置提示牌。
+ * 跳过桥梁岸边路牌规划器
  */
 public final class SkippedBridgeBankSignPlanner {
     private SkippedBridgeBankSignPlanner() {}

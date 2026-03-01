@@ -12,7 +12,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * 路牌文本服务：负责异步写入路牌文本，避免触发同步区块加载。
+ * 路牌文本服务
  */
 public final class SignTextService {
     private SignTextService() {}

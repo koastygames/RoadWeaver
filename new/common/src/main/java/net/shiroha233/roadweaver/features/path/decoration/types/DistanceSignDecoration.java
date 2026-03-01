@@ -10,7 +10,7 @@ import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAwar
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 
 /**
- * 距离路牌装饰：显示到下一个路口的距离。
+ * 距离路牌装饰
  */
 public class DistanceSignDecoration extends OrientedDecoration implements BiomeWoodAware {
     private final boolean isStart;

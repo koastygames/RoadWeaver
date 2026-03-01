@@ -14,7 +14,7 @@ import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.isWat
 import static net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.*;
 
 /**
- * 路径后处理器：将原始 BlockPos 路径转换为带宽度的 RoadSegmentPlacement 列表
+ * 路径后处理器
  */
 public final class PathPostProcessor {
     private PathPostProcessor() {}
@@ -53,11 +53,10 @@ public final class PathPostProcessor {
         if (controlPoints.size() < 2) return new ArrayList<>();
 
         List<Vec2d> splinePoints = generateSplinePoints(controlPoints, bridgeMask, curveMode);
-        List<BlockPos> centers = extractCenters(splinePoints, rawPath, rawTargetY);
-        return rasterizeSegments(splinePoints, centers, width);
+        List<Double> centerDists = new ArrayList<>();
+        List<BlockPos> centers = extractCenters(splinePoints, rawPath, rawTargetY, centerDists);
+        return rasterizeSegments(splinePoints, centers, centerDists, width);
     }
-
-    // ==================== 样条曲线点生成 ====================
 
     private static List<Vec2d> generateSplinePoints(List<BlockPos> controlPoints,
                                                      boolean[] bridgeMask, CurveMode curveMode) {
@@ -93,10 +92,9 @@ public final class PathPostProcessor {
         return splinePoints;
     }
 
-    // ==================== 中心点提取（线性插值高度） ====================
-
     private static List<BlockPos> extractCenters(List<Vec2d> splinePoints,
-                                                  List<BlockPos> rawPath, int[] rawTargetY) {
+                                                  List<BlockPos> rawPath, int[] rawTargetY,
+                                                  List<Double> outCenterDists) {
         List<BlockPos> centers = new ArrayList<>();
         double currentDist = 0;
         double nextCenterDist = 0;
@@ -112,6 +110,7 @@ public final class PathPostProcessor {
                 BlockPos centerPos = new BlockPos(cx, y, cz);
                 if (centers.isEmpty() || !centers.get(centers.size() - 1).equals(centerPos)) {
                     centers.add(centerPos);
+                    outCenterDists.add(currentDist);
                     nextCenterDist = currentDist + 1.0;
                 }
             }
@@ -119,9 +118,6 @@ public final class PathPostProcessor {
         return centers;
     }
 
-    /**
-     * 本地线性插值：根据 (cx,cz) 在原始路径上的最近线段投影计算 Y
-     */
     private static int interpolateY(int cx, int cz, List<BlockPos> rawPath, int[] rawTargetY) {
         double bestDistSq = Double.MAX_VALUE;
         double bestT = 0;
@@ -148,19 +144,10 @@ public final class PathPostProcessor {
         return (int) Math.round(y0 + (y1 - y0) * bestT);
     }
 
-    // ==================== 距离场光栅化 ====================
-
     private static List<RoadSegmentPlacement> rasterizeSegments(List<Vec2d> splinePoints,
-                                                                 List<BlockPos> centers, int width) {
-        List<Double> centerDists = new ArrayList<>();
-        double cDist = 0;
-        centerDists.add(0.0);
-        for (int i = 1; i < centers.size(); i++) {
-            BlockPos a = centers.get(i - 1), b = centers.get(i);
-            cDist += Math.sqrt(a.distSqr(b));
-            centerDists.add(cDist);
-        }
-
+                                                                 List<BlockPos> centers,
+                                                                 List<Double> centerDists,
+                                                                 int width) {
         Map<Integer, Set<BlockPos>> segmentedBlocks = new HashMap<>();
         for (int i = 0; i < centers.size(); i++) segmentedBlocks.put(i, new HashSet<>());
 
@@ -223,8 +210,6 @@ public final class PathPostProcessor {
         segmentedBlocks.get(bestIdx).add(new BlockPos(x, 0, z));
     }
 
-    // ==================== 路径简化 ====================
-
     static List<BlockPos> simplifyPath(List<BlockPos> nodes) {
         if (nodes.size() < 3) return new ArrayList<>(nodes);
         List<BlockPos> simplified = new ArrayList<>();
@@ -240,8 +225,6 @@ public final class PathPostProcessor {
         simplified.add(nodes.get(nodes.size() - 1));
         return simplified;
     }
-
-    // ==================== 桥梁检测 ====================
 
     static boolean[] detectBridgeMask(List<BlockPos> nodes, ServerLevel level,
                                       TerrainSamplingCache cache, int bridgeMinWaterDepth,
@@ -262,8 +245,6 @@ public final class PathPostProcessor {
         }
         return mask;
     }
-
-    // ==================== 桥梁段拉直 ====================
 
     static List<BlockPos> straightenBridgeRuns(List<BlockPos> nodes, boolean[] bridgeMask) {
         if (nodes == null || nodes.size() < 3 || bridgeMask == null || bridgeMask.length != nodes.size()) {
@@ -290,8 +271,6 @@ public final class PathPostProcessor {
         }
         return out;
     }
-
-    // ==================== 路径松弛 ====================
 
     static List<BlockPos> relaxPath(List<BlockPos> nodes) {
         if (nodes.size() < 3) return new ArrayList<>(nodes);

@@ -18,8 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 贪婪前进寻路器：无终点，沿大方向持续前进
- * 核心策略：方向偏好主导 + 地形代价辅助，卡住时自动降低地形权重强制翻越
+ * 贪婪前进寻路器
  */
 public final class GreedyForwardPathfinder implements GreedyPathfinder {
     private static final double WATER_COLUMN_PENALTY = 800.0;

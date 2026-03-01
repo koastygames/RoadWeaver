@@ -16,7 +16,6 @@ import java.util.Optional;
 
 /**
  * 结构选择界面入口
- * 职责：在配置界面中提供按钮打开结构选择配置
  */
 public class OpenStructureSelectionEntry extends AbstractConfigListEntry<Void> {
     private Rectangle lastArea;

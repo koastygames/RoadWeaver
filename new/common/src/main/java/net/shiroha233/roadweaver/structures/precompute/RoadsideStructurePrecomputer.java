@@ -30,7 +30,6 @@ import java.util.Set;
 
 /**
  * 路边结构预计算器
- * 职责：在道路寻路完成后预计算结构放置位置，存储到 PendingStructureStorage
  */
 public final class RoadsideStructurePrecomputer {
     private RoadsideStructurePrecomputer() {}

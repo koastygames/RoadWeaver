@@ -18,7 +18,7 @@ import java.util.*;
 import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.*;
 
 /**
- * 梯度下降（流体模拟）寻路：限制区域的 Dijkstra + 轻量启发式，无偏移惩罚，路径贴合地形等高线
+ * 梯度下降寻路
  */
 public final class GradientDescentPathfinder implements Pathfinder {
 

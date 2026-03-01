@@ -10,7 +10,6 @@ import java.util.List;
 
 /**
  * 世界加载界面 Tips 渲染器
- * 职责：管理提示文本列表、控制切换时间间隔、在右下角绘制当前提示文本
  */
 public final class LoadingTipsRenderer {
 

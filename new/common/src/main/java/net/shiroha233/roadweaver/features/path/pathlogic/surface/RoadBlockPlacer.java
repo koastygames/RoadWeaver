@@ -12,7 +12,7 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import java.util.List;
 
 /**
- * 道路方块放置器：负责在世界中放置道路方块，包括路基填充和地形适配
+ * 道路方块放置器
  */
 public final class RoadBlockPlacer {
     private RoadBlockPlacer() {

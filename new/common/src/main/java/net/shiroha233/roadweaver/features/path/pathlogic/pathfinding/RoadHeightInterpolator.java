@@ -6,14 +6,10 @@ import java.util.List;
 
 /**
  * 道路高度插值器
- * 根据道路中心线和预计算的目标高度数组，为路面上任意方块计算插值高度
  */
 public final class RoadHeightInterpolator {
     private RoadHeightInterpolator() {}
 
-    /**
-     * 计算给定方块位置的插值高度
-     */
     public static int getInterpolatedY(int x, int z, List<BlockPos> centers, int[] targetY) {
         if (centers == null || centers.isEmpty() || targetY == null || targetY.length == 0) {
             return 64;
@@ -83,9 +79,6 @@ public final class RoadHeightInterpolator {
         return (int) Math.round(interpolated);
     }
 
-    /**
-     * 批量计算一组方块的插值高度（优化版本，减少重复搜索）
-     */
     public static int[] batchInterpolate(List<BlockPos> positions, 
                                          int segmentIndex,
                                          List<BlockPos> centers, 

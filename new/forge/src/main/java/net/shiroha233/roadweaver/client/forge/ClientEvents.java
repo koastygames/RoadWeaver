@@ -10,7 +10,6 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 
 /**
  * Forge 客户端事件处理
- * 职责：监听客户端网络连接事件和按键事件
  */
 public final class ClientEvents {
     private ClientEvents() {}

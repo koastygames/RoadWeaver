@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 装饰规划器：负责规划装饰物的位置和类型。
+ * 装饰规划器
  */
 public final class DecorationPlanner {
     private DecorationPlanner() {}

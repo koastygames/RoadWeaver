@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * RoadWeaver 模组主类 (Fabric)
- * 职责：模组初始化入口,注册所有系统组件
  */
 public class RoadWeaver implements ModInitializer {
     public static final String MOD_ID = "roadweaver";

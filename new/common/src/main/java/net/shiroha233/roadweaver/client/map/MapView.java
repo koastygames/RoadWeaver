@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 
 /**
- * 地图视图管理 - 负责世界坐标与屏幕坐标的转换
+ * 地图视图管理
  */
 public final class MapView {
     private double minX, maxX, minZ, maxZ;

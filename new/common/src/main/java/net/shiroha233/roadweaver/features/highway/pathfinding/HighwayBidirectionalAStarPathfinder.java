@@ -18,7 +18,6 @@ import java.util.*;
 
 /**
  * Highway 双向 A* 寻路器
- * 职责：实现高速公路专用的双向 A* 算法，支持浮空成本和障碍穿透成本
  */
 public final class HighwayBidirectionalAStarPathfinder {
     private HighwayBidirectionalAStarPathfinder() {}

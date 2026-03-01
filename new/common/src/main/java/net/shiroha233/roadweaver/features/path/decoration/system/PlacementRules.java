@@ -4,7 +4,7 @@ import net.minecraft.world.level.block.Block;
 import net.shiroha233.roadweaver.features.path.decoration.compat.RoadFeatureCompat;
 
 /**
- * 放置规则：定义道路方块的放置条件。
+ * 放置规则
  */
 public final class PlacementRules {
     private PlacementRules() {}

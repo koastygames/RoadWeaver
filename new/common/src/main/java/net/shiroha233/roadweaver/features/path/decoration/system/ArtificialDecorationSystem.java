@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 人工装饰系统：提供人工风格的道路装饰（路灯、路牌等）。
+ * 人工装饰系统
  */
 public final class ArtificialDecorationSystem {
     private ArtificialDecorationSystem() {}

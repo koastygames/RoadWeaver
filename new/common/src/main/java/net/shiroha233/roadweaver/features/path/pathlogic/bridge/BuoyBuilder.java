@@ -10,7 +10,6 @@ import net.shiroha233.roadweaver.features.path.decoration.system.AboveColumnClea
 
 /**
  * 浮标建造器
- * 职责：在水域跨度内放置浮标标记（木板 + 栅栏 + 火把）
  */
 public final class BuoyBuilder {
     private BuoyBuilder() {}
@@ -25,8 +24,6 @@ public final class BuoyBuilder {
                                 RandomSource random,
                                 ModConfig cfg) {
         if (world == null || center == null) return;
-
-        // 海平面高度通常就是水面；直接替换水方块即可形成"漂浮"的浮标。
         BlockPos basePos = new BlockPos(center.getX(), seaLevel, center.getZ());
         BlockPos postPos = basePos.above();
         BlockPos lightPos = basePos.above(2);
@@ -35,7 +32,6 @@ public final class BuoyBuilder {
         world.setBlock(postPos, POST, 3);
         world.setBlock(lightPos, LIGHT, 3);
 
-        // 清理火把上方的遮挡，避免树叶/冰刺影响可见性
         AboveColumnClearer.clearAboveColumn(world, lightPos.above(), cfg);
     }
 }

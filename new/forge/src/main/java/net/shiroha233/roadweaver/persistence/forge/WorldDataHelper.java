@@ -11,8 +11,6 @@ import java.util.List;
 
 /**
  * Forge 平台便捷访问工具
- * 职责：提供简化的世界数据访问接口，自动处理客户端/服务端差异
- * 注意：客户端世界为 ClientLevel，不可直接持久化访问，若传入非 ServerLevel 将返回空数据
  */
 public final class WorldDataHelper {
     private WorldDataHelper() {}

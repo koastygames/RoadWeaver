@@ -23,8 +23,6 @@ import java.util.*;
 
 /**
  * 道路生成器
- * 
- * 职责：根据结构连接生成一条道路，包括寻路、路面生成、路边结构预计算
  */
 public final class Road {
     private final ServerLevel level;
@@ -80,7 +78,7 @@ public final class Road {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return;
             
-            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.pathfinding());
+            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
             RoadData rd = new RoadData(width, type, materials, slabMaterials, segments, spans, targetY);

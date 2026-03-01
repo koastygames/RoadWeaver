@@ -8,7 +8,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * 装饰执行器：负责实际放置装饰物。
+ * 装饰执行器
  */
 public final class DecorationExecutor {
     private DecorationExecutor() {}

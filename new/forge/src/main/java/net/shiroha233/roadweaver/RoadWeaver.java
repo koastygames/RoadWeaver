@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * RoadWeaver 模组主类 (Forge)
- * 职责：模组初始化入口，注册所有系统组件
  */
 @Mod(RoadWeaver.MOD_ID)
 public class RoadWeaver {

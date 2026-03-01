@@ -8,7 +8,7 @@ import net.minecraft.world.level.biome.Biome;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 地形采样缓存：使用 FastHeightSampler 进行高性能采样，ConcurrentHashMap 保证线程安全
+ * 地形采样缓存
  */
 public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Long, Boolean> waterCache = new ConcurrentHashMap<>();

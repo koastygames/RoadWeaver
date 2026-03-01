@@ -16,7 +16,6 @@ import java.util.Optional;
 
 /**
  * 维度道路设置界面入口
- * 职责：在配置界面中提供按钮打开维度覆盖配置
  */
 public class OpenDimensionRoadSettingsEntry extends AbstractConfigListEntry<Void> {
     private Rectangle lastArea;

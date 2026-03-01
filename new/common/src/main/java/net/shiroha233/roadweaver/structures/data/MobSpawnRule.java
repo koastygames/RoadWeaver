@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 结构生物生成规则
- * 职责：定义结构放置后生成的生物，支持数据驱动配置和软依赖处理
  */
 public record MobSpawnRule(
     ResourceLocation entityId,

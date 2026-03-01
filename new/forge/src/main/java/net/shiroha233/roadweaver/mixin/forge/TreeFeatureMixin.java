@@ -11,7 +11,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 原版树木生成阻拦 Mixin
- * 职责：阻止树木在道路上生成
  */
 @Mixin(TreeFeature.class)
 public class TreeFeatureMixin {

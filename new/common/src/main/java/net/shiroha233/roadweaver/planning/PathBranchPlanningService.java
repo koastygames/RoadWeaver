@@ -24,7 +24,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 支路规划服务，负责将已发现的结构点连接到最近的高速公路段上
+ * 支路规划服务
  */
 public final class PathBranchPlanningService {
     private PathBranchPlanningService() {}

@@ -6,7 +6,6 @@ import java.util.List;
 
 /**
  * 浮标标记规划器
- * 职责：计算桥梁区间内哪些位置需要放置浮标
  */
 public final class BuoyMarkerPlanner {
     private BuoyMarkerPlanner() {}

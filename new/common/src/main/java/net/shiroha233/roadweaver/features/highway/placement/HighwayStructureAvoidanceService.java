@@ -18,7 +18,6 @@ import java.util.Map;
 
 /**
  * Highway 结构避让服务
- * 职责：在放置阶段避免破坏地表建筑
  */
 public final class HighwayStructureAvoidanceService {
     private HighwayStructureAvoidanceService() {}

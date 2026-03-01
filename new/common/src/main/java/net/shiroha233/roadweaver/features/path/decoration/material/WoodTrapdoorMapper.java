@@ -5,7 +5,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.shiroha233.roadweaver.core.model.WoodAssets;
 
 /**
- * 木材活板门映射器：根据木材类型返回对应的活板门方块。
+ * 木材活板门映射器
  */
 public final class WoodTrapdoorMapper {
     private WoodTrapdoorMapper() {}

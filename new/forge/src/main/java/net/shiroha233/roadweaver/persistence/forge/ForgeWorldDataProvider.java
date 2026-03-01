@@ -17,7 +17,6 @@ import java.util.*;
 
 /**
  * Forge 平台世界数据提供者实现
- * 职责：使用 SavedData 在 ServerLevel 持久化存储结构位置和连接数据
  */
 public class ForgeWorldDataProvider extends WorldDataProvider {
 

@@ -13,7 +13,6 @@ import java.util.List;
 
 /**
  * Highway 路段铺设器
- * 职责：铺设混凝土路面和中央白色虚线
  */
 public final class HighwaySegmentPaver {
     private HighwaySegmentPaver() {}

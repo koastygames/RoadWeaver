@@ -7,7 +7,6 @@ import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
  * 模组结构类型注册中心
- * 职责：持有平台层注册的结构类型引用
  */
 public final class ModStructureTypes {
     private ModStructureTypes() {}

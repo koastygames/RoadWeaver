@@ -21,7 +21,6 @@ import java.util.List;
 
 /**
  * 结构注入器
- * 职责：在区块 STRUCTURE_STARTS 阶段将预计算的路边结构注入到区块结构数据
  */
 public final class StructureInjector {
     private StructureInjector() {}

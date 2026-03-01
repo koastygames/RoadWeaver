@@ -31,7 +31,6 @@ import java.util.function.Supplier;
 
 /**
  * Forge 平台地图网络通信实现
- * 职责：处理客户端-服务端地图数据同步、传送、手动连接请求
  */
 public class MapNetworkForge {
     private static final String VERSION = "1";

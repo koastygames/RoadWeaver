@@ -16,7 +16,6 @@ import java.util.Optional;
 
 /**
  * 结构预测维度白名单入口
- * 职责：在配置界面中提供按钮打开维度白名单编辑界面
  */
 public class OpenStructurePredictionDimensionWhitelistEntry extends AbstractConfigListEntry<Void> {
     private Rectangle lastArea;

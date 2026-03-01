@@ -21,16 +21,12 @@ import java.util.List;
 
 /**
  * 结构验证服务
- * 
- * 职责：使用 StructureCheck 验证预测点，剔除伪结构点
  */
 public final class StructureVerificationService {
     private StructureVerificationService() {}
 
     /**
      * 对一批预测结构点进行验证，返回通过验证的子集
-     * 
-     * 注意：只能在后台线程调用，避免主线程卡顿
      */
     public static List<StructureInfo> verifyPredictedStructures(ServerLevel level,
                                                                         List<StructureInfo> predicted) {

@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
 
 /**
- * 路面上方清障器：清除路面上方所有障碍物（树木、植被、建筑等），确保道路畅通
+ * 路面上方清障器
  */
 public final class AboveColumnClearer {
     private AboveColumnClearer() {}

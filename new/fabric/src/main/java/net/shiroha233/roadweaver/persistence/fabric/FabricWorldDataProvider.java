@@ -16,7 +16,6 @@ import java.util.Set;
 
 /**
  * Fabric 平台世界数据提供者实现
- * 职责：通过 Fabric Attachment API 读写世界持久化数据
  */
 public class FabricWorldDataProvider extends WorldDataProvider {
 

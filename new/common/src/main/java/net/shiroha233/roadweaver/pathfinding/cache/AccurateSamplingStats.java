@@ -3,7 +3,7 @@ package net.shiroha233.roadweaver.pathfinding.cache;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 精确采样统计：追踪 AccurateHeightSampler 的缓存命中率
+ * 精确采样统计
  */
 public final class AccurateSamplingStats {
     private AccurateSamplingStats() {}

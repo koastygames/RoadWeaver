@@ -3,7 +3,7 @@ package net.shiroha233.roadweaver.pathfinding.cache;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 全局地形采样统计：线程安全地汇总缓存命中率和噪声采样数
+ * 全局地形采样统计
  */
 public final class TerrainSamplingStats {
     private TerrainSamplingStats() {}

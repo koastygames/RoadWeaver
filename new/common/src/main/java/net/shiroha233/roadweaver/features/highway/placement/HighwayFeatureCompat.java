@@ -8,7 +8,6 @@ import java.util.Set;
 
 /**
  * Highway 放置兼容层
- * 职责：定义不适合被道路覆盖的方块
  */
 public final class HighwayFeatureCompat {
     private HighwayFeatureCompat() {}

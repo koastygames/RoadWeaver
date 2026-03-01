@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Fabric 平台网络通信实现
- * 职责：处理客户端-服务端地图数据同步、传送请求、手动连接请求
  */
 public class MapNetworkFabric {
     public static final ResourceLocation REQ_RECT = new ResourceLocation("roadweaver", "map_request_rect");

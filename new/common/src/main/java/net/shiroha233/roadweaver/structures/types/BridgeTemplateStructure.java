@@ -11,7 +11,6 @@ import java.util.Optional;
 
 /**
  * 桥模板结构类型
- * 职责：定义桥梁模板结构，用于道路桥梁生成
  */
 public class BridgeTemplateStructure extends Structure {
     public static final Codec<BridgeTemplateStructure> CODEC = RecordCodecBuilder.create(instance ->

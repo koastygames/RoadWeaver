@@ -7,7 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 道路生成兼容层：管理禁止放置道路的方块类型
+ * 道路生成兼容层
  */
 public final class RoadFeatureCompat {
     private RoadFeatureCompat() {}

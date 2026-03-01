@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 双线程池管理器，负责计算池与生成池的生命周期、占空比节流和 epoch 机制
+ * 双线程池管理器
  */
 public final class ThreadPoolManager {
     private ThreadPoolManager() {}

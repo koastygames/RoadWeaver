@@ -31,7 +31,6 @@ import java.util.Optional;
 
 /**
  * 路边结构类型
- * 职责：数据驱动的路边结构定义，支持手动放置和保存到区块数据
  */
 public class RoadsideStructure extends Structure {
     

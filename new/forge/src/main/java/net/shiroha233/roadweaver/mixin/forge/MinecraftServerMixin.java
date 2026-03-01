@@ -16,7 +16,6 @@ import java.util.List;
 
 /**
  * MinecraftServer Mixin
- * 职责：在服务器准备世界前触发初始道路生成
  */
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {

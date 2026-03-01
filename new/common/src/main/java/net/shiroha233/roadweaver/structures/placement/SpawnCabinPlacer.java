@@ -17,7 +17,6 @@ import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
  * 初始小屋放置器
- * 职责：在世界首开时在出生点附近预计算初始小屋位置，幂等性检查避免重复放置
  */
 public final class SpawnCabinPlacer {
     private SpawnCabinPlacer() {}

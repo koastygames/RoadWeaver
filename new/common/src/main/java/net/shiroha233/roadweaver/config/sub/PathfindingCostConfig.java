@@ -25,7 +25,6 @@ public final class PathfindingCostConfig implements SubConfig {
     private int aStarMaxSteps = RoadConstants.DEFAULT_ASTAR_MAX_STEPS;
     private boolean hierarchicalPathfindingEnabled = false;
     private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
-    private int bridgeMinWaterDepth = 3;
 
     @Override
     public void sanitize() {
@@ -62,7 +61,6 @@ public final class PathfindingCostConfig implements SubConfig {
         copy.aStarMaxSteps = this.aStarMaxSteps;
         copy.hierarchicalPathfindingEnabled = this.hierarchicalPathfindingEnabled;
         copy.pathfindingAlgorithm = this.pathfindingAlgorithm;
-        copy.bridgeMinWaterDepth = this.bridgeMinWaterDepth;
         return copy;
     }
 
@@ -96,9 +94,6 @@ public final class PathfindingCostConfig implements SubConfig {
     public void setPathfindingAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
     public PathfindingAlgorithm algorithm() { return pathfindingAlgorithm; }
     public void setAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
-    public int bridgeMinWaterDepth() { return bridgeMinWaterDepth; }
-    public void setBridgeMinWaterDepth(int v) { this.bridgeMinWaterDepth = v; }
-
     public int effectiveAStarStep() {
         if (aStarStep < RoadConstants.ASTAR_STEP_MIN) return RoadConstants.DEFAULT_ASTAR_STEP;
         if (aStarStep > RoadConstants.ASTAR_STEP_MAX) return RoadConstants.ASTAR_STEP_MAX;

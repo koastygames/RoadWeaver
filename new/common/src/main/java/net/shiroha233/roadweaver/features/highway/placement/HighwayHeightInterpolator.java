@@ -6,7 +6,6 @@ import java.util.List;
 
 /**
  * Highway 高度插值器
- * 职责：根据中心线投影点对targetY进行线性插值
  */
 public final class HighwayHeightInterpolator {
     private HighwayHeightInterpolator() {}

@@ -9,7 +9,6 @@ import net.minecraft.world.level.biome.Biome;
 
 /**
  * 群系分类枚举
- * 职责：将 Minecraft 群系分组，便于路边结构根据群系类型选择放置
  */
 public enum BiomeCategory implements StringRepresentable {
     

@@ -14,7 +14,6 @@ import java.util.Map;
 
 /**
  * 桥梁范围计算器
- * 职责：根据水域跨度计算桥梁区间，处理区间合并、长度过滤、跳过标记
  */
 public final class BridgeRangeCalculator {
     private BridgeRangeCalculator() {}
@@ -62,7 +61,6 @@ public final class BridgeRangeCalculator {
             return new RangeResult(isBridge, List.of(), skipSegments);
         }
 
-        // 按维度桥梁开关：dimensionId 为空时回退到全局。
         boolean bridgeEnabled = (dimensionId == null || dimensionId.isEmpty())
                 ? cfg.bridgeEnabled()
                 : cfg.bridgeEnabledForDimension(dimensionId);
@@ -90,15 +88,12 @@ public final class BridgeRangeCalculator {
         }
         
         if (!bridgeRanges.isEmpty()) {
-            // 按起点排序
             bridgeRanges.sort(Comparator.comparingInt(o -> o[0]));
             
-            // 第一轮：合并间隔小于 mergeGap 的区间（避免频繁起伏）
             List<int[]> merged = new ArrayList<>();
             int[] cur = bridgeRanges.get(0);
             for (int idx = 1; idx < bridgeRanges.size(); idx++) {
                 int[] nxt = bridgeRanges.get(idx);
-                // 如果下一个区间的起点距离当前区间的终点 <= mergeGap，则合并
                 if (nxt[0] <= cur[1] + mergeGap) {
                     cur[1] = Math.max(cur[1], nxt[1]);
                 } else {
@@ -108,7 +103,6 @@ public final class BridgeRangeCalculator {
             }
             merged.add(cur);
             
-            // 第二轮：过滤掉太短的桥梁区间（避免小水坑建桥）
             List<int[]> filtered = new ArrayList<>();
             for (int[] r : merged) {
                 int len = r[1] - r[0] + 1;
@@ -116,7 +110,6 @@ public final class BridgeRangeCalculator {
                     filtered.add(r);
                 }
             }
-            // 第三轮：过滤掉过长的桥梁区间（避免跨海桥），并标记需要跳过生成的水域段
             List<int[]> filteredByMaxLen = new ArrayList<>();
             for (int[] r : filtered) {
                 if (maxLenBlocks <= 0) {
@@ -125,7 +118,6 @@ public final class BridgeRangeCalculator {
                 }
                 int approxLen = estimateRangeLengthBlocks(middlePositions, r[0], r[1]);
                 if (approxLen > maxLenBlocks) {
-                    // 超长水域跨度：整段跳过生成（不建桥也不铺路）
                     int s = Math.max(0, r[0]);
                     int e = Math.min(n - 1, r[1]);
                     for (int k = s; k <= e; k++) {
@@ -138,7 +130,6 @@ public final class BridgeRangeCalculator {
             bridgeRanges = filteredByMaxLen;
         }
         
-        // 根据最终的桥梁区间设置 isBridge 标记
         for (int[] r : bridgeRanges) {
             for (int k = r[0]; k <= r[1]; k++) {
                 isBridge[k] = true;

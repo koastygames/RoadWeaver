@@ -13,15 +13,10 @@ import java.util.List;
 
 /**
  * 道路地形适配器
- * 
- * 职责：处理道路路基填充，使道路与地形自然衔接
  */
 public final class RoadTerrainAdapter {
     private RoadTerrainAdapter() {}
 
-    /**
-     * 对道路段进行地形适配（使用固定高度）
-     */
     public static void adaptWithoutInterpolation(WorldGenLevel level, BlockPos middle, int width, int targetY, RandomSource random, ModConfig cfg) {
         int halfWidth = (width + 1) / 2;
         int bankWidth = 3;
@@ -102,9 +97,6 @@ public final class RoadTerrainAdapter {
         }
     }
 
-    /**
-     * 对道路段进行地形适配（使用插值高度）
-     */
     public static void adaptWithInterpolation(WorldGenLevel level, 
                                               BlockPos middle, 
                                               int segmentIndex,

@@ -16,7 +16,6 @@ import java.util.List;
 
 /**
  * Fabric 世界数据附件注册
- * 职责：使用 Fabric Attachment API 持久化世界数据
  */
 public class WorldDataAttachment {
     private static final Logger LOGGER = LoggerFactory.getLogger(RoadWeaver.MOD_ID);

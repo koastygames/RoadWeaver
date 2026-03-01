@@ -12,7 +12,6 @@ import java.util.List;
 
 /**
  * 地图快照编解码器
- * 职责：负责 MapSnapshot 数据在网络传输中的序列化和反序列化
  */
 public final class MapSnapshotCodec {
     private MapSnapshotCodec() {}

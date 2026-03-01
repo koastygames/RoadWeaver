@@ -14,7 +14,6 @@ import java.util.Locale;
 
 /**
  * Forge 平台配置屏幕工厂实现
- * 职责：使用 Cloth Config API 创建配置界面
  */
 public class ConfigScreenFactoryImpl {
 
@@ -109,6 +108,13 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.other_structure_road_offset.tooltip"))
                 .setMin(0).setMax(64)
                 .setSaveConsumer(cfg::setOtherStructureRoadOffset)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.structure_avoidance_enabled"), cfg.structureAvoidanceEnabled())
+                .setDefaultValue(def.structureAvoidanceEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
+                .setSaveConsumer(cfg::setStructureAvoidanceEnabled)
                 .build());
 
         category.addEntry(new OpenStructureSelectionEntry());
@@ -217,6 +223,45 @@ public class ConfigScreenFactoryImpl {
                 .setMin(0).setMax(16)
                 .setSaveConsumer(cfg::setSlopeRiseBlocks)
                 .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.highway_dynamic_plan_enabled"), cfg.dynamicPlanEnabled())
+                .setDefaultValue(def.dynamicPlanEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.highway_dynamic_plan_enabled.tooltip"))
+                .setSaveConsumer(cfg::setDynamicPlanEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_a_star_step"), cfg.aStarStep())
+                .setDefaultValue(def.aStarStep())
+                .setTooltip(Component.translatable("config.roadweaver.highway_a_star_step.tooltip"))
+                .setMin(4).setMax(128)
+                .setSaveConsumer(cfg::setAStarStep)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_a_star_max_steps"), cfg.aStarMaxSteps())
+                .setDefaultValue(def.aStarMaxSteps())
+                .setTooltip(Component.translatable("config.roadweaver.highway_a_star_max_steps.tooltip"))
+                .setMin(1000).setMax(200000)
+                .setSaveConsumer(cfg::setAStarMaxSteps)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.highway_floating_weight"), cfg.floatingWeight())
+                .setDefaultValue(def.floatingWeight())
+                .setTooltip(Component.translatable("config.roadweaver.highway_floating_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setFloatingWeight)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.highway_penetration_weight"), cfg.penetrationWeight())
+                .setDefaultValue(def.penetrationWeight())
+                .setTooltip(Component.translatable("config.roadweaver.highway_penetration_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setPenetrationWeight)
+                .build());
     }
 
     private static void buildLongDriveCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
@@ -246,6 +291,30 @@ public class ConfigScreenFactoryImpl {
                 .setMin(50).setMax(5000)
                 .setSaveConsumer(cfg::setSegmentLength)
                 .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.long_drive_a_star_step"), cfg.aStarStep())
+                .setDefaultValue(def.aStarStep())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_a_star_step.tooltip"))
+                .setMin(4).setMax(128)
+                .setSaveConsumer(cfg::setAStarStep)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.long_drive_lead_distance"), cfg.leadDistance())
+                .setDefaultValue(def.leadDistance())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_lead_distance.tooltip"))
+                .setMin(200).setMax(10000)
+                .setSaveConsumer(cfg::setLeadDistance)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.long_drive_direction_bias"), cfg.directionBias())
+                .setDefaultValue(def.directionBias())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_direction_bias.tooltip"))
+                .setMin(0).setMax(1000)
+                .setSaveConsumer(cfg::setDirectionBias)
+                .build());
     }
 
     private static void buildRoadGenerationCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
@@ -263,11 +332,46 @@ public class ConfigScreenFactoryImpl {
         category.addEntry(new OpenDimensionRoadSettingsEntry());
 
         category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.allow_artificial"), cfg.allowArtificial())
+                .setDefaultValue(def.allowArtificial())
+                .setTooltip(Component.translatable("config.roadweaver.allow_artificial.tooltip"))
+                .setSaveConsumer(cfg::setAllowArtificial)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.allow_natural"), cfg.allowNatural())
+                .setDefaultValue(def.allowNatural())
+                .setTooltip(Component.translatable("config.roadweaver.allow_natural.tooltip"))
+                .setSaveConsumer(cfg::setAllowNatural)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.place_waypoints"), cfg.placeWaypoints())
+                .setDefaultValue(def.placeWaypoints())
+                .setTooltip(Component.translatable("config.roadweaver.place_waypoints.tooltip"))
+                .setSaveConsumer(cfg::setPlaceWaypoints)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.spawn_cabin_enabled"), cfg.spawnCabinEnabled())
+                .setDefaultValue(def.spawnCabinEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.spawn_cabin_enabled.tooltip"))
+                .setSaveConsumer(cfg::setSpawnCabinEnabled)
+                .build());
+
+        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.road_width"), cfg.roadWidth())
                 .setDefaultValue(def.roadWidth())
                 .setTooltip(Component.translatable("config.roadweaver.road_width.tooltip"))
                 .setMin(0).setMax(15)
                 .setSaveConsumer(cfg::setRoadWidth)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.road_signs_enabled"), cfg.roadSignsEnabled())
+                .setDefaultValue(def.roadSignsEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.road_signs_enabled.tooltip"))
+                .setSaveConsumer(cfg::setRoadSignsEnabled)
                 .build());
 
         category.addEntry(eb
@@ -278,6 +382,14 @@ public class ConfigScreenFactoryImpl {
                 .setSaveConsumer(cfg::setLampInterval)
                 .build());
 
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.road_clear_height"), cfg.roadClearHeight())
+                .setDefaultValue(def.roadClearHeight())
+                .setTooltip(Component.translatable("config.roadweaver.road_clear_height.tooltip"))
+                .setMin(1).setMax(16)
+                .setSaveConsumer(cfg::setRoadClearHeight)
+                .build());
+
         category.addEntry(new OpenPresetEditorEntry());
     }
 
@@ -285,6 +397,22 @@ public class ConfigScreenFactoryImpl {
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.gen_surface"));
         RoadAppearanceConfig cfg = conf.roadAppearance();
         RoadAppearanceConfig def = defaultConf.roadAppearance();
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.averaging_radius"), cfg.averagingRadius())
+                .setDefaultValue(def.averagingRadius())
+                .setTooltip(Component.translatable("config.roadweaver.averaging_radius.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(cfg::setAveragingRadius)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.max_slope_step_per_two_segments"), cfg.maxSlopeStepPerTwoSegments())
+                .setDefaultValue(def.maxSlopeStepPerTwoSegments())
+                .setTooltip(Component.translatable("config.roadweaver.max_slope_step_per_two_segments.tooltip"))
+                .setMin(0).setMax(8)
+                .setSaveConsumer(cfg::setMaxSlopeStepPerTwoSegments)
+                .build());
 
         category.addEntry(eb
                 .startBooleanToggle(Component.translatable("config.roadweaver.slope_limit_enabled"), cfg.slopeLimitEnabled())
@@ -298,6 +426,28 @@ public class ConfigScreenFactoryImpl {
                 .setDefaultValue(def.roadFillEnabled())
                 .setTooltip(Component.translatable("config.roadweaver.road_fill_enabled.tooltip"))
                 .setSaveConsumer(cfg::setRoadFillEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.interpolated_roadbed_fill_enabled"), cfg.interpolatedRoadbedFillEnabled())
+                .setDefaultValue(def.interpolatedRoadbedFillEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.interpolated_roadbed_fill_enabled.tooltip"))
+                .setSaveConsumer(cfg::setInterpolatedRoadbedFillEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.causeway_max_depth"), cfg.causewayMaxDepth())
+                .setDefaultValue(def.causewayMaxDepth())
+                .setTooltip(Component.translatable("config.roadweaver.causeway_max_depth.tooltip"))
+                .setMin(0).setMax(12)
+                .setSaveConsumer(cfg::setCausewayMaxDepth)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.prevent_trees_on_road"), cfg.preventTreesOnRoad())
+                .setDefaultValue(def.preventTreesOnRoad())
+                .setTooltip(Component.translatable("config.roadweaver.prevent_trees_on_road.tooltip"))
+                .setSaveConsumer(cfg::setPreventTreesOnRoad)
                 .build());
     }
 
@@ -328,6 +478,91 @@ public class ConfigScreenFactoryImpl {
                 .setMin(0).setMax(10000)
                 .setSaveConsumer(cfg::setMaxLengthBlocks)
                 .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_use_buoys_instead"), cfg.useBuoysInstead())
+                .setDefaultValue(def.useBuoysInstead())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_use_buoys_instead.tooltip"))
+                .setSaveConsumer(cfg::setUseBuoysInstead)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_use_buoys_when_skipped"), cfg.useBuoysWhenSkipped())
+                .setDefaultValue(def.useBuoysWhenSkipped())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_use_buoys_when_skipped.tooltip"))
+                .setSaveConsumer(cfg::setUseBuoysWhenSkipped)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.buoy_interval_blocks"), cfg.buoyIntervalBlocks())
+                .setDefaultValue(def.buoyIntervalBlocks())
+                .setTooltip(Component.translatable("config.roadweaver.buoy_interval_blocks.tooltip"))
+                .setMin(4).setMax(256)
+                .setSaveConsumer(cfg::setBuoyIntervalBlocks)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_pier_interval"), cfg.pierInterval())
+                .setDefaultValue(def.pierInterval())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_interval.tooltip"))
+                .setMin(3).setMax(32)
+                .setSaveConsumer(cfg::setPierInterval)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_pier_width"), cfg.pierWidth())
+                .setDefaultValue(def.pierWidth())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_width.tooltip"))
+                .setMin(1).setMax(3)
+                .setSaveConsumer(cfg::setPierWidth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_pier_max_height"), cfg.pierMaxHeight())
+                .setDefaultValue(def.pierMaxHeight())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_max_height.tooltip"))
+                .setMin(6).setMax(64)
+                .setSaveConsumer(cfg::setPierMaxHeight)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_keep_lamps"), cfg.keepLamps())
+                .setDefaultValue(def.keepLamps())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_keep_lamps.tooltip"))
+                .setSaveConsumer(cfg::setKeepLamps)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_ramp_segments"), cfg.rampSegments())
+                .setDefaultValue(def.rampSegments())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_ramp_segments.tooltip"))
+                .setMin(0).setMax(12)
+                .setSaveConsumer(cfg::setRampSegments)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_min_water_depth"), cfg.minWaterDepth())
+                .setDefaultValue(def.minWaterDepth())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_min_water_depth.tooltip"))
+                .setMin(1).setMax(10)
+                .setSaveConsumer(cfg::setMinWaterDepth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_min_length"), cfg.minLength())
+                .setDefaultValue(def.minLength())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_min_length.tooltip"))
+                .setMin(1).setMax(32)
+                .setSaveConsumer(cfg::setMinLength)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_merge_gap"), cfg.mergeGap())
+                .setDefaultValue(def.mergeGap())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_merge_gap.tooltip"))
+                .setMin(1).setMax(32)
+                .setSaveConsumer(cfg::setMergeGap)
+                .build());
     }
 
     private static void buildRoadsideStructuresCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
@@ -348,6 +583,30 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.max_structures_per_road.tooltip"))
                 .setMin(0).setMax(20)
                 .setSaveConsumer(cfg::setMaxStructuresPerRoad)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.small_structure_offset"), cfg.smallStructureOffset())
+                .setDefaultValue(def.smallStructureOffset())
+                .setTooltip(Component.translatable("config.roadweaver.small_structure_offset.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setSmallStructureOffset)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.medium_structure_offset"), cfg.mediumStructureOffset())
+                .setDefaultValue(def.mediumStructureOffset())
+                .setTooltip(Component.translatable("config.roadweaver.medium_structure_offset.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setMediumStructureOffset)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.large_structure_offset"), cfg.largeStructureOffset())
+                .setDefaultValue(def.largeStructureOffset())
+                .setTooltip(Component.translatable("config.roadweaver.large_structure_offset.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setLargeStructureOffset)
                 .build());
     }
 
@@ -373,6 +632,22 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.initialGenerationThreads"), cfg.initialGenerationThreads())
+                .setDefaultValue(def.initialGenerationThreads())
+                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.initialGenerationThreads.@Tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setInitialGenerationThreads)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.max_concurrent_generations"), cfg.maxConcurrentGenerations())
+                .setDefaultValue(def.maxConcurrentGenerations())
+                .setTooltip(Component.translatable("config.roadweaver.max_concurrent_generations.tooltip"))
+                .setMin(1).setMax(128)
+                .setSaveConsumer(cfg::setMaxConcurrentGenerations)
+                .build());
+
+        category.addEntry(eb
                 .startIntSlider(Component.translatable("config.roadweaver.thread_duty_cycle"), cfg.threadDutyCycle(), 1, 100)
                 .setDefaultValue(def.threadDutyCycle())
                 .setTooltip(Component.translatable("config.roadweaver.thread_duty_cycle.tooltip"))
@@ -395,11 +670,26 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled"), cfg.hierarchicalPathfindingEnabled())
+                .setDefaultValue(def.hierarchicalPathfindingEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
+                .setSaveConsumer(cfg::setHierarchicalPathfindingEnabled)
+                .build());
+
+        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.a_star_step"), cfg.aStarStep())
                 .setDefaultValue(def.aStarStep())
                 .setTooltip(Component.translatable("config.roadweaver.a_star_step.tooltip"))
                 .setMin(4).setMax(128)
                 .setSaveConsumer(cfg::setAStarStep)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.a_star_max_steps"), cfg.aStarMaxSteps())
+                .setDefaultValue(def.aStarMaxSteps())
+                .setTooltip(Component.translatable("config.roadweaver.a_star_max_steps.tooltip"))
+                .setMin(100).setMax(100000)
+                .setSaveConsumer(cfg::setAStarMaxSteps)
                 .build());
 
         category.addEntry(eb
@@ -411,11 +701,75 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.diag_step_cost"), cfg.diagStepCost())
+                .setDefaultValue(def.diagStepCost())
+                .setTooltip(Component.translatable("config.roadweaver.diag_step_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setDiagStepCost)
+                .build());
+
+        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.elevation_weight"), cfg.elevationWeight())
                 .setDefaultValue(def.elevationWeight())
                 .setTooltip(Component.translatable("config.roadweaver.elevation_weight.tooltip"))
                 .setMin(0)
                 .setSaveConsumer(cfg::setElevationWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.biome_weight"), cfg.biomeWeight())
+                .setDefaultValue(def.biomeWeight())
+                .setTooltip(Component.translatable("config.roadweaver.biome_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setBiomeWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.stability_weight"), cfg.stabilityWeight())
+                .setDefaultValue(def.stabilityWeight())
+                .setTooltip(Component.translatable("config.roadweaver.stability_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setStabilityWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.water_depth_weight"), cfg.waterDepthWeight())
+                .setDefaultValue(def.waterDepthWeight())
+                .setTooltip(Component.translatable("config.roadweaver.water_depth_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setWaterDepthWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.near_water_cost"), cfg.nearWaterCost())
+                .setDefaultValue(def.nearWaterCost())
+                .setTooltip(Component.translatable("config.roadweaver.near_water_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setNearWaterCost)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.water_proximity_cost"), cfg.waterProximityCost())
+                .setDefaultValue(def.waterProximityCost())
+                .setTooltip(Component.translatable("config.roadweaver.water_proximity_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setWaterProximityCost)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.heuristic_weight"), cfg.heuristicWeight())
+                .setDefaultValue(def.heuristicWeight())
+                .setTooltip(Component.translatable("config.roadweaver.heuristic_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setHeuristicWeight)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.deviation_weight"), cfg.deviationWeight())
+                .setDefaultValue(def.deviationWeight())
+                .setTooltip(Component.translatable("config.roadweaver.deviation_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setDeviationWeight)
                 .build());
     }
 

@@ -5,7 +5,6 @@ import net.minecraft.util.StringRepresentable;
 
 /**
  * 结构规模枚举
- * 职责：定义不同规模结构的放置参数（地形检查阈值、托盘缓冲区、间距）
  */
 public enum StructureScale implements StringRepresentable {
     

@@ -39,7 +39,6 @@ import java.util.List;
 
 /**
  * 简单模板结构片段
- * 职责：放置单个 NBT 模板，支持旋转镜像、生物生成、战利品表设置
  */
 public class SimpleTemplatePiece extends TemplateStructurePiece {
     

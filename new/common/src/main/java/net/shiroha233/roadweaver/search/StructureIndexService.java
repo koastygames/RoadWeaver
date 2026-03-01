@@ -17,8 +17,6 @@ import java.security.MessageDigest;
 
 /**
  * 结构索引服务
- * 
- * 职责：统一封装结构预测和验证调用，只返回预测并通过验证的结构信息列表
  */
 public final class StructureIndexService {
 

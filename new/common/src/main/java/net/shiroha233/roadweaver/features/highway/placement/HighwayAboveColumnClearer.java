@@ -11,7 +11,6 @@ import net.shiroha233.roadweaver.config.ModConfig;
 
 /**
  * Highway 路面上方清障器
- * 职责：清除道路上方的障碍物（植被、雪层等）
  */
 public final class HighwayAboveColumnClearer {
     private HighwayAboveColumnClearer() {}

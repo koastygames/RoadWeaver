@@ -300,6 +300,10 @@ public final class ModConfig {
         return bridge.rampSegments();
     }
 
+    public int bridgeMinWaterDepth() {
+        return bridge.minWaterDepth();
+    }
+
     // ==================== RoadAppearance 配置快捷访问 ====================
 
     public int maxSlopeStepPerTwoSegments() {

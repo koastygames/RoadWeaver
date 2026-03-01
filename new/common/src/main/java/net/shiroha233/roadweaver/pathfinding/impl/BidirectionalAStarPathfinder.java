@@ -18,7 +18,7 @@ import java.util.*;
 import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.*;
 
 /**
- * 双向 A* 寻路：从起点和终点同时扩展，在中间相遇后重建完整路径
+ * 双向 A* 寻路
  */
 public final class BidirectionalAStarPathfinder implements Pathfinder {
 

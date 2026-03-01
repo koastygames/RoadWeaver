@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 
 /**
  * Highway 额外成本模型
- * 职责：计算高速公路的浮空成本和障碍穿透成本
  */
 public final class HighwayExtraCostModel {
     private HighwayExtraCostModel() {}

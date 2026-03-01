@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.function.IntUnaryOperator;
 
 /**
- * 地图渲染器集合 - 统一管理各类地图元素的渲染
+ * 地图渲染器集合
  */
 public final class MapRenderers {
     private MapRenderers() {}

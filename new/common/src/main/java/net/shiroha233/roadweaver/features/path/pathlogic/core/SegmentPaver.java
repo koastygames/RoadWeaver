@@ -16,8 +16,6 @@ import java.util.List;
 
 /**
  * 路面铺设器
- * 
- * 职责：铺设道路路面，每个方块根据其在中心线上的投影位置独立计算高度
  */
 public final class SegmentPaver {
     private SegmentPaver() {}
