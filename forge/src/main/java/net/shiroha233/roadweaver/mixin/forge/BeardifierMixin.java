@@ -73,13 +73,15 @@ public class BeardifierMixin implements RoadBeardifierAccess {
             int minZ = pos.getMinBlockZ();
             int maxX = pos.getMaxBlockX();
             int maxZ = pos.getMaxBlockZ();
+            String dimId = serverLevel.dimension().location().toString();
+            boolean includeBridgeSegments = !cfg.bridgeEnabledForDimension(dimId);
 
             List<RoadData> roads = RoadShardStorage.queryRect(serverLevel,
                     minX - 16, minZ - 16, maxX + 16, maxZ + 16);
             if (roads.isEmpty()) return;
 
             List<RoadDensityComputer.Segment> segments =
-                    RoadDensityComputer.extractSegmentsForChunk(roads, minX, minZ, maxX, maxZ);
+                    RoadDensityComputer.extractSegmentsForChunk(roads, minX, minZ, maxX, maxZ, includeBridgeSegments);
             if (!segments.isEmpty()) {
                 RoadBeardifierAccess access = (RoadBeardifierAccess) cir.getReturnValue();
                 access.roadweaver$setRoadSegments(segments);

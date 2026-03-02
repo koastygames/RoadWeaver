@@ -27,7 +27,7 @@ public final class PathfindingCostConfig implements SubConfig {
     private int aStarStep = RoadConstants.DEFAULT_ASTAR_STEP;
     private int aStarMaxSteps = RoadConstants.DEFAULT_ASTAR_MAX_STEPS;
     private boolean hierarchicalPathfindingEnabled = false;
-    private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
+    private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
     private int accurateSamplingDivisor = RoadConstants.DEFAULT_ACCURATE_SAMPLING_DIVISOR;
     private SamplingPrecision samplingPrecision = SamplingPrecision.NORMAL;
 
@@ -46,7 +46,7 @@ public final class PathfindingCostConfig implements SubConfig {
         aStarStep = Math.min(RoadConstants.ASTAR_STEP_MAX, aStarStep);
         aStarMaxSteps = Math.max(RoadConstants.ASTAR_MAX_STEPS_MIN,
                 Math.min(RoadConstants.ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
-        if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.ASTAR_BASIC;
+        if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
         if (samplingPrecision == null) samplingPrecision = SamplingPrecision.NORMAL;
         if (accurateSamplingDivisor <= 1) accurateSamplingDivisor = 0;
         else if (accurateSamplingDivisor <= 3) accurateSamplingDivisor = 2;
