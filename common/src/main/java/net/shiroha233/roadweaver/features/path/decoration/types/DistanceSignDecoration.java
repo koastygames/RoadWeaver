@@ -8,11 +8,14 @@ import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoratio
 import net.shiroha233.roadweaver.core.model.WoodAssets;
 import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 距离路牌装饰
  */
 public class DistanceSignDecoration extends OrientedDecoration implements BiomeWoodAware {
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private final boolean isStart;
     private final String signText;
     private WoodAssets wood;
@@ -38,9 +41,12 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
                         .setValue(BlockStateProperties.ROTATION_16, rotation)
                         .setValue(BlockStateProperties.ATTACHED, true),
                 3);
-        updateSigns(world, signPos, signText);
-
         placeFenceStructure(basePos, props);
+        try {
+            updateSigns(world, signPos, signText);
+        } catch (Throwable t) {
+            LOGGER.warn("Distance sign text write failed at {}", signPos, t);
+        }
     }
 
     private void placeFenceStructure(BlockPos pos, DirectionProperties props) {

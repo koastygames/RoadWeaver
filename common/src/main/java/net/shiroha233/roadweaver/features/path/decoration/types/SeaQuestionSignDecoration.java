@@ -8,11 +8,14 @@ import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoratio
 import net.shiroha233.roadweaver.core.model.WoodAssets;
 import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 海域问号路牌
  */
 public class SeaQuestionSignDecoration extends OrientedDecoration implements BiomeWoodAware {
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private final boolean isStart;
     private WoodAssets wood;
 
@@ -38,9 +41,12 @@ public class SeaQuestionSignDecoration extends OrientedDecoration implements Bio
                         .setValue(BlockStateProperties.ROTATION_16, signRotation)
                         .setValue(BlockStateProperties.ATTACHED, true),
                 3);
-        updateSigns(world, signPos);
-
         placeFenceStructure(basePos, props);
+        try {
+            updateSigns(world, signPos);
+        } catch (Throwable t) {
+            LOGGER.warn("Sea question sign text write failed at {}", signPos, t);
+        }
     }
 
     private void placeFenceStructure(BlockPos pos, DirectionProperties props) {

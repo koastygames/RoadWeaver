@@ -1,6 +1,7 @@
 package net.shiroha233.roadweaver.runtime;
 
 import net.minecraft.server.level.ServerLevel;
+import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
 import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
@@ -55,6 +56,7 @@ public final class CacheManager {
         HighwayCellPathPlanningService.resetAll();
         PathBranchPlanningService.resetAll();
         ChunkGenTracker.clearAll();
+        SignTextService.clearPending();
         TerrainSamplingStats.reset();
 
         LOGGER.debug("CacheManager: 所有缓存已清理");
@@ -77,6 +79,7 @@ public final class CacheManager {
         PendingStructureStorage.clearDimension(level.dimension().location());
         RoadsideStructureRegistry.clearCache(level.dimension());
         BridgeTemplateStructureRegistry.clearCache(level.dimension());
+        SignTextService.onDimensionUnload(level);
 
         LOGGER.debug("CacheManager: 维度 {} 缓存已清理", level.dimension().location());
     }

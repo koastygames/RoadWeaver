@@ -149,6 +149,21 @@ public final class RoadDatabaseManager {
                     + "k VARCHAR(255) PRIMARY KEY,"
                     + "v VARCHAR(4096) NOT NULL"
                     + ")");
+
+            stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS pending_sign_texts ("
+                    + "id IDENTITY PRIMARY KEY,"
+                    + "chunk_x INT NOT NULL,"
+                    + "chunk_z INT NOT NULL,"
+                    + "x INT NOT NULL,"
+                    + "y INT NOT NULL,"
+                    + "z INT NOT NULL,"
+                    + "sign_type INT NOT NULL,"
+                    + "payload VARCHAR(255) NOT NULL,"
+                    + "updated_at BIGINT NOT NULL,"
+                    + "CONSTRAINT uq_pending_sign_pos UNIQUE (x, y, z)"
+                    + ")");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_pending_sign_chunk ON pending_sign_texts (chunk_x, chunk_z, id)");
         }
     }
 

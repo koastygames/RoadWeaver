@@ -10,6 +10,7 @@ import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
 import net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService;
+import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -32,6 +33,7 @@ public final class ServerPlanningHooks {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             CacheManager.onServerStarted();
             ThreadPoolManager.onServerStarted(server);
+            SignTextService.clearPending();
             
             ServerLevel level = server.getLevel(Level.OVERWORLD);
             if (level == null) return;
@@ -72,6 +74,7 @@ public final class ServerPlanningHooks {
             if ((tick++ % 20) == 0) {
                 boolean highwayMode = ConfigService.get().highway().enabled();
                 for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                    SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
                     if (highwayMode) {
                         HighwayPlanningService.planAroundPlayer(p);
                     } else {
@@ -84,6 +87,7 @@ public final class ServerPlanningHooks {
             for (ServerLevel level : server.getAllLevels()) {
                 if (level == null) continue;
                 RoadGenerationService.tick(level);
+                SignTextService.tick(level);
             }
 
             ServerLevel overworld = server.getLevel(Level.OVERWORLD);
@@ -99,6 +103,7 @@ public final class ServerPlanningHooks {
             LongDrivePlanningService.resetAll();
             CacheManager.onServerStopping(server.getAllLevels());
             ThreadPoolManager.onServerStopping();
+            SignTextService.clearPending();
         });
     }
 }

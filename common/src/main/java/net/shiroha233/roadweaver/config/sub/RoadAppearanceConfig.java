@@ -14,7 +14,7 @@ public final class RoadAppearanceConfig implements SubConfig {
     private boolean spawnCabinEnabled = true;
     private int averagingRadius = RoadConstants.DEFAULT_AVERAGING_RADIUS;
     private int roadWidth = RoadConstants.DEFAULT_ROAD_WIDTH;
-    private boolean roadSignsEnabled = false;
+    private boolean roadSignsEnabled = true;
     private int lampInterval = RoadConstants.DEFAULT_LAMP_INTERVAL;
     private int roadClearHeight = RoadConstants.DEFAULT_ROAD_CLEAR_HEIGHT;
     private boolean tunnelEnabled = false;
