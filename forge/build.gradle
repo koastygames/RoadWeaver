@@ -110,14 +110,14 @@ repositories {
 
 tasks.named('processResources', ProcessResources).configure {
     def replaceProperties = [
-        minecraft_version: '1.20.1',
+        minecraft_version: project.minecraft_version,
         minecraft_version_range: '[1.20.1,1.21)',
         forge_version: project.forge_version,
         forge_version_range: '[47,48)',
         loader_version_range: '[47,)',
         mod_id: 'roadweaver',
         mod_name: 'RoadWeaver',
-        mod_version: project.version,
+        mod_version: project.mod_version,
         mod_authors: 'shiroha233',
         mod_description: 'Automatically generates roads between structures'
     ]

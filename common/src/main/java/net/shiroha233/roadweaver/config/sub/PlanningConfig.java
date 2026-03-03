@@ -9,7 +9,7 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 public final class PlanningConfig implements SubConfig {
 
     /** 规划算法枚举 */
-    public enum PlanningAlgorithm { KNN, DELAUNAY, RNG, MST }
+    public enum PlanningAlgorithm { KNN, DELAUNAY, RNG, MST, SNAP_BRANCH }
 
     private int initialPlanRadiusChunks = RoadConstants.DEFAULT_INITIAL_PLAN_RADIUS_CHUNKS;
     private boolean dynamicPlanEnabled = true;

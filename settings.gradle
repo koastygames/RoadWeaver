@@ -57,3 +57,4 @@ rootProject.name = 'roadweaver'
 // 包含子项目
 include 'common'
 include 'fabric'
+include 'forge'

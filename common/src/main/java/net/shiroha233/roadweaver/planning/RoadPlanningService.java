@@ -105,19 +105,22 @@ public final class RoadPlanningService {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> existing = provider.getStructureConnections(level);
 
-        HashSet<BlockPos> inRect = new HashSet<>(points);
         ArrayList<StructureConnection> existingInRect = new ArrayList<>();
         if (existing != null) {
             for (StructureConnection c : existing) {
-                if (inRect.contains(c.from()) && inRect.contains(c.to())) existingInRect.add(c);
+                if (inRect2d(c.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ)
+                        && inRect2d(c.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+                    existingInRect.add(c);
+                }
             }
         }
 
         ArrayList<StructureConnection> base = new ArrayList<>(existingInRect);
         base.addAll(primaryEdges);
+        ArrayList<BlockPos> componentPoints = collectComponentPoints(points, existingInRect, primaryEdges);
 
         List<StructureConnection> bridges = KNNPlanner.connectComponents(
-                points, base,
+                componentPoints, base,
                 RoadConstants.DEFAULT_BRIDGE_JOIN_LEN_BLOCKS,
                 RoadConstants.DEFAULT_COMPONENT_MIN_ANGLE_DEG,
                 RoadConstants.DEFAULT_COMPONENT_DEGREE_CAP
@@ -184,12 +187,11 @@ public final class RoadPlanningService {
             }
             if (points.size() < 2) return new ArrayList<StructureConnection>();
 
-            HashSet<BlockPos> inRect = new HashSet<>(points);
             ArrayList<StructureConnection> existingInRect = new ArrayList<>();
             HashSet<Long> existingEdgeKeys = new HashSet<>();
             for (StructureConnection c : existingSnapshot) {
-                if (inRect.contains(new BlockPos(c.from().getX(), 0, c.from().getZ())) &&
-                        inRect.contains(new BlockPos(c.to().getX(), 0, c.to().getZ()))) {
+                if (inRect2d(c.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ) &&
+                        inRect2d(c.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
                     existingInRect.add(c);
                     existingEdgeKeys.add(PlanningUtils.edgeKey(c.from(), c.to()));
                 }
@@ -208,8 +210,9 @@ public final class RoadPlanningService {
 
             ArrayList<StructureConnection> base = new ArrayList<>(existingInRect);
             base.addAll(filteredPrimary);
+            ArrayList<BlockPos> componentPoints = collectComponentPoints(points, existingInRect, filteredPrimary);
             List<StructureConnection> bridges = KNNPlanner.connectComponents(
-                    points, base,
+                    componentPoints, base,
                     RoadConstants.DEFAULT_BRIDGE_JOIN_LEN_BLOCKS,
                     RoadConstants.DEFAULT_COMPONENT_MIN_ANGLE_DEG,
                     RoadConstants.DEFAULT_COMPONENT_DEGREE_CAP
@@ -249,6 +252,45 @@ public final class RoadPlanningService {
             if (seen.add(k)) out.add(new StructureConnection(c.from(), c.to(), ConnectionStatus.PLANNED));
         }
         return out;
+    }
+
+    private static ArrayList<BlockPos> collectComponentPoints(List<BlockPos> seed,
+                                                              List<StructureConnection> existingInRect,
+                                                              List<StructureConnection> incomingEdges) {
+        ArrayList<BlockPos> out = new ArrayList<>();
+        HashSet<Long> seen = new HashSet<>();
+        if (seed != null) {
+            for (BlockPos p : seed) addUnique2d(out, seen, p);
+        }
+        if (existingInRect != null) {
+            for (StructureConnection c : existingInRect) {
+                if (c == null) continue;
+                addUnique2d(out, seen, c.from());
+                addUnique2d(out, seen, c.to());
+            }
+        }
+        if (incomingEdges != null) {
+            for (StructureConnection c : incomingEdges) {
+                if (c == null) continue;
+                addUnique2d(out, seen, c.from());
+                addUnique2d(out, seen, c.to());
+            }
+        }
+        return out;
+    }
+
+    private static void addUnique2d(List<BlockPos> out, Set<Long> seen, BlockPos p) {
+        if (p == null) return;
+        BlockPos q = new BlockPos(p.getX(), 0, p.getZ());
+        long k = PlanningUtils.pos2dKey(q);
+        if (seen.add(k)) out.add(q);
+    }
+
+    private static boolean inRect2d(BlockPos p, int minX, int minZ, int maxX, int maxZ) {
+        if (p == null) return false;
+        int x = p.getX();
+        int z = p.getZ();
+        return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
     }
 
     private static int floorDiv(int a, int b) {

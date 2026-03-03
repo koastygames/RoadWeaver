@@ -88,14 +88,9 @@ public final class MapDataCollector {
         if (highwayConnections != null && !highwayConnections.isEmpty()) {
             HashSet<Long> seenEdges = new HashSet<>();
             for (StructureConnection c : conns) seenEdges.add(PlanningUtils.edgeKey(c.from(), c.to()));
-            HashSet<BlockPos> existingStructures = new HashSet<>(structures);
             for (StructureConnection hc : highwayConnections) {
                 long k = PlanningUtils.edgeKey(hc.from(), hc.to());
                 if (seenEdges.add(k)) conns.add(hc);
-                BlockPos f = new BlockPos(hc.from().getX(), 0, hc.from().getZ());
-                BlockPos t = new BlockPos(hc.to().getX(), 0, hc.to().getZ());
-                if (existingStructures.add(f)) structures.add(f);
-                if (existingStructures.add(t)) structures.add(t);
             }
         }
 
@@ -203,19 +198,6 @@ public final class MapDataCollector {
                 if (x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ) poly.add(p);
             }
             if (poly.size() >= 2) roads.add(poly);
-        }
-
-        HashSet<BlockPos> existing = new HashSet<>(structures);
-        for (StructureConnection c : conns) {
-            BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
-            for (BlockPos ep : eps) {
-                int x = ep.getX(), z = ep.getZ();
-                BlockPos ep2d = new BlockPos(x, 0, z);
-                boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                if (inRect && existing.add(ep2d)) {
-                    structures.add(ep2d);
-                }
-            }
         }
 
         return new MapSnapshot(structures, conns, infos, roads);
@@ -333,38 +315,6 @@ public final class MapDataCollector {
             structuresSet.add(new BlockPos(x, 0, z));
         }
         List<BlockPos> structures = new ArrayList<>(structuresSet);
-
-        if (connections != null) {
-            java.util.HashSet<BlockPos> existing = new HashSet<>(structures);
-            for (StructureConnection c : connections) {
-                BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
-                for (BlockPos ep : eps) {
-                    int x = ep.getX(), z = ep.getZ();
-                    BlockPos ep2d = new BlockPos(x, 0, z);
-                    boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                    if (inRect && !existing.contains(ep2d)) {
-                        structures.add(ep2d);
-                        existing.add(ep2d);
-                    }
-                }
-            }
-        }
-
-        if (highwayConnections != null) {
-            java.util.HashSet<BlockPos> existing = new HashSet<>(structures);
-            for (StructureConnection c : highwayConnections) {
-                BlockPos[] eps = new BlockPos[]{c.from(), c.to()};
-                for (BlockPos ep : eps) {
-                    int x = ep.getX(), z = ep.getZ();
-                    BlockPos ep2d = new BlockPos(x, 0, z);
-                    boolean inRect = x >= minBlockX && x <= maxBlockX && z >= minBlockZ && z <= maxBlockZ;
-                    if (inRect && !existing.contains(ep2d)) {
-                        structures.add(ep2d);
-                        existing.add(ep2d);
-                    }
-                }
-            }
-        }
 
         List<StructureConnection> conns = new ArrayList<>();
         java.util.HashSet<Long> seenEdges = new HashSet<>();
