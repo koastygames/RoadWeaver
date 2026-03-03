@@ -1,8 +1,11 @@
 package net.shiroha233.roadweaver.features.path.decoration.types;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
 import net.shiroha233.roadweaver.core.model.WoodAssets;
@@ -16,6 +19,8 @@ import org.slf4j.LoggerFactory;
  */
 public class DistanceSignDecoration extends OrientedDecoration implements BiomeWoodAware {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
+    private static final WoodAssets DEFAULT_WOOD = new WoodAssets(Blocks.OAK_FENCE, Blocks.OAK_HANGING_SIGN,
+            Blocks.OAK_PLANKS);
     private final boolean isStart;
     private final String signText;
     private WoodAssets wood;
@@ -28,12 +33,14 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
 
     @Override
     public void place() {
+        if (wood == null) wood = DEFAULT_WOOD;
         if (!placeAllowed()) return;
         int rotation = getCardinalRotationFromVector(getOrthogonalVector(), isStart);
         DirectionProperties props = getDirectionProperties(rotation);
 
         BlockPos basePos = this.getPos();
         WorldGenLevel world = this.getWorld();
+        ensureFoundation(basePos, world);
 
         BlockPos signPos = basePos.above(2).relative(props.offsetDirection.getOpposite());
         world.setBlock(signPos,
@@ -65,5 +72,15 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
     @Override
     public void setWoodType(WoodAssets assets) {
         this.wood = assets;
+    }
+
+    private void ensureFoundation(BlockPos basePos, WorldGenLevel world) {
+        BlockPos belowPos = basePos.below();
+        BlockState below = world.getBlockState(belowPos);
+        if (!below.isFaceSturdy(world, belowPos, Direction.UP)
+                || below.is(Blocks.WATER)
+                || below.is(Blocks.LAVA)) {
+            world.setBlock(belowPos, wood.planks().defaultBlockState(), 3);
+        }
     }
 }

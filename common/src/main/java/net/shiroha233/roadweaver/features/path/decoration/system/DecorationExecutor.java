@@ -3,6 +3,8 @@ package net.shiroha233.roadweaver.features.path.decoration.system;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
 import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.material.WoodSelector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.Set;
@@ -12,6 +14,7 @@ import java.util.Set;
  */
 public final class DecorationExecutor {
     private DecorationExecutor() {}
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
     public static void tryPlaceDecorations(Set<Decoration> positions) {
         if (positions.isEmpty()) return;
@@ -19,11 +22,16 @@ public final class DecorationExecutor {
         while (it.hasNext()) {
             Decoration dec = it.next();
             if (dec == null) { it.remove(); continue; }
-            if (dec instanceof BiomeWoodAware aware) {
-                aware.setWoodType(WoodSelector.forBiome(dec.getWorld(), dec.getPos()));
+            try {
+                if (dec instanceof BiomeWoodAware aware) {
+                    aware.setWoodType(WoodSelector.forBiome(dec.getWorld(), dec.getPos()));
+                }
+                dec.place();
+            } catch (Throwable t) {
+                LOGGER.warn("Decoration placement failed: {}", dec.getClass().getSimpleName(), t);
+            } finally {
+                it.remove();
             }
-            dec.place();
-            it.remove();
         }
     }
 }

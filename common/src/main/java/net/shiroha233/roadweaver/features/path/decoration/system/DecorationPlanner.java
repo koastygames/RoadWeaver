@@ -9,6 +9,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
 import net.shiroha233.roadweaver.features.path.decoration.types.DistanceSignDecoration;
+import net.shiroha233.roadweaver.features.path.decoration.types.FallbackLanternDecoration;
 import net.shiroha233.roadweaver.features.path.decoration.types.LamppostDecoration;
 import net.shiroha233.roadweaver.features.path.decoration.types.LanternPostDecoration;
 
@@ -69,7 +70,10 @@ public final class DecorationPlanner {
             BlockPos shifted = left ? placePos.offset(ortho.getX() * sideOffset, 0, ortho.getZ() * sideOffset)
                     : placePos.offset(-ortho.getX() * sideOffset, 0, -ortho.getZ() * sideOffset);
             shifted = new BlockPos(shifted.getX(), world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, shifted.getX(), shifted.getZ()), shifted.getZ());
-            if (Math.abs(shifted.getY() - placePos.getY()) > 1) return;
+            if (Math.abs(shifted.getY() - placePos.getY()) > 1) {
+                out.add(new FallbackLanternDecoration(shifted, world));
+                return;
+            }
             if (mode == Mode.ARTIFICIAL) {
                 out.add(new LamppostDecoration(shifted, ortho, world));
             } else {
