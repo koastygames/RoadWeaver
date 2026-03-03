@@ -17,8 +17,12 @@ public record RoadData(
         List<BlockState> slabMaterials,
         List<RoadSegmentPlacement> roadSegmentList,
         List<RoadSpan> spans,
-        List<Integer> targetY
+        List<Integer> targetY,
+        long ownerA2dKey,
+        long ownerB2dKey
 ) {
+    public static final long NO_OWNER_2D = Long.MIN_VALUE;
+
     public static final Codec<RoadData> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     Codec.INT.fieldOf("width").forGetter(RoadData::width),
@@ -27,7 +31,24 @@ public record RoadData(
                     BlockState.CODEC.listOf().optionalFieldOf("slab_materials", new ArrayList<>()).forGetter(RoadData::slabMaterials),
                     RoadSegmentPlacement.CODEC.listOf().fieldOf("placements").forGetter(RoadData::roadSegmentList),
                     RoadSpan.CODEC.listOf().optionalFieldOf("spans", new ArrayList<>()).forGetter(RoadData::spans),
-                    Codec.INT.listOf().optionalFieldOf("target_y", new ArrayList<>()).forGetter(RoadData::targetY)
+                    Codec.INT.listOf().optionalFieldOf("target_y", new ArrayList<>()).forGetter(RoadData::targetY),
+                    Codec.LONG.optionalFieldOf("owner_a_2d", NO_OWNER_2D).forGetter(RoadData::ownerA2dKey),
+                    Codec.LONG.optionalFieldOf("owner_b_2d", NO_OWNER_2D).forGetter(RoadData::ownerB2dKey)
             ).apply(instance, RoadData::new)
     );
+
+    public boolean hasOwnerPair() {
+        return ownerA2dKey != NO_OWNER_2D && ownerB2dKey != NO_OWNER_2D;
+    }
+
+    public boolean containsOwner(long owner2dKey) {
+        return hasOwnerPair() && (ownerA2dKey == owner2dKey || ownerB2dKey == owner2dKey);
+    }
+
+    public long sharedOwnerWith(RoadData other) {
+        if (other == null || !hasOwnerPair() || !other.hasOwnerPair()) return NO_OWNER_2D;
+        if (other.containsOwner(ownerA2dKey)) return ownerA2dKey;
+        if (other.containsOwner(ownerB2dKey)) return ownerB2dKey;
+        return NO_OWNER_2D;
+    }
 }

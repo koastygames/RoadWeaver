@@ -51,6 +51,7 @@ public final class RoadDensityComputer {
 
             for (int i = 0; i < segs.size() - 1; i++) {
                 if (isBridgeSegment(i, bridgeMask)) continue;
+                if (!isRenderableSegment(segs.get(i)) || !isRenderableSegment(segs.get(i + 1))) continue;
 
                 BlockPos a = segs.get(i).middlePos();
                 BlockPos b = segs.get(i + 1).middlePos();
@@ -70,6 +71,10 @@ public final class RoadDensityComputer {
             }
         }
         return result;
+    }
+
+    private static boolean isRenderableSegment(RoadSegmentPlacement seg) {
+        return seg != null && seg.positions() != null && !seg.positions().isEmpty();
     }
 
     private static boolean[] buildBridgeMask(List<RoadSegmentPlacement> segs, List<RoadSpan> spans) {

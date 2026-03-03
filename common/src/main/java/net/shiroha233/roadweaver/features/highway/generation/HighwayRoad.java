@@ -69,7 +69,9 @@ public final class HighwayRoad {
                     slabMaterials,
                     segments,
                     spans,
-                    targetY
+                    targetY,
+                    RoadData.NO_OWNER_2D,
+                    RoadData.NO_OWNER_2D
             );
             RoadShardStorage.addRoad(level, rd);
             return true;

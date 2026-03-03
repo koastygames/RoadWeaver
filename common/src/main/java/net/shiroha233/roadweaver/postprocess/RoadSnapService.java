@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
+import net.shiroha233.roadweaver.core.model.RoadSpan;
 import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sqlite.RoadSqliteStorage;
 import org.slf4j.Logger;
@@ -160,10 +161,21 @@ public final class RoadSnapService {
         List<Integer> targetYList = new ArrayList<>(n);
         for (int v : newTargetY) targetYList.add(v);
 
+        List<RoadSegmentPlacement> finalSegs = newSegs;
+        List<Integer> finalTargetY = targetYList;
+        List<RoadSpan> finalSpans = secondary.spans();
+        TruncateResult truncated = tryTruncateSharedEndpoint(primary, secondary, runs, priSegs, priTargetY, snapTarget, newSegs, targetYList);
+        if (truncated != null) {
+            finalSegs = truncated.segments();
+            finalTargetY = truncated.targetY();
+            finalSpans = filterSpansByRetainedSegments(secondary.spans(), finalSegs);
+        }
+
         return new RoadData(
                 secondary.width(), secondary.roadType(),
                 secondary.materials(), secondary.slabMaterials(),
-                newSegs, secondary.spans(), targetYList
+                finalSegs, finalSpans, finalTargetY,
+                secondary.ownerA2dKey(), secondary.ownerB2dKey()
         );
     }
 
@@ -249,6 +261,107 @@ public final class RoadSnapService {
         return (((long) x) << 32) | (z & 0xFFFFFFFFL);
     }
 
+    private static TruncateResult tryTruncateSharedEndpoint(RoadData primary,
+                                                            RoadData secondary,
+                                                            List<int[]> runs,
+                                                            List<RoadSegmentPlacement> priSegs,
+                                                            List<Integer> priTargetY,
+                                                            int[] snapTarget,
+                                                            List<RoadSegmentPlacement> snappedSegs,
+                                                            List<Integer> snappedTargetY) {
+        if (primary == null || secondary == null || runs == null || runs.isEmpty()) return null;
+        if (!isRegularRoadType(primary.roadType()) || !isRegularRoadType(secondary.roadType())) return null;
+        if (snappedSegs == null || snappedSegs.size() < MIN_RUN) return null;
+        if (priSegs == null || priSegs.isEmpty() || snapTarget == null || snapTarget.length != snappedSegs.size()) return null;
+
+        long sharedOwner = secondary.sharedOwnerWith(primary);
+        if (sharedOwner == RoadData.NO_OWNER_2D) return null;
+
+        boolean sharedAtStart = secondary.ownerA2dKey() == sharedOwner && secondary.ownerB2dKey() != sharedOwner;
+        boolean sharedAtEnd = secondary.ownerB2dKey() == sharedOwner && secondary.ownerA2dKey() != sharedOwner;
+        if (!sharedAtStart && !sharedAtEnd) return null;
+
+        int[] run = sharedAtStart ? runs.get(0) : runs.get(runs.size() - 1);
+        int start = run[0];
+        int end = run[1];
+        int runLen = end - start + 1;
+        int trans = Math.min(TRANSITION, (runLen + 1) / 2);
+        int coreStart = start + trans;
+        int coreEnd = end - trans;
+        int anchorIdx = coreStart <= coreEnd ? (sharedAtStart ? coreStart : coreEnd) : ((start + end) >>> 1);
+        int anchorTarget = (anchorIdx >= 0 && anchorIdx < snapTarget.length) ? snapTarget[anchorIdx] : -1;
+        if (anchorTarget < 0 || anchorTarget >= priSegs.size()) return null;
+
+        RoadSegmentPlacement anchorSeg = priSegs.get(anchorTarget);
+        RoadSegmentPlacement virtualAnchorSeg = new RoadSegmentPlacement(anchorSeg.middlePos(), List.of());
+        int anchorY = (priTargetY != null && anchorTarget < priTargetY.size())
+                ? priTargetY.get(anchorTarget)
+                : anchorSeg.middlePos().getY();
+
+        if (sharedAtStart) {
+            int tailStart = end + 1;
+            List<RoadSegmentPlacement> keptSegs = new ArrayList<>();
+            keptSegs.add(virtualAnchorSeg);
+            if (tailStart < snappedSegs.size()) {
+                keptSegs.addAll(snappedSegs.subList(tailStart, snappedSegs.size()));
+            }
+            if (keptSegs.size() < MIN_RUN) return null;
+            List<Integer> keptY = new ArrayList<>();
+            keptY.add(anchorY);
+            if (tailStart < snappedSegs.size()) {
+                keptY.addAll(sliceTargetY(snappedTargetY, tailStart, snappedSegs.size()));
+            }
+            return new TruncateResult(keptSegs, keptY);
+        }
+
+        int headEnd = start - 1;
+        List<RoadSegmentPlacement> keptSegs = new ArrayList<>();
+        if (headEnd >= 0) {
+            keptSegs.addAll(snappedSegs.subList(0, headEnd + 1));
+        }
+        keptSegs.add(virtualAnchorSeg);
+        if (keptSegs.size() < MIN_RUN) return null;
+        List<Integer> keptY = new ArrayList<>();
+        if (headEnd >= 0) {
+            keptY.addAll(sliceTargetY(snappedTargetY, 0, headEnd + 1));
+        }
+        keptY.add(anchorY);
+        return new TruncateResult(keptSegs, keptY);
+    }
+
+    private static List<Integer> sliceTargetY(List<Integer> targetY, int fromInclusive, int toExclusive) {
+        if (targetY == null || targetY.isEmpty()) return List.of();
+        int lo = Math.max(0, fromInclusive);
+        int hi = Math.min(targetY.size(), toExclusive);
+        if (lo >= hi) return List.of();
+        return new ArrayList<>(targetY.subList(lo, hi));
+    }
+
+    private static List<RoadSpan> filterSpansByRetainedSegments(List<RoadSpan> spans,
+                                                                 List<RoadSegmentPlacement> retainedSegs) {
+        if (spans == null || spans.isEmpty()) return spans;
+        if (retainedSegs == null || retainedSegs.isEmpty()) return List.of();
+
+        Set<Long> keep = new HashSet<>();
+        for (RoadSegmentPlacement seg : retainedSegs) {
+            if (seg == null || seg.middlePos() == null) continue;
+            keep.add(seg.middlePos().asLong());
+        }
+
+        List<RoadSpan> out = new ArrayList<>();
+        for (RoadSpan span : spans) {
+            if (span == null || span.start() == null || span.end() == null) continue;
+            if (keep.contains(span.start().asLong()) && keep.contains(span.end().asLong())) {
+                out.add(span);
+            }
+        }
+        return out;
+    }
+
+    private static boolean isRegularRoadType(int roadType) {
+        return roadType == 0 || roadType == 1;
+    }
+
     private static boolean directionCompatible(List<RoadSegmentPlacement> segsA, int idxA,
                                                List<RoadSegmentPlacement> segsB, int idxB) {
         double[] dirA = segmentDirection(segsA, idxA);
@@ -309,6 +422,8 @@ public final class RoadSnapService {
         for (boolean b : modified) if (b) return true;
         return false;
     }
+
+    private record TruncateResult(List<RoadSegmentPlacement> segments, List<Integer> targetY) {}
 
     private record NearestResult(int index, long dist2) {}
 

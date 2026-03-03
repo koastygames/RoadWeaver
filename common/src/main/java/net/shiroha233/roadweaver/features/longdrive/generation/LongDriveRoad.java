@@ -80,7 +80,8 @@ public final class LongDriveRoad {
 
             RoadData rd = new RoadData(
                     width, LongDriveRoadTypes.LONG_DRIVE,
-                    materials, slabMaterials, segments, spans, targetY);
+                    materials, slabMaterials, segments, spans, targetY,
+                    RoadData.NO_OWNER_2D, RoadData.NO_OWNER_2D);
             RoadShardStorage.addRoad(level, rd);
 
             BlockPos last = segments.get(segments.size() - 1).middlePos();

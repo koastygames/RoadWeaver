@@ -17,6 +17,7 @@ import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
 
 import java.util.*;
@@ -80,8 +81,10 @@ public final class Road {
             
             List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
+            long ownerA2d = PlanningUtils.pos2dKey(rawStart);
+            long ownerB2d = PlanningUtils.pos2dKey(rawEnd);
 
-            RoadData rd = new RoadData(width, type, materials, slabMaterials, segments, spans, targetY);
+            RoadData rd = new RoadData(width, type, materials, slabMaterials, segments, spans, targetY, ownerA2d, ownerB2d);
             RoadShardStorage.addRoad(level, rd);
             
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
