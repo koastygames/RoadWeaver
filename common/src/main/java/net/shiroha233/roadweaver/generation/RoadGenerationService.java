@@ -62,6 +62,7 @@ public final class RoadGenerationService {
         RoadPlanningService.resetAll();
         HighwayCellPathPlanningService.resetAll();
         net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService.resetAll();
+        IdleRoadGenerationService.onServerStopping();
     }
 
     // ==================== tick 调度 ====================
@@ -280,6 +281,14 @@ public final class RoadGenerationService {
 
         for (StructureConnection c : list) {
             if (c.status() != ConnectionStatus.PLANNED && c.status() != ConnectionStatus.GENERATING) continue;
+            if (c.status() == ConnectionStatus.PLANNED
+                    && IdleRoadGenerationService.shouldReserveForIdle(level, c)) {
+                continue;
+            }
+            if (c.status() == ConnectionStatus.GENERATING
+                    && IdleRoadGenerationService.isManagedByIdle(level, c)) {
+                continue;
+            }
             long key = PlanningUtils.edgeKey(c.from(), c.to());
             if (proc.putIfAbsent(key, Boolean.TRUE) == null) {
                 q.add(c);

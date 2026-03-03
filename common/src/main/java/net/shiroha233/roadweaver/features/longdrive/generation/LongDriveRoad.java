@@ -58,6 +58,8 @@ public final class LongDriveRoad {
 
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
+            // 长途模式使用精准采样，避免快速采样导致的地形/水深误判
+            cache.enableHighPrecision(level);
             GreedyForwardPathfinder pathfinder = new GreedyForwardPathfinder();
             PathResult result = pathfinder.findPath(
                     start, dirX, dirZ, maxSteps, width, level, cache,

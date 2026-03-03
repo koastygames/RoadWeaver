@@ -9,6 +9,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.config.sub.*;
+import net.shiroha233.roadweaver.core.constants.RoadConstants;
 
 import java.util.Locale;
 
@@ -216,7 +217,7 @@ public class ConfigScreenFactoryImpl {
                 .startIntField(Component.translatable("config.roadweaver.highway_a_star_max_steps"), cfg.aStarMaxSteps())
                 .setDefaultValue(def.aStarMaxSteps())
                 .setTooltip(Component.translatable("config.roadweaver.highway_a_star_max_steps.tooltip"))
-                .setMin(1000).setMax(200000)
+                .setMin(1000).setMax(RoadConstants.HIGHWAY_ASTAR_MAX_STEPS_MAX)
                 .setSaveConsumer(cfg::setAStarMaxSteps)
                 .build());
 
@@ -609,6 +610,14 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.idle_generation_threads"), cfg.idleGenerationThreads())
+                .setDefaultValue(def.idleGenerationThreads())
+                .setTooltip(Component.translatable("config.roadweaver.idle_generation_threads.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(cfg::setIdleGenerationThreads)
+                .build());
+
+        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.max_concurrent_generations"), cfg.maxConcurrentGenerations())
                 .setDefaultValue(def.maxConcurrentGenerations())
                 .setTooltip(Component.translatable("config.roadweaver.max_concurrent_generations.tooltip"))
@@ -621,6 +630,14 @@ public class ConfigScreenFactoryImpl {
                 .setDefaultValue(def.threadDutyCycle())
                 .setTooltip(Component.translatable("config.roadweaver.thread_duty_cycle.tooltip"))
                 .setSaveConsumer(cfg::setThreadDutyCycle)
+                .build());
+
+        category.addEntry(eb
+                .startIntSlider(Component.translatable("config.roadweaver.idle_thread_duty_cycle"),
+                        cfg.idleThreadDutyCycle(), 1, 100)
+                .setDefaultValue(def.idleThreadDutyCycle())
+                .setTooltip(Component.translatable("config.roadweaver.idle_thread_duty_cycle.tooltip"))
+                .setSaveConsumer(cfg::setIdleThreadDutyCycle)
                 .build());
     }
 
@@ -657,7 +674,7 @@ public class ConfigScreenFactoryImpl {
                 .startIntField(Component.translatable("config.roadweaver.a_star_max_steps"), cfg.aStarMaxSteps())
                 .setDefaultValue(def.aStarMaxSteps())
                 .setTooltip(Component.translatable("config.roadweaver.a_star_max_steps.tooltip"))
-                .setMin(100).setMax(100000)
+                .setMin(100).setMax(RoadConstants.ASTAR_MAX_STEPS_MAX)
                 .setSaveConsumer(cfg::setAStarMaxSteps)
                 .build());
 
