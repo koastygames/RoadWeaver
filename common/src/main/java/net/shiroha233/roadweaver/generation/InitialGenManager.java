@@ -13,6 +13,7 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.postprocess.RoadSnapService;
 import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
 import java.util.ArrayList;
@@ -98,6 +99,7 @@ public final class InitialGenManager {
                 Map<Long, Boolean> results = submitAndCollect(level, roadTasks, false, "Path");
                 batchUpdateConnectionStatus(provider, level, results, false);
             }
+            snapInitialRoads(level, list);
             flushAndFinish(level);
             return;
         }
@@ -132,7 +134,29 @@ public final class InitialGenManager {
             }
         }
 
+        List<StructureConnection> allConns = provider.getStructureConnections(level);
+        if (allConns == null) allConns = List.of();
+        List<StructureConnection> allHighways = provider.getHighwayConnections(level);
+        if (allHighways == null) allHighways = List.of();
+        List<StructureConnection> combined = new ArrayList<>(allConns.size() + allHighways.size());
+        combined.addAll(allConns);
+        combined.addAll(allHighways);
+        snapInitialRoads(level, combined);
+
         flushAndFinish(level);
+    }
+
+    private static void snapInitialRoads(ServerLevel level, List<StructureConnection> conns) {
+        if (conns == null || conns.isEmpty()) return;
+        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (StructureConnection c : conns) {
+            minX = Math.min(minX, Math.min(c.from().getX(), c.to().getX()));
+            minZ = Math.min(minZ, Math.min(c.from().getZ(), c.to().getZ()));
+            maxX = Math.max(maxX, Math.max(c.from().getX(), c.to().getX()));
+            maxZ = Math.max(maxZ, Math.max(c.from().getZ(), c.to().getZ()));
+        }
+        RoadSnapService.snapAllRoads(level, minX, minZ, maxX, maxZ);
     }
 
     // ==================== 提取的通用辅助方法 ====================

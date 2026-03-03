@@ -43,12 +43,12 @@ public final class Road {
         this(level, connection, config, RoadGenerationConfig.from(ConfigService.get()));
     }
 
-    public void generateRoad(int maxSteps) {
+    public RoadData generateRoad(int maxSteps) {
         RandomSource random = RandomSource.create();
         int width = genConfig.effectiveRoadWidth(getRandomWidth(random, featureConfig));
         boolean allowA = genConfig.allowArtificial();
         boolean allowN = genConfig.allowNatural();
-        if (!allowA && !allowN) return;
+        if (!allowA && !allowN) return null;
         
         int type = allowA && allowN ? (random.nextBoolean() ? 0 : 1) : (allowA ? 0 : 1);
         List<BlockState> materials;
@@ -72,11 +72,11 @@ public final class Road {
         try {
             List<RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
                     rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
-            if (rawSegments == null || rawSegments.size() < 5) return;
+            if (rawSegments == null || rawSegments.size() < 5) return null;
             
             List<RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
                     level, rawSegments, rawStart, rawEnd);
-            if (segments == null || segments.size() < 5) return;
+            if (segments == null || segments.size() < 5) return null;
             
             List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
@@ -85,6 +85,7 @@ public final class Road {
             RoadShardStorage.addRoad(level, rd);
             
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
+            return rd;
         } finally {
             cache.clear();
         }

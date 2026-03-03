@@ -18,6 +18,7 @@ import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.postprocess.RoadSnapService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.ArrayList;
@@ -173,6 +174,9 @@ public final class RoadGenerationService {
             executeOnMainThread(level, epoch, () -> {
                 updateConnectionStatus(level, conn, st);
                 removeProcessed(level, conn);
+                if (st == ConnectionStatus.COMPLETED) {
+                    RoadSnapService.snapAroundConnection(level, conn.from(), conn.to());
+                }
             });
         } catch (Throwable t) {
             executeOnMainThread(level, epoch, () -> {

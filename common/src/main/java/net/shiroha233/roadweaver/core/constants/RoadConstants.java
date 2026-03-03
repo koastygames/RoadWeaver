@@ -163,4 +163,12 @@ public final class RoadConstants {
     public static final int MAX_STRUCTURE_SLOPE = 3;
 
     public static final int CHUNK_SIZE_BLOCKS = 16;
+
+    // 道路吸附后处理
+    public static final int ROAD_SNAP_THRESHOLD = 12;
+    public static final int ROAD_SNAP_SPLIT_THRESHOLD = 24;
+    public static final int ROAD_SNAP_MIN_RUN_LENGTH = 3;
+    public static final int ROAD_SNAP_GRID_SIZE = 8;
+    public static final int ROAD_SNAP_GRID_SHIFT = 3;
+    public static final int ROAD_SNAP_TRANSITION_SEGMENTS = 3;
 }
