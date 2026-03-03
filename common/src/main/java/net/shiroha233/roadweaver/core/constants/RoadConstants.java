@@ -101,7 +101,7 @@ public final class RoadConstants {
     public static final int STRUCTURE_OFFSET_MIN = 1;
     public static final int STRUCTURE_OFFSET_MAX = 64;
     public static final int DEFAULT_VILLAGE_ROAD_OFFSET = 60;
-    public static final int DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET = 25;
+    public static final int DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET = 15;
     public static final int ROAD_OFFSET_MAX = 256;
 
     public static final int DEFAULT_LONG_DRIVE_ROAD_WIDTH = 5;

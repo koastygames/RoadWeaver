@@ -84,22 +84,6 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.village_road_offset"), cfg.villageRoadOffset())
-                .setDefaultValue(def.villageRoadOffset())
-                .setTooltip(Component.translatable("config.roadweaver.village_road_offset.tooltip"))
-                .setMin(0).setMax(64)
-                .setSaveConsumer(cfg::setVillageRoadOffset)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"), cfg.otherStructureRoadOffset())
-                .setDefaultValue(def.otherStructureRoadOffset())
-                .setTooltip(Component.translatable("config.roadweaver.other_structure_road_offset.tooltip"))
-                .setMin(0).setMax(64)
-                .setSaveConsumer(cfg::setOtherStructureRoadOffset)
-                .build());
-
-        category.addEntry(eb
                 .startBooleanToggle(Component.translatable("config.roadweaver.structure_avoidance_enabled"), cfg.structureAvoidanceEnabled())
                 .setDefaultValue(def.structureAvoidanceEnabled())
                 .setTooltip(Component.translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
@@ -310,6 +294,8 @@ public class ConfigScreenFactoryImpl {
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.road_generation"));
         RoadAppearanceConfig cfg = conf.roadAppearance();
         RoadAppearanceConfig def = defaultConf.roadAppearance();
+        StructurePredictionConfig structureCfg = conf.structurePrediction();
+        StructurePredictionConfig structureDef = defaultConf.structurePrediction();
 
         category.addEntry(eb
                 .startBooleanToggle(Component.translatable("config.roadweaver.roads_enabled"), cfg.roadsEnabled())
@@ -354,6 +340,22 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.road_width.tooltip"))
                 .setMin(0).setMax(15)
                 .setSaveConsumer(cfg::setRoadWidth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.village_road_offset"), structureCfg.villageRoadOffset())
+                .setDefaultValue(structureDef.villageRoadOffset())
+                .setTooltip(Component.translatable("config.roadweaver.village_road_offset.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(structureCfg::setVillageRoadOffset)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"), structureCfg.otherStructureRoadOffset())
+                .setDefaultValue(structureDef.otherStructureRoadOffset())
+                .setTooltip(Component.translatable("config.roadweaver.other_structure_road_offset.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(structureCfg::setOtherStructureRoadOffset)
                 .build());
 
         category.addEntry(eb

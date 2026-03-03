@@ -18,8 +18,8 @@ public final class StructurePredictionConfig implements SubConfig {
     private List<String> structureBlacklist = new ArrayList<>();
     private List<String> dimensionWhitelist = new ArrayList<>(List.of(
             "minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"));
-    private int villageRoadOffset = 8;
-    private int otherStructureRoadOffset = 6;
+    private int villageRoadOffset = RoadConstants.DEFAULT_VILLAGE_ROAD_OFFSET;
+    private int otherStructureRoadOffset = RoadConstants.DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET;
 
     @Override
     public void sanitize() {
@@ -30,8 +30,8 @@ public final class StructurePredictionConfig implements SubConfig {
                     "minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"));
         }
         if (predictRadiusChunks <= 0) predictRadiusChunks = RoadConstants.DEFAULT_PREDICT_RADIUS_CHUNKS;
-        if (villageRoadOffset < 0) villageRoadOffset = 8;
-        if (otherStructureRoadOffset < 0) otherStructureRoadOffset = 6;
+        if (villageRoadOffset < 0) villageRoadOffset = RoadConstants.DEFAULT_VILLAGE_ROAD_OFFSET;
+        if (otherStructureRoadOffset < 0) otherStructureRoadOffset = RoadConstants.DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET;
     }
 
     @Override
