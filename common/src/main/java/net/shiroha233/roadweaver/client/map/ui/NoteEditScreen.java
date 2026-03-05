@@ -7,19 +7,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
+import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
+import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 地图笔记编辑界面 - 采用类似原版书与笔的风格
- * 
- * 设计原理：
- * 1. 使用原版书本纹理作为背景
- * 2. 支持多行文本输入
- * 3. 保存笔记到 ClientMapNotes
  */
-public class NoteEditScreen extends Screen {
+public class NoteEditScreen extends RoadWeaverScreen {
     private static final ResourceLocation BOOK_TEXTURE = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/gui/book.png");
     
     // 书本尺寸（原版书本纹理参数）
@@ -69,12 +66,12 @@ public class NoteEditScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(g, mouseX, mouseY, partialTick);
+        ScreenBackgrounds.render(g, this.width, this.height);
         
         // 绘制书本背景
         g.blit(BOOK_TEXTURE, bookX, bookY, 0, 0, BOOK_WIDTH, BOOK_HEIGHT);
         
-        // 标题（优先显示别名，否则显示坐标）
+        // 标题（优先显示别名，否则显示坐标�?
         String alias = ClientMapNotes.getAlias(targetPos);
         String titleStr = (alias != null && !alias.isEmpty()) 
                 ? alias 
@@ -140,7 +137,7 @@ public class NoteEditScreen extends Screen {
                 lines.set(cursorLine, newLine);
                 cursorPos--;
             } else if (cursorLine > 0) {
-                // 合并到上一行
+                // 合并到上一�?
                 String current = lines.remove(cursorLine);
                 cursorLine--;
                 String prev = lines.get(cursorLine);
@@ -150,21 +147,21 @@ public class NoteEditScreen extends Screen {
             return true;
         }
         
-        // Delete 删除光标后字符
+        // Delete 删除光标后字�?
         if (keyCode == 261) {
             String current = lines.get(cursorLine);
             if (cursorPos < current.length()) {
                 String newLine = current.substring(0, cursorPos) + current.substring(cursorPos + 1);
                 lines.set(cursorLine, newLine);
             } else if (cursorLine < lines.size() - 1) {
-                // 合并下一行
+                // 合并下一�?
                 String next = lines.remove(cursorLine + 1);
                 lines.set(cursorLine, current + next);
             }
             return true;
         }
         
-        // 方向键
+        // 方向�?
         if (keyCode == 263) { // Left
             if (cursorPos > 0) cursorPos--;
             else if (cursorLine > 0) {
@@ -237,7 +234,7 @@ public class NoteEditScreen extends Screen {
             if (clickedLine < lines.size()) {
                 cursorLine = clickedLine;
                 String line = lines.get(cursorLine);
-                // 计算点击位置对应的字符位置
+                // 计算点击位置对应的字符位�?
                 int relX = (int) (mouseX - textX);
                 cursorPos = 0;
                 for (int i = 0; i <= line.length(); i++) {
@@ -255,7 +252,7 @@ public class NoteEditScreen extends Screen {
     }
 
     private void save() {
-        // 清除旧笔记，保存新笔记
+        // 清除旧笔记，保存新笔�?
         ClientMapNotes.clearNotes(targetPos);
         for (String line : lines) {
             if (!line.isEmpty()) {

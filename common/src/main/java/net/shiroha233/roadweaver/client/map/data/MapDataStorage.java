@@ -16,17 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 地图数据本地存储管理器
- * 
- * 设计原理（参考 JourneyMap/Xaero's Map）：
- * 1. 数据存储在游戏目录下，而非存档内（玩家私人数据）
- * 2. 按存档名/服务器地址分文件夹隔离
- * 3. 使用 JSON 格式便于调试和手动编辑
- * 
- * 文件结构：
- * .minecraft/config/roadweaver/mapdata/
- * ├── <存档名>/notes.json
- * └── <服务器地址>/notes.json
+ * 地图数据本地存储管理
  */
 public final class MapDataStorage {
     private static final Logger LOGGER = LoggerFactory.getLogger("RoadWeaver");
@@ -36,47 +26,35 @@ public final class MapDataStorage {
 
     private MapDataStorage() {}
 
-    /** 笔记数据结构（用于 JSON 序列化） */
     public static class NotesData {
-        public Map<String, String> aliases = new HashMap<>();      // "x,y,z" -> alias
-        public Map<String, List<String>> notes = new HashMap<>();  // "x,y,z" -> [note1, note2, ...]
+        public Map<String, String> aliases = new HashMap<>();
+        public Map<String, List<String>> notes = new HashMap<>();
     }
 
-    // ========== 路径工具 ==========
-
-    /** 获取数据根目录 */
     private static Path getDataRoot() {
         return Minecraft.getInstance().gameDirectory.toPath().resolve(DATA_DIR);
     }
 
-    /** 获取当前世界的数据目录 */
     public static Path getWorldDataDir() {
         String worldId = getWorldId();
         if (worldId == null) return null;
         
-        // 清理非法文件名字符
         String safeName = worldId.replaceAll("[<>:\"/\\\\|?*]", "_");
         return getDataRoot().resolve(safeName);
     }
 
-    /** 获取当前世界标识（存档名或服务器地址） */
     public static String getWorldId() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.level == null) return null;
 
         if (mc.isLocalServer() && mc.getSingleplayerServer() != null) {
-            // 单人模式：使用存档名
             return mc.getSingleplayerServer().getWorldData().getLevelName();
         } else if (mc.getCurrentServer() != null) {
-            // 多人模式：使用服务器地址
             return mc.getCurrentServer().ip;
         }
         return null;
     }
 
-    // ========== 笔记数据读写 ==========
-
-    /** 加载笔记数据 */
     public static NotesData loadNotes() {
         Path dir = getWorldDataDir();
         if (dir == null) return new NotesData();
@@ -95,7 +73,6 @@ public final class MapDataStorage {
         }
     }
 
-    /** 保存笔记数据 */
     public static void saveNotes(NotesData data) {
         Path dir = getWorldDataDir();
         if (dir == null) return;
@@ -110,8 +87,6 @@ public final class MapDataStorage {
             LOGGER.error("[RoadWeaver] 保存地图笔记失败", e);
         }
     }
-
-    // ========== BlockPos 序列化 ==========
 
     public static String posToKey(BlockPos pos) {
         return pos.getX() + "," + pos.getY() + "," + pos.getZ();

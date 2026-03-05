@@ -20,7 +20,10 @@ import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
 import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
+import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
+import net.shiroha233.roadweaver.core.model.ConnectionStatus;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import net.shiroha233.roadweaver.util.ComputeService;
 
@@ -29,17 +32,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * 道路地图界面 - 重构版
- * 
- * 设计原理：
- * 1. 协调者模式：Screen 只负责协调各个组件，不包含复杂逻辑
- * 2. 单一职责：渲染、输入、状态管理分别委托给专门的类
- * 3. 可测试性：核心逻辑在独立类中，便于单元测试
+ * 道路地图界面
  */
-public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
+public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.Callbacks {
     private static final ResourceLocation MAP_TEXTURE = ResourceLocation.fromNamespaceAndPath("roadweaver", "textures/gui/map.png");
     
-    // 翻译键
+    // 翻译�?
     private static final Component BTN_CONFIG = Component.translatable("gui.roadweaver.config_button");
     private static final Component BTN_MANUAL = Component.translatable("gui.roadweaver.map.manual_connect");
     private static final Component MENU_TELEPORT = Component.translatable("gui.roadweaver.map.menu.teleport");
@@ -107,7 +105,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(g, mouseX, mouseY, partialTick);
+        ScreenBackgrounds.render(g, this.width, this.height);
         
         // 地图纹理
         g.blit(MAP_TEXTURE, mapX, mapY, mapW, mapH, 0, 0, 
@@ -135,15 +133,15 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
         int thickness = computeThickness();
 
-        // 道路折线的 LOD：缩放较远时不绘制折线，改用连接直线（避免“只剩细节线段”导致层级渲染失效）。
+        // 道路折线�?LOD：缩放较远时不绘制折线，改用连接直线（避�?只剩细节线段"导致层级渲染失效）�?
         int lodStep = GridRenderer.computeGridStep(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
                 view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(), MapTheme.GRID_TARGET_PX);
         boolean renderRoadPolylines = !snapshot.roadPolylines().isEmpty() && lodStep <= 256;
         
         // 连接线（排除已完成的，因为会用道路折线表示）
-        List<Records.StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
+        List<StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
         if (renderRoadPolylines) {
-            connForLines.removeIf(c -> c.status() == Records.ConnectionStatus.COMPLETED);
+            connForLines.removeIf(c -> c.status() == ConnectionStatus.COMPLETED);
         }
         MapRenderers.renderConnections(g, connForLines,
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
@@ -164,7 +162,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                     left, top, right, bottom, lodStep);
         }
 
-        // 结构点
+        // 结构�?
         MapRenderers.renderStructures(g, snapshot.structures(),
                 v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
                 v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
@@ -172,7 +170,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 computePointSize(), MapTheme.COLOR_STRUCTURE,
                 left, top, right, bottom);
 
-        // 手动连接模式的预览
+        // 手动连接模式的预�?
         renderManualModePreview(g, mouseX, mouseY, contentW, contentH, left, top, right, bottom);
 
         // 悬停高亮
@@ -196,7 +194,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 snapshot.structuresCount(), snapshot.plannedCount(), 
                 snapshot.generatingCount(), snapshot.completedCount(), snapshot.failedCount());
 
-        // 工具栏按钮
+        // 工具栏按�?
         renderToolbarButtons(g, mouseX, mouseY);
 
         // 悬停提示
@@ -205,7 +203,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                     MapTheme.INNER_PADDING, mouseX, mouseY);
         }
 
-        // 缩放防抖检查
+        // 缩放防抖检�?
         if (state.isZoomDebounceReady()) {
             state.clearZoomDebounce();
             onRequestView();
@@ -213,6 +211,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
         // 右键菜单
         contextMenu.render(g, this.font, mouseX, mouseY, this.width, this.height);
+
+        super.render(g, mouseX, mouseY, partialTick);
     }
 
     private void renderManualModePreview(GuiGraphics g, int mouseX, int mouseY,
@@ -265,11 +265,11 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     }
 
     private void renderToolbarButtons(GuiGraphics g, int mouseX, int mouseY) {
-        // 配置按钮（左上角）
+        // 配置按钮（左上角�?
         int[] configBtn = computeConfigBtnBounds();
         renderTextButton(g, BTN_CONFIG, configBtn, mouseX, mouseY);
 
-        // 手动连接按钮（左下角）
+        // 手动连接按钮（左下角�?
         int[] manualBtn = computeManualBtnBounds();
         Component manualLabel = Component.empty().append(BTN_MANUAL).append(": ")
                 .append(state.isManualMode() 
@@ -295,7 +295,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        return inputHandler.mouseScrolled(mouseX, mouseY, scrollY) 
+        return inputHandler.mouseScrolled(mouseX, mouseY, scrollY)
                || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
@@ -308,7 +308,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             }
         }
         
-        // 工具栏按钮
+        // 工具栏按�?
         if (button == 0) {
             int[] configBtn = computeConfigBtnBounds();
             if (insideRect(mouseX, mouseY, configBtn)) {
@@ -370,7 +370,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         if (this.minecraft == null) return;
         var p = this.minecraft.player;
         if (p != null && this.minecraft.getSingleplayerServer() == null) {
-            // 多人游戏：配置修改应限制为 OP（服务端权限等级 2+）
+            // 多人游戏：配置修改应限制�?OP（服务端权限等级 2+�?
             if (!p.hasPermissions(2)) {
                 p.displayClientMessage(Component.translatable("gui.roadweaver.map.config.denied"), true);
                 return;
@@ -405,7 +405,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         
         MinecraftServer server = mc.getSingleplayerServer();
         if (server != null) {
-            // 单人模式：本地构造快照
+            // 单人模式：本地构造快�?
             ServerLevel level = null;
             if (mc.level != null) {
                 level = server.getLevel(mc.level.dimension());
@@ -432,7 +432,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                     }));
             }
         } else {
-            // 多人模式：发送网络请求
+            // 多人模式：发送网络请�?
             int requestSeq = state.incrementAndGetRequestSeq();
             ResourceLocation did = (mc.level != null) ? mc.level.dimension().location() : ResourceLocation.fromNamespaceAndPath("minecraft", "overworld");
             ClientNetBridge.requestSnapshot(requestSeq, did, minX, minZ, maxX, maxZ);
@@ -497,7 +497,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         if (dimensionId == null || snapshot == null) return;
         if (requestSeq != state.getCurrentRequestSeq()) return;
 
-        // 如果客户端当前维度已变更，则丢弃过期回包，避免覆盖当前视图
+        // 如果客户端当前维度已变更，则丢弃过期回包，避免覆盖当前视�?
         if (currentDimensionId != null && !dimensionId.equals(currentDimensionId)) return;
 
         this.snapshot = snapshot;
@@ -537,12 +537,12 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private int getRadiusBlocks() {
         try {
             var cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-            if (cfg.highwayEnabled()) {
-                return Math.max(16, cfg.highwayPlanningRadiusBlocks());
+            if (cfg.highway().enabled()) {
+                return Math.max(16, cfg.highway().planningRadiusBlocks());
             } else {
-                int radiusChunks = cfg.dynamicPlanEnabled()
-                        ? cfg.dynamicPlanRadiusChunks()
-                        : cfg.initialPlanRadiusChunks();
+                int radiusChunks = cfg.planning().dynamicPlanEnabled()
+                        ? cfg.planning().dynamicPlanRadiusChunks()
+                        : cfg.planning().initialPlanRadiusChunks();
                 return Math.max(1, radiusChunks) * 16;
             }
         } catch (Throwable t) {
@@ -559,7 +559,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         contextMenu.open(x, y);
     }
 
-    /** 打开别名设置对话框 */
+    /** 打开别名设置对话�?*/
     private void openAliasDialog(BlockPos target) {
         if (this.minecraft == null) return;
         String currentAlias = ClientMapNotes.getAlias(target);

@@ -1,17 +1,28 @@
 package net.shiroha233.roadweaver.features.path.decoration.types;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
-import net.shiroha233.roadweaver.helpers.Records;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * 海域问号路牌
+ */
 public class SeaQuestionSignDecoration extends OrientedDecoration implements BiomeWoodAware {
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
+    private static final WoodAssets DEFAULT_WOOD = new WoodAssets(Blocks.OAK_FENCE, Blocks.OAK_HANGING_SIGN,
+            Blocks.OAK_PLANKS);
     private final boolean isStart;
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public SeaQuestionSignDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world, boolean isStart) {
         super(pos, direction, world);
@@ -20,6 +31,7 @@ public class SeaQuestionSignDecoration extends OrientedDecoration implements Bio
 
     @Override
     public void place() {
+        if (wood == null) wood = DEFAULT_WOOD;
         if (!placeAllowed()) return;
 
         int rotation = getCardinalRotationFromVector(getOrthogonalVector(), isStart);
@@ -27,6 +39,7 @@ public class SeaQuestionSignDecoration extends OrientedDecoration implements Bio
 
         BlockPos basePos = this.getPos();
         WorldGenLevel world = this.getWorld();
+        ensureFoundation(basePos, world);
 
         BlockPos signPos = basePos.above(2).relative(props.offsetDirection.getOpposite());
         int signRotation = (rotation + 8) % 16;
@@ -35,9 +48,12 @@ public class SeaQuestionSignDecoration extends OrientedDecoration implements Bio
                         .setValue(BlockStateProperties.ROTATION_16, signRotation)
                         .setValue(BlockStateProperties.ATTACHED, true),
                 3);
-        updateSigns(world, signPos);
-
         placeFenceStructure(basePos, props);
+        try {
+            updateSigns(world, signPos);
+        } catch (Throwable t) {
+            LOGGER.warn("Sea question sign text write failed at {}", signPos, t);
+        }
     }
 
     private void placeFenceStructure(BlockPos pos, DirectionProperties props) {
@@ -54,7 +70,17 @@ public class SeaQuestionSignDecoration extends OrientedDecoration implements Bio
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
+    }
+
+    private void ensureFoundation(BlockPos basePos, WorldGenLevel world) {
+        BlockPos belowPos = basePos.below();
+        BlockState below = world.getBlockState(belowPos);
+        if (!below.isFaceSturdy(world, belowPos, Direction.UP)
+                || below.is(Blocks.WATER)
+                || below.is(Blocks.LAVA)) {
+            world.setBlock(belowPos, wood.planks().defaultBlockState(), 3);
+        }
     }
 }

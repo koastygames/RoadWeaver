@@ -17,7 +17,7 @@ import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.util.ComputeService;
 import net.shiroha233.roadweaver.runtime.CacheManager;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -59,7 +59,7 @@ public final class ServerPlanningHooks {
             }
             return;
         }
-        List<Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
+        List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) {
             RoadGenerationService.onServerStarted();
             InitialGenManager.begin(level);

@@ -26,7 +26,7 @@ public class ClientKeyMappings {
     }
 
     @EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
-    public static class ForgeBusHandlers {
+    public static class NeoForgeBusHandlers {
         @SubscribeEvent
         public static void onClientTick(ClientTickEvent.Post event) {
             Minecraft mc = Minecraft.getInstance();

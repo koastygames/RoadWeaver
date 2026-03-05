@@ -11,6 +11,8 @@
     "neoforge.HugeFungusFeatureMixin",
     "neoforge.BambooFeatureMixin",
     "neoforge.GenericVegetationFeatureMixin",
+    "neoforge.BeardifierMixin",
+    "neoforge.StructureManagerAccessor",
     "neoforge.dynamictree.DynamicTreeFeatureMixin",
     "neoforge.ServerLevelStructureMixin",
     "neoforge.PlayerDimensionChangeMixin",

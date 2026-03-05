@@ -7,6 +7,9 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 
+/**
+ * 定向装饰基类
+ */
 public abstract class OrientedDecoration extends Decoration {
 
     private final Vec3i orthogonalVector;

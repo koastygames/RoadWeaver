@@ -5,18 +5,29 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 多维度选择列表组件
+ */
 public class MultiDimensionListWidget extends ContainerObjectSelectionList<MultiDimensionListWidget.Entry> {
+    private static final int ROW_HEIGHT = 20;
+    
     private final Set<ResourceLocation> selectedDimensions;
     private boolean active = true;
+    private boolean renderBackground = true;
+    private boolean renderTopAndBottom = true;
 
     public MultiDimensionListWidget(Minecraft minecraft, int width, int height, int top, int bottom, Set<ResourceLocation> selectedDimensions) {
-        super(minecraft, width, height, top, 20);
+        super(minecraft, width, height, top, bottom);
         this.selectedDimensions = selectedDimensions;
+        this.setRenderBackground(false);
+        this.setRenderTopAndBottom(false);
     }
 
     public void setActive(boolean active) {
@@ -44,6 +55,32 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
         return this.getRowLeft() + this.getRowWidth() + 6;
     }
 
+    @Override
+    protected void renderListBackground(GuiGraphics graphics) {
+        if (renderBackground) {
+            super.renderListBackground(graphics);
+        }
+    }
+
+    @Override
+    protected void renderListSeparators(GuiGraphics graphics) {
+        if (renderTopAndBottom) {
+            super.renderListSeparators(graphics);
+        }
+    }
+
+    public void setLeftPos(int left) {
+        setX(left);
+    }
+
+    public void setRenderBackground(boolean renderBackground) {
+        this.renderBackground = renderBackground;
+    }
+
+    public void setRenderTopAndBottom(boolean renderTopAndBottom) {
+        this.renderTopAndBottom = renderTopAndBottom;
+    }
+
     public class Entry extends ContainerObjectSelectionList.Entry<Entry> {
         private final ResourceLocation dimensionId;
 
@@ -55,7 +92,6 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
         public void render(GuiGraphics g, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isHovered, float partialTick) {
             boolean selected = selectedDimensions.contains(dimensionId);
             
-            // Draw Checkbox background
             g.fill(left + 2, top + 2, left + 14, top + 14, 0xFF000000);
             g.renderOutline(left + 2, top + 2, 12, 12, 0xFFAAAAAA);
             
@@ -70,13 +106,12 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (!MultiDimensionListWidget.this.isActive()) return false;
             if (button == 0) {
-                // Toggle selection
                 if (selectedDimensions.contains(dimensionId)) {
                     selectedDimensions.remove(dimensionId);
                 } else {
                     selectedDimensions.add(dimensionId);
                 }
-                Minecraft.getInstance().getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
                 return true;
             }
             return false;

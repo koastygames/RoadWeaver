@@ -2,6 +2,9 @@ package net.shiroha233.roadweaver.network.fabric;
 
 import net.minecraft.resources.ResourceLocation;
 
+/**
+ * Fabric 平台网络桥接实现
+ */
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}
 

@@ -11,6 +11,9 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.network.fabric.MapNetworkFabric;
 import org.lwjgl.glfw.GLFW;
 
+/**
+ * Fabric 客户端初始化
+ */
 public class ClientInit implements ClientModInitializer {
     public static KeyMapping OPEN_MAP;
 
@@ -22,6 +25,7 @@ public class ClientInit implements ClientModInitializer {
             MapSnapshotCache.clearNow();
             ClientMapNotes.onWorldJoin();
         });
+        
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             MapSnapshotCache.clearNow();
             ClientMapNotes.onWorldLeave();

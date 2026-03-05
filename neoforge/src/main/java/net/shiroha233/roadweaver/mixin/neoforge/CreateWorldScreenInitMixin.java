@@ -20,10 +20,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 
 /**
- * Mixin 用于在创建世界界面初始化时获取 RegistryAccess 并发现结构
+ * Mixin 鐢ㄤ簬鍦ㄥ垱寤轰笘鐣岀晫闈㈠垵濮嬪寲鏃惰幏鍙?RegistryAccess 骞跺彂鐜扮粨鏋?
  * 
- * 这是解决 Forge 版结构选择列表无法提取的关键 Mixin。
- * 通过在创建世界界面初始化时获取 RegistryAccess，可以提前发现所有可用的结构。
+ * 杩欐槸瑙ｅ喅 NeoForge 鐗堢粨鏋勯€夋嫨鍒楄〃鏃犳硶鎻愬彇鐨勫叧閿?Mixin銆?
+ * 閫氳繃鍦ㄥ垱寤轰笘鐣岀晫闈㈠垵濮嬪寲鏃惰幏鍙?RegistryAccess锛屽彲浠ユ彁鍓嶅彂鐜版墍鏈夊彲鐢ㄧ殑缁撴瀯銆?
  */
 @Mixin(CreateWorldScreen.class)
 public abstract class CreateWorldScreenInitMixin extends Screen {
@@ -37,12 +37,12 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
     }
 
     /**
-     * 在 CreateWorldScreen.init 完成后注入，获取 RegistryAccess 并发现结构。
-     * 使用 init 避免构造函数签名在 1.21.1 发生变化导致注入失效。
+     * 鍦?CreateWorldScreen.init 瀹屾垚鍚庢敞鍏ワ紝鑾峰彇 RegistryAccess 骞跺彂鐜扮粨鏋勩€?
+     * 浣跨敤 init 閬垮厤鏋勯€犲嚱鏁扮鍚嶅湪 1.21.1 鍙戠敓鍙樺寲瀵艰嚧娉ㄥ叆澶辨晥銆?
      */
     @Inject(method = "init", at = @At("TAIL"))
     private void onInitEnd(CallbackInfo ci) {
-        // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
+        // 浠?WorldCreationContext 鑾峰彇 RegistryAccess 骞跺彂鐜扮粨鏋?
         try {
             WorldCreationContext settings = uiState != null ? uiState.getSettings() : null;
             if (settings != null) {
@@ -56,13 +56,6 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
                 } catch (Exception ignored) {
                 }
 
-                if (levelStemRegistry == null) {
-                    try {
-                        levelStemRegistry = settings.selectedDimensions().bake(settings.datapackDimensions()).dimensions();
-                    } catch (Exception ignored) {
-                    }
-                }
-
                 if (levelStemRegistry != null) {
                     StructureDiscoveryService.discoverFromRegistries(structureRegistry, levelStemRegistry);
                 } else {
@@ -70,7 +63,8 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
                 }
             }
         } catch (Exception e) {
-            // 忽略错误，不影响正常流程
+            // 蹇界暐閿欒锛屼笉褰卞搷姝ｅ父娴佺▼
         }
     }
 }
+

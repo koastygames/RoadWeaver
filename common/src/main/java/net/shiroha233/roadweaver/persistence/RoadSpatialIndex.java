@@ -8,27 +8,34 @@ import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelSimulatedReader;
 import net.minecraft.world.level.WorldGenLevel;
 import net.shiroha233.roadweaver.config.ConfigService;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.constants.RoadConstants;
+import net.shiroha233.roadweaver.core.model.RoadData;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 道路空间索引，使用网格划分实现高效的空间查询。
- * 网格大小 8x8，查询复杂度 O(1)~O(k)
+ * 道路空间索引，使用 8x8 网格划分实现 O(1)~O(k) 空间查询
  */
 public final class RoadSpatialIndex {
     private RoadSpatialIndex() {}
 
-    private static final int GRID_SIZE = 8;
-    private static final int GRID_SHIFT = 3;
-    private static final int MAX_CACHED_CHUNKS_PER_DIM = 512;
+    private static final int GRID_SIZE = RoadConstants.SPATIAL_INDEX_GRID_SIZE;
+    private static final int GRID_SHIFT = RoadConstants.SPATIAL_INDEX_GRID_SHIFT;
+    private static final int MAX_CACHED_CHUNKS_PER_DIM = RoadConstants.SPATIAL_INDEX_MAX_CACHED_CHUNKS;
     private static final Map<String, Map<Long, ChunkGridIndex>> CHUNK_INDEX = new ConcurrentHashMap<>();
 
     private static Map<Long, ChunkGridIndex> createLRUCache() {
         return Collections.synchronizedMap(
-            new LinkedHashMap<Long, ChunkGridIndex>(64, 0.75f, true) {
+            new LinkedHashMap<Long, ChunkGridIndex>(
+                RoadConstants.SPATIAL_INDEX_LRU_INITIAL_CAPACITY,
+                RoadConstants.SPATIAL_INDEX_LRU_LOAD_FACTOR,
+                true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<Long, ChunkGridIndex> eldest) {
                     return size() > MAX_CACHED_CHUNKS_PER_DIM;
@@ -36,43 +43,28 @@ public final class RoadSpatialIndex {
             });
     }
 
-    /**
-     * 判断位置是否在道路附近（LevelSimulatedReader 版本）
-     */
     public static boolean isNearRoad(LevelSimulatedReader level, BlockPos pos) {
         ServerLevel serverLevel = extractServerLevel(level);
         return serverLevel != null && isNearRoad(serverLevel, pos);
     }
 
-    /**
-     * 判断位置是否在道路附近（WorldGenLevel 版本）
-     */
     public static boolean isNearRoad(WorldGenLevel level, BlockPos pos) {
         ServerLevel serverLevel = extractServerLevelFromWorldGen(level);
         return serverLevel != null && isNearRoad(serverLevel, pos);
     }
 
-    /**
-     * 判断位置是否在道路附近（ServerLevel 版本）
-     */
     public static boolean isNearRoad(ServerLevel level, BlockPos pos) {
         if (level == null || pos == null) return false;
-        if (!ConfigService.get().preventTreesOnRoad()) return false;
-
-        int maxMargin = computeMaxPossibleMargin();
-        return isNearRoadXZ(level, pos, maxMargin);
+        if (!ConfigService.get().roadAppearance().preventTreesOnRoad()) return false;
+        return isNearRoadXZ(level, pos, computeMaxPossibleMargin());
     }
 
     private static int computeMaxPossibleMargin() {
-        int wRoad = Math.max(0, ConfigService.get().roadWidth());
-        int wHighway = Math.max(0, ConfigService.get().highwayRoadWidth());
-        int maxW = Math.max(wRoad, wHighway);
-        return Math.max(1, (maxW / 2) + 1);
+        int wRoad = Math.max(0, ConfigService.get().roadAppearance().roadWidth());
+        int wHighway = Math.max(0, ConfigService.get().highway().roadWidth());
+        return Math.max(1, (Math.max(wRoad, wHighway) / 2) + 1);
     }
 
-    /**
-     * 仅检查 XZ 平面距离（忽略 Y 轴，因为道路 Y 是预估值）
-     */
     private static boolean isNearRoadXZ(ServerLevel level, BlockPos pos, int margin) {
         int cx = pos.getX() >> 4;
         int cz = pos.getZ() >> 4;
@@ -97,7 +89,7 @@ public final class RoadSpatialIndex {
         int px = pos.getX(), pz = pos.getZ();
         int gridX = px >> GRID_SHIFT;
         int gridZ = pz >> GRID_SHIFT;
-        int gridRadius = (margin >> GRID_SHIFT) + 1;
+        int gridRadius = (margin >> GRID_SHIFT) + RoadConstants.SPATIAL_INDEX_SEARCH_MARGIN;
 
         for (int dx = -gridRadius; dx <= gridRadius; dx++) {
             for (int dz = -gridRadius; dz <= gridRadius; dz++) {
@@ -111,10 +103,7 @@ public final class RoadSpatialIndex {
                     BlockPos road = BlockPos.of(packed);
                     int rdx = Math.abs(px - road.getX());
                     int rdz = Math.abs(pz - road.getZ());
-
-                    if (rdx <= pointMargin && rdz <= pointMargin) {
-                        return true;
-                    }
+                    if (rdx <= pointMargin && rdz <= pointMargin) return true;
                 }
             }
         }
@@ -127,16 +116,16 @@ public final class RoadSpatialIndex {
         int maxX = minX + 15;
         int maxZ = minZ + 15;
 
-        List<Records.RoadData> roads = RoadShardStorage.queryRect(level, 
+        List<RoadData> roads = RoadShardStorage.queryRect(level,
             minX - GRID_SIZE, minZ - GRID_SIZE, maxX + GRID_SIZE, maxZ + GRID_SIZE);
         if (roads.isEmpty()) return ChunkGridIndex.EMPTY;
 
         ChunkGridIndex index = new ChunkGridIndex();
-        for (Records.RoadData rd : roads) {
+        for (RoadData rd : roads) {
             if (rd.roadSegmentList() == null) continue;
             int pointMargin = Math.max(1, (Math.max(1, rd.width()) / 2) + 1);
 
-            for (Records.RoadSegmentPlacement seg : rd.roadSegmentList()) {
+            for (RoadSegmentPlacement seg : rd.roadSegmentList()) {
                 addToIndex(index, seg.middlePos(), pointMargin, minX, minZ, maxX, maxZ);
                 if (seg.positions() != null) {
                     for (BlockPos p : seg.positions()) {
@@ -148,20 +137,15 @@ public final class RoadSpatialIndex {
         return index.isEmpty() ? ChunkGridIndex.EMPTY : index;
     }
 
-    private static void addToIndex(ChunkGridIndex index, BlockPos p, int margin, 
+    private static void addToIndex(ChunkGridIndex index, BlockPos p, int margin,
                                    int minX, int minZ, int maxX, int maxZ) {
         if (p == null) return;
         int x = p.getX(), z = p.getZ();
-        if (x >= minX - GRID_SIZE && x <= maxX + GRID_SIZE && 
+        if (x >= minX - GRID_SIZE && x <= maxX + GRID_SIZE &&
             z >= minZ - GRID_SIZE && z <= maxZ + GRID_SIZE) {
-            int gridX = x >> GRID_SHIFT;
-            int gridZ = z >> GRID_SHIFT;
-            long gridKey = gridKey(gridX, gridZ);
-            index.addPoint(gridKey, p.asLong(), margin);
+            index.addPoint(gridKey(x >> GRID_SHIFT, z >> GRID_SHIFT), p.asLong(), margin);
         }
     }
-
-    // ==================== 工具方法 ====================
 
     @SuppressWarnings("deprecation")
     private static ServerLevel extractServerLevel(LevelSimulatedReader level) {
@@ -195,8 +179,6 @@ public final class RoadSpatialIndex {
         return level.dimension().location().toString();
     }
 
-    // ==================== 缓存管理 ====================
-
     public static void clearCache(ServerLevel level) {
         if (level != null) CHUNK_INDEX.remove(dimKey(level));
     }
@@ -211,14 +193,12 @@ public final class RoadSpatialIndex {
         if (dimIndex != null) dimIndex.remove(chunkKey(cx, cz));
     }
 
-    // ==================== 内部类 ====================
-
     private static final class ChunkGridIndex {
         static final ChunkGridIndex EMPTY = new ChunkGridIndex();
         private final Map<Long, Long2ByteOpenHashMap> grids = new ConcurrentHashMap<>();
 
         void addPoint(long gridKey, long packedPos, int margin) {
-            int m = Math.max(0, Math.min(127, margin));
+            int m = Math.max(0, Math.min(RoadConstants.SPATIAL_INDEX_MAX_MARGIN, margin));
             Long2ByteOpenHashMap map = grids.computeIfAbsent(gridKey, k -> new Long2ByteOpenHashMap());
             byte existing = map.get(packedPos);
             if ((existing & 0xFF) < m) map.put(packedPos, (byte) m);

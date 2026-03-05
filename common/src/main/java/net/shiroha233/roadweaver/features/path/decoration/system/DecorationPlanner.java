@@ -9,12 +9,16 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
 import net.shiroha233.roadweaver.features.path.decoration.types.DistanceSignDecoration;
+import net.shiroha233.roadweaver.features.path.decoration.types.FallbackLanternDecoration;
 import net.shiroha233.roadweaver.features.path.decoration.types.LamppostDecoration;
 import net.shiroha233.roadweaver.features.path.decoration.types.LanternPostDecoration;
 
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 装饰规划器
+ */
 public final class DecorationPlanner {
     private DecorationPlanner() {}
 
@@ -48,9 +52,6 @@ public final class DecorationPlanner {
         int halfWidth = Math.max(1, roadWidth / 2);
         int sideOffset = Math.max(SIDE_OFFSET, halfWidth + 1);
 
-        // 只在离路口最近的可处理路段放置路牌
-        // 起点牌：segmentIndex == 8（第一个被处理的路段）
-        // 终点牌：segmentIndex == middlePositions.size() - 10（倒数第 8 段附近）
         boolean isStartSign = (segmentIndex == 8);
         boolean isEndSign = (segmentIndex == middlePositions.size() - 10);
         
@@ -69,7 +70,10 @@ public final class DecorationPlanner {
             BlockPos shifted = left ? placePos.offset(ortho.getX() * sideOffset, 0, ortho.getZ() * sideOffset)
                     : placePos.offset(-ortho.getX() * sideOffset, 0, -ortho.getZ() * sideOffset);
             shifted = new BlockPos(shifted.getX(), world.getHeight(Heightmap.Types.WORLD_SURFACE_WG, shifted.getX(), shifted.getZ()), shifted.getZ());
-            if (Math.abs(shifted.getY() - placePos.getY()) > 1) return;
+            if (Math.abs(shifted.getY() - placePos.getY()) > 1) {
+                out.add(new FallbackLanternDecoration(shifted, world));
+                return;
+            }
             if (mode == Mode.ARTIFICIAL) {
                 out.add(new LamppostDecoration(shifted, ortho, world));
             } else {

@@ -9,33 +9,25 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.phys.Vec3;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
 import net.shiroha233.roadweaver.util.Line;
 
 public final class BridgeSegmentPlannerNew {
-    // 处理长距离桥梁生成
     private BridgeSegmentPlannerNew() {
     }
 
-    /**
-     * 使用结构模板处理长距离桥梁段生成。
-     * 
-     * @return true 如果成功生成模板桥梁，false 如果模板不可用（调用方应回退到简单桥梁生成）
-     */
     public static boolean processSegment(
             WorldGenLevel world,
             Line line,
-            Records.RoadSegmentPlacement seg,
+            RoadSegmentPlacement seg,
             BlockPos middle,
             BlockPos prev) {
         double bridgeLength = line.getTotalLength();
 
-        // 随机选择一个桥模板（按当前群系过滤）
         Holder<Biome> biome = world.getBiome(middle);
         var bridge = BridgeTemplateStructureRegistry.choose(world.getLevel(), (int) bridgeLength, biome);
 
-        // 模板不可用时返回 false，由调用方回退到 BridgeSegmentPlanner
         if (bridge == null) {
             return false;
         }
@@ -47,37 +39,30 @@ public final class BridgeSegmentPlannerNew {
 
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
-                // 拿到一个测试点
                 Vec3 testPos = new Vec3(x, middle.getY(), z);
-                // 获取当前xz位置上的标架，根据此标架放置模板中的对应方块
                 Line.Frame frame = line.getFrame(testPos);
 
                 Vec3 vec0 = testPos.subtract(frame.closestPoint);
                 double testX = vec0.dot(frame.tangent0);
                 double testZ = vec0.dot(frame.binormal0);
 
-                // 检查方块是否在桥模板范围内
                 if (Math.abs(testX) > 2 || !bridge.isInVoxelGrid(0, 0, testZ)) {
                     continue;
                 }
 
-                // 放置此竖列的方块
                 for (int y = middle.getY() + 20; y >= middle.getY() - 60; y--) {
                     Vec3 vec = new Vec3(x, y, z).subtract(frame.closestPoint);
 
-                    // 在标架下的坐标
                     double localX = Math.min(Math.max(0, frame.globalT), 1) * bridgeLength;
                     double localY = vec.dot(frame.normal0);
                     double localZ = vec.dot(frame.binormal0);
 
-                    // 判断放置桥面还是桥头桥尾部分
                     if (localX >= bridge.getStartLength() && localX <= bridgeLength - bridge.getEndLength()) {
                         localX = bridge.getStartLength() + (localX % bridge.getDeckLength());
                     } else if (localX > bridgeLength - bridge.getEndLength()) {
                         localX = bridge.getTotalLength() - (bridgeLength - localX);
                     }
 
-                    // 获取对应方块并且放置
                     BlockState state = bridge.getBlock(localX, localY, localZ);
                     if (state != null && !state.is(Blocks.AIR)) {
                         BlockPos pos = new BlockPos(x, y, z);
@@ -86,7 +71,6 @@ public final class BridgeSegmentPlannerNew {
                         world.setBlock(pos, updatedState, 3);
                     }
 
-                    // 填充地基直到遇到支撑方块
                     BlockPos cur = new BlockPos(x, y - 1, z);
                     if (world.getBlockState(cur).isFaceSturdy(world, cur, Direction.UP)) {
                         break;

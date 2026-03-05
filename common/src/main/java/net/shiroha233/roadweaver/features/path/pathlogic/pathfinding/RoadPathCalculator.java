@@ -2,35 +2,35 @@ package net.shiroha233.roadweaver.features.path.pathlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.shiroha233.roadweaver.config.PathfindingConfig;
-import net.shiroha233.roadweaver.config.RoadGenerationConfig;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
+import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
+import net.shiroha233.roadweaver.core.model.RoadSpan;
+import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.RoadDirection;
+import net.shiroha233.roadweaver.pathfinding.PathResult;
+import net.shiroha233.roadweaver.pathfinding.Pathfinder;
+import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.TerrainCachePrewarmer;
+import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 
 import java.util.*;
 
+/**
+ * 道路路径计算器
+ */
 public final class RoadPathCalculator {
     private RoadPathCalculator() {}
 
-    /**
-     * 计算 A* 道路路径（带配置参数）
-     * 
-     * @param startIn   起点
-     * @param endIn     终点
-     * @param width     道路宽度
-     * @param level     服务端世界
-     * @param maxSteps  最大步数
-     * @param cache     地形采样缓存
-     * @param cfg       道路生成配置快照
-     */
-    public static List<Records.RoadSegmentPlacement> calculateAStarRoadPath(BlockPos startIn,
-                                                                            BlockPos endIn,
-                                                                            int width,
-                                                                            ServerLevel level,
-                                                                            int maxSteps,
-                                                                            TerrainSamplingCache cache,
-                                                                            RoadGenerationConfig cfg) {
-        PathfindingConfig pathCfg = cfg.pathfinding();
+    public static List<RoadSegmentPlacement> calculateAStarRoadPath(BlockPos startIn,
+                                                                    BlockPos endIn,
+                                                                    int width,
+                                                                    ServerLevel level,
+                                                                    int maxSteps,
+                                                                    TerrainSamplingCache cache,
+                                                                    RoadGenerationConfig cfg) {
+        PathfindingCostConfig pathCfg = cfg.pathfinding();
         int dGrid = pathCfg.effectiveAStarStep();
         int sx = snapToGrid(startIn.getX(), dGrid);
         int sz = snapToGrid(startIn.getZ(), dGrid);
@@ -40,53 +40,48 @@ public final class RoadPathCalculator {
         BlockPos start = new BlockPos(sx, startIn.getY(), sz);
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
-        BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
-        BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
-
-        if (cfg.hierarchicalPathfindingEnabled()) {
-            // 注意：粗预热仅用于填充 TerrainSamplingCache，不参与最终道路路径。
-            TerrainCachePrewarmer.prewarmAlongRoute(
-                    startGround,
-                    endGround,
-                    level,
-                    Math.max(500, maxSteps / 4),
-                    cache);
+        boolean accurateSampling = pathCfg.isAccurateSampling();
+        if (accurateSampling) {
+            cache.enableHighPrecision(level);
         }
 
-        List<Records.RoadSegmentPlacement> fastSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, cfg, pathCfg);
-        if (fastSegments == null || fastSegments.isEmpty()) {
-            return fastSegments;
-        }
+        try {
+            BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
+            BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
-        // 精采样已在寻路重建阶段对 rawPath 节点完成，并通过插值传递到中心点。
-        return fastSegments;
+            if (pathCfg.hierarchicalPathfindingEnabled()) {
+                TerrainCachePrewarmer.prewarmAlongRoute(
+                        startGround,
+                        endGround,
+                        level,
+                        Math.max(500, maxSteps / 4),
+                        cache);
+            }
+
+            return calculateDirect(startGround, endGround, width, level, maxSteps, cache, pathCfg);
+        } finally {
+            if (accurateSampling) {
+                cache.disableHighPrecision();
+            }
+        }
     }
 
-    private static List<Records.RoadSegmentPlacement> calculateDirect(BlockPos startGround,
-                                                                      BlockPos endGround,
-                                                                      int width,
-                                                                      ServerLevel level,
-                                                                      int maxSteps,
-                                                                      TerrainSamplingCache cache,
-                                                                      RoadGenerationConfig cfg,
-                                                                      PathfindingConfig pathCfg) {
-        List<Records.RoadSegmentPlacement> land;
-        var algo = cfg.pathfindingAlgorithm();
-
-        if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.GRADIENT_DESCENT) {
-            land = GradientDescentPathfinder.calculatePath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
-        } else if (algo == net.shiroha233.roadweaver.config.ModConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL) {
-            land = BidirectionalAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
-        } else {
-            land = BasicAStarPathfinder.calculateLandPath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
+    private static List<RoadSegmentPlacement> calculateDirect(BlockPos startGround,
+                                                              BlockPos endGround,
+                                                              int width,
+                                                              ServerLevel level,
+                                                              int maxSteps,
+                                                              TerrainSamplingCache cache,
+                                                              PathfindingCostConfig pathCfg) {
+        var algo = pathCfg.pathfindingAlgorithm();
+        Pathfinder pathfinder = PathfinderFactory.create(algo);
+        PathResult result = pathfinder.findPath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
+        if (!result.success() || result.isEmpty()) {
+            return null;
         }
-        return land;
+        return result.segments();
     }
 
-    /**
-     * 计算地形稳定性：检查四个方向的高度差。
-     * 使用 A* 步长采样，确保采样点与邻居网格对齐，提高缓存命中率。
-     */
     static int calculateTerrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level, int step) {
         int cost = 0;
         if (Math.abs(heightSampler(cache, pos.getX() + step, pos.getZ(), level) - y) > 0) cost++;
@@ -109,7 +104,7 @@ public final class RoadPathCalculator {
     }
 
     static boolean isNearWaterLike(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
-        return cache.isNearWaterLike(level, x, z, 16); // 默认步长
+        return cache.isNearWaterLike(level, x, z, 16);
     }
 
     static boolean isColumnWater(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
@@ -152,30 +147,21 @@ public final class RoadPathCalculator {
         return set;
     }
 
-    /**
-     * 提取道路跨度（桥梁、隧道等）
-     * 
-     * @param segments 道路段落
-     * @param level    服务端世界
-     * @param cache    地形采样缓存
-     * @param cfg      寻路配置快照
-     */
-    public static List<Records.RoadSpan> extractSpans(List<Records.RoadSegmentPlacement> segments, 
-                                                       ServerLevel level, 
-                                                       TerrainSamplingCache cache,
-                                                       PathfindingConfig cfg) {
-        List<Records.RoadSpan> spans = new ArrayList<>();
+    public static List<RoadSpan> extractSpans(List<RoadSegmentPlacement> segments,
+                                               ServerLevel level,
+                                               TerrainSamplingCache cache,
+                                               int bridgeMinWaterDepth) {
+        List<RoadSpan> spans = new ArrayList<>();
         if (segments == null || segments.isEmpty()) return spans;
 
         List<BlockPos> centers = new ArrayList<>(segments.size());
-        for (Records.RoadSegmentPlacement seg : segments) {
+        for (RoadSegmentPlacement seg : segments) {
             centers.add(seg.middlePos());
         }
 
         AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
 
-        // 从配置快照读取最小水深阈值
-        int minWaterDepth = cfg.bridgeMinWaterDepth();
+        int minWaterDepth = bridgeMinWaterDepth;
         int sea = level.getSeaLevel();
 
         boolean inWater = false;
@@ -183,18 +169,16 @@ public final class RoadPathCalculator {
         for (int i = 0; i < centers.size(); i++) {
             BlockPos p = centers.get(i);
 
-            // 检测是否是水体且水深达到阈值（使用 getBaseHeight 二次采样，避免 FastHeightSampler 偏差）
             boolean isWaterBiome = isWaterLike(cache, p.getX(), p.getZ(), level);
             if (!isWaterBiome) {
                 if (!inWater) {
                     continue;
                 }
-                // 从水域回到陆地，结束桥梁跨度
                 int startIdx = Math.max(0, waterStart - 1);
                 int endIdx = i;
                 BlockPos start = centers.get(startIdx);
                 BlockPos end = centers.get(Math.min(endIdx, centers.size() - 1));
-                spans.add(new Records.RoadSpan(start, end, Records.SpanType.BRIDGE));
+                spans.add(new RoadSpan(start, end, SpanType.BRIDGE));
                 inWater = false;
                 waterStart = -1;
                 continue;
@@ -207,27 +191,25 @@ public final class RoadPathCalculator {
             boolean waterColumn = biomeWater || heightWater;
             int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;
             boolean water = waterColumn && waterDepth >= minWaterDepth;
-            
+
             if (water && !inWater) {
                 inWater = true;
                 waterStart = i;
             } else if (!water && inWater) {
-                // 离开水域，创建桥梁跨度
                 int startIdx = Math.max(0, waterStart - 1);
                 int endIdx = i;
                 BlockPos start = centers.get(startIdx);
                 BlockPos end = centers.get(Math.min(endIdx, centers.size() - 1));
-                spans.add(new Records.RoadSpan(start, end, Records.SpanType.BRIDGE));
+                spans.add(new RoadSpan(start, end, SpanType.BRIDGE));
                 inWater = false;
                 waterStart = -1;
             }
         }
-        // 修复：如果道路在水中结束（最后一段仍在水上），需要补上这个 span
         if (inWater && waterStart >= 0) {
             int startIdx = Math.max(0, waterStart - 1);
             BlockPos start = centers.get(startIdx);
             BlockPos end = centers.get(centers.size() - 1);
-            spans.add(new Records.RoadSpan(start, end, Records.SpanType.BRIDGE));
+            spans.add(new RoadSpan(start, end, SpanType.BRIDGE));
         }
 
         final int SLOPE_ABS_THRESHOLD = 4;
@@ -236,7 +218,6 @@ public final class RoadPathCalculator {
         for (int i = 1; i < centers.size(); i++) {
             BlockPos a = centers.get(i - 1);
             BlockPos b = centers.get(i);
-            // 隧道识别只看坡度：优先使用二次精采样后的中心点高度
             int ya = a.getY();
             int yb = b.getY();
             int dy = Math.abs(yb - ya);
@@ -248,7 +229,7 @@ public final class RoadPathCalculator {
                 if (len >= RUN_MIN_LENGTH) {
                     BlockPos s = centers.get(runStart);
                     BlockPos e = centers.get(i);
-                    spans.add(new Records.RoadSpan(s, e, Records.SpanType.TUNNEL));
+                    spans.add(new RoadSpan(s, e, SpanType.TUNNEL));
                 }
                 runStart = -1;
             }
@@ -258,7 +239,7 @@ public final class RoadPathCalculator {
             if (len >= RUN_MIN_LENGTH) {
                 BlockPos s = centers.get(runStart);
                 BlockPos e = centers.get(centers.size() - 1);
-                spans.add(new Records.RoadSpan(s, e, Records.SpanType.TUNNEL));
+                spans.add(new RoadSpan(s, e, SpanType.TUNNEL));
             }
         }
 

@@ -10,15 +10,9 @@ import java.util.List;
 
 /**
  * 地图输入处理器 - 处理所有鼠标和键盘输入
- * 
- * 设计原理：
- * 1. 单一职责：只负责输入事件处理，不涉及渲染
- * 2. 解耦：通过回调接口与 Screen 解耦
- * 3. 可扩展：新增快捷键只需在此处添加
  */
 public final class MapInputHandler {
     
-    /** 输入事件回调接口 */
     public interface Callbacks {
         void onCloseScreen();
         void onOpenConfig();
@@ -33,7 +27,6 @@ public final class MapInputHandler {
     private final MapView view;
     private final Callbacks callbacks;
 
-    // 地图布局参数（由 Screen 更新）
     private int mapX, mapY, mapW, mapH;
     private int innerPad;
 
@@ -50,8 +43,6 @@ public final class MapInputHandler {
         this.mapH = mapH;
         this.innerPad = innerPad;
     }
-
-    // ========== 鼠标输入 ==========
 
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
         if (!insideMap(mouseX, mouseY)) return false;
@@ -73,25 +64,20 @@ public final class MapInputHandler {
                                 int configBtnX, int configBtnY, int configBtnW, int configBtnH,
                                 int manualBtnX, int manualBtnY, int manualBtnW, int manualBtnH) {
         
-        // 配置按钮点击
         if (button == 0 && insideRect(mouseX, mouseY, configBtnX, configBtnY, configBtnW, configBtnH)) {
             callbacks.onOpenConfig();
             return true;
         }
 
-        // 手动连接按钮点击
         if (button == 0 && insideRect(mouseX, mouseY, manualBtnX, manualBtnY, manualBtnW, manualBtnH)) {
             state.toggleManualMode();
             return true;
         }
 
-        // 右键菜单处理
         if (state.isContextMenuOpen()) {
             state.closeContextMenu();
-            // 允许继续处理其他点击
         }
 
-        // 手动连接模式下的点击
         if (state.isManualMode() && insideMap(mouseX, mouseY) && button == 0) {
             BlockPos best = findNearestStructure(snapshot, mouseX, mouseY);
             if (best != null) {
@@ -109,13 +95,11 @@ public final class MapInputHandler {
             }
         }
 
-        // 左键拖拽开始
         if (insideMap(mouseX, mouseY) && button == 0) {
             state.startDrag(button, mouseX, mouseY);
             return true;
         }
 
-        // 右键打开菜单
         if (insideMap(mouseX, mouseY) && button == 1) {
             BlockPos best = findNearestStructure(snapshot, mouseX, mouseY);
             if (best != null) {
@@ -157,16 +141,11 @@ public final class MapInputHandler {
         return true;
     }
 
-    // ========== 键盘输入 ==========
-
     public boolean keyPressed(int keyCode, int scanCode, int modifiers, Minecraft mc) {
-        // 检查是否是打开地图的快捷键（按下关闭地图）
         if (mc != null) {
             for (KeyMapping mapping : mc.options.keyMappings) {
                 if ("key.roadweaver.open_map".equals(mapping.getName()) && mapping.matches(keyCode, scanCode)) {
-                    while (mapping.consumeClick()) {
-                        // 清空残留点击
-                    }
+                    while (mapping.consumeClick()) {}
                     callbacks.onCloseScreen();
                     return true;
                 }
@@ -175,10 +154,9 @@ public final class MapInputHandler {
 
         int contentW = mapW - innerPad * 2;
         int contentH = mapH - innerPad * 2;
-        double panStep = 50; // 像素
+        double panStep = 50;
 
         switch (keyCode) {
-            // WASD 移动视图
             case GLFW.GLFW_KEY_W, GLFW.GLFW_KEY_UP -> {
                 view.panByScreenDelta(0, panStep, contentW, contentH);
                 callbacks.onRequestView();
@@ -199,7 +177,6 @@ public final class MapInputHandler {
                 callbacks.onRequestView();
                 return true;
             }
-            // +/- 缩放
             case GLFW.GLFW_KEY_EQUAL, GLFW.GLFW_KEY_KP_ADD -> {
                 double cx = (view.getMinX() + view.getMaxX()) / 2;
                 double cz = (view.getMinZ() + view.getMaxZ()) / 2;
@@ -214,17 +191,14 @@ public final class MapInputHandler {
                 callbacks.onRequestView();
                 return true;
             }
-            // Home 居中到玩家
             case GLFW.GLFW_KEY_HOME -> {
                 callbacks.onCenterToPlayer();
                 return true;
             }
-            // End 居中到出生点
             case GLFW.GLFW_KEY_END -> {
                 callbacks.onCenterToSpawn();
                 return true;
             }
-            // Escape 关闭菜单或退出手动模式
             case GLFW.GLFW_KEY_ESCAPE -> {
                 if (state.isContextMenuOpen()) {
                     state.closeContextMenu();
@@ -238,8 +212,6 @@ public final class MapInputHandler {
         }
         return false;
     }
-
-    // ========== 辅助方法 ==========
 
     public boolean insideMap(double x, double y) {
         return x >= mapX + innerPad && x <= mapX + mapW - innerPad 

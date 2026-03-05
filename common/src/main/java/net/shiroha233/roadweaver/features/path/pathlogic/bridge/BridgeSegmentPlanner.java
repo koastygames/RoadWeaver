@@ -4,11 +4,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.features.path.bridge.BridgeBuilder;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 
 import java.util.List;
 
+/**
+ * 桥梁段规划器
+ */
 public final class BridgeSegmentPlanner {
     private BridgeSegmentPlanner() {
     }
@@ -57,7 +59,7 @@ public final class BridgeSegmentPlanner {
     }
 
     public static void processSegment(WorldGenLevel world,
-            Records.RoadSegmentPlacement seg,
+            RoadSegmentPlacement seg,
             BlockPos middle,
             BlockPos prev,
             BlockPos next,
@@ -78,7 +80,6 @@ public final class BridgeSegmentPlanner {
         boolean inRamp = false;
         boolean approachDeck = false;
 
-        // 进入区间初始化
         if (!ctx.insideBridgeRange) {
             for (int[] r : bridgeRanges) {
                 if (i >= r[0] && i <= r[1]) {
@@ -104,9 +105,6 @@ public final class BridgeSegmentPlanner {
                         f = Math.max(0.0, Math.min(1.0, f));
                         int rampBaseY = baseYForThis;
                         if (baseYArr != null && baseYArr.length > 0) {
-                            // 修复：坡道起点应该取桥梁区间外的点，确保与普通道路高度对接
-                            // r[0]-1 是桥梁入口前的最后一个普通路段
-                            // r[1]+1 是桥梁出口后的第一个普通路段
                             if (dStart < rampN) {
                                 int idx = Math.max(0, r[0] - 1);
                                 idx = Math.min(baseYArr.length - 1, idx);

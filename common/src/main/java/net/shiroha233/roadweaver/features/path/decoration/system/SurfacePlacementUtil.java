@@ -8,6 +8,9 @@ import net.shiroha233.roadweaver.config.ModConfig;
 
 import java.util.List;
 
+/**
+ * 表面放置工具
+ */
 public final class SurfacePlacementUtil {
     private SurfacePlacementUtil() {}
 

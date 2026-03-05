@@ -16,16 +16,15 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * 结构列表组件
- * 
- * 继承原版的 ContainerObjectSelectionList，用于显示可滚动的结构列表
+ * 缁撴瀯鍒楄〃缁勪欢 - 鏀寔鏍戝舰灞曠ず銆佹ā缁勫浘锟?
  */
 public class StructureListWidget extends ContainerObjectSelectionList<StructureListWidget.Entry> {
-    // 模组图标缓存，避免每帧重复查询资源
     private static final Map<String, Optional<ResourceLocation>> MOD_ICON_CACHE = new HashMap<>();
+    private static final int ROW_HEIGHT = 24;
+    private static final int CHECKBOX_SIZE = 10;
 
     public StructureListWidget(Minecraft minecraft, int width, int height, int top) {
-        super(minecraft, width, height, top, 24);
+        super(minecraft, width, height, top, top + height);
     }
 
     public void clearEntries() {
@@ -47,29 +46,21 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     }
 
     static String getLocalizedStructureName(StructureEntry structure) {
-        if (structure == null) {
-            return "";
-        }
+        if (structure == null) return "";
 
         if (structure.isVanilla()) {
             var id = structure.id();
             String key = "structure." + id.getNamespace() + "." + id.getPath();
             String translated = Component.translatable(key).getString();
-            if (!translated.equals(key)) {
-                return translated;
-            }
+            if (!translated.equals(key)) return translated;
         }
         return structure.displayName();
     }
 
     static ResourceLocation getModIconTexture(String modId) {
-        if (modId == null || modId.isEmpty()) {
-            return null;
-        }
+        if (modId == null || modId.isEmpty()) return null;
         Optional<ResourceLocation> cached = MOD_ICON_CACHE.get(modId);
-        if (cached != null) {
-            return cached.orElse(null);
-        }
+        if (cached != null) return cached.orElse(null);
 
         ResourceLocation resolved = null;
         try {
@@ -91,9 +82,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                         }
                     } else if (logoPath.indexOf(':') >= 0) {
                         ResourceLocation rl = ResourceLocation.tryParse(logoPath);
-                        if (rl != null) {
-                            candidates.add(rl);
-                        }
+                        if (rl != null) candidates.add(rl);
                     } else {
                         candidates.add(ResourceLocation.fromNamespaceAndPath(modId, logoPath));
                         if (!logoPath.startsWith("textures/")) {
@@ -110,19 +99,15 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                                 resolved = rl;
                                 break;
                             }
-                        } catch (Exception ignored) {
-                        }
+                        } catch (Exception ignored) {}
                     }
                 }
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         MOD_ICON_CACHE.put(modId, Optional.ofNullable(resolved));
         return resolved;
     }
-
-    // ==================== 条目基类 ====================
 
     public abstract static class Entry extends ContainerObjectSelectionList.Entry<StructureListWidget.Entry> {
         protected final StructureListWidget list;
@@ -131,8 +116,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             this.list = list;
         }
     }
-
-    // ==================== 模组头条目（可折叠 + 显示 logo） ====================
 
     public static class ModHeaderEntry extends Entry {
         private final String modId;
@@ -165,18 +148,17 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
                           int mouseX, int mouseY, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
-            String expandIcon = expanded ? "▼" : "▶";
+            String expandIcon = expanded ? "v" : ">";
             graphics.drawString(mc.font, expandIcon, left + 2, top + 7, 0xFFFFFF, false);
 
-            int boxSize = 10;
             int boxX = left + 14;
             int boxY = top + 6;
-            graphics.fill(boxX, boxY, boxX + boxSize, boxY + boxSize, 0xFF000000);
-            graphics.fill(boxX + 1, boxY + 1, boxX + boxSize - 1, boxY + boxSize - 1, 0xFF888888);
+            graphics.fill(boxX, boxY, boxX + CHECKBOX_SIZE, boxY + CHECKBOX_SIZE, 0xFF000000);
+            graphics.fill(boxX + 1, boxY + 1, boxX + CHECKBOX_SIZE - 1, boxY + CHECKBOX_SIZE - 1, 0xFF888888);
             if (allEnabled) {
-                graphics.fill(boxX + 2, boxY + 2, boxX + boxSize - 2, boxY + boxSize - 2, 0xFF55FF55);
+                graphics.fill(boxX + 2, boxY + 2, boxX + CHECKBOX_SIZE - 2, boxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
             } else if (partialEnabled) {
-                graphics.fill(boxX + 3, boxY + 3, boxX + boxSize - 3, boxY + boxSize - 3, 0xFFFFFF55);
+                graphics.fill(boxX + 3, boxY + 3, boxX + CHECKBOX_SIZE - 3, boxY + CHECKBOX_SIZE - 3, 0xFFFFFF55);
             }
 
             int textX = left + 30;
@@ -195,17 +177,14 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (button == 0) {
                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
-
                 if (mouseX >= rowLeft && mouseX <= rowLeft + 14) {
                     onExpandToggle.accept(modId);
                     return true;
                 }
-
                 if (mouseX > rowLeft + 14 && mouseX <= rowLeft + 26) {
                     onSelectAll.accept(modId);
                     return true;
                 }
-
                 if (mouseX > rowLeft + 26 && mouseX <= rowLeft + this.list.getRowWidth()) {
                     onExpandToggle.accept(modId);
                     return true;
@@ -224,8 +203,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             return List.of();
         }
     }
-
-    // ==================== 消息条目（用于显示提示信息） ====================
 
     public static class MessageEntry extends Entry {
         private final Component message;
@@ -253,8 +230,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-    // ==================== 标题条目 ====================
-
     public static class HeaderEntry extends Entry {
         private final Component title;
 
@@ -280,16 +255,12 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-    // ==================== 标签条目（可展开） ====================
-
     public static class TagEntry extends Entry {
         private final StructureTagEntry tag;
         private final boolean enabled;
         private final boolean expanded;
         private final Consumer<StructureTagEntry> onToggle;
         private final Consumer<StructureTagEntry> onExpandToggle;
-
-        private static final int CHECKBOX_SIZE = 10;
 
         public TagEntry(StructureListWidget list, StructureTagEntry tag, boolean enabled, boolean expanded,
                        Consumer<StructureTagEntry> onToggle, Consumer<StructureTagEntry> onExpandToggle) {
@@ -307,7 +278,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             Minecraft mc = Minecraft.getInstance();
 
             int indent = 10;
-            String expandIcon = expanded ? "▼" : "▶";
+            String expandIcon = expanded ? "v" : ">";
             graphics.drawString(mc.font, expandIcon, left + indent, top + 7, 0xAAAAAA, false);
 
             int boxX = left + indent + 12;
@@ -330,7 +301,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     onExpandToggle.accept(tag);
                     return true;
                 }
-
                 if (mouseX > rowLeft + indent + 10 && mouseX <= rowLeft + this.list.getRowWidth()) {
                     onToggle.accept(tag);
                     return true;
@@ -350,13 +320,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-    // ==================== 结构条目（标签下的子结构，有缩进） ====================
-
     public static class StructureChildEntry extends Entry {
         private final StructureEntry structure;
         private final boolean enabled;
         private final Consumer<StructureEntry> onToggle;
-        private static final int CHECKBOX_SIZE = 10;
         private static final int INDENT = 30;
 
         public StructureChildEntry(StructureListWidget list,
@@ -385,7 +352,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             int textColor = structure.isVanilla() ? 0xAAAAAA : 0xFFAAAA;
             String name = getLocalizedStructureName(structure);
             graphics.drawString(mc.font, "  " + name, left + INDENT + 20, top + 7, textColor);
-
             graphics.drawString(mc.font, structure.id().toString(), left + INDENT + 20, top + 15, 0x666666);
         }
 
@@ -412,18 +378,14 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-    // ==================== 路径文件夹条目（可展开，带全选功能） ====================
-
     public static class PathFolderEntry extends Entry {
         private final StructurePathNode pathNode;
         private final boolean expanded;
-        private final boolean allEnabled;      // 该文件夹下所有结构是否全部启用
-        private final boolean partialEnabled;  // 该文件夹下是否部分启用
+        private final boolean allEnabled;
+        private final boolean partialEnabled;
         private final Consumer<StructurePathNode> onExpandToggle;
         private final Consumer<StructurePathNode> onSelectAllToggle;
-        private final int baseIndent;          // 基础缩进（来自父级)
-
-        private static final int CHECKBOX_SIZE = 10;
+        private final int baseIndent;
         private static final int INDENT_PER_LEVEL = 15;
 
         public PathFolderEntry(StructureListWidget list,
@@ -448,10 +410,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
                           int mouseX, int mouseY, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
-
             int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
 
-            String expandIcon = expanded ? "▼" : "▶";
+            String expandIcon = expanded ? "v" : ">";
             int expandX = left + indent + 5;
             graphics.drawString(mc.font, expandIcon, expandX, top + 7, 0xAAAAAA, false);
 
@@ -478,7 +439,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     onExpandToggle.accept(pathNode);
                     return true;
                 }
-
                 if (mouseX > rowLeft + indent + 10 && mouseX <= rowLeft + this.list.getRowWidth()) {
                     onSelectAllToggle.accept(pathNode);
                     return true;
@@ -498,16 +458,12 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-    // ==================== 路径下的结构条目（带深度缩进） ====================
-
     public static class PathStructureEntry extends Entry {
         private final StructureEntry structure;
         private final boolean enabled;
         private final Consumer<StructureEntry> onToggle;
         private final int baseIndent;
         private final int depth;
-
-        private static final int CHECKBOX_SIZE = 10;
         private static final int INDENT_PER_LEVEL = 15;
 
         public PathStructureEntry(StructureListWidget list,
@@ -528,7 +484,6 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
                           int mouseX, int mouseY, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
-
             int indent = baseIndent + depth * INDENT_PER_LEVEL;
 
             int boxX = left + indent + 12;
@@ -571,67 +526,63 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-     // ==================== 独立结构条目（无缩进） ====================
+    public static class SingleStructureEntry extends Entry {
+        private final StructureEntry structure;
+        private final boolean enabled;
+        private final Consumer<StructureEntry> onToggle;
 
-     public static class SingleStructureEntry extends Entry {
-         private final StructureEntry structure;
-         private final boolean enabled;
-         private final Consumer<StructureEntry> onToggle;
+        public SingleStructureEntry(StructureListWidget list,
+                                    StructureEntry structure,
+                                    boolean enabled,
+                                    Consumer<StructureEntry> onToggle) {
+            super(list);
+            this.structure = structure;
+            this.enabled = enabled;
+            this.onToggle = onToggle;
+        }
 
-         private static final int CHECKBOX_SIZE = 10;
+        @Override
+        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
+                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+            Minecraft mc = Minecraft.getInstance();
 
-         public SingleStructureEntry(StructureListWidget list,
-                                     StructureEntry structure,
-                                     boolean enabled,
-                                     Consumer<StructureEntry> onToggle) {
-             super(list);
-             this.structure = structure;
-             this.enabled = enabled;
-             this.onToggle = onToggle;
-         }
+            int boxX = left + 12;
+            int boxY = top + 6;
+            graphics.fill(boxX, boxY, boxX + CHECKBOX_SIZE, boxY + CHECKBOX_SIZE, 0xFF000000);
+            graphics.fill(boxX + 1, boxY + 1, boxX + CHECKBOX_SIZE - 1, boxY + CHECKBOX_SIZE - 1, 0xFF888888);
+            if (enabled) {
+                graphics.fill(boxX + 2, boxY + 2, boxX + CHECKBOX_SIZE - 2, boxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
+            }
 
-         @Override
-         public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                           int mouseX, int mouseY, boolean hovering, float partialTick) {
-             Minecraft mc = Minecraft.getInstance();
+            int textColor = structure.isVanilla() ? 0xFFFFFF : 0xFFAAAA;
+            String name = getLocalizedStructureName(structure);
+            graphics.drawString(mc.font, name, boxX + 14, top + 7, textColor, false);
 
-             int boxX = left + 12;
-             int boxY = top + 6;
-             graphics.fill(boxX, boxY, boxX + CHECKBOX_SIZE, boxY + CHECKBOX_SIZE, 0xFF000000);
-             graphics.fill(boxX + 1, boxY + 1, boxX + CHECKBOX_SIZE - 1, boxY + CHECKBOX_SIZE - 1, 0xFF888888);
-             if (enabled) {
-                 graphics.fill(boxX + 2, boxY + 2, boxX + CHECKBOX_SIZE - 2, boxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
-             }
+            if (hovering && mouseX >= boxX + 14) {
+                graphics.renderTooltip(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
+            }
+        }
 
-             int textColor = structure.isVanilla() ? 0xFFFFFF : 0xFFAAAA;
-             String name = getLocalizedStructureName(structure);
-             graphics.drawString(mc.font, name, boxX + 14, top + 7, textColor, false);
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (button == 0) {
+                int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
+                if (mouseX >= rowLeft && mouseX <= rowLeft + this.list.getRowWidth()) {
+                    onToggle.accept(structure);
+                    return true;
+                }
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
 
-             if (hovering && mouseX >= boxX + 14) {
-                 graphics.renderTooltip(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
-             }
-         }
+        @Override
+        public List<? extends GuiEventListener> children() {
+            return List.of();
+        }
 
-         @Override
-         public boolean mouseClicked(double mouseX, double mouseY, int button) {
-             if (button == 0) {
-                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
-                 if (mouseX >= rowLeft && mouseX <= rowLeft + this.list.getRowWidth()) {
-                     onToggle.accept(structure);
-                     return true;
-                 }
-             }
-             return super.mouseClicked(mouseX, mouseY, button);
-         }
-
-         @Override
-         public List<? extends GuiEventListener> children() {
-             return List.of();
-         }
-
-         @Override
-         public List<? extends NarratableEntry> narratables() {
-             return List.of();
-         }
-     }
+        @Override
+        public List<? extends NarratableEntry> narratables() {
+            return List.of();
+        }
+    }
 }

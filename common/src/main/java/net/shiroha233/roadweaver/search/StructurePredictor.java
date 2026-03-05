@@ -21,7 +21,7 @@ import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.StructureInfo;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,11 +30,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.Locale;
 
+/**
+ * 结构位置预测服务
+ */
 public final class StructurePredictor {
     private StructurePredictor() {
     }
 
-    public static List<Records.StructureInfo> predictStructuresInRect(ServerLevel level,
+    public static List<StructureInfo> predictStructuresInRect(ServerLevel level,
             int minChunkX,
             int minChunkZ,
             int maxChunkX,
@@ -42,13 +45,11 @@ public final class StructurePredictor {
             boolean biomePrefilter,
             List<String> whitelist,
             List<String> blacklist) {
-        // 说明：旧实现命名为 Overworld，但其核心逻辑是读取当前维度的 StructureSet/placement 并做候选区块推导，
-        // 因此对下界/末地同样适用（只要对应结构使用 RandomSpreadStructurePlacement）。
         return predictOverworldStructuresInRect(level, minChunkX, minChunkZ, maxChunkX, maxChunkZ, biomePrefilter,
                 whitelist, blacklist);
     }
 
-    public static List<Records.StructureInfo> predictOverworldVillagesAroundSpawn(ServerLevel level, int radiusChunks,
+    public static List<StructureInfo> predictOverworldVillagesAroundSpawn(ServerLevel level, int radiusChunks,
             boolean biomePrefilter) {
         RegistryAccess registryAccess = level.registryAccess();
         Registry<StructureSet> setRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE_SET);
@@ -90,7 +91,7 @@ public final class StructurePredictor {
         int endJ = Math.floorDiv(maxZ, spacing);
 
         long seed = level.getSeed();
-        List<Records.StructureInfo> result = new ArrayList<>();
+        List<StructureInfo> result = new ArrayList<>();
 
         for (int i = startI; i <= endI; i++) {
             for (int j = startJ; j <= endJ; j++) {
@@ -114,14 +115,14 @@ public final class StructurePredictor {
                         continue;
                 }
 
-                result.add(new Records.StructureInfo(locatePos, "village"));
+                result.add(new StructureInfo(locatePos, "village"));
             }
         }
 
         return result;
     }
 
-    public static List<Records.StructureInfo> predictOverworldStructuresInRect(ServerLevel level,
+    public static List<StructureInfo> predictOverworldStructuresInRect(ServerLevel level,
             int minChunkX,
             int minChunkZ,
             int maxChunkX,
@@ -136,16 +137,13 @@ public final class StructurePredictor {
 
         Filters filters = Filters.of(whitelist, blacklist);
 
-        List<Records.StructureInfo> result = new ArrayList<>();
+        List<StructureInfo> result = new ArrayList<>();
 
-        // 关键：只遍历“当前维度/群系可能生成的 StructureSet”。
-        // 原版也会用 biomeSource.possibleBiomes 过滤 structure sets；否则在第三方维度会枚举大量不可能结构，导致卡顿。
         List<Holder<StructureSet>> possibleSets = state.possibleStructureSets();
         for (Holder<StructureSet> holder : possibleSets) {
             StructureSet set = holder.value();
             StructurePlacement placement = set.placement();
 
-            // 计算该集合中“被允许”的结构（根据白/黑名单筛选）
             List<Holder<Structure>> matchedStructures = new ArrayList<>();
             for (StructureSet.StructureSelectionEntry entry : set.structures()) {
                 Holder<Structure> structureHolder = entry.structure();
@@ -175,14 +173,11 @@ public final class StructurePredictor {
                     continue;
             }
 
-            // 代表性结构ID（用于标注），选择第一个匹配结构的 ID
             String labelId = matchedStructures.stream()
                     .map(h -> h.unwrapKey().map(ResourceKey::location).map(ResourceLocation::toString)
                             .orElse("structure"))
                     .findFirst().orElse("structure");
 
-            // 1.20.1 原版 placement 类型：RandomSpread / ConcentricRings。
-            // ConcentricRings 典型例子是 Stronghold（环状分布）。
             if (placement instanceof ConcentricRingsStructurePlacement crsp) {
                 List<ChunkPos> ring = state.getRingPositionsFor(crsp);
                 if (ring == null || ring.isEmpty()) {
@@ -196,13 +191,10 @@ public final class StructurePredictor {
                     if (!placement.isStructureChunk(state, x, z))
                         continue;
                     BlockPos locatePos = placement.getLocatePos(cp);
-                    result.add(new Records.StructureInfo(locatePos, labelId));
+                    result.add(new StructureInfo(locatePos, labelId));
                 }
                 continue;
             }
-
-            // Twilight Forest 等第三方维度常用自定义 placement。
-            // 目前只对暮色森林的 forced_landmark 做专门支持（避免维度内无结构点 + 兼容多维度需求）。
 
             if (!(placement instanceof RandomSpreadStructurePlacement rssp)) {
                 continue;
@@ -254,7 +246,7 @@ public final class StructurePredictor {
                             break;
                         }
                     }
-                    result.add(new Records.StructureInfo(locatePos, chosenId));
+                    result.add(new StructureInfo(locatePos, chosenId));
                 }
             }
         }
@@ -262,7 +254,7 @@ public final class StructurePredictor {
         return result;
     }
 
-    public static List<Records.StructureInfo> predictOverworldStructuresAroundSpawn(ServerLevel level,
+    public static List<StructureInfo> predictOverworldStructuresAroundSpawn(ServerLevel level,
             int radiusChunks,
             boolean biomePrefilter,
             List<String> whitelist,
@@ -284,7 +276,7 @@ public final class StructurePredictor {
 
         Filters filters = Filters.of(whitelist, blacklist);
 
-        List<Records.StructureInfo> result = new ArrayList<>();
+        List<StructureInfo> result = new ArrayList<>();
 
         for (Holder.Reference<StructureSet> holder : setRegistry.holders().toList()) {
             StructureSet set = holder.value();
@@ -370,7 +362,7 @@ public final class StructurePredictor {
                             break;
                         }
                     }
-                    result.add(new Records.StructureInfo(locatePos, chosenId));
+                    result.add(new StructureInfo(locatePos, chosenId));
                 }
             }
         }

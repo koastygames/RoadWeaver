@@ -10,6 +10,9 @@ import net.shiroha233.roadweaver.structures.registry.ModStructureTypes;
 
 import java.util.Optional;
 
+/**
+ * 桥模板结构类型
+ */
 public class BridgeTemplateStructure extends Structure {
     public static final MapCodec<BridgeTemplateStructure> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(

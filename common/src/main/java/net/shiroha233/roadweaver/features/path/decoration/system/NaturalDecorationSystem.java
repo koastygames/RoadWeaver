@@ -10,6 +10,9 @@ import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 自然装饰系统
+ */
 public final class NaturalDecorationSystem {
     private NaturalDecorationSystem() {}
 

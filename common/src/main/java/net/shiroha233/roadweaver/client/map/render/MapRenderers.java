@@ -4,11 +4,15 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.shiroha233.roadweaver.helpers.Records;
+
+import net.shiroha233.roadweaver.core.model.StructureConnection;
 
 import java.util.List;
 import java.util.function.IntUnaryOperator;
 
+/**
+ * 地图渲染器集合
+ */
 public final class MapRenderers {
     private MapRenderers() {}
 
@@ -43,14 +47,14 @@ public final class MapRenderers {
     }
 
     public static void renderConnections(GuiGraphics g,
-                                         List<Records.StructureConnection> connections,
+                                         List<StructureConnection> connections,
                                          SegmentInView segmentInView,
                                          IntUnaryOperator toScreenX,
                                          IntUnaryOperator toScreenY,
                                          int thickness,
                                          int colorPlanned, int colorGenerating, int colorCompleted, int colorFailed,
                                          int left, int top, int right, int bottom) {
-        for (Records.StructureConnection c : connections) {
+        for (StructureConnection c : connections) {
             int fx = c.from().getX();
             int fz = c.from().getZ();
             int tx = c.to().getX();

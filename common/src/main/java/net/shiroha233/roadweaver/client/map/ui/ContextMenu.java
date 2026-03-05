@@ -9,19 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 通用右键菜单组件 - 支持动态添加菜单项
- * 
- * 设计原理：
- * 1. 可复用：任何需要右键菜单的地方都可以使用
- * 2. 灵活：支持动态构建菜单项
- * 3. 美观：带阴影、圆角、悬停高亮
+ * 通用右键菜单组件
  */
 public final class ContextMenu {
     public static final int PADDING = 6;
     public static final int ITEM_HEIGHT = 16;
     public static final int SEPARATOR_HEIGHT = 8;
 
-    /** 菜单项 */
     public record Item(Component label, Runnable action, boolean enabled, boolean isSeparator) {
         public static Item of(Component label, Runnable action) {
             return new Item(label, action, true, false);
@@ -80,7 +74,7 @@ public final class ContextMenu {
                 h += ITEM_HEIGHT;
             }
         }
-        w += PADDING * 2 + 12; // 额外空间
+        w += PADDING * 2 + 12;
         Rect raw = new Rect(anchorX + 4, anchorY, w, h);
         this.bounds = raw.clampToScreen(screenW, screenH, 4);
     }
@@ -94,14 +88,10 @@ public final class ContextMenu {
         int w = bounds.width();
         int h = bounds.height();
         
-        // 阴影
         g.fill(x + 2, y + 2, x + w + 2, y + h + 2, 0x60000000);
-        // 边框
         g.fill(x - 1, y - 1, x + w + 1, y + h + 1, MapTheme.MENU_BORDER);
-        // 背景
         g.fill(x, y, x + w, y + h, MapTheme.MENU_BG);
         
-        // 计算悬停索引
         updateHoverIndex(mouseX, mouseY);
         
         int ty = y + PADDING;
@@ -112,7 +102,6 @@ public final class ContextMenu {
                 g.fill(x + 4, lineY, x + w - 4, lineY + 1, 0x40FFFFFF);
                 ty += SEPARATOR_HEIGHT;
             } else {
-                // 悬停高亮
                 if (i == hoverIndex && it.enabled()) {
                     g.fill(x + 2, ty, x + w - 2, ty + ITEM_HEIGHT, MapTheme.MENU_HOVER);
                 }

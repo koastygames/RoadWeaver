@@ -5,7 +5,7 @@ import net.minecraft.core.BlockPos;
 import java.util.List;
 
 /**
- * Highway 高度平滑器（仅负责“限坡平滑”算法）。
+ * Highway 高度平滑器实现限坡平滑算法，确保相邻段高度差不超过配置的坡度限制
  */
 public final class HighwayHeightSmoother {
     private HighwayHeightSmoother() {}
@@ -27,8 +27,6 @@ public final class HighwayHeightSmoother {
             return baseY.clone();
         }
 
-        // 核心思想：用 double 高度做“连续限坡”，再 round 回 int。
-        // 这样就能表达诸如 1/5 的坡度（每格 0.2），最终落到方块高度会自然形成“每 5 格升 1”的台阶。
         double maxSlope = rise / (double) run;
 
         double[] y = new double[n];
@@ -43,14 +41,12 @@ public final class HighwayHeightSmoother {
             while (i < n && !isBridge[i]) i++;
             int e = i - 1;
             if (s <= e) {
-                // forward: 约束 y[i] 与 y[i-1] 的最大高度差
                 for (int k = s + 1; k <= e; k++) {
                     double dist = dist2d(centers.get(k - 1), centers.get(k));
                     double maxDelta = maxSlope * dist;
                     y[k] = clamp(y[k], y[k - 1] - maxDelta, y[k - 1] + maxDelta);
                 }
 
-                // backward: 再从后往前约束一次，避免单向传播造成偏移
                 for (int k = e - 1; k >= s; k--) {
                     double dist = dist2d(centers.get(k), centers.get(k + 1));
                     double maxDelta = maxSlope * dist;
@@ -60,10 +56,6 @@ public final class HighwayHeightSmoother {
         }
 
         int[] out = new int[n];
-        // 将 double 高度离散为 int：
-        // - 上坡用 floor：保证台阶不会“提前跳高”（例如 1/5 的坡度应该尽量接近每 5 格升 1）。
-        // - 下坡用 ceil：保证台阶不会“提前跳低”。
-        // 这样更符合“最大坡度限制”的直觉观感。
         out[0] = baseY[0];
         for (int k = 1; k < n; k++) {
             if (isBridge[k]) {

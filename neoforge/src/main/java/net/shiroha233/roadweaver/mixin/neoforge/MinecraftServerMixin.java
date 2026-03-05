@@ -3,9 +3,9 @@ package net.shiroha233.roadweaver.mixin.neoforge;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.progress.ChunkProgressListener;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
-import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,7 +21,7 @@ public abstract class MinecraftServerMixin {
         if (((MinecraftServer)(Object)this).isDedicatedServer()) return;
         ServerLevel level = ((MinecraftServer)(Object)this).overworld();
         if (level == null) return;
-        List<Records.StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
+        List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) {
             InitialGenManager.begin(level);
             InitialGenManager.blockUntilDone(level);

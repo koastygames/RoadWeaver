@@ -3,12 +3,15 @@ package net.shiroha233.roadweaver.features.path.decoration.types;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 
+/**
+ * 围栏路标装饰
+ */
 public class FenceWaypointDecoration extends Decoration implements BiomeWoodAware {
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public FenceWaypointDecoration(BlockPos placePos, WorldGenLevel world) {
         super(placePos, world);
@@ -24,7 +27,7 @@ public class FenceWaypointDecoration extends Decoration implements BiomeWoodAwar
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
     }
 }

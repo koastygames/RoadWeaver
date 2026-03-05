@@ -7,14 +7,12 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 
 import java.util.List;
 
 /**
- * Highway 路段铺设器。
- * 
- * 目标风格：混凝土路面 + 中央白色虚线。
+ * Highway 路段铺设器
  */
 public final class HighwaySegmentPaver {
     private HighwaySegmentPaver() {}
@@ -23,7 +21,7 @@ public final class HighwaySegmentPaver {
     private static final List<BlockState> LINE = List.of(Blocks.WHITE_CONCRETE.defaultBlockState());
 
     public static void paveSegment(WorldGenLevel world,
-                                   Records.RoadSegmentPlacement seg,
+                                   RoadSegmentPlacement seg,
                                    int segmentIndex,
                                    List<BlockPos> centers,
                                    int[] targetY,
@@ -61,7 +59,6 @@ public final class HighwaySegmentPaver {
     }
 
     private static boolean isDashOn(int segmentIndex) {
-        // 4 格白线 + 4 格空白
         return ((segmentIndex / 4) % 2) == 0;
     }
 

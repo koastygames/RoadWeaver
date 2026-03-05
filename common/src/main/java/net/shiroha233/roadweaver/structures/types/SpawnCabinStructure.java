@@ -27,18 +27,9 @@ import java.util.Optional;
 
 /**
  * 初始小屋结构类型
- * 
- * 继承原版 Structure，用于出生点附近的初始小屋。
- * 
- * 特点：
- * - findGenerationPoint 返回 empty（不参与原版调度）
- * - 提供 placeAt 方法用于手动放置
- * - 支持保存到区块数据
- * - 通过 datapack JSON 定义
  */
 public class SpawnCabinStructure extends Structure {
     
-    // 1.21.1 使用 MapCodec
     public static final MapCodec<SpawnCabinStructure> CODEC = RecordCodecBuilder.mapCodec(instance ->
         instance.group(
             settingsCodec(instance),
@@ -70,9 +61,6 @@ public class SpawnCabinStructure extends Structure {
         this.terraceOuterRadius = terraceOuterRadius;
     }
     
-    /**
-     * 原版调度入口 - 返回 empty，不参与自动调度
-     */
     @Override
     protected Optional<GenerationStub> findGenerationPoint(GenerationContext context) {
         return Optional.empty();
@@ -82,8 +70,6 @@ public class SpawnCabinStructure extends Structure {
     public StructureType<?> type() {
         return ModStructureTypes.SPAWN_CABIN;
     }
-    
-    // ==================== 属性访问器 ====================
     
     public ResourceLocation templateId() {
         return templateId;
@@ -105,20 +91,6 @@ public class SpawnCabinStructure extends Structure {
         return terraceOuterRadius;
     }
     
-    // ==================== 手动放置方法 ====================
-    
-    /**
-     * 在指定位置手动放置结构
-     * 
-     * @param level            世界
-     * @param structureManager 结构管理器
-     * @param templateManager  模板管理器
-     * @param generator        区块生成器
-     * @param pos              放置位置
-     * @param rotation         旋转
-     * @param random           随机源
-     * @return 如果成功放置则返回 StructureStart，否则返回 null
-     */
     public StructureStart placeAt(WorldGenLevel level,
                                   StructureManager structureManager,
                                   StructureTemplateManager templateManager,
@@ -126,10 +98,8 @@ public class SpawnCabinStructure extends Structure {
                                   BlockPos pos,
                                   Rotation rotation,
                                   RandomSource random) {
-        // 创建 StructurePiecesBuilder
         StructurePiecesBuilder builder = new StructurePiecesBuilder();
         
-        // 创建并添加结构片段
         SimpleTemplatePiece piece = new SimpleTemplatePiece(
             templateManager,
             templateId,
@@ -139,7 +109,6 @@ public class SpawnCabinStructure extends Structure {
         );
         builder.addPiece(piece);
         
-        // 创建 StructureStart
         ChunkPos chunkPos = new ChunkPos(pos);
         PiecesContainer container = builder.build();
         StructureStart start = new StructureStart(this, chunkPos, 0, container);
@@ -148,10 +117,7 @@ public class SpawnCabinStructure extends Structure {
             return null;
         }
         
-        // 获取结构的边界盒
         BoundingBox boundingBox = start.getBoundingBox();
-        
-        // 放置结构片段
         start.placeInChunk(level, structureManager, generator, random, boundingBox, chunkPos);
         
         return start;

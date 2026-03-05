@@ -4,7 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.helpers.Records;
+import net.shiroha233.roadweaver.core.model.StructureInfo;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,14 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 /**
- * 结构索引/预测服务。
- *
- * 职责：
- * - 统一封装对 StructurePredictor + StructureVerificationService 的调用
- * - 只返回预测并通过验证的结构信息列表，不负责写回世界存储
- *
- * 这样可以逐步把「结构搜寻」从 MapDataCollector 等调用方中抽离出来，
- * 以后如果要做缓存或增量更新，只需要改这里的实现即可。
+ * 结构索引服务
  */
 public final class StructureIndexService {
 
@@ -34,12 +27,9 @@ public final class StructureIndexService {
     }
 
     /**
-     * 预测并验证「围绕出生点」的一圈结构。
-     *
-     * - 使用配置中的 predictRadiusChunks / biomePrefilter / 白黑名单
-     * - 若未开启结构预测开关，则返回空列表
+     * 预测并验证围绕出生点的结构
      */
-    public static List<Records.StructureInfo> predictAndVerifyAroundSpawn(ServerLevel level) {
+    public static List<StructureInfo> predictAndVerifyAroundSpawn(ServerLevel level) {
         if (level == null) {
             return List.of();
         }
@@ -61,13 +51,9 @@ public final class StructureIndexService {
     }
 
     /**
-     * 在给定矩形（块坐标）范围内做结构预测 + 验证。
-     *
-     * - 调用 predictOverworldStructuresInRect
-     * - 然后用 StructureVerificationService 过滤伪结构点
-     * - 若未开启结构预测开关，则返回空列表
+     * 在给定矩形范围内做结构预测和验证
      */
-    public static List<Records.StructureInfo> predictAndVerifyInRect(ServerLevel level,
+    public static List<StructureInfo> predictAndVerifyInRect(ServerLevel level,
                                                                      int minBlockX, int minBlockZ,
                                                                      int maxBlockX, int maxBlockZ) {
         if (level == null) {
@@ -82,7 +68,6 @@ public final class StructureIndexService {
             return List.of();
         }
 
-        // 预测缓存策略：只要影响“预测集合”的配置发生变化，就清空预测缓存（structures/source=predicted）与扫描标记。
         StructureSqliteStorage.ensurePolicy(level, policyHash(cfg));
 
         final long tAll0 = CACHE_DEBUG ? System.nanoTime() : 0L;
@@ -90,7 +75,6 @@ public final class StructureIndexService {
                 ? StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED).size()
                 : 0;
 
-        // 按固定 tile（chunk 尺度）增量扫描：同一 tile 只会“claim->扫描一次”。
         int cminx = Math.floorDiv(minBlockX, 16);
         int cminz = Math.floorDiv(minBlockZ, 16);
         int cmaxx = Math.floorDiv(maxBlockX, 16);
@@ -120,14 +104,14 @@ public final class StructureIndexService {
                     int tileMaxChunkX = tileMinChunkX + tileSize - 1;
                     int tileMaxChunkZ = tileMinChunkZ + tileSize - 1;
 
-                    List<Records.StructureInfo> predicted = StructurePredictor.predictStructuresInRect(
+                    List<StructureInfo> predicted = StructurePredictor.predictStructuresInRect(
                             level,
                             tileMinChunkX, tileMinChunkZ, tileMaxChunkX, tileMaxChunkZ,
                             cfg.biomePrefilter(),
                             cfg.structureWhitelist(),
                             cfg.structureBlacklist()
                     );
-                    List<Records.StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
+                    List<StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
                     predictedTotal += predicted != null ? predicted.size() : 0;
                     verifiedTotal += verified != null ? verified.size() : 0;
                     if (verified != null && !verified.isEmpty()) {
@@ -135,14 +119,13 @@ public final class StructureIndexService {
                     }
                     StructureSqliteStorage.markScanTileDone(level, tx, tz);
                 } catch (Throwable t) {
-                    // 失败则释放 tile，允许后续重试
                     StructureSqliteStorage.releaseScanTile(level, tx, tz);
                     LOGGER.warn("StructureIndexService: scan tile failed tile=[{},{}]", tx, tz, t);
                 }
             }
         }
 
-        List<Records.StructureInfo> out = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED);
+        List<StructureInfo> out = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED);
         if (CACHE_DEBUG) {
             int afterCount = out.size();
             long ms = (System.nanoTime() - tAll0) / 1_000_000L;

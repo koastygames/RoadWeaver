@@ -7,9 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Highway 放置兼容层。
- * 
- * 仅保留少量明确不适合覆盖的方块。
+ * Highway 放置兼容层
  */
 public final class HighwayFeatureCompat {
     private HighwayFeatureCompat() {}

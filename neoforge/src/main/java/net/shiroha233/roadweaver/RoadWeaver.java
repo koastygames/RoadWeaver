@@ -3,10 +3,10 @@ package net.shiroha233.roadweaver;
 import net.shiroha233.roadweaver.config.ConfigService;
 
 import net.shiroha233.roadweaver.datagen.RoadWeaverDataGenerator;
-import net.shiroha233.roadweaver.features.neoforge.RoadFeaturesForge;
-import net.shiroha233.roadweaver.network.neoforge.MapNetworkForge;
+import net.shiroha233.roadweaver.features.neoforge.RoadFeaturesNeoForge;
+import net.shiroha233.roadweaver.network.neoforge.MapNetworkNeoForge;
 import net.shiroha233.roadweaver.planning.neoforge.ServerPlanningHooks;
-import net.shiroha233.roadweaver.structures.neoforge.StructureRegistryForge;
+import net.shiroha233.roadweaver.structures.neoforge.StructureRegistryNeoForge;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
@@ -33,13 +33,13 @@ public class RoadWeaver {
         modEventBus.addListener(RoadWeaverDataGenerator::gatherData);
 
         // 注册结构类型（需要在特性注册之前）
-        StructureRegistryForge.register(modEventBus);
+        StructureRegistryNeoForge.register(modEventBus);
         
         // 注册 Feature
-        RoadFeaturesForge.register(modEventBus);
+        RoadFeaturesNeoForge.register(modEventBus);
         
         // 注册网络通道
-        MapNetworkForge.register(modEventBus);
+        MapNetworkNeoForge.register(modEventBus);
         
         // 注册服务器规划钩子：初始与动态增量规划
         ServerPlanningHooks.register(modEventBus);

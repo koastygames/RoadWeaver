@@ -12,9 +12,10 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.core.model.RoadData;
+import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
 import net.shiroha233.roadweaver.features.highway.placement.HighwaySegmentPaver;
-import net.shiroha233.roadweaver.helpers.Records;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
 import java.util.HashSet;
@@ -22,9 +23,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Highway 世界生成 Feature：仅负责放置阶段。
- * 
- * 数据来源：SQLite 中 road_type == {@link HighwayRoadTypes#HIGHWAY} 的 Roads。
+ * Highway 世界生成 Feature 入口
  */
 public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
     public HighwayFeature(Codec<HighwayFeatureConfig> codec) {
@@ -44,7 +43,7 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
         int maxX = currentChunk.getMaxBlockX();
         int maxZ = currentChunk.getMaxBlockZ();
 
-        List<Records.RoadData> roadDataList = RoadShardStorage.queryRect(server, minX, minZ, maxX, maxZ);
+        List<RoadData> roadDataList = RoadShardStorage.queryRect(server, minX, minZ, maxX, maxZ);
         if (roadDataList == null || roadDataList.isEmpty())
             return false;
 
@@ -53,7 +52,7 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
 
         Set<BlockPos> processedMiddle = new HashSet<>();
         boolean didPlaceAny = false;
-        for (Records.RoadData data : roadDataList) {
+        for (RoadData data : roadDataList) {
             if (data == null || data.roadType() != HighwayRoadTypes.HIGHWAY)
                 continue;
             didPlaceAny |= processRoadDataInChunk(world, currentChunk, data, processedMiddle, random, cfg);
@@ -63,21 +62,21 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
 
     private static boolean processRoadDataInChunk(WorldGenLevel world,
             ChunkPos currentChunk,
-            Records.RoadData data,
+            RoadData data,
             Set<BlockPos> processedMiddle,
             RandomSource random,
             ModConfig cfg) {
-        List<Records.RoadSegmentPlacement> segments = data.roadSegmentList();
+        List<RoadSegmentPlacement> segments = data.roadSegmentList();
         if (segments == null || segments.size() < 3)
             return false;
 
-        List<BlockPos> centers = segments.stream().map(Records.RoadSegmentPlacement::middlePos).toList();
+        List<BlockPos> centers = segments.stream().map(RoadSegmentPlacement::middlePos).toList();
 
         int[] targetYArr = buildTargetY(world, data, centers);
 
         boolean didAny = false;
         for (int i = 1; i < segments.size() - 1; i++) {
-            Records.RoadSegmentPlacement seg = segments.get(i);
+            RoadSegmentPlacement seg = segments.get(i);
             BlockPos middle = seg.middlePos();
             if (!processedMiddle.add(middle))
                 continue;
@@ -86,9 +85,6 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
             if (!middleChunk.equals(currentChunk))
                 continue;
 
-            // 移除路基填充逻辑：Highway 仅铺设路面方块，不再进行地形适配填充。
-
-            // 保持路面更齐平：这里不做半砖过渡（Highway 不需要）
             HighwaySegmentPaver.paveSegment(world, seg, i, centers, targetYArr, random, cfg);
             didAny = true;
         }
@@ -96,7 +92,7 @@ public final class HighwayFeature extends Feature<HighwayFeatureConfig> {
         return didAny;
     }
 
-    private static int[] buildTargetY(WorldGenLevel world, Records.RoadData data, List<BlockPos> centers) {
+    private static int[] buildTargetY(WorldGenLevel world, RoadData data, List<BlockPos> centers) {
         if (data.targetY() != null && data.targetY().size() == centers.size()) {
             return data.targetY().stream().mapToInt(Integer::intValue).toArray();
         }

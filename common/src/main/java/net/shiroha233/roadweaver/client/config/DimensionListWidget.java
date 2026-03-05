@@ -12,23 +12,49 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+/**
+ * 维度列表组件
+ */
 public class DimensionListWidget extends ContainerObjectSelectionList<DimensionListWidget.Entry> {
-
+    private static final int ROW_HEIGHT = 22;
+    private static final int BG_COLOR = 0xAA0A0A0A;
+    private static final int ACTIVE_BG = 0xFF3A3A3A;
+    private static final int HOVER_BG = 0xAA2A2A2A;
+    
     private final Consumer<ResourceLocation> onSelect;
+    private boolean renderBackground = true;
+    private boolean renderTopAndBottom = true;
 
     public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<ResourceLocation> onSelect) {
-        super(minecraft, width, height, top, 22);
+        super(minecraft, width, height, top, top + height);
         this.onSelect = onSelect;
     }
 
     @Override
-    public int getRowWidth() {
-        return width - 20;
+    protected void renderListBackground(GuiGraphics graphics) {
+        if (!renderBackground) {
+            return;
+        }
+        graphics.fill(getX(), getY(), getRight(), getBottom(), BG_COLOR);
     }
 
     @Override
-    protected int getScrollbarPosition() {
-        return getRowLeft() + getRowWidth() + 6;
+    protected void renderListSeparators(GuiGraphics graphics) {
+        if (renderTopAndBottom) {
+            super.renderListSeparators(graphics);
+        }
+    }
+
+    public void setLeftPos(int left) {
+        setX(left);
+    }
+
+    public void setRenderBackground(boolean renderBackground) {
+        this.renderBackground = renderBackground;
+    }
+
+    public void setRenderTopAndBottom(boolean renderTopAndBottom) {
+        this.renderTopAndBottom = renderTopAndBottom;
     }
 
     public void setRows(List<Row> rows, ResourceLocation active) {
@@ -42,11 +68,19 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         super.clearEntries();
     }
 
-    public record Row(ResourceLocation dimensionId, Component title, Component subtitle) {
+    @Override
+    public int getRowWidth() {
+        return width - 20;
     }
 
-    public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {
+    @Override
+    protected int getScrollbarPosition() {
+        return getRowLeft() + getRowWidth() + 6;
     }
+
+    public record Row(ResourceLocation dimensionId, Component title, Component subtitle) {}
+
+    public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {}
 
     private static final class RowEntry extends Entry {
         private final Row row;
@@ -62,14 +96,7 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         @Override
         public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
                            int mouseX, int mouseY, boolean hovering, float partialTick) {
-            int bg;
-            if (active) {
-                bg = 0xFF3A3A3A;
-            } else if (hovering) {
-                bg = 0xAA2A2A2A;
-            } else {
-                bg = 0;
-            }
+            int bg = active ? ACTIVE_BG : (hovering ? HOVER_BG : 0);
             if (bg != 0) {
                 graphics.fill(left, top, left + width, top + height, bg);
             }
@@ -82,7 +109,6 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
             }
 
             int textX = left + 16;
-
             String titleStr = row.title().getString();
             int titleMax = Math.max(maxTextWidth - mc.font.width("…"), 0);
             String titleCut = mc.font.plainSubstrByWidth(titleStr, titleMax);

@@ -1,14 +1,20 @@
 package net.shiroha233.roadweaver.client.map.ui;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
+import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 
 import java.util.function.Consumer;
 
-public class SimpleTextInputScreen extends Screen {
+/**
+ * 简单文本输入界面
+ */
+public class SimpleTextInputScreen extends RoadWeaverScreen {
     private final Component titleText;
     private final String initial;
     private final Consumer<String> onSubmit;
@@ -48,6 +54,13 @@ public class SimpleTextInputScreen extends Screen {
         this.setInitialFocus(box);
     }
 
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        ScreenBackgrounds.render(graphics, this.width, this.height);
+        super.render(graphics, mouseX, mouseY, partialTick);
+        graphics.drawCenteredString(this.font, this.titleText, this.width / 2, this.height / 2 - 34, 0xFFFFFF);
+    }
+
     private void submit() {
         if (onSubmit != null) onSubmit.accept(box.getValue());
         Minecraft.getInstance().setScreen(parent);
@@ -59,11 +72,11 @@ public class SimpleTextInputScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 257 || keyCode == 335) { // Enter
+        if (keyCode == 257 || keyCode == 335) {
             submit();
             return true;
         }
-        if (keyCode == 256) { // ESC
+        if (keyCode == 256) {
             cancel();
             return true;
         }

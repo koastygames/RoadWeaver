@@ -16,24 +16,19 @@ import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
 import net.shiroha233.roadweaver.features.path.PathFeature;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 
+/**
+ * Fabric Feature 注册
+ */
 public final class RoadFeatureRegistry {
-    private RoadFeatureRegistry() {
-    }
+    private RoadFeatureRegistry() {}
 
     public static void register() {
         Feature<PathFeatureConfig> feature = new PathFeature(PathFeatureConfig.CODEC);
-        ResourceKey<Feature<?>> featureKey = ResourceKey.create(
-                Registries.FEATURE,
-                ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"));
-        Registry.register(BuiltInRegistries.FEATURE, featureKey, feature);
+        Registry.register(BuiltInRegistries.FEATURE, ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), feature);
 
         Feature<HighwayFeatureConfig> highwayFeature = new HighwayFeature(HighwayFeatureConfig.CODEC);
-        ResourceKey<Feature<?>> highwayFeatureKey = ResourceKey.create(
-                Registries.FEATURE,
-                ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"));
-        Registry.register(BuiltInRegistries.FEATURE, highwayFeatureKey, highwayFeature);
+        Registry.register(BuiltInRegistries.FEATURE, ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"), highwayFeature);
 
-        // 使用现有数据包中的 placed_feature 键完成注入（该 JSON 仅作为 Hook，不承载预设）
         ResourceKey<PlacedFeature> placedKey = ResourceKey.create(
                 Registries.PLACED_FEATURE,
                 ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature_placed"));

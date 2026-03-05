@@ -1,39 +1,43 @@
 package net.shiroha233.roadweaver.persistence.attachments;
 
 import com.mojang.serialization.Codec;
-import net.shiroha233.roadweaver.RoadWeaver;
-import net.shiroha233.roadweaver.helpers.Records;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
-
+/**
+ * Fabric 世界数据附件注册
+ */
 public class WorldDataAttachment {
     private static final Logger LOGGER = LoggerFactory.getLogger(RoadWeaver.MOD_ID);
 
-    public static final AttachmentType<List<Records.StructureConnection>> CONNECTED_STRUCTURES = AttachmentRegistry.createPersistent(
+    public static final AttachmentType<List<StructureConnection>> CONNECTED_STRUCTURES = AttachmentRegistry.createPersistent(
             ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "connected_villages"),
-            Codec.list(Records.StructureConnection.CODEC)
+            Codec.list(StructureConnection.CODEC)
     );
 
-    public static final AttachmentType<List<Records.StructureConnection>> HIGHWAY_CONNECTIONS = AttachmentRegistry.createPersistent(
+    public static final AttachmentType<List<StructureConnection>> HIGHWAY_CONNECTIONS = AttachmentRegistry.createPersistent(
             ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_connections"),
-            Codec.list(Records.StructureConnection.CODEC)
+            Codec.list(StructureConnection.CODEC)
     );
 
-
-    public static final AttachmentType<Records.StructureLocationData> STRUCTURE_LOCATIONS = AttachmentRegistry.createPersistent(
+    public static final AttachmentType<StructureLocationData> STRUCTURE_LOCATIONS = AttachmentRegistry.createPersistent(
             ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "village_locations"),
-            Records.StructureLocationData.CODEC
+            StructureLocationData.CODEC
     );
 
     public static final AttachmentType<java.util.Set<Long>> PLANNED_TILE_KEYS = AttachmentRegistry.createPersistent(
             ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "planned_tiles"),
-            Codec.list(Codec.LONG).xmap(list -> new java.util.HashSet<>(list), set -> new java.util.ArrayList<>(set))
+            Codec.list(Codec.LONG).xmap(HashSet::new, ArrayList::new)
     );
 
     public static final AttachmentType<java.util.Map<Long, Long>> PLANNED_TILE_CENTERS = AttachmentRegistry.createPersistent(
@@ -57,7 +61,6 @@ public class WorldDataAttachment {
                     }
             )
     );
-
 
     public static void registerWorldDataAttachment() {
         LOGGER.info("Registering WorldData attachment");
