@@ -8,6 +8,9 @@ import net.shiroha233.roadweaver.client.map.MapView;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 
+/**
+ * 地图交互辅助 - 悬停高亮和提示
+ */
 public final class MapInteraction {
     private MapInteraction() {}
 

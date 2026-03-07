@@ -9,12 +9,14 @@ import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
@@ -23,32 +25,35 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.sounds.SoundEvents;
+
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
 
+/**
+ * 方块候选选择器 - 带搜索和滚动条交互
+ */
 public class BlockCandidateWidget extends AbstractContainerEventHandler implements Renderable, NarratableEntry {
+    private static final int SLOT_SIZE = 18;
+    private static final int SCROLLBAR_WIDTH = 6;
+    private static final int MIN_THUMB_HEIGHT = 10;
+    
     private final int x;
     private final int y;
     private final int width;
     private final int height;
-    private final int slotSize = 18;
+    private final int visibleRows;
+    private final int visibleCols;
     
     private final List<Block> allBlocks = new ArrayList<>();
     private final List<Block> filteredBlocks = new ArrayList<>();
     private final EditBox searchBox;
-    private int scrollOffset = 0;
     private final Consumer<Block> onBlockSelected;
-
-    // 滚动条拖拽状态（右侧拖条之前只是“提示”，没有交互逻辑）
-    private boolean draggingScrollbar = false;
     
-    private int visibleRows;
-    private int visibleCols;
+    private int scrollOffset = 0;
+    private boolean draggingScrollbar = false;
 
     public BlockCandidateWidget(int x, int y, int width, int height, Consumer<Block> onBlockSelected) {
         this.x = x;
@@ -61,8 +66,8 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         this.searchBox = new EditBox(font, x, y, width, 16, Component.translatable("gui.roadweaver.preset_editor.search"));
         this.searchBox.setResponder(this::onSearchChanged);
 
-        this.visibleCols = Math.max(1, width / slotSize);
-        this.visibleRows = Math.max(1, (height - 20) / slotSize);
+        this.visibleCols = Math.max(1, width / SLOT_SIZE);
+        this.visibleRows = Math.max(1, (height - 20) / SLOT_SIZE);
         
         buildCandidateBlocks();
         rebuildFilteredList();
@@ -140,19 +145,11 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         return height - 20;
     }
 
-    private int getScrollbarX() {
-        return x + width - 6;
-    }
-
-    private int getScrollbarWidth() {
-        return 6;
-    }
-
     private int getThumbHeight(int maxOffset) {
         int barHeight = getScrollbarHeight();
         int totalRows = (filteredBlocks.size() + visibleCols - 1) / visibleCols;
         if (totalRows <= 0) return barHeight;
-        return Math.max(10, barHeight * visibleRows / totalRows);
+        return Math.max(MIN_THUMB_HEIGHT, barHeight * visibleRows / totalRows);
     }
 
     private int getThumbY(int maxOffset, int thumbHeight) {
@@ -178,30 +175,28 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
             int r = relIndex / visibleCols;
             int c = relIndex % visibleCols;
             
-            int bx = x + c * slotSize;
-            int by = startY + r * slotSize;
+            int bx = x + c * SLOT_SIZE;
+            int by = startY + r * SLOT_SIZE;
             
-            g.fill(bx, by, bx + slotSize, by + slotSize, 0x80000000);
+            g.fill(bx, by, bx + SLOT_SIZE, by + SLOT_SIZE, 0x80000000);
             
             Block b = filteredBlocks.get(i);
             ItemStack stack = new ItemStack(b);
             SafeGuiItemRenderer.renderFakeItemSafe(g, stack, bx + 1, by + 1);
             
-            if (mouseX >= bx && mouseX < bx + slotSize && mouseY >= by && mouseY < by + slotSize) {
-                g.fill(bx, by, bx + slotSize, by + slotSize, 0x80FFFFFF);
+            if (mouseX >= bx && mouseX < bx + SLOT_SIZE && mouseY >= by && mouseY < by + SLOT_SIZE) {
+                g.fill(bx, by, bx + SLOT_SIZE, by + SLOT_SIZE, 0x80FFFFFF);
                 SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
             }
         }
         
-        // Scrollbar hint
         if (maxOffset > 0) {
             int barHeight = getScrollbarHeight();
             int thumbHeight = getThumbHeight(maxOffset);
             int thumbY = getThumbY(maxOffset, thumbHeight);
-            int barX = getScrollbarX();
-            int barW = getScrollbarWidth();
-            g.fill(barX, startY, barX + barW, startY + barHeight, 0x40000000);
-            g.fill(barX, thumbY, barX + barW, thumbY + thumbHeight, 0xFFFFFFFF);
+            int barX = x + width - SCROLLBAR_WIDTH;
+            g.fill(barX, startY, barX + SCROLLBAR_WIDTH, startY + barHeight, 0x40000000);
+            g.fill(barX, thumbY, barX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFFFFFFF);
         }
     }
 
@@ -212,21 +207,18 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         if (button == 0) {
             int maxOffset = getMaxOffset();
             if (maxOffset > 0) {
-                int barX = getScrollbarX();
-                int barW = getScrollbarWidth();
+                int barX = x + width - SCROLLBAR_WIDTH;
                 int startY = getScrollbarStartY();
                 int barH = getScrollbarHeight();
                 int thumbH = getThumbHeight(maxOffset);
                 int thumbY = getThumbY(maxOffset, thumbH);
 
-                boolean inBarX = mouseX >= barX && mouseX < barX + barW;
+                boolean inBarX = mouseX >= barX && mouseX < barX + SCROLLBAR_WIDTH;
                 boolean inBarY = mouseY >= startY && mouseY < startY + barH;
                 if (inBarX && inBarY) {
-                    // 点击/拖拽滚动条
                     if (mouseY >= thumbY && mouseY < thumbY + thumbH) {
                         draggingScrollbar = true;
                     } else {
-                        // 点击轨道：跳转到对应位置（按 thumb 中心对齐）
                         int track = Math.max(1, barH - thumbH);
                         double rel = (mouseY - startY - thumbH / 2.0) / track;
                         int target = (int) Math.round(rel * maxOffset);
@@ -238,9 +230,9 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         }
         
         int startY = y + 20;
-        if (mouseY >= startY && mouseY < startY + visibleRows * slotSize && mouseX >= x && mouseX < x + visibleCols * slotSize) {
-            int c = (int)(mouseX - x) / slotSize;
-            int r = (int)(mouseY - startY) / slotSize;
+        if (mouseY >= startY && mouseY < startY + visibleRows * SLOT_SIZE && mouseX >= x && mouseX < x + visibleCols * SLOT_SIZE) {
+            int c = (int)(mouseX - x) / SLOT_SIZE;
+            int r = (int)(mouseY - startY) / SLOT_SIZE;
             int index = (scrollOffset + r) * visibleCols + c;
             if (index >= 0 && index < filteredBlocks.size()) {
                 if (button == 0) {

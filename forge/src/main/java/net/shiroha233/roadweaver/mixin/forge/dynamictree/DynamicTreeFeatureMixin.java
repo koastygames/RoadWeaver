@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(DynamicTreeFeature.class)
 public class DynamicTreeFeatureMixin {
-    @SuppressWarnings("deprecation") // 屏蔽弃用提示
+    @SuppressWarnings("deprecation")
     @Inject(remap = false,method = "validTreePos",
             at = @At("HEAD"), cancellable = true)
     private static void roadweaver$validTreePosWithRoad(LevelSimulatedReader pLevel, BlockPos pPos, CallbackInfoReturnable<Boolean> cir) {

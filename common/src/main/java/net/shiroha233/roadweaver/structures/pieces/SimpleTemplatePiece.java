@@ -39,13 +39,6 @@ import java.util.List;
 
 /**
  * 简单模板结构片段
- * 
- * 用于放置单个 NBT 模板的结构片段，支持：
- * - 旋转和镜像
- * - 忽略结构空位方块
- * - 保存到区块数据
- * - 结构放置后生成生物
- * - 结构放置后设置战利品表
  */
 public class SimpleTemplatePiece extends TemplateStructurePiece {
     
@@ -55,23 +48,10 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
     private final List<MobSpawnRule> mobSpawns;
     private final List<LootConfig> lootConfigs;
     
-    // 注意：结构通常会跨越多个区块，postProcess 会被多次调用。
-    // 不能简单用一个 boolean 一刀切，否则会出现：
-    // - 第一次调用时另一个区块的箱子还没生成出来 -> 战利品设置失败且不会重试
-    // - 生物生成被多次执行 -> 女仆数量超出预期
     private boolean[] lootApplied;
     private int[] lootApplyAttempts;
     private boolean mobsSpawned = false;
     
-    /**
-     * 从模板创建结构片段（基础版本，无生物/战利品）
-     * 
-     * @param manager    模板管理器
-     * @param templateId 模板 ID
-     * @param pos        放置位置
-     * @param rotation   旋转
-     * @param mirror     镜像
-     */
     public SimpleTemplatePiece(StructureTemplateManager manager,
                                ResourceLocation templateId,
                                BlockPos pos,
@@ -80,17 +60,6 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         this(manager, templateId, pos, rotation, mirror, List.of(), List.of());
     }
     
-    /**
-     * 从模板创建结构片段（完整版本，包含生物/战利品配置）
-     * 
-     * @param manager    模板管理器
-     * @param templateId 模板 ID
-     * @param pos        放置位置
-     * @param rotation   旋转
-     * @param mirror     镜像
-     * @param mobSpawns  生物生成规则
-     * @param lootConfigs 战利品配置
-     */
     public SimpleTemplatePiece(StructureTemplateManager manager,
                                ResourceLocation templateId,
                                BlockPos pos,
@@ -110,9 +79,6 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         this.lootConfigs = lootConfigs != null ? lootConfigs : List.of();
     }
     
-    /**
-     * 从 NBT 反序列化（用于加载已保存的结构）
-     */
     public SimpleTemplatePiece(StructureTemplateManager manager, CompoundTag tag) {
         super(ModStructurePieceTypes.SIMPLE_TEMPLATE, 
               tag, 
@@ -121,18 +87,11 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
                   Rotation.valueOf(tag.getString("Rot")),
                   Mirror.valueOf(tag.getString("Mir"))
               ));
-        // 1.20.1 使用 tryParse 而非 parse
         this.templateId = ResourceLocation.tryParse(tag.getString("Template"));
-        
-        // 反序列化生物生成规则
         this.mobSpawns = deserializeMobSpawns(tag);
-        // 反序列化战利品配置
         this.lootConfigs = deserializeLootConfigs(tag);
     }
     
-    /**
-     * 创建放置设置
-     */
     private static StructurePlaceSettings createPlaceSettings(Rotation rotation, Mirror mirror) {
         return new StructurePlaceSettings()
                 .setRotation(rotation)
@@ -148,17 +107,13 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         tag.putString("Rot", placeSettings.getRotation().name());
         tag.putString("Mir", placeSettings.getMirror().name());
         
-        // 序列化生物生成规则
         serializeMobSpawns(tag);
-        // 序列化战利品配置
         serializeLootConfigs(tag);
     }
     
     @Override
     protected void handleDataMarker(String marker, BlockPos pos, ServerLevelAccessor level, 
                                     RandomSource random, BoundingBox box) {
-        // 处理数据标记方块（如 jigsaw 方块）
-        // 路边结构目前不使用数据标记，留空
     }
     
     @Override
@@ -169,10 +124,8 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
                            BoundingBox box,
                            ChunkPos chunkPos,
                            BlockPos pivot) {
-        // 调用父类放置模板
         super.postProcess(level, structureManager, generator, random, box, chunkPos, pivot);
         
-        // 获取结构锚点位置
         BlockPos anchorPos = this.templatePosition;
         Rotation rotation = this.placeSettings.getRotation();
  
@@ -180,7 +133,6 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
  
         boolean allLootApplied = true;
          
-        // 处理战利品配置（先于生物生成，确保容器已放置）
         for (int i = 0; i < lootConfigs.size(); i++) {
             if (lootApplied[i]) {
                 continue;
@@ -188,7 +140,6 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
  
             LootConfig lootConfig = lootConfigs.get(i);
             try {
-                // 计算旋转后的偏移位置
                 BlockPos rotatedOffset = transformOffset(lootConfig.offset(), rotation);
                 BlockPos containerPos = anchorPos.offset(rotatedOffset);
  
@@ -205,17 +156,13 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
             }
         }
  
-        // 如果没有战利品配置，就不需要等待
         if (lootConfigs.isEmpty()) {
             allLootApplied = true;
         }
          
-        // 处理生物生成
-        // 设计原则：等结构关键点（这里用"箱子全部就绪"作为信号）完成后再刷生物，避免刷到房屋外/空中。
         if (!mobsSpawned && allLootApplied) {
             for (MobSpawnRule spawnRule : mobSpawns) {
                 try {
-                    // 计算旋转后的偏移位置
                     BlockPos rotatedOffset = transformOffset(spawnRule.offset(), rotation);
                     BlockPos spawnPos = anchorPos.offset(rotatedOffset);
                     spawnMob(level, spawnPos, spawnRule, random);
@@ -234,11 +181,7 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         }
     }
      
-    /**
-     * 根据结构旋转变换偏移坐标
-     */
     private BlockPos transformOffset(Vec3i offset, Rotation rotation) {
-        // 根据旋转变换 XZ 坐标
         return switch (rotation) {
             case NONE -> new BlockPos(offset.getX(), offset.getY(), offset.getZ());
             case CLOCKWISE_90 -> new BlockPos(-offset.getZ(), offset.getY(), offset.getX());
@@ -247,18 +190,13 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
         };
     }
     
-    /**
-     * 为容器设置战利品表
-     */
      private boolean applyLootTable(WorldGenLevel level, BlockPos containerPos, LootConfig config, RandomSource random) {
-         // 概率检查
          if (config.chance() < 1.0f && random.nextFloat() > config.chance()) {
              return true;
          }
          
          BlockEntity blockEntity = level.getBlockEntity(containerPos);
          if (blockEntity instanceof RandomizableContainerBlockEntity container) {
-             // 1.20.1 使用 ResourceLocation 而非 ResourceKey
              container.setLootTable(config.lootTable(), random.nextLong());
              LOGGER.debug("设置战利品表 {} at {}", config.lootTable(), containerPos);
              return true;
@@ -268,30 +206,22 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
          }
      }
     
-    /**
-     * 生成生物
-     */
      private void spawnMob(WorldGenLevel level, BlockPos spawnPos, MobSpawnRule rule, RandomSource random) {
-        // 概率检查
         if (rule.chance() < 1.0f && random.nextFloat() > rule.chance()) {
             return;
         }
 
-        // 软依赖：实体不存在时跳过（例如未安装对应前置模组）
         EntityType<?> resolvedType = rule.resolveEntityType().orElse(null);
         if (resolvedType == null) {
             return;
         }
         
-        // 计算生成数量
         int count = rule.countMin();
         if (rule.countMax() > rule.countMin()) {
             count = rule.countMin() + random.nextInt(rule.countMax() - rule.countMin() + 1);
         }
         
          for (int i = 0; i < count; i++) {
-             // 之前使用 [-1, 1] 的随机偏移，容易把生物刷到房屋外。
-             // 这里缩小随机范围，尽量保证生成点仍在室内。
              double spread = 0.3;
              double x = spawnPos.getX() + 0.5 + (random.nextDouble() - 0.5) * spread * 2;
              double y = spawnPos.getY();
@@ -305,8 +235,6 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
             
             entity.moveTo(x, y, z, random.nextFloat() * 360.0f, 0.0f);
             
-            // 如果是 Mob，调用 finalizeSpawn 进行初始化
-            // 1.20.1 需要传入 CompoundTag 参数
             if (entity instanceof Mob mob) {
                 mob.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), 
                     MobSpawnType.STRUCTURE, null, null);
@@ -319,22 +247,14 @@ public class SimpleTemplatePiece extends TemplateStructurePiece {
          }
      }
     
-    /**
-     * 获取模板 ID
-     */
     public ResourceLocation getTemplateId() {
         return templateId;
     }
     
-    /**
-     * 获取结构片段类型
-     */
     @Override
     public StructurePieceType getType() {
         return ModStructurePieceTypes.SIMPLE_TEMPLATE;
     }
-    
-    // ==================== 序列化/反序列化辅助方法 ====================
     
     private void serializeMobSpawns(CompoundTag tag) {
         if (mobSpawns.isEmpty()) return;

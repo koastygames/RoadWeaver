@@ -3,8 +3,7 @@ package net.shiroha233.roadweaver.persistence.fabric;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 
 /**
- * Architectury @ExpectPlatform 实现类（Fabric）。
- * 位置必须为：net.shiroha233.roadweaver.persistence.fabric.WorldDataProviderImpl
+ * Architectury @ExpectPlatform 实现类（Fabric）
  */
 public final class WorldDataProviderImpl {
     private static final WorldDataProvider INSTANCE = new FabricWorldDataProvider();

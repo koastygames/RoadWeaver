@@ -15,81 +15,45 @@ import java.sql.Statement;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * H2 数据库连接管理器
- * 
- * 每个维度一个独立的 H2 数据库文件，使用 MVStore 引擎。
- * H2 是纯 Java 实现，无需 native 库，避免平台审核问题。
+ * H2 数据库连接管理器，每个维度一个独立数据库文件
  */
 public final class RoadDatabaseManager {
-    private RoadDatabaseManager() {
-    }
+    private RoadDatabaseManager() {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-
-    // H2 驱动实例（用于 Forge 类加载器兼容）
     private static volatile java.sql.Driver H2_DRIVER_INSTANCE = null;
-
-    // 按维度存储的数据库连接
     private static final ConcurrentHashMap<String, Connection> CONNECTIONS = new ConcurrentHashMap<>();
-
-    // 数据库文件目录和名称
     private static final String DB_DIR = "data/roadweaver";
-    private static final String DB_NAME = "roads"; // H2 会自动添加 .mv.db 后缀
+    private static final String DB_NAME = "roads";
 
-    /**
-     * 获取维度的唯一键
-     */
     static String dimKey(ServerLevel level) {
         ResourceLocation rl = level.dimension().location();
         return rl.getNamespace() + "_" + rl.getPath();
     }
 
-    /**
-     * 获取世界的唯一键（包含世界路径）
-     */
     private static String worldKey(ServerLevel level) {
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         String worldId = worldRoot == null ? "unknown" : worldRoot.toAbsolutePath().normalize().toString();
         return worldId + "|" + dimKey(level);
     }
 
-    /**
-     * 获取数据库文件路径（不含扩展名，H2会自动添加）
-     */
     static Path getDbPath(ServerLevel level) {
         Path worldRoot = level.getServer().getWorldPath(LevelResource.ROOT);
         return worldRoot.resolve(DB_DIR).resolve(dimKey(level)).resolve(DB_NAME);
     }
 
-    /**
-     * 确保 H2 驱动可用
-     * 
-     * 由于 Forge 的 TransformingClassLoader 不会自动扫描模组 JAR 中的 SPI 服务文件，
-     * 我们需要手动注册驱动。这里直接实例化驱动类（不使用 Class.forName），
-     * 避免模组审核系统标记为"动态类加载"。
-     */
     private static void ensureH2DriverAvailable() throws SQLException {
-        // 1. 首先检查 SPI 是否已自动注册（适用于 Fabric/NeoForge）
         try {
             java.sql.Driver driver = DriverManager.getDriver("jdbc:h2:");
-            if (driver != null) {
-                LOGGER.debug("RoadDatabaseManager: H2 驱动已通过 SPI 自动注册");
-                return;
-            }
-        } catch (SQLException ignored) {
-            // SPI 未注册，继续手动注册
-        }
-        
-        // 2. 手动注册驱动（适用于 Forge 类加载器）
+            if (driver != null) return;
+        } catch (SQLException ignored) {}
+
         if (H2_DRIVER_INSTANCE == null) {
             synchronized (RoadDatabaseManager.class) {
                 if (H2_DRIVER_INSTANCE == null) {
                     try {
-                        // 直接实例化驱动类，不使用 Class.forName()
-                        // 编译时会解析为重定位后的类名
                         H2_DRIVER_INSTANCE = new org.h2.Driver();
                         DriverManager.registerDriver(H2_DRIVER_INSTANCE);
-                        LOGGER.info("RoadDatabaseManager: H2 驱动已手动注册");
                     } catch (Exception e) {
                         throw new SQLException("Failed to register H2 driver", e);
                     }
@@ -98,191 +62,152 @@ public final class RoadDatabaseManager {
         }
     }
 
-    /**
-     * 获取或创建数据库连接
-     */
     public static Connection getConnection(ServerLevel level) throws SQLException {
         String key = worldKey(level);
 
         Connection conn = CONNECTIONS.get(key);
-        if (conn != null && !conn.isClosed()) {
-            return conn;
-        }
+        if (conn != null && !conn.isClosed()) return conn;
 
         synchronized (CONNECTIONS) {
             conn = CONNECTIONS.get(key);
-            if (conn != null && !conn.isClosed()) {
-                return conn;
-            }
+            if (conn != null && !conn.isClosed()) return conn;
 
             try {
                 Path dbPath = getDbPath(level);
                 Files.createDirectories(dbPath.getParent());
-
                 ensureH2DriverAvailable();
 
-                // H2 连接 URL，使用 MVStore 引擎，SQLite 兼容模式
-                // FILE_LOCK=NO 避免多进程锁问题（Minecraft 单进程）
-                // AUTO_SERVER=FALSE 禁用自动服务器模式
-                String url = "jdbc:h2:" + dbPath.toAbsolutePath() 
+                String url = "jdbc:h2:" + dbPath.toAbsolutePath()
                         + ";MODE=LEGACY"
                         + ";FILE_LOCK=NO"
                         + ";AUTO_SERVER=FALSE"
                         + ";CACHE_SIZE=8192";
-                
+
                 conn = DriverManager.getConnection(url, "sa", "");
 
-                // H2 优化配置
                 try (Statement stmt = conn.createStatement()) {
-                    // 写延迟（毫秒），平衡性能和安全
                     stmt.execute("SET WRITE_DELAY 1000");
-                    // 设置锁超时
                     stmt.execute("SET LOCK_TIMEOUT 10000");
                 }
 
-                // 初始化表结构
                 initTables(conn);
-
                 CONNECTIONS.put(key, conn);
-                LOGGER.debug("RoadDatabaseManager: 已创建维度 {} 的 H2 数据库连接", dimKey(level));
-
                 return conn;
-
             } catch (Exception e) {
-                LOGGER.error("RoadDatabaseManager: 创建数据库连接失败", e);
+                LOGGER.error("创建数据库连接失败", e);
                 throw new SQLException("Failed to create database connection", e);
             }
         }
     }
 
-    /**
-     * 初始化表结构
-     */
     private static void initTables(Connection conn) throws SQLException {
         try (Statement stmt = conn.createStatement()) {
-            // 道路数据表
             stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS roads (" +
-                            "    id IDENTITY PRIMARY KEY," +
-                            "    fingerprint BIGINT NOT NULL UNIQUE," +
-                            "    width INT NOT NULL," +
-                            "    road_type INT NOT NULL," +
-                            "    min_x INT NOT NULL," +
-                            "    min_z INT NOT NULL," +
-                            "    max_x INT NOT NULL," +
-                            "    max_z INT NOT NULL," +
-                            "    data BLOB NOT NULL," +
-                            "    created_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)" +
-                            ")");
+                    "CREATE TABLE IF NOT EXISTS roads ("
+                    + "id IDENTITY PRIMARY KEY,"
+                    + "fingerprint BIGINT NOT NULL UNIQUE,"
+                    + "width INT NOT NULL,"
+                    + "road_type INT NOT NULL,"
+                    + "min_x INT NOT NULL,"
+                    + "min_z INT NOT NULL,"
+                    + "max_x INT NOT NULL,"
+                    + "max_z INT NOT NULL,"
+                    + "data BLOB NOT NULL,"
+                    + "created_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)"
+                    + ")");
 
-            // 空间索引
-            stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_roads_spatial " +
-                            "ON roads (min_x, max_x, min_z, max_z)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_roads_spatial ON roads (min_x, max_x, min_z, max_z)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_roads_fingerprint ON roads (fingerprint)");
 
             stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_roads_fingerprint " +
-                            "ON roads (fingerprint)");
+                    "CREATE TABLE IF NOT EXISTS structures ("
+                    + "id IDENTITY PRIMARY KEY,"
+                    + "x INT NOT NULL,"
+                    + "z INT NOT NULL,"
+                    + "structure_id VARCHAR(255) NOT NULL,"
+                    + "source INT NOT NULL,"
+                    + "verified_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP),"
+                    + "CONSTRAINT uq_structures UNIQUE (x, z, structure_id, source)"
+                    + ")");
 
-            // 结构点缓存表
-            stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS structures (" +
-                            "    id IDENTITY PRIMARY KEY," +
-                            "    x INT NOT NULL," +
-                            "    z INT NOT NULL," +
-                            "    structure_id VARCHAR(255) NOT NULL," +
-                            "    source INT NOT NULL," +
-                            "    verified_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)," +
-                            "    CONSTRAINT uq_structures UNIQUE (x, z, structure_id, source)" +
-                            ")");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_structures_xz ON structures (x, z)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_structures_structure_id ON structures (structure_id)");
 
             stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_structures_xz " +
-                            "ON structures (x, z)");
+                    "CREATE TABLE IF NOT EXISTS structure_scan_tiles ("
+                    + "tile_x INT NOT NULL,"
+                    + "tile_z INT NOT NULL,"
+                    + "tile_size_chunks INT NOT NULL,"
+                    + "scanned_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP),"
+                    + "PRIMARY KEY (tile_x, tile_z, tile_size_chunks)"
+                    + ")");
+
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_structure_scan_tiles_range ON structure_scan_tiles (tile_size_chunks, tile_x, tile_z)");
 
             stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_structures_structure_id " +
-                            "ON structures (structure_id)");
-
-            // 已扫描区域标记
-            stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS structure_scan_tiles (" +
-                            "    tile_x INT NOT NULL," +
-                            "    tile_z INT NOT NULL," +
-                            "    tile_size_chunks INT NOT NULL," +
-                            "    scanned_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)," +
-                            "    PRIMARY KEY (tile_x, tile_z, tile_size_chunks)" +
-                            ")");
+                    "CREATE TABLE IF NOT EXISTS structure_cache_meta ("
+                    + "k VARCHAR(255) PRIMARY KEY,"
+                    + "v VARCHAR(4096) NOT NULL"
+                    + ")");
 
             stmt.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_structure_scan_tiles_range " +
-                            "ON structure_scan_tiles (tile_size_chunks, tile_x, tile_z)");
-
-            // 缓存元数据
-            stmt.execute(
-                    "CREATE TABLE IF NOT EXISTS structure_cache_meta (" +
-                            "    k VARCHAR(255) PRIMARY KEY," +
-                            "    v VARCHAR(4096) NOT NULL" +
-                            ")");
+                    "CREATE TABLE IF NOT EXISTS pending_sign_texts ("
+                    + "id IDENTITY PRIMARY KEY,"
+                    + "chunk_x INT NOT NULL,"
+                    + "chunk_z INT NOT NULL,"
+                    + "x INT NOT NULL,"
+                    + "y INT NOT NULL,"
+                    + "z INT NOT NULL,"
+                    + "sign_type INT NOT NULL,"
+                    + "payload VARCHAR(255) NOT NULL,"
+                    + "updated_at BIGINT NOT NULL,"
+                    + "CONSTRAINT uq_pending_sign_pos UNIQUE (x, y, z)"
+                    + ")");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_pending_sign_chunk ON pending_sign_texts (chunk_x, chunk_z, id)");
         }
     }
 
-    /**
-     * 关闭指定维度的数据库连接
-     */
     public static void closeConnection(ServerLevel level) {
         String key = worldKey(level);
         Connection conn = CONNECTIONS.remove(key);
         if (conn != null) {
             try {
                 conn.close();
-                LOGGER.debug("RoadDatabaseManager: 已关闭维度 {} 的数据库连接", dimKey(level));
             } catch (SQLException e) {
-                LOGGER.warn("RoadDatabaseManager: 关闭数据库连接失败", e);
+                LOGGER.warn("关闭数据库连接失败", e);
             }
         }
     }
 
-    /**
-     * 关闭所有数据库连接
-     */
     public static void closeAll() {
         for (var entry : CONNECTIONS.entrySet()) {
             try {
                 entry.getValue().close();
             } catch (SQLException e) {
-                LOGGER.warn("RoadDatabaseManager: 关闭数据库连接失败: {}", entry.getKey(), e);
+                LOGGER.warn("关闭数据库连接失败: {}", entry.getKey(), e);
             }
         }
         CONNECTIONS.clear();
-        LOGGER.debug("RoadDatabaseManager: 所有数据库连接已关闭");
     }
 
-    /**
-     * 执行检查点（H2 使用 CHECKPOINT 命令）
-     */
     public static void checkpoint(ServerLevel level) {
         String key = worldKey(level);
         Connection conn = CONNECTIONS.get(key);
         if (conn != null) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("CHECKPOINT SYNC");
-                LOGGER.debug("RoadDatabaseManager: 维度 {} 检查点完成", dimKey(level));
             } catch (SQLException e) {
-                LOGGER.warn("RoadDatabaseManager: 检查点失败", e);
+                LOGGER.warn("检查点失败", e);
             }
         }
     }
 
-    /**
-     * 执行所有连接的检查点
-     */
     public static void checkpointAll() {
         for (var entry : CONNECTIONS.entrySet()) {
             try (Statement stmt = entry.getValue().createStatement()) {
                 stmt.execute("CHECKPOINT SYNC");
             } catch (SQLException e) {
-                LOGGER.warn("RoadDatabaseManager: 检查点失败: {}", entry.getKey(), e);
+                LOGGER.warn("检查点失败: {}", entry.getKey(), e);
             }
         }
     }

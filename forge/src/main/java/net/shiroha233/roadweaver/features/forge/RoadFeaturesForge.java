@@ -8,9 +8,12 @@ import net.minecraftforge.registries.RegistryObject;
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.features.highway.HighwayFeature;
 import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
-import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.PathFeature;
+import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 
+/**
+ * Forge Feature 注册
+ */
 public final class RoadFeaturesForge {
     private RoadFeaturesForge() {}
 

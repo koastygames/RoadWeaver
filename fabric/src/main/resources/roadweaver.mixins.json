@@ -15,7 +15,9 @@
     "fabric.PlayerDimensionChangeMixin",
     "fabric.tyg.TreeFromStructureNBTFeatureMixin",
     "fabric.rtf.RTFTemplateFeatureMixin",
-    "fabric.rtf.RTFBushFeatureMixin"
+    "fabric.rtf.RTFBushFeatureMixin",
+    "fabric.BeardifierMixin",
+    "fabric.StructureManagerAccessor"
   ],
   "client": [
     "fabric.CreateWorldScreenMixin",

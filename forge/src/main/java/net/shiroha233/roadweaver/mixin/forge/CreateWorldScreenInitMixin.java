@@ -26,9 +26,6 @@ import java.util.OptionalLong;
 
 /**
  * Mixin 用于在创建世界界面初始化时获取 RegistryAccess 并发现结构
- * 
- * 这是解决 Forge 版结构选择列表无法提取的关键 Mixin。
- * 通过在创建世界界面初始化时获取 RegistryAccess，可以提前发现所有可用的结构。
  */
 @Mixin(CreateWorldScreen.class)
 public abstract class CreateWorldScreenInitMixin extends Screen {
@@ -41,20 +38,12 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
         super(Component.empty());
     }
 
-    /**
-     * 在 CreateWorldScreen 构造函数返回时注入，获取 RegistryAccess 并发现结构
-     * 
-     * 1.20.1 构造函数签名：
-     * private CreateWorldScreen(Minecraft, Screen, WorldCreationContext, Optional<ResourceKey<WorldPreset>>, OptionalLong)
-     */
     @Inject(method = "<init>(Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/gui/screens/Screen;Lnet/minecraft/client/gui/screens/worldselection/WorldCreationContext;Ljava/util/Optional;Ljava/util/OptionalLong;)V", at = @At("RETURN"))
     private void onInitEnd(
             Minecraft minecraft, Screen screen, WorldCreationContext worldCreationContext,
             Optional<ResourceKey<WorldPreset>> optional, OptionalLong optionalLong, CallbackInfo ci
     ) {
-        // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
         try {
-            // 优先使用构造函数参数，避免某些阶段 uiState.getSettings() 尚未就绪。
             WorldCreationContext settings = (worldCreationContext != null) ? worldCreationContext : uiState.getSettings();
             if (settings != null) {
                 RegistryAccess.Frozen registryAccess = settings.worldgenLoadContext();
@@ -85,7 +74,6 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
                 }
             }
         } catch (Exception e) {
-            // 忽略错误，不影响正常流程
         }
     }
 }

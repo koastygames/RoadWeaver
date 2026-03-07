@@ -1,19 +1,29 @@
 package net.shiroha233.roadweaver.features.path.decoration.types;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.shiroha233.roadweaver.features.path.decoration.base.OrientedDecoration;
-import net.shiroha233.roadweaver.features.path.decoration.material.wood.BiomeWoodAware;
+import net.shiroha233.roadweaver.core.model.WoodAssets;
+import net.shiroha233.roadweaver.features.path.decoration.material.BiomeWoodAware;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
-import net.shiroha233.roadweaver.helpers.Records;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-
+/**
+ * 距离路牌装饰
+ */
 public class DistanceSignDecoration extends OrientedDecoration implements BiomeWoodAware {
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
+    private static final WoodAssets DEFAULT_WOOD = new WoodAssets(Blocks.OAK_FENCE, Blocks.OAK_HANGING_SIGN,
+            Blocks.OAK_PLANKS);
     private final boolean isStart;
     private final String signText;
-    private Records.WoodAssets wood;
+    private WoodAssets wood;
 
     public DistanceSignDecoration(BlockPos pos, Vec3i direction, WorldGenLevel world, boolean isStart, String distanceText) {
         super(pos, direction, world);
@@ -23,12 +33,14 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
 
     @Override
     public void place() {
+        if (wood == null) wood = DEFAULT_WOOD;
         if (!placeAllowed()) return;
         int rotation = getCardinalRotationFromVector(getOrthogonalVector(), isStart);
         DirectionProperties props = getDirectionProperties(rotation);
 
         BlockPos basePos = this.getPos();
         WorldGenLevel world = this.getWorld();
+        ensureFoundation(basePos, world);
 
         BlockPos signPos = basePos.above(2).relative(props.offsetDirection.getOpposite());
         world.setBlock(signPos,
@@ -36,9 +48,12 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
                         .setValue(BlockStateProperties.ROTATION_16, rotation)
                         .setValue(BlockStateProperties.ATTACHED, true),
                 3);
-        updateSigns(world, signPos, signText);
-
         placeFenceStructure(basePos, props);
+        try {
+            updateSigns(world, signPos, signText);
+        } catch (Throwable t) {
+            LOGGER.warn("Distance sign text write failed at {}", signPos, t);
+        }
     }
 
     private void placeFenceStructure(BlockPos pos, DirectionProperties props) {
@@ -55,7 +70,17 @@ public class DistanceSignDecoration extends OrientedDecoration implements BiomeW
     }
 
     @Override
-    public void setWoodType(Records.WoodAssets assets) {
+    public void setWoodType(WoodAssets assets) {
         this.wood = assets;
+    }
+
+    private void ensureFoundation(BlockPos basePos, WorldGenLevel world) {
+        BlockPos belowPos = basePos.below();
+        BlockState below = world.getBlockState(belowPos);
+        if (!below.isFaceSturdy(world, belowPos, Direction.UP)
+                || below.is(Blocks.WATER)
+                || below.is(Blocks.LAVA)) {
+            world.setBlock(belowPos, wood.planks().defaultBlockState(), 3);
+        }
     }
 }

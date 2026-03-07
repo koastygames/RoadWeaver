@@ -10,7 +10,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
 
 /**
- * Highway 路面上方清障器。
+ * Highway 路面上方清障器
  */
 public final class HighwayAboveColumnClearer {
     private HighwayAboveColumnClearer() {}

@@ -8,905 +8,790 @@ import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
+import net.shiroha233.roadweaver.config.sub.*;
+import net.shiroha233.roadweaver.core.constants.RoadConstants;
 
 import java.util.Locale;
 
 /**
- * Fabric 平台的配置屏幕工厂实现
+ * Fabric 平台配置屏幕工厂实现
  */
 public class ConfigScreenFactoryImpl {
 
-        /**
-         * 创建配置屏幕 (Fabric实现)
-         * 
-         * @param parent 父屏幕
-         * @return 配置屏幕实例
-         */
-        public static Screen createConfigScreen(Screen parent) {
-                ConfigBuilder builder = ConfigBuilder.create()
-                                .setParentScreen(parent)
-                                .setTitle(Component.translatable("config.roadweaver.title"));
+    public static Screen createConfigScreen(Screen parent) {
+        ConfigBuilder builder = ConfigBuilder.create()
+                .setParentScreen(parent)
+                .setTitle(Component.translatable("config.roadweaver.title"));
 
-                PresetService.reload();
-                ModConfig conf = ConfigService.get();
-                ModConfig defaultConf = new ModConfig();
-                builder.setSavingRunnable(ConfigService::save);
+        PresetService.reload();
+        ModConfig conf = ConfigService.get();
+        ModConfig defaultConf = new ModConfig();
+        builder.setSavingRunnable(ConfigService::save);
 
-                ConfigEntryBuilder eb = builder.entryBuilder();
+        ConfigEntryBuilder eb = builder.entryBuilder();
 
-                // Structure Filters
-                ConfigCategory filters = builder.getOrCreateCategory(
-                                Component.translatable("config.roadweaver.category.structure_filters"));
-                filters.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.enable_prediction"),
-                                                conf.structurePredictionEnabled())
-                                .setDefaultValue(defaultConf.structurePredictionEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.enable_prediction.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setStructurePredictionEnabled(v);
-                                })
-                                .build());
-                filters.addEntry(new OpenStructurePredictionDimensionWhitelistEntry());
-                filters.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.radius_chunks"),
-                                                conf.predictRadiusChunks())
-                                .setDefaultValue(defaultConf.predictRadiusChunks())
-                                .setTooltip(Component.translatable("config.roadweaver.radius_chunks.tooltip"))
-                                .setMin(1).setMax(4096)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setPredictRadiusChunks(v);
-                                })
-                                .build());
-                filters.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.biome_prefilter"),
-                                                conf.biomePrefilter())
-                                .setDefaultValue(defaultConf.biomePrefilter())
-                                .setTooltip(Component.translatable("config.roadweaver.biome_prefilter.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBiomePrefilter(v);
-                                })
-                                .build());
-                filters.addEntry(new OpenStructureSelectionEntry());
+        buildStructurePredictionCategory(builder, eb, conf, defaultConf);
+        
+        buildPlanningCategory(builder, eb, conf, defaultConf);
+        
+        buildHighwayCategory(builder, eb, conf, defaultConf);
+        
+        buildLongDriveCategory(builder, eb, conf, defaultConf);
+        
+        buildRoadGenerationCategory(builder, eb, conf, defaultConf);
+        
+        buildSurfaceSettingsCategory(builder, eb, conf, defaultConf);
+        
+        buildBridgeCategory(builder, eb, conf, defaultConf);
+        
+        buildRoadsideStructuresCategory(builder, eb, conf, defaultConf);
+        
+        buildPerformanceCategory(builder, eb, conf, defaultConf);
+        
+        buildPathfindingCostsCategory(builder, eb, conf, defaultConf);
+        
+        buildClientCategory(builder, eb, conf, defaultConf);
 
-                // Road Planning
-                ConfigCategory planning = builder.getOrCreateCategory(
-                                Component.translatable("config.roadweaver.category.road_planning"));
-                planning.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.initial_plan_radius_chunks"),
-                                                conf.initialPlanRadiusChunks())
-                                .setDefaultValue(defaultConf.initialPlanRadiusChunks())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.initial_plan_radius_chunks.tooltip"))
-                                .setMin(1).setMax(4096)
-                                .setSaveConsumer(v -> conf.setInitialPlanRadiusChunks(v))
-                                .build());
-                planning.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.dynamic_plan_enabled"),
-                                                conf.dynamicPlanEnabled())
-                                .setDefaultValue(defaultConf.dynamicPlanEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.dynamic_plan_enabled.tooltip"))
-                                .setSaveConsumer(v -> conf.setDynamicPlanEnabled(v))
-                                .build());
-                planning.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.dynamic_plan_radius_chunks"),
-                                                conf.dynamicPlanRadiusChunks())
-                                .setDefaultValue(defaultConf.dynamicPlanRadiusChunks())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.dynamic_plan_radius_chunks.tooltip"))
-                                .setMin(1).setMax(4096)
-                                .setSaveConsumer(v -> conf.setDynamicPlanRadiusChunks(v))
-                                .build());
-                planning.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.dynamic_plan_stride_chunks"),
-                                                conf.dynamicPlanStrideChunks())
-                                .setDefaultValue(defaultConf.dynamicPlanStrideChunks())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.dynamic_plan_stride_chunks.tooltip"))
-                                .setMin(1).setMax(256)
-                                .setSaveConsumer(v -> conf.setDynamicPlanStrideChunks(v))
-                                .build());
+        return builder.build();
+    }
 
-                ModConfig.PlanningAlgorithm planningAlgo = conf.planningAlgorithm() != null ? conf.planningAlgorithm()
-                                : ModConfig.PlanningAlgorithm.RNG;
-                planning.addEntry(eb
-                                .startEnumSelector(Component.translatable("config.roadweaver.planning_algorithm"),
-                                                ModConfig.PlanningAlgorithm.class, planningAlgo)
-                                .setDefaultValue(defaultConf.planningAlgorithm())
-                                .setTooltip(Component.translatable("config.roadweaver.planning_algorithm.tooltip"))
-                                .setEnumNameProvider(v -> Component
-                                                .translatable("config.roadweaver.planning_algorithm.option."
-                                                                + v.name().toLowerCase(Locale.ROOT)))
-                                .setSaveConsumer(v -> conf.setPlanningAlgorithm(v))
-                                .build());
+    private static void buildStructurePredictionCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.structure_filters"));
+        StructurePredictionConfig cfg = conf.structurePrediction();
+        StructurePredictionConfig def = defaultConf.structurePrediction();
 
-                // Highway
-                ConfigCategory highway = builder
-                                .getOrCreateCategory(Component.translatable("config.roadweaver.category.highway"));
-                highway.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.highway_enabled"),
-                                                conf.highwayEnabled())
-                                .setDefaultValue(defaultConf.highwayEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.highway_enabled.tooltip"))
-                                .setSaveConsumer(v -> conf.setHighwayEnabled(v))
-                                .build());
-                highway.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable("config.roadweaver.highway_auto_plan_enabled"),
-                                                conf.highwayAutoPlanEnabled())
-                                .setDefaultValue(defaultConf.highwayAutoPlanEnabled())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_auto_plan_enabled.tooltip"))
-                                .setSaveConsumer(v -> conf.setHighwayAutoPlanEnabled(v))
-                                .build());
-                highway.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.highway_grid_blocks"),
-                                                conf.highwayGridBlocks())
-                                .setDefaultValue(defaultConf.highwayGridBlocks())
-                                .setTooltip(Component.translatable("config.roadweaver.highway_grid_blocks.tooltip"))
-                                .setMin(128).setMax(20000)
-                                .setSaveConsumer(v -> conf.setHighwayGridBlocks(v))
-                                .build());
-                highway.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable(
-                                                                "config.roadweaver.highway_dynamic_plan_enabled"),
-                                                conf.highwayDynamicPlanEnabled())
-                                .setDefaultValue(defaultConf.highwayDynamicPlanEnabled())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_dynamic_plan_enabled.tooltip"))
-                                .setSaveConsumer(v -> conf.setHighwayDynamicPlanEnabled(v))
-                                .build());
-                highway.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.highway_road_width"),
-                                                conf.highwayRoadWidth())
-                                .setDefaultValue(defaultConf.highwayRoadWidth())
-                                .setTooltip(Component.translatable("config.roadweaver.highway_road_width.tooltip"))
-                                .setMin(1).setMax(31)
-                                .setSaveConsumer(v -> conf.setHighwayRoadWidth(v))
-                                .build());
-                highway.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable("config.roadweaver.highway_slope_limit_enabled"),
-                                                conf.highwaySlopeLimitEnabled())
-                                .setDefaultValue(defaultConf.highwaySlopeLimitEnabled())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_slope_limit_enabled.tooltip"))
-                                .setSaveConsumer(v -> conf.setHighwaySlopeLimitEnabled(v))
-                                .build());
-                highway.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.highway_slope_run_blocks"),
-                                                conf.highwaySlopeRunBlocks())
-                                .setDefaultValue(defaultConf.highwaySlopeRunBlocks())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_slope_run_blocks.tooltip"))
-                                .setMin(1).setMax(64)
-                                .setSaveConsumer(v -> conf.setHighwaySlopeRunBlocks(v))
-                                .build());
-                highway.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.highway_slope_rise_blocks"),
-                                                conf.highwaySlopeRiseBlocks())
-                                .setDefaultValue(defaultConf.highwaySlopeRiseBlocks())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_slope_rise_blocks.tooltip"))
-                                .setMin(0).setMax(16)
-                                .setSaveConsumer(v -> conf.setHighwaySlopeRiseBlocks(v))
-                                .build());
-                highway.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.highway_a_star_step"),
-                                                conf.highwayAStarStep())
-                                .setDefaultValue(defaultConf.highwayAStarStep())
-                                .setTooltip(Component.translatable("config.roadweaver.highway_a_star_step.tooltip"))
-                                .setMin(4).setMax(128)
-                                .setSaveConsumer(v -> conf.setHighwayAStarStep(v))
-                                .build());
-                highway.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.highway_a_star_max_steps"),
-                                                conf.highwayAStarMaxSteps())
-                                .setDefaultValue(defaultConf.highwayAStarMaxSteps())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_a_star_max_steps.tooltip"))
-                                .setMin(1000).setMax(200000)
-                                .setSaveConsumer(v -> conf.setHighwayAStarMaxSteps(v))
-                                .build());
-                highway.addEntry(eb
-                                .startDoubleField(Component.translatable("config.roadweaver.highway_floating_weight"),
-                                                conf.highwayFloatingWeight())
-                                .setDefaultValue(defaultConf.highwayFloatingWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.highway_floating_weight.tooltip"))
-                                .setMin(0).setSaveConsumer(v -> conf.setHighwayFloatingWeight(v))
-                                .build());
-                highway.addEntry(eb
-                                .startDoubleField(
-                                                Component.translatable("config.roadweaver.highway_penetration_weight"),
-                                                conf.highwayPenetrationWeight())
-                                .setDefaultValue(defaultConf.highwayPenetrationWeight())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.highway_penetration_weight.tooltip"))
-                                .setMin(0).setSaveConsumer(v -> conf.setHighwayPenetrationWeight(v))
-                                .build());
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.enable_prediction"), cfg.enabled())
+                .setDefaultValue(def.enabled())
+                .setTooltip(Component.translatable("config.roadweaver.enable_prediction.tooltip"))
+                .setSaveConsumer(cfg::setEnabled)
+                .build());
 
-                // Road Generation
-                ConfigCategory roadGen = builder.getOrCreateCategory(
-                                Component.translatable("config.roadweaver.category.road_generation"));
-                roadGen.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.roads_enabled"),
-                                                conf.roadsEnabled())
-                                .setDefaultValue(defaultConf.roadsEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.roads_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setRoadsEnabled(v);
-                                })
-                                .build());
-                roadGen.addEntry(new OpenDimensionRoadSettingsEntry());
-                roadGen.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.allow_artificial"),
-                                                conf.allowArtificial())
-                                .setDefaultValue(defaultConf.allowArtificial())
-                                .setTooltip(Component.translatable("config.roadweaver.allow_artificial.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setAllowArtificial(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.allow_natural"),
-                                                conf.allowNatural())
-                                .setDefaultValue(defaultConf.allowNatural())
-                                .setTooltip(Component.translatable("config.roadweaver.allow_natural.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setAllowNatural(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.place_waypoints"),
-                                                conf.placeWaypoints())
-                                .setDefaultValue(defaultConf.placeWaypoints())
-                                .setTooltip(Component.translatable("config.roadweaver.place_waypoints.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setPlaceWaypoints(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.spawn_cabin_enabled"),
-                                                conf.spawnCabinEnabled())
-                                .setDefaultValue(defaultConf.spawnCabinEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.spawn_cabin_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setSpawnCabinEnabled(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.road_width"), conf.roadWidth())
-                                .setDefaultValue(defaultConf.roadWidth())
-                                .setTooltip(Component.translatable("config.roadweaver.road_width.tooltip"))
-                                .setMin(0).setMax(15)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setRoadWidth(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.village_road_offset"),
-                                                conf.villageRoadOffset())
-                                .setDefaultValue(defaultConf.villageRoadOffset())
-                                .setTooltip(Component.translatable("config.roadweaver.village_road_offset.tooltip"))
-                                .setMin(0).setMax(256)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setVillageRoadOffset(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"),
-                                                conf.otherStructureRoadOffset())
-                                .setDefaultValue(defaultConf.otherStructureRoadOffset())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.other_structure_road_offset.tooltip"))
-                                .setMin(0).setMax(256)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setOtherStructureRoadOffset(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable("config.roadweaver.structure_avoidance_enabled"),
-                                                conf.structureAvoidanceEnabled())
-                                .setDefaultValue(defaultConf.structureAvoidanceEnabled())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setStructureAvoidanceEnabled(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.road_signs_enabled"),
-                                                conf.roadSignsEnabled())
-                                .setDefaultValue(defaultConf.roadSignsEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.road_signs_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setRoadSignsEnabled(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.lamp_interval"),
-                                                conf.lampInterval())
-                                .setDefaultValue(defaultConf.lampInterval())
-                                .setTooltip(Component.translatable("config.roadweaver.lamp_interval.tooltip"))
-                                .setMin(1).setMax(2048)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setLampInterval(v);
-                                })
-                                .build());
-                roadGen.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.road_clear_height"),
-                                                conf.roadClearHeight())
-                                .setDefaultValue(defaultConf.roadClearHeight())
-                                .setTooltip(Component.translatable("config.roadweaver.road_clear_height.tooltip"))
-                                .setMin(1).setMax(16)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setRoadClearHeight(v);
-                                })
-                                .build());
-                roadGen.addEntry(new OpenPresetEditorEntry());
+        category.addEntry(new OpenStructurePredictionDimensionWhitelistEntry());
 
-                // Surface Settings
-                ConfigCategory genSurface = builder
-                                .getOrCreateCategory(Component.translatable("config.roadweaver.category.gen_surface"));
-                genSurface.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.averaging_radius"),
-                                                conf.averagingRadius())
-                                .setDefaultValue(defaultConf.averagingRadius())
-                                .setTooltip(Component.translatable("config.roadweaver.averaging_radius.tooltip"))
-                                .setMin(0).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setAveragingRadius(v);
-                                })
-                                .build());
-                genSurface.addEntry(eb
-                                .startIntField(Component
-                                                .translatable("config.roadweaver.max_slope_step_per_two_segments"),
-                                                conf.maxSlopeStepPerTwoSegments())
-                                .setDefaultValue(defaultConf.maxSlopeStepPerTwoSegments())
-                                .setTooltip(Component.translatable(
-                                                "config.roadweaver.max_slope_step_per_two_segments.tooltip"))
-                                .setMin(0).setMax(8)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setMaxSlopeStepPerTwoSegments(v);
-                                })
-                                .build());
-                genSurface.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.slope_limit_enabled"),
-                                                conf.slopeLimitEnabled())
-                                .setDefaultValue(defaultConf.slopeLimitEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.slope_limit_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setSlopeLimitEnabled(v);
-                                })
-                                .build());
-                genSurface.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.road_fill_enabled"),
-                                                conf.roadFillEnabled())
-                                .setDefaultValue(defaultConf.roadFillEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.road_fill_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setRoadFillEnabled(v);
-                                })
-                                .build());
-                genSurface.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable(
-                                                                "config.roadweaver.interpolated_roadbed_fill_enabled"),
-                                                conf.interpolatedRoadbedFillEnabled())
-                                .setDefaultValue(defaultConf.interpolatedRoadbedFillEnabled())
-                                .setTooltip(Component.translatable(
-                                                "config.roadweaver.interpolated_roadbed_fill_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setInterpolatedRoadbedFillEnabled(v);
-                                })
-                                .build());
-                genSurface.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.causeway_max_depth"),
-                                                conf.causewayMaxDepth())
-                                .setDefaultValue(defaultConf.causewayMaxDepth())
-                                .setTooltip(Component.translatable("config.roadweaver.causeway_max_depth.tooltip"))
-                                .setMin(0).setMax(12)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setCausewayMaxDepth(v);
-                                })
-                                .build());
-                genSurface.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.prevent_trees_on_road"),
-                                                conf.preventTreesOnRoad())
-                                .setDefaultValue(defaultConf.preventTreesOnRoad())
-                                .setTooltip(Component.translatable("config.roadweaver.prevent_trees_on_road.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setPreventTreesOnRoad(v);
-                                })
-                                .build());
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.radius_chunks"), cfg.predictRadiusChunks())
+                .setDefaultValue(def.predictRadiusChunks())
+                .setTooltip(Component.translatable("config.roadweaver.radius_chunks.tooltip"))
+                .setMin(1).setMax(4096)
+                .setSaveConsumer(cfg::setPredictRadiusChunks)
+                .build());
 
-                // Bridge Settings
-                ConfigCategory bridge = builder
-                                .getOrCreateCategory(Component.translatable("config.roadweaver.category.bridge"));
-                bridge.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_enabled"),
-                                                conf.bridgeEnabled())
-                                .setDefaultValue(defaultConf.bridgeEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeEnabled(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_deck_clearance"),
-                                                conf.bridgeDeckClearance())
-                                .setDefaultValue(defaultConf.bridgeDeckClearance())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_deck_clearance.tooltip"))
-                                .setMin(1).setMax(8)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeDeckClearance(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_max_length_blocks"),
-                                                conf.bridgeMaxLengthBlocks())
-                                .setDefaultValue(defaultConf.bridgeMaxLengthBlocks())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.bridge_max_length_blocks.tooltip"))
-                                .setMin(0).setMax(10000)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeMaxLengthBlocks(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable("config.roadweaver.bridge_use_buoys_instead"),
-                                                conf.bridgeUseBuoysInstead())
-                                .setDefaultValue(defaultConf.bridgeUseBuoysInstead())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.bridge_use_buoys_instead.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeUseBuoysInstead(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable(
-                                                                "config.roadweaver.bridge_use_buoys_when_skipped"),
-                                                conf.bridgeUseBuoysWhenSkipped())
-                                .setDefaultValue(defaultConf.bridgeUseBuoysWhenSkipped())
-                                .setTooltip(Component.translatable(
-                                                "config.roadweaver.bridge_use_buoys_when_skipped.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeUseBuoysWhenSkipped(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.buoy_interval_blocks"),
-                                                conf.buoyIntervalBlocks())
-                                .setDefaultValue(defaultConf.buoyIntervalBlocks())
-                                .setTooltip(Component.translatable("config.roadweaver.buoy_interval_blocks.tooltip"))
-                                .setMin(4).setMax(256)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBuoyIntervalBlocks(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_pier_interval"),
-                                                conf.bridgePierInterval())
-                                .setDefaultValue(defaultConf.bridgePierInterval())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_interval.tooltip"))
-                                .setMin(3).setMax(32)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgePierInterval(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_pier_width"),
-                                                conf.bridgePierWidth())
-                                .setDefaultValue(defaultConf.bridgePierWidth())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_width.tooltip"))
-                                .setMin(1).setMax(3)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgePierWidth(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_pier_max_height"),
-                                                conf.bridgePierMaxHeight())
-                                .setDefaultValue(defaultConf.bridgePierMaxHeight())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_max_height.tooltip"))
-                                .setMin(6).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgePierMaxHeight(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_keep_lamps"),
-                                                conf.bridgeKeepLamps())
-                                .setDefaultValue(defaultConf.bridgeKeepLamps())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_keep_lamps.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeKeepLamps(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_ramp_segments"),
-                                                conf.bridgeRampSegments())
-                                .setDefaultValue(defaultConf.bridgeRampSegments())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_ramp_segments.tooltip"))
-                                .setMin(0).setMax(12)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeRampSegments(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_min_water_depth"),
-                                                conf.bridgeMinWaterDepth())
-                                .setDefaultValue(defaultConf.bridgeMinWaterDepth())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_min_water_depth.tooltip"))
-                                .setMin(1).setMax(10)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeMinWaterDepth(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_min_length"),
-                                                conf.bridgeMinLength())
-                                .setDefaultValue(defaultConf.bridgeMinLength())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_min_length.tooltip"))
-                                .setMin(1).setMax(32)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeMinLength(v);
-                                })
-                                .build());
-                bridge.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.bridge_merge_gap"),
-                                                conf.bridgeMergeGap())
-                                .setDefaultValue(defaultConf.bridgeMergeGap())
-                                .setTooltip(Component.translatable("config.roadweaver.bridge_merge_gap.tooltip"))
-                                .setMin(1).setMax(32)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBridgeMergeGap(v);
-                                })
-                                .build());
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.biome_prefilter"), cfg.biomePrefilter())
+                .setDefaultValue(def.biomePrefilter())
+                .setTooltip(Component.translatable("config.roadweaver.biome_prefilter.tooltip"))
+                .setSaveConsumer(cfg::setBiomePrefilter)
+                .build());
 
-                // Roadside Structures
-                ConfigCategory roadsideStructures = builder.getOrCreateCategory(
-                                Component.translatable("config.roadweaver.category.roadside_structures"));
-                roadsideStructures.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable("config.roadweaver.roadside_structures_enabled"),
-                                                conf.roadsideStructuresEnabled())
-                                .setDefaultValue(defaultConf.roadsideStructuresEnabled())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.roadside_structures_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setRoadsideStructuresEnabled(v);
-                                })
-                                .build());
-                roadsideStructures.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.max_structures_per_road"),
-                                                conf.maxStructuresPerRoad())
-                                .setDefaultValue(defaultConf.maxStructuresPerRoad())
-                                .setTooltip(Component.translatable("config.roadweaver.max_structures_per_road.tooltip"))
-                                .setMin(0).setMax(20)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setMaxStructuresPerRoad(v);
-                                })
-                                .build());
-                roadsideStructures.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.small_structure_offset"),
-                                                conf.smallStructureOffset())
-                                .setDefaultValue(defaultConf.smallStructureOffset())
-                                .setTooltip(Component.translatable("config.roadweaver.small_structure_offset.tooltip"))
-                                .setMin(1).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setSmallStructureOffset(v);
-                                })
-                                .build());
-                roadsideStructures.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.medium_structure_offset"),
-                                                conf.mediumStructureOffset())
-                                .setDefaultValue(defaultConf.mediumStructureOffset())
-                                .setTooltip(Component.translatable("config.roadweaver.medium_structure_offset.tooltip"))
-                                .setMin(1).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setMediumStructureOffset(v);
-                                })
-                                .build());
-                roadsideStructures.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.large_structure_offset"),
-                                                conf.largeStructureOffset())
-                                .setDefaultValue(defaultConf.largeStructureOffset())
-                                .setTooltip(Component.translatable("config.roadweaver.large_structure_offset.tooltip"))
-                                .setMin(1).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setLargeStructureOffset(v);
-                                })
-                                .build());
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.structure_avoidance_enabled"), cfg.structureAvoidanceEnabled())
+                .setDefaultValue(def.structureAvoidanceEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.structure_avoidance_enabled.tooltip"))
+                .setSaveConsumer(cfg::setStructureAvoidanceEnabled)
+                .build());
 
-                // Performance Settings
-                ConfigCategory genPerformance = builder.getOrCreateCategory(
-                                Component.translatable("config.roadweaver.category.gen_performance"));
-                genPerformance.addEntry(eb
-                                .startIntField(Component
-                                                .translatable("text.autoconfig.roadweaver.option.computeThreads"),
-                                                conf.computeThreads())
-                                .setDefaultValue(defaultConf.computeThreads())
-                                .setTooltip(Component.translatable(
-                                                "text.autoconfig.roadweaver.option.computeThreads.@Tooltip"))
-                                .setMin(0).setMax(128)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setComputeThreads(v);
-                                })
-                                .build());
-                genPerformance.addEntry(eb
-                                .startIntField(Component
-                                                .translatable("text.autoconfig.roadweaver.option.generationThreads"),
-                                                conf.generationThreads())
-                                .setDefaultValue(defaultConf.generationThreads())
-                                .setTooltip(Component.translatable(
-                                                "text.autoconfig.roadweaver.option.generationThreads.@Tooltip"))
-                                .setMin(1).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setGenerationThreads(v);
-                                })
-                                .build());
-                genPerformance.addEntry(eb
-                                .startIntField(Component.translatable(
-                                                "text.autoconfig.roadweaver.option.initialGenerationThreads"),
-                                                conf.initialGenerationThreads())
-                                .setDefaultValue(defaultConf.initialGenerationThreads())
-                                .setTooltip(Component.translatable(
-                                                "text.autoconfig.roadweaver.option.initialGenerationThreads.@Tooltip"))
-                                .setMin(1).setMax(64)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setInitialGenerationThreads(v);
-                                })
-                                .build());
-                genPerformance.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.max_concurrent_generations"),
-                                                conf.maxConcurrentGenerations())
-                                .setDefaultValue(defaultConf.maxConcurrentGenerations())
-                                .setTooltip(Component
-                                                .translatable("config.roadweaver.max_concurrent_generations.tooltip"))
-                                .setMin(1).setMax(128)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setMaxConcurrentGenerations(v);
-                                })
-                                .build());
-                genPerformance.addEntry(eb
-                                .startIntSlider(Component.translatable("config.roadweaver.thread_duty_cycle"),
-                                                conf.threadDutyCycle(), 1, 100)
-                                .setDefaultValue(defaultConf.threadDutyCycle())
-                                .setTooltip(Component.translatable("config.roadweaver.thread_duty_cycle.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setThreadDutyCycle(v);
-                                })
-                                .build());
+        category.addEntry(new OpenStructureSelectionEntry());
+    }
 
-                // Pathfinding Costs
-                ConfigCategory pathfindingCosts = builder.getOrCreateCategory(
-                                Component.translatable("config.roadweaver.category.pathfinding_costs"));
-                ModConfig.PathfindingAlgorithm pathfindingAlgo = conf.pathfindingAlgorithm() != null
-                                ? conf.pathfindingAlgorithm()
-                                : ModConfig.PathfindingAlgorithm.ASTAR_BASIC;
-                pathfindingCosts.addEntry(eb
-                                .startEnumSelector(Component.translatable("config.roadweaver.pathfinding_algorithm"),
-                                                ModConfig.PathfindingAlgorithm.class, pathfindingAlgo)
-                                .setDefaultValue(defaultConf.pathfindingAlgorithm())
-                                .setTooltip(Component.translatable("config.roadweaver.pathfinding_algorithm.tooltip"))
-                                .setEnumNameProvider(v -> Component
-                                                .translatable("config.roadweaver.pathfinding_algorithm.option."
-                                                                + v.name().toLowerCase(Locale.ROOT)))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setPathfindingAlgorithm(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startBooleanToggle(
-                                                Component.translatable(
-                                                                "config.roadweaver.hierarchical_pathfinding_enabled"),
-                                                conf.hierarchicalPathfindingEnabled())
-                                .setDefaultValue(defaultConf.hierarchicalPathfindingEnabled())
-                                .setTooltip(Component.translatable(
-                                                "config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setHierarchicalPathfindingEnabled(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.a_star_step"),
-                                                conf.aStarStep())
-                                .setDefaultValue(defaultConf.aStarStep())
-                                .setTooltip(Component.translatable("config.roadweaver.a_star_step.tooltip"))
-                                .setMin(4).setMax(128)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setAStarStep(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.a_star_max_steps"),
-                                                conf.aStarMaxSteps())
-                                .setDefaultValue(defaultConf.aStarMaxSteps())
-                                .setTooltip(Component.translatable("config.roadweaver.a_star_max_steps.tooltip"))
-                                .setMin(100).setMax(100000)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setAStarMaxSteps(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startDoubleField(Component.translatable("config.roadweaver.ortho_step_cost"),
-                                                conf.orthoStepCost())
-                                .setDefaultValue(defaultConf.orthoStepCost())
-                                .setTooltip(Component.translatable("config.roadweaver.ortho_step_cost.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setOrthoStepCost(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startDoubleField(Component.translatable("config.roadweaver.diag_step_cost"),
-                                                conf.diagStepCost())
-                                .setDefaultValue(defaultConf.diagStepCost())
-                                .setTooltip(Component.translatable("config.roadweaver.diag_step_cost.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setDiagStepCost(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.elevation_weight"),
-                                                conf.elevationWeight())
-                                .setDefaultValue(defaultConf.elevationWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.elevation_weight.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setElevationWeight(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.biome_weight"),
-                                                conf.biomeWeight())
-                                .setDefaultValue(defaultConf.biomeWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.biome_weight.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setBiomeWeight(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.stability_weight"),
-                                                conf.stabilityWeight())
-                                .setDefaultValue(defaultConf.stabilityWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.stability_weight.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setStabilityWeight(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.water_depth_weight"),
-                                                conf.waterDepthWeight())
-                                .setDefaultValue(defaultConf.waterDepthWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.water_depth_weight.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setWaterDepthWeight(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.near_water_cost"),
-                                                conf.nearWaterCost())
-                                .setDefaultValue(defaultConf.nearWaterCost())
-                                .setTooltip(Component.translatable("config.roadweaver.near_water_cost.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setNearWaterCost(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startIntField(Component.translatable("config.roadweaver.water_proximity_cost"),
-                                                conf.waterProximityCost())
-                                .setDefaultValue(defaultConf.waterProximityCost())
-                                .setTooltip(Component.translatable("config.roadweaver.water_proximity_cost.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setWaterProximityCost(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startDoubleField(Component.translatable("config.roadweaver.heuristic_weight"),
-                                                conf.heuristicWeight())
-                                .setDefaultValue(defaultConf.heuristicWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.heuristic_weight.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setHeuristicWeight(v);
-                                })
-                                .build());
-                pathfindingCosts.addEntry(eb
-                                .startDoubleField(Component.translatable("config.roadweaver.deviation_weight"),
-                                                conf.deviationWeight())
-                                .setDefaultValue(defaultConf.deviationWeight())
-                                .setTooltip(Component.translatable("config.roadweaver.deviation_weight.tooltip"))
-                                .setMin(0)
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setDeviationWeight(v);
-                                })
-                                .build());
+    private static void buildPlanningCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.road_planning"));
+        PlanningConfig cfg = conf.planning();
+        PlanningConfig def = defaultConf.planning();
 
-                // Test Category
-                ConfigCategory testCategory = builder
-                                .getOrCreateCategory(Component.translatable("config.roadweaver.category.test"));
-                testCategory.addEntry(eb
-                                .startBooleanToggle(Component.translatable("config.roadweaver.loading_tips_enabled"),
-                                                conf.loadingTipsEnabled())
-                                .setDefaultValue(defaultConf.loadingTipsEnabled())
-                                .setTooltip(Component.translatable("config.roadweaver.loading_tips_enabled.tooltip"))
-                                .setSaveConsumer(v -> {
-                                        if (v != null)
-                                                conf.setLoadingTipsEnabled(v);
-                                })
-                                .build());
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.initial_plan_radius_chunks"), cfg.initialPlanRadiusChunks())
+                .setDefaultValue(def.initialPlanRadiusChunks())
+                .setTooltip(Component.translatable("config.roadweaver.initial_plan_radius_chunks.tooltip"))
+                .setMin(1).setMax(4096)
+                .setSaveConsumer(cfg::setInitialPlanRadiusChunks)
+                .build());
 
-                return builder.build();
-        }
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.dynamic_plan_enabled"), cfg.dynamicPlanEnabled())
+                .setDefaultValue(def.dynamicPlanEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.dynamic_plan_enabled.tooltip"))
+                .setSaveConsumer(cfg::setDynamicPlanEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.dynamic_plan_radius_chunks"), cfg.dynamicPlanRadiusChunks())
+                .setDefaultValue(def.dynamicPlanRadiusChunks())
+                .setTooltip(Component.translatable("config.roadweaver.dynamic_plan_radius_chunks.tooltip"))
+                .setMin(1).setMax(4096)
+                .setSaveConsumer(cfg::setDynamicPlanRadiusChunks)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.dynamic_plan_stride_chunks"), cfg.dynamicPlanStrideChunks())
+                .setDefaultValue(def.dynamicPlanStrideChunks())
+                .setTooltip(Component.translatable("config.roadweaver.dynamic_plan_stride_chunks.tooltip"))
+                .setMin(1).setMax(256)
+                .setSaveConsumer(cfg::setDynamicPlanStrideChunks)
+                .build());
+
+        category.addEntry(eb
+                .startEnumSelector(Component.translatable("config.roadweaver.planning_algorithm"),
+                        PlanningConfig.PlanningAlgorithm.class, cfg.planningAlgorithm())
+                .setDefaultValue(def.planningAlgorithm())
+                .setTooltip(Component.translatable("config.roadweaver.planning_algorithm.tooltip"))
+                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.planning_algorithm.option." + v.name().toLowerCase(Locale.ROOT)))
+                .setSaveConsumer(cfg::setPlanningAlgorithm)
+                .build());
+    }
+
+    private static void buildHighwayCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.highway"));
+        HighwayConfig cfg = conf.highway();
+        HighwayConfig def = defaultConf.highway();
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.highway_enabled"), cfg.enabled())
+                .setDefaultValue(def.enabled())
+                .setTooltip(Component.translatable("config.roadweaver.highway_enabled.tooltip"))
+                .setSaveConsumer(cfg::setEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.highway_auto_plan_enabled"), cfg.autoPlanEnabled())
+                .setDefaultValue(def.autoPlanEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.highway_auto_plan_enabled.tooltip"))
+                .setSaveConsumer(cfg::setAutoPlanEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_grid_blocks"), cfg.gridBlocks())
+                .setDefaultValue(def.gridBlocks())
+                .setTooltip(Component.translatable("config.roadweaver.highway_grid_blocks.tooltip"))
+                .setMin(128).setMax(20000)
+                .setSaveConsumer(cfg::setGridBlocks)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_road_width"), cfg.roadWidth())
+                .setDefaultValue(def.roadWidth())
+                .setTooltip(Component.translatable("config.roadweaver.highway_road_width.tooltip"))
+                .setMin(1).setMax(31)
+                .setSaveConsumer(cfg::setRoadWidth)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.highway_slope_limit_enabled"), cfg.slopeLimitEnabled())
+                .setDefaultValue(def.slopeLimitEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.highway_slope_limit_enabled.tooltip"))
+                .setSaveConsumer(cfg::setSlopeLimitEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_slope_run_blocks"), cfg.slopeRunBlocks())
+                .setDefaultValue(def.slopeRunBlocks())
+                .setTooltip(Component.translatable("config.roadweaver.highway_slope_run_blocks.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setSlopeRunBlocks)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_slope_rise_blocks"), cfg.slopeRiseBlocks())
+                .setDefaultValue(def.slopeRiseBlocks())
+                .setTooltip(Component.translatable("config.roadweaver.highway_slope_rise_blocks.tooltip"))
+                .setMin(0).setMax(16)
+                .setSaveConsumer(cfg::setSlopeRiseBlocks)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.highway_dynamic_plan_enabled"), cfg.dynamicPlanEnabled())
+                .setDefaultValue(def.dynamicPlanEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.highway_dynamic_plan_enabled.tooltip"))
+                .setSaveConsumer(cfg::setDynamicPlanEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_a_star_step"), cfg.aStarStep())
+                .setDefaultValue(def.aStarStep())
+                .setTooltip(Component.translatable("config.roadweaver.highway_a_star_step.tooltip"))
+                .setMin(4).setMax(128)
+                .setSaveConsumer(cfg::setAStarStep)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_a_star_max_steps"), cfg.aStarMaxSteps())
+                .setDefaultValue(def.aStarMaxSteps())
+                .setTooltip(Component.translatable("config.roadweaver.highway_a_star_max_steps.tooltip"))
+                .setMin(1000).setMax(RoadConstants.HIGHWAY_ASTAR_MAX_STEPS_MAX)
+                .setSaveConsumer(cfg::setAStarMaxSteps)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.highway_floating_weight"), cfg.floatingWeight())
+                .setDefaultValue(def.floatingWeight())
+                .setTooltip(Component.translatable("config.roadweaver.highway_floating_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setFloatingWeight)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.highway_penetration_weight"), cfg.penetrationWeight())
+                .setDefaultValue(def.penetrationWeight())
+                .setTooltip(Component.translatable("config.roadweaver.highway_penetration_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setPenetrationWeight)
+                .build());
+    }
+
+    private static void buildLongDriveCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.long_drive"));
+        LongDriveConfig cfg = conf.longDrive();
+        LongDriveConfig def = defaultConf.longDrive();
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.long_drive_enabled"), cfg.enabled())
+                .setDefaultValue(def.enabled())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_enabled.tooltip"))
+                .setSaveConsumer(cfg::setEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.long_drive_road_width"), cfg.roadWidth())
+                .setDefaultValue(def.roadWidth())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_road_width.tooltip"))
+                .setMin(1).setMax(15)
+                .setSaveConsumer(cfg::setRoadWidth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.long_drive_segment_length"), cfg.segmentLength())
+                .setDefaultValue(def.segmentLength())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_segment_length.tooltip"))
+                .setMin(50).setMax(5000)
+                .setSaveConsumer(cfg::setSegmentLength)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.long_drive_a_star_step"), cfg.aStarStep())
+                .setDefaultValue(def.aStarStep())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_a_star_step.tooltip"))
+                .setMin(4).setMax(128)
+                .setSaveConsumer(cfg::setAStarStep)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.long_drive_lead_distance"), cfg.leadDistance())
+                .setDefaultValue(def.leadDistance())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_lead_distance.tooltip"))
+                .setMin(200).setMax(10000)
+                .setSaveConsumer(cfg::setLeadDistance)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.long_drive_direction_bias"), cfg.directionBias())
+                .setDefaultValue(def.directionBias())
+                .setTooltip(Component.translatable("config.roadweaver.long_drive_direction_bias.tooltip"))
+                .setMin(0).setMax(1000)
+                .setSaveConsumer(cfg::setDirectionBias)
+                .build());
+    }
+
+    private static void buildRoadGenerationCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.road_generation"));
+        RoadAppearanceConfig cfg = conf.roadAppearance();
+        RoadAppearanceConfig def = defaultConf.roadAppearance();
+        StructurePredictionConfig structureCfg = conf.structurePrediction();
+        StructurePredictionConfig structureDef = defaultConf.structurePrediction();
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.roads_enabled"), cfg.roadsEnabled())
+                .setDefaultValue(def.roadsEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.roads_enabled.tooltip"))
+                .setSaveConsumer(cfg::setRoadsEnabled)
+                .build());
+
+        category.addEntry(new OpenDimensionRoadSettingsEntry());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.allow_artificial"), cfg.allowArtificial())
+                .setDefaultValue(def.allowArtificial())
+                .setTooltip(Component.translatable("config.roadweaver.allow_artificial.tooltip"))
+                .setSaveConsumer(cfg::setAllowArtificial)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.allow_natural"), cfg.allowNatural())
+                .setDefaultValue(def.allowNatural())
+                .setTooltip(Component.translatable("config.roadweaver.allow_natural.tooltip"))
+                .setSaveConsumer(cfg::setAllowNatural)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.place_waypoints"), cfg.placeWaypoints())
+                .setDefaultValue(def.placeWaypoints())
+                .setTooltip(Component.translatable("config.roadweaver.place_waypoints.tooltip"))
+                .setSaveConsumer(cfg::setPlaceWaypoints)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.spawn_cabin_enabled"), cfg.spawnCabinEnabled())
+                .setDefaultValue(def.spawnCabinEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.spawn_cabin_enabled.tooltip"))
+                .setSaveConsumer(cfg::setSpawnCabinEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.road_width"), cfg.roadWidth())
+                .setDefaultValue(def.roadWidth())
+                .setTooltip(Component.translatable("config.roadweaver.road_width.tooltip"))
+                .setMin(0).setMax(15)
+                .setSaveConsumer(cfg::setRoadWidth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.village_road_offset"), structureCfg.villageRoadOffset())
+                .setDefaultValue(structureDef.villageRoadOffset())
+                .setTooltip(Component.translatable("config.roadweaver.village_road_offset.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(structureCfg::setVillageRoadOffset)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.other_structure_road_offset"), structureCfg.otherStructureRoadOffset())
+                .setDefaultValue(structureDef.otherStructureRoadOffset())
+                .setTooltip(Component.translatable("config.roadweaver.other_structure_road_offset.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(structureCfg::setOtherStructureRoadOffset)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.road_signs_enabled"), cfg.roadSignsEnabled())
+                .setDefaultValue(def.roadSignsEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.road_signs_enabled.tooltip"))
+                .setSaveConsumer(cfg::setRoadSignsEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.lamp_interval"), cfg.lampInterval())
+                .setDefaultValue(def.lampInterval())
+                .setTooltip(Component.translatable("config.roadweaver.lamp_interval.tooltip"))
+                .setMin(1).setMax(2048)
+                .setSaveConsumer(cfg::setLampInterval)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.road_clear_height"), cfg.roadClearHeight())
+                .setDefaultValue(def.roadClearHeight())
+                .setTooltip(Component.translatable("config.roadweaver.road_clear_height.tooltip"))
+                .setMin(1).setMax(16)
+                .setSaveConsumer(cfg::setRoadClearHeight)
+                .build());
+
+        category.addEntry(new OpenPresetEditorEntry());
+    }
+
+    private static void buildSurfaceSettingsCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.gen_surface"));
+        RoadAppearanceConfig cfg = conf.roadAppearance();
+        RoadAppearanceConfig def = defaultConf.roadAppearance();
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.averaging_radius"), cfg.averagingRadius())
+                .setDefaultValue(def.averagingRadius())
+                .setTooltip(Component.translatable("config.roadweaver.averaging_radius.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(cfg::setAveragingRadius)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.max_slope_step_per_two_segments"), cfg.maxSlopeStepPerTwoSegments())
+                .setDefaultValue(def.maxSlopeStepPerTwoSegments())
+                .setTooltip(Component.translatable("config.roadweaver.max_slope_step_per_two_segments.tooltip"))
+                .setMin(0).setMax(8)
+                .setSaveConsumer(cfg::setMaxSlopeStepPerTwoSegments)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.slope_limit_enabled"), cfg.slopeLimitEnabled())
+                .setDefaultValue(def.slopeLimitEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.slope_limit_enabled.tooltip"))
+                .setSaveConsumer(cfg::setSlopeLimitEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.prevent_trees_on_road"), cfg.preventTreesOnRoad())
+                .setDefaultValue(def.preventTreesOnRoad())
+                .setTooltip(Component.translatable("config.roadweaver.prevent_trees_on_road.tooltip"))
+                .setSaveConsumer(cfg::setPreventTreesOnRoad)
+                .build());
+    }
+
+    private static void buildBridgeCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.bridge"));
+        BridgeConfig cfg = conf.bridge();
+        BridgeConfig def = defaultConf.bridge();
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_enabled"), cfg.enabled())
+                .setDefaultValue(def.enabled())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_enabled.tooltip"))
+                .setSaveConsumer(cfg::setEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_deck_clearance"), cfg.deckClearance())
+                .setDefaultValue(def.deckClearance())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_deck_clearance.tooltip"))
+                .setMin(1).setMax(8)
+                .setSaveConsumer(cfg::setDeckClearance)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_max_length_blocks"), cfg.maxLengthBlocks())
+                .setDefaultValue(def.maxLengthBlocks())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_max_length_blocks.tooltip"))
+                .setMin(0).setMax(10000)
+                .setSaveConsumer(cfg::setMaxLengthBlocks)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_use_buoys_instead"), cfg.useBuoysInstead())
+                .setDefaultValue(def.useBuoysInstead())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_use_buoys_instead.tooltip"))
+                .setSaveConsumer(cfg::setUseBuoysInstead)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_use_buoys_when_skipped"), cfg.useBuoysWhenSkipped())
+                .setDefaultValue(def.useBuoysWhenSkipped())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_use_buoys_when_skipped.tooltip"))
+                .setSaveConsumer(cfg::setUseBuoysWhenSkipped)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.buoy_interval_blocks"), cfg.buoyIntervalBlocks())
+                .setDefaultValue(def.buoyIntervalBlocks())
+                .setTooltip(Component.translatable("config.roadweaver.buoy_interval_blocks.tooltip"))
+                .setMin(4).setMax(256)
+                .setSaveConsumer(cfg::setBuoyIntervalBlocks)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_pier_interval"), cfg.pierInterval())
+                .setDefaultValue(def.pierInterval())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_interval.tooltip"))
+                .setMin(3).setMax(32)
+                .setSaveConsumer(cfg::setPierInterval)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_pier_width"), cfg.pierWidth())
+                .setDefaultValue(def.pierWidth())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_width.tooltip"))
+                .setMin(1).setMax(3)
+                .setSaveConsumer(cfg::setPierWidth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_pier_max_height"), cfg.pierMaxHeight())
+                .setDefaultValue(def.pierMaxHeight())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_pier_max_height.tooltip"))
+                .setMin(6).setMax(64)
+                .setSaveConsumer(cfg::setPierMaxHeight)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.bridge_keep_lamps"), cfg.keepLamps())
+                .setDefaultValue(def.keepLamps())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_keep_lamps.tooltip"))
+                .setSaveConsumer(cfg::setKeepLamps)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_ramp_segments"), cfg.rampSegments())
+                .setDefaultValue(def.rampSegments())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_ramp_segments.tooltip"))
+                .setMin(0).setMax(12)
+                .setSaveConsumer(cfg::setRampSegments)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_min_water_depth"), cfg.minWaterDepth())
+                .setDefaultValue(def.minWaterDepth())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_min_water_depth.tooltip"))
+                .setMin(1).setMax(10)
+                .setSaveConsumer(cfg::setMinWaterDepth)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_min_length"), cfg.minLength())
+                .setDefaultValue(def.minLength())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_min_length.tooltip"))
+                .setMin(1).setMax(32)
+                .setSaveConsumer(cfg::setMinLength)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.bridge_merge_gap"), cfg.mergeGap())
+                .setDefaultValue(def.mergeGap())
+                .setTooltip(Component.translatable("config.roadweaver.bridge_merge_gap.tooltip"))
+                .setMin(1).setMax(32)
+                .setSaveConsumer(cfg::setMergeGap)
+                .build());
+    }
+
+    private static void buildRoadsideStructuresCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.roadside_structures"));
+        RoadsideStructureConfig cfg = conf.roadsideStructure();
+        RoadsideStructureConfig def = defaultConf.roadsideStructure();
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.roadside_structures_enabled"), cfg.enabled())
+                .setDefaultValue(def.enabled())
+                .setTooltip(Component.translatable("config.roadweaver.roadside_structures_enabled.tooltip"))
+                .setSaveConsumer(cfg::setEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.max_structures_per_road"), cfg.maxStructuresPerRoad())
+                .setDefaultValue(def.maxStructuresPerRoad())
+                .setTooltip(Component.translatable("config.roadweaver.max_structures_per_road.tooltip"))
+                .setMin(0).setMax(20)
+                .setSaveConsumer(cfg::setMaxStructuresPerRoad)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.small_structure_offset"), cfg.smallStructureOffset())
+                .setDefaultValue(def.smallStructureOffset())
+                .setTooltip(Component.translatable("config.roadweaver.small_structure_offset.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setSmallStructureOffset)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.medium_structure_offset"), cfg.mediumStructureOffset())
+                .setDefaultValue(def.mediumStructureOffset())
+                .setTooltip(Component.translatable("config.roadweaver.medium_structure_offset.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setMediumStructureOffset)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.large_structure_offset"), cfg.largeStructureOffset())
+                .setDefaultValue(def.largeStructureOffset())
+                .setTooltip(Component.translatable("config.roadweaver.large_structure_offset.tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setLargeStructureOffset)
+                .build());
+    }
+
+    private static void buildPerformanceCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.gen_performance"));
+        PerformanceConfig cfg = conf.performance();
+        PerformanceConfig def = defaultConf.performance();
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.computeThreads"), cfg.computeThreads())
+                .setDefaultValue(def.computeThreads())
+                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.computeThreads.@Tooltip"))
+                .setMin(0).setMax(128)
+                .setSaveConsumer(cfg::setComputeThreads)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.generationThreads"), cfg.generationThreads())
+                .setDefaultValue(def.generationThreads())
+                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.generationThreads.@Tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setGenerationThreads)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.initialGenerationThreads"), cfg.initialGenerationThreads())
+                .setDefaultValue(def.initialGenerationThreads())
+                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.initialGenerationThreads.@Tooltip"))
+                .setMin(1).setMax(64)
+                .setSaveConsumer(cfg::setInitialGenerationThreads)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.idle_generation_threads"), cfg.idleGenerationThreads())
+                .setDefaultValue(def.idleGenerationThreads())
+                .setTooltip(Component.translatable("config.roadweaver.idle_generation_threads.tooltip"))
+                .setMin(0).setMax(64)
+                .setSaveConsumer(cfg::setIdleGenerationThreads)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.max_concurrent_generations"), cfg.maxConcurrentGenerations())
+                .setDefaultValue(def.maxConcurrentGenerations())
+                .setTooltip(Component.translatable("config.roadweaver.max_concurrent_generations.tooltip"))
+                .setMin(1).setMax(128)
+                .setSaveConsumer(cfg::setMaxConcurrentGenerations)
+                .build());
+
+        category.addEntry(eb
+                .startIntSlider(Component.translatable("config.roadweaver.thread_duty_cycle"), cfg.threadDutyCycle(), 1, 100)
+                .setDefaultValue(def.threadDutyCycle())
+                .setTooltip(Component.translatable("config.roadweaver.thread_duty_cycle.tooltip"))
+                .setSaveConsumer(cfg::setThreadDutyCycle)
+                .build());
+
+        category.addEntry(eb
+                .startIntSlider(Component.translatable("config.roadweaver.idle_thread_duty_cycle"),
+                        cfg.idleThreadDutyCycle(), 1, 100)
+                .setDefaultValue(def.idleThreadDutyCycle())
+                .setTooltip(Component.translatable("config.roadweaver.idle_thread_duty_cycle.tooltip"))
+                .setSaveConsumer(cfg::setIdleThreadDutyCycle)
+                .build());
+    }
+
+    private static void buildPathfindingCostsCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.pathfinding_costs"));
+        PathfindingCostConfig cfg = conf.pathfindingCost();
+        PathfindingCostConfig def = defaultConf.pathfindingCost();
+
+        category.addEntry(eb
+                .startEnumSelector(Component.translatable("config.roadweaver.pathfinding_algorithm"),
+                        PathfindingCostConfig.PathfindingAlgorithm.class, cfg.pathfindingAlgorithm())
+                .setDefaultValue(def.pathfindingAlgorithm())
+                .setTooltip(Component.translatable("config.roadweaver.pathfinding_algorithm.tooltip"))
+                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.pathfinding_algorithm.option." + v.name().toLowerCase(Locale.ROOT)))
+                .setSaveConsumer(cfg::setPathfindingAlgorithm)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled"), cfg.hierarchicalPathfindingEnabled())
+                .setDefaultValue(def.hierarchicalPathfindingEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
+                .setSaveConsumer(cfg::setHierarchicalPathfindingEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.a_star_step"), cfg.aStarStep())
+                .setDefaultValue(def.aStarStep())
+                .setTooltip(Component.translatable("config.roadweaver.a_star_step.tooltip"))
+                .setMin(4).setMax(128)
+                .setSaveConsumer(cfg::setAStarStep)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.a_star_max_steps"), cfg.aStarMaxSteps())
+                .setDefaultValue(def.aStarMaxSteps())
+                .setTooltip(Component.translatable("config.roadweaver.a_star_max_steps.tooltip"))
+                .setMin(100).setMax(RoadConstants.ASTAR_MAX_STEPS_MAX)
+                .setSaveConsumer(cfg::setAStarMaxSteps)
+                .build());
+
+        category.addEntry(eb
+                .startIntSlider(Component.translatable("config.roadweaver.accurate_sampling_divisor"), cfg.accurateSamplingDivisor(), 0, 4)
+                .setDefaultValue(def.accurateSamplingDivisor())
+                .setTooltip(Component.translatable("config.roadweaver.accurate_sampling_divisor.tooltip"))
+                .setSaveConsumer(cfg::setAccurateSamplingDivisor)
+                .build());
+
+        category.addEntry(eb
+                .startEnumSelector(Component.translatable("config.roadweaver.sampling_precision"),
+                        PathfindingCostConfig.SamplingPrecision.class, cfg.samplingPrecision())
+                .setDefaultValue(def.samplingPrecision())
+                .setTooltip(Component.translatable("config.roadweaver.sampling_precision.tooltip"))
+                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.sampling_precision.option." + v.name().toLowerCase(Locale.ROOT)))
+                .setSaveConsumer(cfg::setSamplingPrecision)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.ortho_step_cost"), cfg.orthoStepCost())
+                .setDefaultValue(def.orthoStepCost())
+                .setTooltip(Component.translatable("config.roadweaver.ortho_step_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setOrthoStepCost)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.diag_step_cost"), cfg.diagStepCost())
+                .setDefaultValue(def.diagStepCost())
+                .setTooltip(Component.translatable("config.roadweaver.diag_step_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setDiagStepCost)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.elevation_weight"), cfg.elevationWeight())
+                .setDefaultValue(def.elevationWeight())
+                .setTooltip(Component.translatable("config.roadweaver.elevation_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setElevationWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.biome_weight"), cfg.biomeWeight())
+                .setDefaultValue(def.biomeWeight())
+                .setTooltip(Component.translatable("config.roadweaver.biome_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setBiomeWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.stability_weight"), cfg.stabilityWeight())
+                .setDefaultValue(def.stabilityWeight())
+                .setTooltip(Component.translatable("config.roadweaver.stability_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setStabilityWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.water_depth_weight"), cfg.waterDepthWeight())
+                .setDefaultValue(def.waterDepthWeight())
+                .setTooltip(Component.translatable("config.roadweaver.water_depth_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setWaterDepthWeight)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.near_water_cost"), cfg.nearWaterCost())
+                .setDefaultValue(def.nearWaterCost())
+                .setTooltip(Component.translatable("config.roadweaver.near_water_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setNearWaterCost)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.water_proximity_cost"), cfg.waterProximityCost())
+                .setDefaultValue(def.waterProximityCost())
+                .setTooltip(Component.translatable("config.roadweaver.water_proximity_cost.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setWaterProximityCost)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.heuristic_weight"), cfg.heuristicWeight())
+                .setDefaultValue(def.heuristicWeight())
+                .setTooltip(Component.translatable("config.roadweaver.heuristic_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setHeuristicWeight)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.deviation_weight"), cfg.deviationWeight())
+                .setDefaultValue(def.deviationWeight())
+                .setTooltip(Component.translatable("config.roadweaver.deviation_weight.tooltip"))
+                .setMin(0)
+                .setSaveConsumer(cfg::setDeviationWeight)
+                .build());
+    }
+
+    private static void buildClientCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
+        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.test"));
+        ClientConfig cfg = conf.client();
+        ClientConfig def = defaultConf.client();
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.loading_tips_enabled"), cfg.loadingTipsEnabled())
+                .setDefaultValue(def.loadingTipsEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.loading_tips_enabled.tooltip"))
+                .setSaveConsumer(cfg::setLoadingTipsEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.loading_progress_enabled"), cfg.loadingProgressEnabled())
+                .setDefaultValue(def.loadingProgressEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.loading_progress_enabled.tooltip"))
+                .setSaveConsumer(cfg::setLoadingProgressEnabled)
+                .build());
+    }
 }

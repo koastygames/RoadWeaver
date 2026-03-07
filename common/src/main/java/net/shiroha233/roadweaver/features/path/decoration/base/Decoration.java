@@ -8,6 +8,9 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.features.path.decoration.compat.RoadFeatureCompat;
 
+/**
+ * 装饰基类
+ */
 public abstract class Decoration {
     private BlockPos placePos;
     private final WorldGenLevel world;

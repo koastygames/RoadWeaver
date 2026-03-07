@@ -15,12 +15,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * 结构预测维度白名单界面
+ */
 public class StructurePredictionDimensionWhitelistScreen extends Screen {
+    private static final int BUTTON_HEIGHT = 20;
+    
     private final Screen parent;
-
     private final Set<ResourceLocation> selected = new LinkedHashSet<>();
     private final List<ResourceLocation> allDimensions = new ArrayList<>();
-
+    
     private Button doneButton;
     private Button cancelButton;
 
@@ -49,12 +53,10 @@ public class StructurePredictionDimensionWhitelistScreen extends Screen {
             allDimensions.addAll(result.dimensions());
         }
 
-        // 保底：至少有三大原版维度（避免发现服务不可用时 UI 空白）
         addFallbackDimension("minecraft:overworld");
         addFallbackDimension("minecraft:the_nether");
         addFallbackDimension("minecraft:the_end");
 
-        // 保证已选维度一定可见
         for (ResourceLocation rl : selected) {
             if (!allDimensions.contains(rl)) {
                 allDimensions.add(rl);
@@ -70,19 +72,14 @@ public class StructurePredictionDimensionWhitelistScreen extends Screen {
 
         int btnY = this.height - 28;
         int btnW = 90;
-        int btnH = 20;
         int spacing = 8;
         int totalW = btnW * 2 + spacing;
         int startX = (this.width - totalW) / 2;
 
         cancelButton = Button.builder(Component.translatable("gui.cancel"), b -> onCancel())
-                .pos(startX, btnY)
-                .size(btnW, btnH)
-                .build();
+                .pos(startX, btnY).size(btnW, BUTTON_HEIGHT).build();
         doneButton = Button.builder(Component.translatable("gui.done"), b -> onDone())
-                .pos(startX + btnW + spacing, btnY)
-                .size(btnW, btnH)
-                .build();
+                .pos(startX + btnW + spacing, btnY).size(btnW, BUTTON_HEIGHT).build();
 
         addRenderableWidget(cancelButton);
         addRenderableWidget(doneButton);

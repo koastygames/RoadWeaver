@@ -13,6 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * 配置文件加载、保存、校验服务
+ */
 public final class ConfigService {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -24,53 +27,59 @@ public final class ConfigService {
     private ConfigService() {}
 
     public static synchronized void load() {
-        Path cfgRoot = Platform.getConfigFolder();
-        Path baseDir = cfgRoot.resolve(BASE_DIR);
+        Path baseDir = Platform.getConfigFolder().resolve(BASE_DIR);
         Path file = baseDir.resolve(FILE_NAME);
-        try {
-            Files.createDirectories(baseDir);
-        } catch (IOException e) {
-            LOGGER.warn("Failed to create config directory: {}", baseDir, e);
-        }
+        ensureDirectory(baseDir);
+
         if (Files.exists(file)) {
             try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
                 ModConfig loaded = GSON.fromJson(reader, ModConfig.class);
-                if (loaded != null) {
-                    INSTANCE = loaded;
-                }
+                if (loaded != null) INSTANCE = loaded;
             } catch (Exception e) {
-                LOGGER.warn("Failed to read config, using defaults. File: {}", file, e);
+                LOGGER.warn("配置文件读取失败，使用默认值: {}", file, e);
             }
         } else {
             save();
         }
-        // 确保默认值和新字段被填充
+
         try {
             INSTANCE.sanitize();
         } catch (Throwable t) {
-            LOGGER.warn("Failed to sanitize config; continuing with raw values.", t);
+            LOGGER.warn("配置校验失败，继续使用原始值", t);
         }
-        LOGGER.info("Configuration loaded (radiusChunks={}, enabled={})",
-                INSTANCE.predictRadiusChunks(), INSTANCE.structurePredictionEnabled());
+        LOGGER.info("配置已加载 (predictRadius={}, predictionEnabled={})",
+                INSTANCE.structurePrediction().predictRadiusChunks(),
+                INSTANCE.structurePrediction().enabled());
     }
 
     public static synchronized void save() {
-        Path cfgRoot = Platform.getConfigFolder();
-        Path baseDir = cfgRoot.resolve(BASE_DIR);
+        Path baseDir = Platform.getConfigFolder().resolve(BASE_DIR);
         Path file = baseDir.resolve(FILE_NAME);
-        try {
-            Files.createDirectories(baseDir);
-        } catch (IOException e) {
-            LOGGER.warn("Failed to create config directory: {}", baseDir, e);
-        }
+        ensureDirectory(baseDir);
+
         try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
             GSON.toJson(INSTANCE, writer);
         } catch (Exception e) {
-            LOGGER.warn("Failed to write config file: {}", file, e);
+            LOGGER.warn("配置文件写入失败: {}", file, e);
         }
     }
 
     public static synchronized ModConfig get() {
         return INSTANCE;
+    }
+
+    /**
+     * 修改配置后自动保存
+     */
+    public static synchronized void markDirty() {
+        save();
+    }
+
+    private static void ensureDirectory(Path dir) {
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            LOGGER.warn("创建配置目录失败: {}", dir, e);
+        }
     }
 }

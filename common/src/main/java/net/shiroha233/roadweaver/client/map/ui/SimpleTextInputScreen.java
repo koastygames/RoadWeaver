@@ -8,6 +8,9 @@ import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
 
+/**
+ * 简单文本输入界面
+ */
 public class SimpleTextInputScreen extends Screen {
     private final Component titleText;
     private final String initial;
@@ -59,11 +62,11 @@ public class SimpleTextInputScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == 257 || keyCode == 335) { // Enter
+        if (keyCode == 257 || keyCode == 335) {
             submit();
             return true;
         }
-        if (keyCode == 256) { // ESC
+        if (keyCode == 256) {
             cancel();
             return true;
         }

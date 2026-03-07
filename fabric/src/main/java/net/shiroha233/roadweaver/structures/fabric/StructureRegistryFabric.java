@@ -14,25 +14,17 @@ import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
- * Fabric 平台的结构注册
+ * Fabric 结构注册
  */
 public final class StructureRegistryFabric {
     private StructureRegistryFabric() {}
     
-    /**
-     * 注册所有结构相关内容
-     * 在模组初始化时调用
-     */
     public static void register() {
         registerStructurePieceTypes();
         registerStructureTypes();
     }
     
-    /**
-     * 注册 StructurePieceType
-     */
     private static void registerStructurePieceTypes() {
-        // 注册简单模板片段类型（需要 StructureTemplateManager）
         StructurePieceType simpleTemplate = (StructurePieceType.StructureTemplateType) SimpleTemplatePiece::new;
         
         Registry.register(
@@ -44,11 +36,7 @@ public final class StructureRegistryFabric {
         ModStructurePieceTypes.setSimpleTemplate(simpleTemplate);
     }
     
-    /**
-     * 注册 StructureType
-     */
     private static void registerStructureTypes() {
-        // 注册路边结构类型
         StructureType<RoadsideStructure> roadsideType = () -> RoadsideStructure.CODEC;
         Registry.register(
             BuiltInRegistries.STRUCTURE_TYPE,
@@ -57,7 +45,6 @@ public final class StructureRegistryFabric {
         );
         ModStructureTypes.setRoadside(roadsideType);
         
-        // 注册初始小屋结构类型
         StructureType<SpawnCabinStructure> spawnCabinType = () -> SpawnCabinStructure.CODEC;
         Registry.register(
             BuiltInRegistries.STRUCTURE_TYPE,
@@ -66,7 +53,6 @@ public final class StructureRegistryFabric {
         );
         ModStructureTypes.setSpawnCabin(spawnCabinType);
 
-        // 注册桥类型
         StructureType<BridgeTemplateStructure> bridgeTemplateType = () -> BridgeTemplateStructure.CODEC;
         Registry.register(
                 BuiltInRegistries.STRUCTURE_TYPE,

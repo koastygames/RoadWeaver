@@ -10,11 +10,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * 原版树木生成阻拦
+ * 原版树木生成阻拦 Mixin
  */
 @Mixin(TreeFeature.class)
 public class TreeFeatureMixin {
-
     @Inject(method = "place(Lnet/minecraft/world/level/levelgen/feature/FeaturePlaceContext;)Z",
             at = @At("HEAD"), cancellable = true)
     private void roadweaver$blockTreeOnRoad(FeaturePlaceContext<TreeConfiguration> ctx,

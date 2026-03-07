@@ -5,9 +5,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.tips.LoadingTipsRenderer;
+import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.AccurateSamplingStats;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.TerrainSamplingStats;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateSamplingStats;
+import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,6 +21,12 @@ public abstract class LevelLoadingScreenMixin {
     private void roadweaver$renderProgress(GuiGraphics graphics, int mouseX, int mouseY, float partialTick,
             CallbackInfo ci) {
         LoadingTipsRenderer.render(graphics);
+        
+        ModConfig config = ConfigService.get();
+        if (config != null && !config.loadingProgressEnabled()) {
+            return;
+        }
+        
         if (!InitialGenManager.isActive())
             return;
         int total = InitialGenManager.getTotal();

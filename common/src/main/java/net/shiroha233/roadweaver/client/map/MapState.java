@@ -6,41 +6,35 @@ import org.jetbrains.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 地图界面状态管理器 - 集中管理所有可变UI状态
- * 
- * 设计原理：
- * 1. 单一职责：只负责状态存储和简单状态切换
- * 2. 可测试性：状态与渲染/输入分离，便于单元测试
- * 3. 清晰性：所有状态在一处，便于理解和调试
+ * 地图界面状态管理 - 集中管理所有可变UI状态
  */
 public final class MapState {
 
-    // ========== 拖拽状态 ==========
+    // 拖拽状态
     private boolean dragging;
     private int dragButton;
     private double lastMouseX;
     private double lastMouseY;
 
-    // ========== 缩放防抖 ==========
+    // 缩放防抖
     private boolean zoomDebouncePending;
     private long zoomDebounceDeadlineMs;
 
-    // ========== 右键菜单 ==========
+    // 右键菜单
     private boolean contextMenuOpen;
     private int menuX;
     private int menuY;
     @Nullable
     private BlockPos menuTarget;
 
-    // ========== 手动连接模式 ==========
+    // 手动连接模式
     private boolean manualMode;
     @Nullable
     private BlockPos selectedA;
 
-    // ========== 网络请求序列号 ==========
+    // 网络请求序列号
     private final AtomicInteger requestSeq = new AtomicInteger(0);
 
-    // ========== 拖拽操作 ==========
     public void startDrag(int button, double mouseX, double mouseY) {
         this.dragging = true;
         this.dragButton = button;
@@ -64,7 +58,6 @@ public final class MapState {
     public double getLastMouseX() { return lastMouseX; }
     public double getLastMouseY() { return lastMouseY; }
 
-    // ========== 缩放防抖 ==========
     public void scheduleZoomDebounce(long delayMs) {
         this.zoomDebouncePending = true;
         this.zoomDebounceDeadlineMs = System.currentTimeMillis() + delayMs;
@@ -82,7 +75,6 @@ public final class MapState {
         this.zoomDebouncePending = false;
     }
 
-    // ========== 右键菜单 ==========
     public void openContextMenu(int x, int y, BlockPos target) {
         this.contextMenuOpen = true;
         this.menuX = x;
@@ -101,7 +93,6 @@ public final class MapState {
     @Nullable
     public BlockPos getMenuTarget() { return menuTarget; }
 
-    // ========== 手动连接模式 ==========
     public void toggleManualMode() {
         this.manualMode = !this.manualMode;
         if (!this.manualMode) {
@@ -132,7 +123,6 @@ public final class MapState {
 
     public boolean hasSelection() { return selectedA != null; }
 
-    // ========== 网络请求序列号 ==========
     public int incrementAndGetRequestSeq() {
         return requestSeq.incrementAndGet();
     }
@@ -141,7 +131,6 @@ public final class MapState {
         return requestSeq.get();
     }
 
-    // ========== 重置 ==========
     public void reset() {
         this.dragging = false;
         this.zoomDebouncePending = false;

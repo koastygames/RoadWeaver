@@ -6,15 +6,15 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.core.constants.RoadConstants;
 
 import java.util.List;
 
 /**
- * Highway 方块放置器：负责路面方块、简单路基填充与清障。
+ * Highway 方块放置器
  */
 public final class HighwayRoadBlockPlacer {
-    private HighwayRoadBlockPlacer() {
-    }
+    private HighwayRoadBlockPlacer() {}
 
     public static void placeRoadBlock(WorldGenLevel world,
             BlockState blockBelow,
@@ -29,16 +29,15 @@ public final class HighwayRoadBlockPlacer {
 
         BlockState chosen = materials.get(random.nextInt(materials.size()));
 
-        // 公路系统不再进行任何路基填充（包括向下的堤道填充）
         BlockPos below1 = surfacePos.below();
-        world.setBlock(below1, chosen, 3);
+        world.setBlock(below1, chosen, RoadConstants.BLOCK_UPDATE_FLAG);
 
         HighwayAboveColumnClearer.clearAboveColumn(world, surfacePos, cfg);
 
-        BlockPos belowPos1 = surfacePos.below(2);
+        BlockPos belowPos1 = surfacePos.below(RoadConstants.BELOW_DEPTH_2);
         BlockState belowState1 = world.getBlockState(belowPos1);
         if (belowState1.is(Blocks.GRASS_BLOCK)) {
-            world.setBlock(belowPos1, Blocks.DIRT.defaultBlockState(), 3);
+            world.setBlock(belowPos1, Blocks.DIRT.defaultBlockState(), RoadConstants.BLOCK_UPDATE_FLAG);
         }
     }
 }

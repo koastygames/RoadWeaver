@@ -5,55 +5,51 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
 import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 材料预设编辑器界面
+ */
 public class MaterialPresetEditorScreen extends Screen {
+    private static final int MARGIN = 6;
+    private static final float ZH_SCALE = 1.35f;
+    private static final float EN_SCALE = 0.85f;
+    
     private final Screen parent;
     
-    // Layout Constants
-    private static final int MARGIN = 6;
-
-    // Widgets
     private PresetListWidget presetList;
     private EditBox nameBox;
     private Button typeButton;
     private MaterialGridWidget baseMaterialGrid;
     private MaterialGridWidget slabMaterialGrid;
     private BlockCandidateWidget blockCandidateWidget;
-    
     private Button saveButton;
     private Button cancelButton;
     private Button newButton;
     private Button deleteButton;
-
-    private ResourceLocation filterDimension = new ResourceLocation("minecraft:overworld");
-    private PresetService.RoadType filterType = PresetService.RoadType.ARTIFICIAL;
     private Button dimensionButton;
     private DimensionListWidget dimensionListWidget;
+    
+    private ResourceLocation filterDimension = new ResourceLocation("minecraft:overworld");
+    private PresetService.RoadType filterType = PresetService.RoadType.ARTIFICIAL;
     private boolean pendingCloseDimensionDropdown = false;
-
-    // Layout state (for render-time labels)
+    
     private int editorLeft;
     private int editorWidth;
     private int editorHeaderY;
-
-    // Data State
+    
     private final List<UiPreset> presets = new ArrayList<>();
     private final Set<String> originalIds = new HashSet<>();
     private int activePresetIndex = -1;
     
-    // Temporary State Class
     private static class UiPreset {
         String id;
         String name;
@@ -78,19 +74,16 @@ public class MaterialPresetEditorScreen extends Screen {
         int topBarY = 24;
         int bottomY = this.height - 24;
 
-        // 两列主布局：左侧预设栏 + 右侧编辑/候选栏
         int leftPanelX = MARGIN;
         int leftPanelW = Math.max(170, Math.min(240, this.width / 4));
 
-        // 兜底：窄屏时压缩左侧宽度，避免右侧区域出现负宽度
-        int rightMinW = 160 + 200 + 6; // candidateMinW + editorMinW + gap
+        int rightMinW = 160 + 200 + 6;
         int maxLeftW = Math.max(120, this.width - (MARGIN * 3) - rightMinW);
         leftPanelW = Math.min(leftPanelW, maxLeftW);
 
         int rightPanelX = leftPanelX + leftPanelW + MARGIN;
         int rightPanelW = this.width - rightPanelX - MARGIN;
 
-        // --- Left Sidebar (Name + Preset List) ---
         this.nameBox = new EditBox(font, leftPanelX, topBarY, leftPanelW, 18, Component.translatable("gui.roadweaver.preset_editor.name"));
         this.nameBox.setMaxLength(64);
         this.nameBox.setResponder(this::onNameChanged);
@@ -109,7 +102,6 @@ public class MaterialPresetEditorScreen extends Screen {
         this.addRenderableWidget(newButton);
         this.addRenderableWidget(deleteButton);
 
-        // --- Right Area (Editor + Block Candidates) ---
         int gap = 6;
         int candidateMinW = 160;
         int editorMinW = 200;
@@ -136,25 +128,20 @@ public class MaterialPresetEditorScreen extends Screen {
         int dimW = Math.max(90, editorW - typeW - gap);
 
         this.dimensionButton = Button.builder(getDimensionButtonText(), btn -> toggleDimensionDropdown())
-                .bounds(editorX, topY, dimW, 20)
-                .build();
+                .bounds(editorX, topY, dimW, 20).build();
         this.addRenderableWidget(dimensionButton);
 
         this.typeButton = Button.builder(Component.translatable("gui.roadweaver.preset_editor.road_type"), b -> toggleTypeFilter())
-                .bounds(editorX + dimW + gap, topY, typeW, 20)
-                .build();
+                .bounds(editorX + dimW + gap, topY, typeW, 20).build();
         this.addRenderableWidget(typeButton);
         updateTypeButton(filterType);
 
         topY += 24;
         topY += 6;
         this.editorHeaderY = topY;
-        // 为 NATURAL 的“中文大字 + 英文小字”标题预留空间，避免与网格重叠
         topY += 34;
 
-        // Materials
         int gridCols = Math.max(1, editorW / 18);
-        // 适度限制列数，避免超宽屏下出现过度密集但无意义的空槽
         if (gridCols > 24) gridCols = 24;
         
         this.baseMaterialGrid = new MaterialGridWidget(editorX, topY, gridCols, 2,
@@ -169,29 +156,21 @@ public class MaterialPresetEditorScreen extends Screen {
                 this::removeSlabMaterial, () -> setTargetGrid(false));
         this.addRenderableWidget(slabMaterialGrid);
 
-        // 供 render() 绘制 NATURAL 群系标题
         this.editorLeft = editorX;
         this.editorWidth = editorW;
 
-        // --- Bottom Buttons ---
         this.saveButton = Button.builder(Component.translatable("gui.roadweaver.common.save"), b -> onSave())
-                .bounds(this.width / 2 - 82, this.height - 22, 80, 20)
-                .build();
+                .bounds(this.width / 2 - 82, this.height - 22, 80, 20).build();
         this.cancelButton = Button.builder(Component.translatable("gui.roadweaver.common.cancel"), b -> onClose())
-                .bounds(this.width / 2 + 2, this.height - 22, 80, 20)
-                .build();
+                .bounds(this.width / 2 + 2, this.height - 22, 80, 20).build();
         this.addRenderableWidget(saveButton);
         this.addRenderableWidget(cancelButton);
 
-        // Load data if empty (first init)
         if (presets.isEmpty()) {
             loadPresets();
         }
         
-        // Ensure dimensions are populated
         populateDimensions();
-
-        // Refresh UI state
         refreshPresetListUI();
         ensureSelectionMatchesFilter();
     }
@@ -202,7 +181,6 @@ public class MaterialPresetEditorScreen extends Screen {
         if (result != null) {
             dims.addAll(result.dimensions());
         }
-        // 保底：即便发现失败也保证主世界存在
         if (!dims.contains(new ResourceLocation("minecraft:overworld"))) {
             dims.add(new ResourceLocation("minecraft:overworld"));
         }
@@ -336,12 +314,10 @@ public class MaterialPresetEditorScreen extends Screen {
         UiPreset p = presets.get(index);
         
         this.nameBox.setValue(p.name);
-        // 顶部 typeButton 是过滤器，不应被单个预设状态覆盖
-        
         this.baseMaterialGrid.setMaterials(p.materials);
         this.slabMaterialGrid.setMaterials(p.slabMaterials);
         
-        setTargetGrid(true); // Default to base
+        setTargetGrid(true);
         setEditorActive(true);
         refreshPresetListUI();
     }
@@ -376,7 +352,6 @@ public class MaterialPresetEditorScreen extends Screen {
         selectPreset(presets.size() - 1);
         refreshPresetListUI();
         
-        // Scroll to bottom
         if (presetList != null) {
             presetList.setScrollAmount(presetList.getMaxScroll());
         }
@@ -419,13 +394,8 @@ public class MaterialPresetEditorScreen extends Screen {
         String rest = p.id.substring("natural_".length());
         if (rest.isBlank()) return null;
 
-        // 默认规则：natural_<biomePath> => minecraft:<biomePath>
         ResourceLocation vanilla = new ResourceLocation("minecraft", rest);
 
-        // 兼容 PresetService.naturalPreset 的“冒号替换为下划线”规则：
-        // natural_<namespace>_<path> => <namespace>:<path>
-        // 注意：vanilla biome 自身可能包含下划线（如 sunflower_plains），所以不能盲目把第一个下划线当分隔。
-        // 这里用“翻译键是否存在”来判断该 candidate 是否更可信。
         int firstUnderscore = rest.indexOf('_');
         if (firstUnderscore > 0 && firstUnderscore < rest.length() - 1) {
             String ns = rest.substring(0, firstUnderscore);
@@ -437,8 +407,7 @@ public class MaterialPresetEditorScreen extends Screen {
                 if (!Objects.equals(translated.getString(), key)) {
                     return candidate;
                 }
-            } catch (Exception ignored) {
-            }
+            } catch (Exception ignored) {}
         }
 
         return vanilla;
@@ -452,7 +421,6 @@ public class MaterialPresetEditorScreen extends Screen {
     }
 
     private String getBiomeEnName(ResourceLocation biomeId) {
-        // 无法在不切换语言的情况下直接拿到 en_us 翻译，这里用 biomeId 做可读化兜底
         String path = biomeId.getPath();
         String[] parts = path.split("_");
         StringBuilder sb = new StringBuilder();
@@ -538,10 +506,10 @@ public class MaterialPresetEditorScreen extends Screen {
         }
     }
 
-    private void onBlockSelectedFromCandidate(net.minecraft.world.level.block.Block block) {
+    private void onBlockSelectedFromCandidate(Block block) {
         if (activePresetIndex < 0) return;
         UiPreset p = presets.get(activePresetIndex);
-        ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block);
+        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
         if (id == null) return;
         String idStr = id.toString();
 
@@ -559,7 +527,6 @@ public class MaterialPresetEditorScreen extends Screen {
     }
 
     private void onSave() {
-        // Delete removed presets
         Set<String> currentIds = presets.stream().map(p -> p.id).collect(Collectors.toSet());
         for (String oldId : originalIds) {
             if (!currentIds.contains(oldId)) {
@@ -567,7 +534,6 @@ public class MaterialPresetEditorScreen extends Screen {
             }
         }
         
-        // Save all presets
         for (UiPreset p : presets) {
             PresetService.saveOrUpdatePresetFile(
                 p.id, 
@@ -588,7 +554,6 @@ public class MaterialPresetEditorScreen extends Screen {
         this.renderBackground(g);
         super.render(g, mouseX, mouseY, partialTick);
 
-        // NATURAL：显示群系中文名（大字）+ 英文名（小字）
         UiPreset p = (activePresetIndex >= 0 && activePresetIndex < presets.size()) ? presets.get(activePresetIndex) : null;
         if (p != null && p.type == PresetService.RoadType.NATURAL) {
             ResourceLocation biomeId = tryGetBiomeIdFromPreset(p);
@@ -598,18 +563,16 @@ public class MaterialPresetEditorScreen extends Screen {
                 int x = editorLeft;
                 int y = editorHeaderY;
 
-                float zhScale = 1.35f;
                 g.pose().pushPose();
                 g.pose().translate(x, y, 0);
-                g.pose().scale(zhScale, zhScale, 1.0F);
-                g.drawString(font, font.plainSubstrByWidth(zh, (int) (editorWidth / zhScale)), 0, 0, 0xFFFFFF, false);
+                g.pose().scale(ZH_SCALE, ZH_SCALE, 1.0F);
+                g.drawString(font, font.plainSubstrByWidth(zh, (int) (editorWidth / ZH_SCALE)), 0, 0, 0xFFFFFF, false);
                 g.pose().popPose();
 
-                float enScale = 0.85f;
                 g.pose().pushPose();
                 g.pose().translate(x, y + 18, 0);
-                g.pose().scale(enScale, enScale, 1.0F);
-                g.drawString(font, font.plainSubstrByWidth(en, (int) (editorWidth / enScale)), 0, 0, 0xBBBBBB, false);
+                g.pose().scale(EN_SCALE, EN_SCALE, 1.0F);
+                g.drawString(font, font.plainSubstrByWidth(en, (int) (editorWidth / EN_SCALE)), 0, 0, 0xBBBBBB, false);
                 g.pose().popPose();
             }
         }

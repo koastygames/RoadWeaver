@@ -7,27 +7,32 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * 材料网格组件
+ */
 public class MaterialGridWidget extends AbstractWidget {
+    private static final int SLOT_SIZE = 18;
+    private static final int LABEL_HEIGHT = 12;
+    
     private final List<String> materialIds = new ArrayList<>();
-    private final int slotSize = 18;
     private final int cols;
     private final int rows;
     private final Consumer<Integer> onRemove;
     private final Runnable onSelect;
-    private boolean isTarget = false;
     private final String label;
+    private boolean isTarget = false;
 
     public MaterialGridWidget(int x, int y, int cols, int rows, String label, Consumer<Integer> onRemove, Runnable onSelect) {
-        super(x, y, cols * 18, rows * 18 + 12, Component.literal(label));
+        super(x, y, cols * SLOT_SIZE, rows * SLOT_SIZE + LABEL_HEIGHT, Component.literal(label));
         this.cols = cols;
         this.rows = rows;
         this.label = label;
@@ -52,23 +57,21 @@ public class MaterialGridWidget extends AbstractWidget {
 
     @Override
     public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        // Draw Label
         g.drawString(Minecraft.getInstance().font, this.label, this.getX(), this.getY(), isTarget ? 0xFFFF00 : 0xFFFFFF, false);
 
-        int gridY = this.getY() + 12;
+        int gridY = this.getY() + LABEL_HEIGHT;
         int index = 0;
         int bgColor = isTarget ? 0xC0000000 : 0x80000000;
         int borderColor = isTarget ? 0xFFFFFF00 : 0xFF888888;
 
-        // Draw Border
-        g.fill(this.getX() - 1, gridY - 1, this.getX() + width + 1, gridY + rows * slotSize + 1, borderColor);
+        g.fill(this.getX() - 1, gridY - 1, this.getX() + width + 1, gridY + rows * SLOT_SIZE + 1, borderColor);
         
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                int x = this.getX() + col * slotSize;
-                int y = gridY + row * slotSize;
+                int x = this.getX() + col * SLOT_SIZE;
+                int y = gridY + row * SLOT_SIZE;
                 
-                g.fill(x, y, x + slotSize, y + slotSize, bgColor);
+                g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, bgColor);
                 
                 if (index < materialIds.size()) {
                     Block b = blockFromId(materialIds.get(index));
@@ -76,9 +79,8 @@ public class MaterialGridWidget extends AbstractWidget {
                         ItemStack stack = new ItemStack(b);
                         SafeGuiItemRenderer.renderFakeItemSafe(g, stack, x + 1, y + 1);
                         
-                        // Highlight hover
-                        if (mouseX >= x && mouseX < x + slotSize && mouseY >= y && mouseY < y + slotSize) {
-                             g.fill(x, y, x + slotSize, y + slotSize, 0x80FFFFFF);
+                        if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
+                             g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0x80FFFFFF);
                              SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
                         }
                     }
@@ -92,21 +94,19 @@ public class MaterialGridWidget extends AbstractWidget {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!this.visible || !this.active) return false;
         
-        int gridY = this.getY() + 12;
-        // Check if clicked inside grid area to select as target
+        int gridY = this.getY() + LABEL_HEIGHT;
         if (mouseX >= this.getX() && mouseX < this.getX() + width &&
-            mouseY >= gridY && mouseY < gridY + rows * slotSize) {
+            mouseY >= gridY && mouseY < gridY + rows * SLOT_SIZE) {
             
             this.onSelect.run();
             
-            // Check for item removal
             int index = 0;
             for (int row = 0; row < rows; row++) {
                 for (int col = 0; col < cols; col++) {
-                    int x = this.getX() + col * slotSize;
-                    int y = gridY + row * slotSize;
-                    if (mouseX >= x && mouseX < x + slotSize && mouseY >= y && mouseY < y + slotSize) {
-                        if (button == 0 && index < materialIds.size()) { // Left click to remove
+                    int x = this.getX() + col * SLOT_SIZE;
+                    int y = gridY + row * SLOT_SIZE;
+                    if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
+                        if (button == 0 && index < materialIds.size()) {
                             playDownSound(Minecraft.getInstance().getSoundManager());
                             onRemove.accept(index);
                             return true;
@@ -132,6 +132,5 @@ public class MaterialGridWidget extends AbstractWidget {
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
-        // No-op
     }
 }

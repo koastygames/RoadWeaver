@@ -9,46 +9,33 @@ import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.DimensionRoadSettings;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
- * 维度道路功能控制界面。
- *
- * 设计原则（SRP）：
- * - 该 Screen 只负责 UI 与“临时编辑态”管理；
- * - 配置持久化由 Cloth Config 的保存回调统一处理（与其它自定义 Screen 一致）。
+ * 维度道路设置界面
  */
 public class DimensionRoadSettingsScreen extends Screen {
-
+    private static final int BUTTON_HEIGHT = 20;
+    private static final int BUTTON_GAP = 4;
+    
     private final Screen parent;
-
-    // 临时编辑态：避免“取消”也会污染配置。
     private final Map<String, DimensionRoadSettings> working = new HashMap<>();
     private final List<ResourceLocation> allDimensions = new ArrayList<>();
-
+    
     private ResourceLocation selectedDimension;
-
     private DimensionListWidget dimensionList;
-
     private List<ResourceLocation> dimensionsForList = new ArrayList<>();
-
+    
     private Button roadsEnabledBtn;
     private Button bridgeEnabledBtn;
     private Button pathfindingBtn;
-    private Button roadFillBtn;
     private Button slopeLimitBtn;
     private Button highwayEnabledBtn;
     private Button roadsideStructuresBtn;
     private Button roadSignsBtn;
-    private Button interpolatedRoadbedFillBtn;
-
     private Button resetDimensionBtn;
     private Button cancelBtn;
     private Button doneBtn;
@@ -79,7 +66,6 @@ public class DimensionRoadSettingsScreen extends Screen {
             }
         }
 
-        // 维度来源：StructureDiscoveryService（创建世界界面/缓存），并做原版兜底。
         StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
         if (result != null && result.dimensions() != null) {
             allDimensions.addAll(result.dimensions());
@@ -89,7 +75,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         addFallbackDimension("minecraft:the_nether");
         addFallbackDimension("minecraft:the_end");
 
-        // 确保配置里出现过的维度一定可见。
         for (String s : working.keySet()) {
             ResourceLocation rl = ResourceLocation.tryParse(s);
             if (rl != null && !allDimensions.contains(rl)) {
@@ -104,8 +89,7 @@ public class DimensionRoadSettingsScreen extends Screen {
 
     private void addFallbackDimension(String id) {
         ResourceLocation rl = ResourceLocation.tryParse(id);
-        if (rl == null)
-            return;
+        if (rl == null) return;
         if (!allDimensions.contains(rl)) {
             allDimensions.add(rl);
         }
@@ -134,8 +118,7 @@ public class DimensionRoadSettingsScreen extends Screen {
     }
 
     private void rebuildDimensionList() {
-        if (dimensionList == null)
-            return;
+        if (dimensionList == null) return;
         dimensionList.setRows(buildRows(dimensionsForList), selectedDimension);
     }
 
@@ -154,72 +137,39 @@ public class DimensionRoadSettingsScreen extends Screen {
         int leftW = Math.max(140, Math.min(220, this.width / 3));
         int x = 10 + leftW + 10;
         int w = this.width - x - 10;
-
         int y = 56;
-        int h = 20;
-        int gap = 4;
 
         roadsEnabledBtn = Button.builder(Component.empty(), b -> toggleBool("roadsEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + BUTTON_GAP;
 
         bridgeEnabledBtn = Button.builder(Component.empty(), b -> toggleBool("bridgeEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + BUTTON_GAP;
 
         pathfindingBtn = Button.builder(Component.empty(), b -> cyclePathfindingAlgorithm())
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
-
-        roadFillBtn = Button.builder(Component.empty(), b -> toggleBool("roadFillEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + BUTTON_GAP;
 
         slopeLimitBtn = Button.builder(Component.empty(), b -> toggleBool("slopeLimitEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + BUTTON_GAP;
 
         highwayEnabledBtn = Button.builder(Component.empty(), b -> toggleBool("highwayEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + BUTTON_GAP;
 
         roadsideStructuresBtn = Button.builder(Component.empty(), b -> toggleBool("roadsideStructuresEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + BUTTON_GAP;
 
         roadSignsBtn = Button.builder(Component.empty(), b -> toggleBool("roadSignsEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + gap;
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
+        y += BUTTON_HEIGHT + 10;
 
-        interpolatedRoadbedFillBtn = Button
-                .builder(Component.empty(), b -> toggleBool("interpolatedRoadbedFillEnabled"))
-                .pos(x, y)
-                .size(w, h)
-                .build();
-        y += h + 10;
-
-        resetDimensionBtn = Button
-                .builder(Component.translatable("gui.roadweaver.dimension_road_settings.reset_dimension"),
+        resetDimensionBtn = Button.builder(Component.translatable("gui.roadweaver.dimension_road_settings.reset_dimension"),
                         b -> resetSelectedDimension())
-                .pos(x, y)
-                .size(w, h)
-                .build();
+                .pos(x, y).size(w, BUTTON_HEIGHT).build();
 
         int btnY = this.height - 28;
         int btnW = 90;
@@ -228,23 +178,17 @@ public class DimensionRoadSettingsScreen extends Screen {
         int startX = x + Math.max(0, (w - totalW) / 2);
 
         cancelBtn = Button.builder(Component.translatable("gui.cancel"), b -> onCancel())
-                .pos(startX, btnY)
-                .size(btnW, h)
-                .build();
+                .pos(startX, btnY).size(btnW, BUTTON_HEIGHT).build();
         doneBtn = Button.builder(Component.translatable("gui.done"), b -> onDone())
-                .pos(startX + btnW + spacing, btnY)
-                .size(btnW, h)
-                .build();
+                .pos(startX + btnW + spacing, btnY).size(btnW, BUTTON_HEIGHT).build();
 
         addRenderableWidget(roadsEnabledBtn);
         addRenderableWidget(bridgeEnabledBtn);
         addRenderableWidget(pathfindingBtn);
-        addRenderableWidget(roadFillBtn);
         addRenderableWidget(slopeLimitBtn);
         addRenderableWidget(highwayEnabledBtn);
         addRenderableWidget(roadsideStructuresBtn);
         addRenderableWidget(roadSignsBtn);
-        addRenderableWidget(interpolatedRoadbedFillBtn);
         addRenderableWidget(resetDimensionBtn);
         addRenderableWidget(cancelBtn);
         addRenderableWidget(doneBtn);
@@ -256,12 +200,10 @@ public class DimensionRoadSettingsScreen extends Screen {
         roadsEnabledBtn.active = hasSelection;
         bridgeEnabledBtn.active = hasSelection;
         pathfindingBtn.active = hasSelection;
-        roadFillBtn.active = hasSelection;
         slopeLimitBtn.active = hasSelection;
         highwayEnabledBtn.active = hasSelection;
         roadsideStructuresBtn.active = hasSelection;
         roadSignsBtn.active = hasSelection;
-        interpolatedRoadbedFillBtn.active = hasSelection;
         resetDimensionBtn.active = hasSelection;
 
         DimensionRoadSettings s = getWorkingSettings(selectedDimension);
@@ -271,20 +213,14 @@ public class DimensionRoadSettingsScreen extends Screen {
         bridgeEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.bridge",
                 s == null ? null : s.bridgeEnabled()));
         pathfindingBtn.setMessage(pathfindingLine(s == null ? null : s.pathfindingAlgorithm()));
-        roadFillBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.road_fill",
-                s == null ? null : s.roadFillEnabled()));
         slopeLimitBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.height_smoothing",
                 s == null ? null : s.slopeLimitEnabled()));
         highwayEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.highway",
                 s == null ? null : s.highwayEnabled()));
-        roadsideStructuresBtn
-                .setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.roadside_structures",
+        roadsideStructuresBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.roadside_structures",
                         s == null ? null : s.roadsideStructuresEnabled()));
         roadSignsBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.road_signs",
                 s == null ? null : s.roadSignsEnabled()));
-        interpolatedRoadbedFillBtn
-                .setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.interpolated_roadbed_fill",
-                        s == null ? null : s.interpolatedRoadbedFillEnabled()));
     }
 
     private static Component triStateLine(String optionKey, Boolean v) {
@@ -293,11 +229,10 @@ public class DimensionRoadSettingsScreen extends Screen {
                 : (v ? Component.translatable("gui.roadweaver.dimension_road_settings.state.enabled")
                         : Component.translatable("gui.roadweaver.dimension_road_settings.state.disabled"));
         return Component.translatable("gui.roadweaver.dimension_road_settings.option_format",
-                Component.translatable(optionKey),
-                state);
+                Component.translatable(optionKey), state);
     }
 
-    private static Component pathfindingLine(ModConfig.PathfindingAlgorithm algo) {
+    private static Component pathfindingLine(PathfindingCostConfig.PathfindingAlgorithm algo) {
         Component state;
         if (algo == null) {
             state = Component.translatable("gui.roadweaver.dimension_road_settings.state.inherit");
@@ -306,15 +241,12 @@ public class DimensionRoadSettingsScreen extends Screen {
                     "config.roadweaver.pathfinding_algorithm.option." + algo.name().toLowerCase(Locale.ROOT));
         }
         return Component.translatable("gui.roadweaver.dimension_road_settings.option_format",
-                Component.translatable("gui.roadweaver.dimension_road_settings.option.pathfinding"),
-                state);
+                Component.translatable("gui.roadweaver.dimension_road_settings.option.pathfinding"), state);
     }
 
     private void toggleBool(String field) {
-        if (selectedDimension == null)
-            return;
+        if (selectedDimension == null) return;
         String dimId = selectedDimension.toString();
-
         DimensionRoadSettings s = getOrCreateWorkingSettings(dimId);
 
         Boolean next;
@@ -326,10 +258,6 @@ public class DimensionRoadSettingsScreen extends Screen {
             case "bridgeEnabled" -> {
                 next = nextTriState(s.bridgeEnabled());
                 s.setBridgeEnabled(next);
-            }
-            case "roadFillEnabled" -> {
-                next = nextTriState(s.roadFillEnabled());
-                s.setRoadFillEnabled(next);
             }
             case "slopeLimitEnabled" -> {
                 next = nextTriState(s.slopeLimitEnabled());
@@ -347,10 +275,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                 next = nextTriState(s.roadSignsEnabled());
                 s.setRoadSignsEnabled(next);
             }
-            case "interpolatedRoadbedFillEnabled" -> {
-                next = nextTriState(s.interpolatedRoadbedFillEnabled());
-                s.setInterpolatedRoadbedFillEnabled(next);
-            }
             default -> {
                 return;
             }
@@ -363,12 +287,11 @@ public class DimensionRoadSettingsScreen extends Screen {
     }
 
     private void cyclePathfindingAlgorithm() {
-        if (selectedDimension == null)
-            return;
+        if (selectedDimension == null) return;
         String dimId = selectedDimension.toString();
 
         DimensionRoadSettings s = getOrCreateWorkingSettings(dimId);
-        ModConfig.PathfindingAlgorithm next = nextPathfinding(s.pathfindingAlgorithm());
+        PathfindingCostConfig.PathfindingAlgorithm next = nextPathfinding(s.pathfindingAlgorithm());
         s.setPathfindingAlgorithm(next);
 
         if (s.isAllInherit()) {
@@ -378,33 +301,29 @@ public class DimensionRoadSettingsScreen extends Screen {
     }
 
     private void resetSelectedDimension() {
-        if (selectedDimension == null)
-            return;
+        if (selectedDimension == null) return;
         working.remove(selectedDimension.toString());
         refreshOptionButtons();
     }
 
     private static Boolean nextTriState(Boolean v) {
-        if (v == null)
-            return Boolean.TRUE;
-        if (Boolean.TRUE.equals(v))
-            return Boolean.FALSE;
+        if (v == null) return Boolean.TRUE;
+        if (Boolean.TRUE.equals(v)) return Boolean.FALSE;
         return null;
     }
 
-    private static ModConfig.PathfindingAlgorithm nextPathfinding(ModConfig.PathfindingAlgorithm v) {
-        if (v == null)
-            return ModConfig.PathfindingAlgorithm.ASTAR_BASIC;
+    private static PathfindingCostConfig.PathfindingAlgorithm nextPathfinding(PathfindingCostConfig.PathfindingAlgorithm v) {
+        if (v == null) return PathfindingCostConfig.PathfindingAlgorithm.ASTAR_BASIC;
         return switch (v) {
-            case ASTAR_BASIC -> ModConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL;
-            case ASTAR_BIDIRECTIONAL -> ModConfig.PathfindingAlgorithm.GRADIENT_DESCENT;
-            case GRADIENT_DESCENT -> null;
+            case ASTAR_BASIC -> PathfindingCostConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL;
+            case ASTAR_BIDIRECTIONAL -> PathfindingCostConfig.PathfindingAlgorithm.GRADIENT_DESCENT;
+            case GRADIENT_DESCENT -> PathfindingCostConfig.PathfindingAlgorithm.POTENTIAL_FIELD;
+            case POTENTIAL_FIELD -> null;
         };
     }
 
     private DimensionRoadSettings getWorkingSettings(ResourceLocation dimId) {
-        if (dimId == null)
-            return null;
+        if (dimId == null) return null;
         return working.get(dimId.toString());
     }
 
@@ -418,9 +337,7 @@ public class DimensionRoadSettingsScreen extends Screen {
     }
 
     private Component getDimensionDisplayName(ResourceLocation dimId) {
-        if (dimId == null) {
-            return Component.literal("-");
-        }
+        if (dimId == null) return Component.literal("-");
         String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
         Component translated = Component.translatable(key);
         if (!Objects.equals(translated.getString(), key)) {
@@ -437,12 +354,10 @@ public class DimensionRoadSettingsScreen extends Screen {
     }
 
     private void onDone() {
-        // 清理空条目，避免配置膨胀。
         Map<String, DimensionRoadSettings> cleaned = new HashMap<>(working);
         try {
             cleaned.values().removeIf(s -> s == null || s.isAllInherit());
-        } catch (Throwable ignored) {
-        }
+        } catch (Throwable ignored) {}
 
         ModConfig cfg = ConfigService.get();
         if (cfg != null) {
@@ -458,7 +373,6 @@ public class DimensionRoadSettingsScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(g);
-
         g.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
         g.drawCenteredString(this.font,
                 Component.translatable("gui.roadweaver.dimension_road_settings.subtitle"),
@@ -468,8 +382,7 @@ public class DimensionRoadSettingsScreen extends Screen {
             Component dimLine = Component.translatable(
                     "gui.roadweaver.dimension_road_settings.current_dimension",
                     Component.literal(selectedDimension.toString()));
-            g.drawString(this.font, dimLine, 10 + Math.max(140, Math.min(220, this.width / 3)) + 10, 40, 0xFFFFFF,
-                    false);
+            g.drawString(this.font, dimLine, 10 + Math.max(140, Math.min(220, this.width / 3)) + 10, 40, 0xFFFFFF, false);
         }
 
         super.render(g, mouseX, mouseY, partialTick);

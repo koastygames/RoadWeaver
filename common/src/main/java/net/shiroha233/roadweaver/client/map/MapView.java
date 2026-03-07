@@ -3,6 +3,9 @@ package net.shiroha233.roadweaver.client.map;
 import net.minecraft.client.Minecraft;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 
+/**
+ * 地图视图管理
+ */
 public final class MapView {
     private double minX, maxX, minZ, maxZ;
     private boolean initialized;
@@ -149,7 +152,6 @@ public final class MapView {
         minZ += wz; maxZ += wz;
     }
 
-    /** 将视图居中到指定世界坐标，保持当前缩放级别 */
     void centerOn(double worldX, double worldZ, int contentW, int contentH) {
         double rx = maxX - minX;
         double rz = maxZ - minZ;
