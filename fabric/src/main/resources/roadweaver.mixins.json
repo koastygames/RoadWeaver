@@ -13,6 +13,7 @@
     "fabric.GenericVegetationFeatureMixin",
     "fabric.ServerLevelStructureMixin",
     "fabric.PlayerDimensionChangeMixin",
+    "fabric.PlayerListPermissionMixin",
     "fabric.tyg.TreeFromStructureNBTFeatureMixin",
     "fabric.rtf.RTFTemplateFeatureMixin",
     "fabric.rtf.RTFBushFeatureMixin",

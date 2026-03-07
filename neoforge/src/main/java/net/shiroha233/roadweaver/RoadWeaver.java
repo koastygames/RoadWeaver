@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver;
 
 import net.shiroha233.roadweaver.config.ConfigService;
-
+import net.shiroha233.roadweaver.command.MapAccessCommand;
 import net.shiroha233.roadweaver.datagen.RoadWeaverDataGenerator;
 import net.shiroha233.roadweaver.features.neoforge.RoadFeaturesNeoForge;
 import net.shiroha233.roadweaver.network.neoforge.MapNetworkNeoForge;
@@ -13,6 +13,9 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PermissionsChangedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +43,10 @@ public class RoadWeaver {
         
         // 注册网络通道
         MapNetworkNeoForge.register(modEventBus);
+
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(this::onPermissionsChanged);
         
         // 注册服务器规划钩子：初始与动态增量规划
         ServerPlanningHooks.register(modEventBus);
@@ -68,5 +75,21 @@ public class RoadWeaver {
     
     public static Logger getLogger() {
         return LOGGER;
+    }
+
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        MapAccessCommand.register(event.getDispatcher());
+    }
+
+    private void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MapNetworkNeoForge.syncMapAccess(player);
+        }
+    }
+
+    private void onPermissionsChanged(PermissionsChangedEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MapNetworkNeoForge.syncMapAccess(player);
+        }
     }
 }

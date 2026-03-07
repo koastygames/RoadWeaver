@@ -14,6 +14,7 @@ public class MapNetworkPayloads {
     public static final CustomPacketPayload.Type<MapTeleportPayload> TP_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport"));
     public static final CustomPacketPayload.Type<MapTeleportAckPayload> TP_ACK = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
     public static final CustomPacketPayload.Type<MapManualConnectPayload> MAN_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
+    public static final CustomPacketPayload.Type<MapAccessSyncPayload> ACCESS_SYNC = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_access_sync"));
 
     public record MapRequestRectPayload(int requestSeq, ResourceLocation dimension, int minX, int minZ, int maxX, int maxZ) implements CustomPacketPayload {
         public static final StreamCodec<FriendlyByteBuf, MapRequestRectPayload> CODEC = StreamCodec.composite(
@@ -72,5 +73,13 @@ public class MapNetworkPayloads {
             MapManualConnectPayload::new
         );
         @Override public Type<MapManualConnectPayload> type() { return MAN_REQ; }
+    }
+
+    public record MapAccessSyncPayload(boolean allowed) implements CustomPacketPayload {
+        public static final StreamCodec<FriendlyByteBuf, MapAccessSyncPayload> CODEC = StreamCodec.composite(
+            ByteBufCodecs.BOOL, MapAccessSyncPayload::allowed,
+            MapAccessSyncPayload::new
+        );
+        @Override public Type<MapAccessSyncPayload> type() { return ACCESS_SYNC; }
     }
 }

@@ -11,6 +11,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
@@ -18,6 +19,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -43,6 +45,7 @@ public class MapNetworkFabric {
 
         PayloadTypeRegistry.playS2C().register(SnapshotPayload.TYPE, SnapshotPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(TeleportAckPayload.TYPE, TeleportAckPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(AccessSyncPayload.TYPE, AccessSyncPayload.CODEC);
 
         payloadTypesRegistered = true;
     }
@@ -52,6 +55,10 @@ public class MapNetworkFabric {
 
         ServerPlayNetworking.registerGlobalReceiver(RequestRectPayload.TYPE, (payload, context) -> {
             ServerPlayer sp = context.player();
+            if (!MapAccessService.canOpenMap(sp)) {
+                context.server().execute(() -> syncMapAccess(sp));
+                return;
+            }
             int cx = (int) Math.round(sp.getX());
             int cz = (int) Math.round(sp.getZ());
 
@@ -180,6 +187,10 @@ public class MapNetworkFabric {
                     }
                 })
         );
+
+        ClientPlayNetworking.registerGlobalReceiver(AccessSyncPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> ClientMapAccessGuard.applyServerState(context.client(), payload.allowed()))
+        );
     }
 
     public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
@@ -192,6 +203,13 @@ public class MapNetworkFabric {
 
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         ClientPlayNetworking.send(new ManualConnectPayload(ax, az, bx, bz));
+    }
+
+    public static void syncMapAccess(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        ServerPlayNetworking.send(player, new AccessSyncPayload(MapAccessService.canOpenMap(player)));
     }
 
     private record RequestRectPayload(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ)
@@ -302,6 +320,19 @@ public class MapNetworkFabric {
                         buf.readVarInt(),
                         buf.readVarInt()
                 )
+        );
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
+    private record AccessSyncPayload(boolean allowed) implements CustomPacketPayload {
+        private static final Type<AccessSyncPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_access_sync"));
+        private static final StreamCodec<RegistryFriendlyByteBuf, AccessSyncPayload> CODEC = CustomPacketPayload.codec(
+                (payload, buf) -> buf.writeBoolean(payload.allowed),
+                buf -> new AccessSyncPayload(buf.readBoolean())
         );
 
         @Override

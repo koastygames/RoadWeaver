@@ -14,6 +14,7 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
@@ -21,6 +22,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapNetworkPayloads;
 import net.shiroha233.roadweaver.util.ComputeService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -56,6 +58,11 @@ public class MapNetworkNeoForge {
                 MapNetworkPayloads.MapTeleportAckPayload.CODEC,
                 MapNetworkNeoForge::handleTeleportAck
         );
+        registrar.playToClient(
+                MapNetworkPayloads.ACCESS_SYNC,
+                MapNetworkPayloads.MapAccessSyncPayload.CODEC,
+                MapNetworkNeoForge::handleAccessSync
+        );
         registrar.playToServer(
                 MapNetworkPayloads.MAN_REQ,
                 MapNetworkPayloads.MapManualConnectPayload.CODEC,
@@ -66,6 +73,10 @@ public class MapNetworkNeoForge {
     private static void handleRequestRect(final MapNetworkPayloads.MapRequestRectPayload payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer sp)) return;
+            if (!MapAccessService.canOpenMap(sp)) {
+                syncMapAccess(sp);
+                return;
+            }
             
             int cx = (int) Math.round(sp.getX());
             int cz = (int) Math.round(sp.getZ());
@@ -155,6 +166,10 @@ public class MapNetworkNeoForge {
         });
     }
 
+    private static void handleAccessSync(final MapNetworkPayloads.MapAccessSyncPayload payload, final IPayloadContext context) {
+        context.enqueueWork(() -> ClientMapAccessGuard.applyServerState(Minecraft.getInstance(), payload.allowed()));
+    }
+
     private static void handleManualConnect(final MapNetworkPayloads.MapManualConnectPayload payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer sp)) return;
@@ -194,5 +209,11 @@ public class MapNetworkNeoForge {
 
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         PacketDistributor.sendToServer(new MapNetworkPayloads.MapManualConnectPayload(new BlockPos(ax, 0, az), new BlockPos(bx, 0, bz)));
+    }
+
+    public static void syncMapAccess(ServerPlayer player) {
+        if (player != null) {
+            PacketDistributor.sendToPlayer(player, new MapNetworkPayloads.MapAccessSyncPayload(MapAccessService.canOpenMap(player)));
+        }
     }
 }

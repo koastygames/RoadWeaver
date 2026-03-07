@@ -4,7 +4,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
+import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -41,6 +43,8 @@ public final class ServerPlanningHooks {
     private static void onServerStarted(ServerStartedEvent event) {
         CacheManager.onServerStarted(); // 统一初始化缓存
         ThreadPoolManager.onServerStarted(event.getServer());
+        SignTextService.clearPending();
+        IdleRoadGenerationService.onServerStarted();
         ServerLevel level = event.getServer().getLevel(Objects.requireNonNull(Level.OVERWORLD));
         if (level == null)
             return;
@@ -73,6 +77,9 @@ public final class ServerPlanningHooks {
         if (ConfigService.get().highwayEnabled()) {
             HighwayPlanningService.initialPlanAsync(level);
         }
+        if (ConfigService.get().longDrive().enabled()) {
+            LongDrivePlanningService.initialPlan(level);
+        }
     }
 
     @SubscribeEvent
@@ -84,11 +91,14 @@ public final class ServerPlanningHooks {
         if ((tick++ % 20) == 0) {
             boolean highwayMode = ConfigService.get().highwayEnabled();
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
                 if (highwayMode) {
                     HighwayPlanningService.planAroundPlayer(p);
                 } else {
                     RoadPlanningService.planAroundPlayer(p);
                 }
+                IdleRoadGenerationService.tickPlayer(p);
+                LongDrivePlanningService.tickPlayer(p);
             }
         }
 
@@ -97,6 +107,7 @@ public final class ServerPlanningHooks {
         for (ServerLevel level : server.getAllLevels()) {
             if (level == null)
                 continue;
+            IdleRoadGenerationService.tick(level);
             RoadGenerationService.tick(level);
             SignTextService.tick(level);
         }
@@ -113,6 +124,8 @@ public final class ServerPlanningHooks {
         RoadGenerationService.onServerStopping();
         HighwayPlanningService.resetAll();
         HighwayCellPathPlanningService.resetAll();
+        LongDrivePlanningService.resetAll();
+        IdleRoadGenerationService.onServerStopping();
         SignTextService.clearPending();
         CacheManager.onServerStopping(event.getServer().getAllLevels()); // 统一清理所有缓存
         ComputeService.shutdownNow();

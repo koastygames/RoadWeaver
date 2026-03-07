@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.mixin.neoforge;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.structures.precompute.StructureInjector;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,5 +30,6 @@ public class ServerLevelStructureMixin {
     private void roadweaver$injectRoadsideStructures(ChunkAccess chunk, CallbackInfo ci) {
         ServerLevel level = (ServerLevel) (Object) this;
         StructureInjector.injectPendingStructures(level, chunk);
+        SignTextService.onChunkReady(level, chunk.getPos());
     }
 }

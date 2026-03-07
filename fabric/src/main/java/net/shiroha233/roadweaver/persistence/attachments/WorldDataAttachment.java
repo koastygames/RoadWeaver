@@ -7,6 +7,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
+import net.shiroha233.roadweaver.map.permission.MapAccessPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +61,11 @@ public class WorldDataAttachment {
                         return out;
                     }
             )
+    );
+
+    public static final AttachmentType<MapAccessPolicy> MAP_ACCESS_POLICY = AttachmentRegistry.createPersistent(
+            ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "map_access_policy"),
+            MapAccessPolicy.CODEC
     );
 
     public static void registerWorldDataAttachment() {
