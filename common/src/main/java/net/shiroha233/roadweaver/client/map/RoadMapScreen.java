@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
@@ -22,6 +23,7 @@ import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import net.shiroha233.roadweaver.util.ComputeService;
 
@@ -66,6 +68,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     @Override
     protected void init() {
         super.init();
+        if (!hasMapOpenPermission()) {
+            denyMapAccessAndClose();
+            return;
+        }
         MapSnapshotCache.cancelClear();
         Minecraft mc = this.minecraft;
         if (mc != null && mc.level != null) {
@@ -384,6 +390,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
     @Override
     public void onRequestView() {
+        if (!hasMapOpenPermission()) {
+            denyMapAccessAndClose();
+            return;
+        }
         int minX = (int) Math.floor(Math.min(view.getMinX(), view.getMaxX())) - 32;
         int maxX = (int) Math.ceil(Math.max(view.getMinX(), view.getMaxX())) + 32;
         int minZ = (int) Math.floor(Math.min(view.getMinZ(), view.getMaxZ())) - 32;
@@ -600,5 +610,27 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
     private boolean insideRect(double x, double y, int rx, int ry, int rw, int rh) {
         return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
+    }
+
+    private boolean hasMapOpenPermission() {
+        Minecraft mc = this.minecraft;
+        if (mc == null) {
+            return true;
+        }
+        if (!ClientMapAccessGuard.isAllowedOrUnknown()) {
+            return false;
+        }
+        MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null || mc.player == null) {
+            return true;
+        }
+        ServerPlayer serverPlayer = server.getPlayerList().getPlayer(mc.player.getUUID());
+        return serverPlayer == null || MapAccessService.canOpenMap(serverPlayer);
+    }
+
+    private void denyMapAccessAndClose() {
+        ClientMapAccessGuard.notifyDenied(this.minecraft);
+        MapSnapshotCache.clearNow();
+        this.onClose();
     }
 }

@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
@@ -16,6 +17,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -33,6 +35,7 @@ public class MapNetworkFabric {
     public static final ResourceLocation TP_REQ = new ResourceLocation("roadweaver", "map_teleport");
     public static final ResourceLocation TP_ACK = new ResourceLocation("roadweaver", "map_teleport_ack");
     public static final ResourceLocation MAN_REQ = new ResourceLocation("roadweaver", "map_manual_connect");
+    public static final ResourceLocation ACCESS_SYNC = new ResourceLocation("roadweaver", "map_access_sync");
 
     public static void registerServerReceivers() {
         // 地图矩形范围请求
@@ -45,6 +48,10 @@ public class MapNetworkFabric {
             int maxZ = buf.readVarInt();
             
             ServerPlayer sp = player;
+            if (!MapAccessService.canOpenMap(sp)) {
+                server.execute(() -> syncMapAccess(sp));
+                return;
+            }
             int cx = (int) Math.round(sp.getX());
             int cz = (int) Math.round(sp.getZ());
             
@@ -191,6 +198,11 @@ public class MapNetworkFabric {
                 }
             });
         });
+
+        ClientPlayNetworking.registerGlobalReceiver(ACCESS_SYNC, (client, handler, buf, responseSender) -> {
+            boolean allowed = buf.readBoolean();
+            client.execute(() -> ClientMapAccessGuard.applyServerState(client, allowed));
+        });
     }
 
     public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
@@ -219,5 +231,14 @@ public class MapNetworkFabric {
         out.writeVarInt(bx);
         out.writeVarInt(bz);
         ClientPlayNetworking.send(MAN_REQ, out);
+    }
+
+    public static void syncMapAccess(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
+        out.writeBoolean(MapAccessService.canOpenMap(player));
+        ServerPlayNetworking.send(player, ACCESS_SYNC, out);
     }
 }

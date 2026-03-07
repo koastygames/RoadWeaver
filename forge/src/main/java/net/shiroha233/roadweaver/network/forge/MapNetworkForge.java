@@ -5,12 +5,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
@@ -18,6 +20,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
+import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -47,6 +50,7 @@ public class MapNetworkForge {
         CHANNEL.registerMessage(id++, TeleportC2S.class, TeleportC2S::encode, TeleportC2S::decode, TeleportC2S::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++, TeleportAckS2C.class, TeleportAckS2C::encode, TeleportAckS2C::decode, TeleportAckS2C::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++, ManualConnectC2S.class, ManualConnectC2S::encode, ManualConnectC2S::decode, ManualConnectC2S::handle, Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(id++, MapAccessSyncS2C.class, MapAccessSyncS2C::encode, MapAccessSyncS2C::decode, MapAccessSyncS2C::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     // 客户端请求地图快照
@@ -87,6 +91,11 @@ public class MapNetworkForge {
             NetworkEvent.Context c = ctx.get();
             var player = c.getSender();
             if (player != null) {
+                if (!MapAccessService.canOpenMap(player)) {
+                    c.enqueueWork(() -> syncMapAccess(player));
+                    c.setPacketHandled(true);
+                    return;
+                }
                 int cx = (int) Math.round(player.getX());
                 int cz = (int) Math.round(player.getZ());
                 int computedRadiusBlocks;
@@ -151,6 +160,28 @@ public class MapNetworkForge {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.screen instanceof RoadMapScreen screen) screen.acceptSnapshot(msg.requestSeq, msg.dimensionId, msg.snapshot);
             });
+            c.setPacketHandled(true);
+        }
+    }
+
+    public static class MapAccessSyncS2C {
+        public final boolean allowed;
+
+        public MapAccessSyncS2C(boolean allowed) {
+            this.allowed = allowed;
+        }
+
+        public static void encode(MapAccessSyncS2C msg, FriendlyByteBuf buf) {
+            buf.writeBoolean(msg.allowed);
+        }
+
+        public static MapAccessSyncS2C decode(FriendlyByteBuf buf) {
+            return new MapAccessSyncS2C(buf.readBoolean());
+        }
+
+        public static void handle(MapAccessSyncS2C msg, Supplier<NetworkEvent.Context> ctx) {
+            NetworkEvent.Context c = ctx.get();
+            c.enqueueWork(() -> ClientMapAccessGuard.applyServerState(Minecraft.getInstance(), msg.allowed));
             c.setPacketHandled(true);
         }
     }
@@ -307,5 +338,11 @@ public class MapNetworkForge {
 
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         CHANNEL.sendToServer(new ManualConnectC2S(ax, az, bx, bz));
+    }
+
+    public static void syncMapAccess(ServerPlayer player) {
+        if (player != null) {
+            CHANNEL.sendTo(new MapAccessSyncS2C(MapAccessService.canOpenMap(player)), player.connection.connection, NetworkDirection.PLAY_TO_CLIENT);
+        }
     }
 }

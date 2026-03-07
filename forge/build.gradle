@@ -14,10 +14,19 @@ loom {
     runs {
         client {
             client()
+            ideConfigGenerated = true
             name "Forge Client"
             runDir "run/client"
             vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
-            programArgs "--username", "Player1"
+            programArgs "--username", rootProject.properties.getOrDefault('minecraft_username', 'Player1')
+        }
+        client2 {
+            client()
+            ideConfigGenerated = true
+            name "Forge Client 2"
+            runDir "run/client_alt"
+            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
+            programArgs "--username", rootProject.properties.getOrDefault('minecraft_second_username', 'Player2')
         }
         server {
             server()

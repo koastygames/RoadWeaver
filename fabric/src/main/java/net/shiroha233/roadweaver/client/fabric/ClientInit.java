@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
+import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
@@ -22,11 +23,13 @@ public class ClientInit implements ClientModInitializer {
         MapNetworkFabric.registerClientReceivers();
         
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            ClientMapAccessGuard.reset();
             MapSnapshotCache.clearNow();
             ClientMapNotes.onWorldJoin();
         });
         
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            ClientMapAccessGuard.reset();
             MapSnapshotCache.clearNow();
             ClientMapNotes.onWorldLeave();
         });
@@ -41,6 +44,9 @@ public class ClientInit implements ClientModInitializer {
             if (client.player == null) return;
             if (client.screen instanceof RoadMapScreen) return;
             while (OPEN_MAP.consumeClick()) {
+                if (!ClientMapAccessGuard.canOpen(client)) {
+                    continue;
+                }
                 client.setScreen(new RoadMapScreen());
             }
         });

@@ -7,6 +7,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
@@ -20,12 +21,14 @@ public final class ClientEvents {
 
     @SubscribeEvent
     public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn e) {
+        ClientMapAccessGuard.reset();
         MapSnapshotCache.clearNow();
         ClientMapNotes.onWorldJoin();
     }
 
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
+        ClientMapAccessGuard.reset();
         MapSnapshotCache.clearNow();
         ClientMapNotes.onWorldLeave();
     }
@@ -40,6 +43,9 @@ public final class ClientEvents {
         if (client.screen instanceof RoadMapScreen) return;
 
         while (ClientKeyMappings.OPEN_MAP.consumeClick()) {
+            if (!ClientMapAccessGuard.canOpen(client)) {
+                continue;
+            }
             client.setScreen(new RoadMapScreen());
         }
     }
