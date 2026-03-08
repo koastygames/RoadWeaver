@@ -7,7 +7,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.dimension.LevelStem;
@@ -39,12 +39,12 @@ public final class StructureDiscoveryService {
 
     /** 发现结果 */
     public static final class DiscoveryResult {
-        private final List<ResourceLocation> dimensions;
+        private final List<Identifier> dimensions;
         private final List<StructureTagEntry> tags;
         private final List<StructureEntry> allStructures;
         private final Map<String, Set<String>> tagToStructures;
 
-        public DiscoveryResult(List<ResourceLocation> dimensions, List<StructureTagEntry> tags, List<StructureEntry> allStructures) {
+        public DiscoveryResult(List<Identifier> dimensions, List<StructureTagEntry> tags, List<StructureEntry> allStructures) {
             this.dimensions = new ArrayList<>(dimensions == null ? List.of() : dimensions);
             this.tags = new ArrayList<>(tags);
             this.allStructures = new ArrayList<>(allStructures);
@@ -57,7 +57,7 @@ public final class StructureDiscoveryService {
             }
         }
 
-        public List<ResourceLocation> dimensions() { return Collections.unmodifiableList(dimensions); }
+        public List<Identifier> dimensions() { return Collections.unmodifiableList(dimensions); }
         public List<StructureTagEntry> tags() { return Collections.unmodifiableList(tags); }
         public List<StructureEntry> allStructures() { return Collections.unmodifiableList(allStructures); }
 
@@ -79,38 +79,38 @@ public final class StructureDiscoveryService {
         }
         RegistryAccess access = level.registryAccess();
         discoverFromRegistries(
-                access.registryOrThrow(Registries.STRUCTURE),
-                access.registryOrThrow(Registries.LEVEL_STEM));
+                access.lookupOrThrow(Registries.STRUCTURE),
+                access.lookupOrThrow(Registries.LEVEL_STEM));
     }
 
     /** 从注册表收集结构和标签 */
     public static void discoverFromRegistries(Registry<Structure> structureRegistry, Registry<LevelStem> levelStemRegistry) {
         if (structureRegistry == null || levelStemRegistry == null) return;
         try {
-            List<ResourceLocation> discoveredDimensions = levelStemRegistry.keySet().stream()
-                    .sorted(Comparator.comparing(ResourceLocation::toString))
+            List<Identifier> discoveredDimensions = levelStemRegistry.keySet().stream()
+                    .sorted(Comparator.comparing(Identifier::toString))
                     .collect(Collectors.toList());
 
-            Map<ResourceLocation, Set<Holder<Biome>>> possibleBiomesByDimension = levelStemRegistry.entrySet()
+            Map<Identifier, Set<Holder<Biome>>> possibleBiomesByDimension = levelStemRegistry.entrySet()
                     .stream()
                     .collect(Collectors.toMap(
-                            e -> e.getKey().location(),
+                            e -> e.getKey().identifier(),
                             e -> {
                                 try { return e.getValue().generator().getBiomeSource().possibleBiomes(); }
                                 catch (Exception ignored) { return Set.of(); }
                             }));
 
-            Map<ResourceLocation, StructureEntry> structureMap = new LinkedHashMap<>();
+            Map<Identifier, StructureEntry> structureMap = new LinkedHashMap<>();
             for (var entry : structureRegistry.entrySet()) {
-                ResourceLocation id = entry.getKey().location();
+                Identifier id = entry.getKey().identifier();
                 Structure structure = entry.getValue();
                 boolean isVanilla = "minecraft".equals(id.getNamespace());
                 String displayName = formatDisplayName(id);
 
-                Set<ResourceLocation> dims = new LinkedHashSet<>();
+                Set<Identifier> dims = new LinkedHashSet<>();
                 try {
                     var structureBiomes = structure.biomes();
-                    for (ResourceLocation dimId : discoveredDimensions) {
+                    for (Identifier dimId : discoveredDimensions) {
                         Set<Holder<Biome>> dimPossible = possibleBiomesByDimension.getOrDefault(dimId, Set.of());
                         if (dimPossible.isEmpty()) continue;
                         if (structureBiomes.stream().anyMatch(dimPossible::contains)) dims.add(dimId);
@@ -136,9 +136,9 @@ public final class StructureDiscoveryService {
             return;
         }
         try {
-            Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
+            Registry<Structure> structureRegistry = registryAccess.lookupOrThrow(Registries.STRUCTURE);
             Registry<LevelStem> levelStemRegistry = null;
-            try { levelStemRegistry = registryAccess.registryOrThrow(Registries.LEVEL_STEM); }
+            try { levelStemRegistry = registryAccess.lookupOrThrow(Registries.LEVEL_STEM); }
             catch (Exception ignored) {}
 
             if (levelStemRegistry != null) {
@@ -146,9 +146,9 @@ public final class StructureDiscoveryService {
                 return;
             }
 
-            Map<ResourceLocation, StructureEntry> structureMap = new LinkedHashMap<>();
+            Map<Identifier, StructureEntry> structureMap = new LinkedHashMap<>();
             for (var entry : structureRegistry.entrySet()) {
-                ResourceLocation id = entry.getKey().location();
+                Identifier id = entry.getKey().identifier();
                 boolean isVanilla = "minecraft".equals(id.getNamespace());
                 structureMap.put(id, new StructureEntry(id, formatDisplayName(id), isVanilla));
             }
@@ -183,19 +183,19 @@ public final class StructureDiscoveryService {
 
     // ==================== 内部工具方法 ====================
 
-    private static List<StructureTagEntry> collectTags(Registry<Structure> registry, Map<ResourceLocation, StructureEntry> structureMap) {
+    private static List<StructureTagEntry> collectTags(Registry<Structure> registry, Map<Identifier, StructureEntry> structureMap) {
         List<StructureTagEntry> tagEntries = new ArrayList<>();
-        Set<ResourceLocation> processedTags = new HashSet<>();
-        for (Holder.Reference<Structure> holder : registry.holders().toList()) {
+        Set<Identifier> processedTags = new HashSet<>();
+        for (Holder.Reference<Structure> holder : registry.listElements().toList()) {
             holder.tags().forEach(tagKey -> {
-                ResourceLocation tagId = tagKey.location();
+                Identifier tagId = tagKey.location();
                 if (processedTags.contains(tagId)) return;
                 processedTags.add(tagId);
 
                 List<StructureEntry> tagStructures = new ArrayList<>();
-                for (Holder.Reference<Structure> h : registry.holders().toList()) {
+                for (Holder.Reference<Structure> h : registry.listElements().toList()) {
                     if (h.is(tagKey)) {
-                        StructureEntry se = structureMap.get(h.key().location());
+                        StructureEntry se = structureMap.get(h.key().identifier());
                         if (se != null) tagStructures.add(se);
                     }
                 }
@@ -207,7 +207,7 @@ public final class StructureDiscoveryService {
         return tagEntries;
     }
 
-    private static String formatDisplayName(ResourceLocation id) {
+    private static String formatDisplayName(Identifier id) {
         String[] parts = id.getPath().split("_");
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
@@ -220,7 +220,7 @@ public final class StructureDiscoveryService {
         return sb.toString();
     }
 
-    private static String formatTagDisplayName(ResourceLocation tagId) {
+    private static String formatTagDisplayName(Identifier tagId) {
         return "#" + formatDisplayName(tagId);
     }
 
@@ -236,10 +236,10 @@ public final class StructureDiscoveryService {
             Path file = getCacheFilePath();
             Files.createDirectories(file.getParent());
             CacheData data = new CacheData();
-            data.dimensions = cachedResult.dimensions().stream().map(ResourceLocation::toString).collect(Collectors.toList());
+            data.dimensions = cachedResult.dimensions().stream().map(Identifier::toString).collect(Collectors.toList());
             data.structures = cachedResult.allStructures().stream()
                     .map(e -> new CacheData.StructureData(e.id().toString(), e.displayName(), e.isVanilla(),
-                            e.dimensions().stream().map(ResourceLocation::toString).collect(Collectors.toList())))
+                            e.dimensions().stream().map(Identifier::toString).collect(Collectors.toList())))
                     .collect(Collectors.toList());
             data.tags = cachedResult.tags().stream()
                     .map(t -> new CacheData.TagData(t.tagId().toString(), t.displayName(),
@@ -263,22 +263,22 @@ public final class StructureDiscoveryService {
                 return;
             }
 
-            List<ResourceLocation> discoveredDimensions = new ArrayList<>();
+            List<Identifier> discoveredDimensions = new ArrayList<>();
             if (data.dimensions != null) {
                 for (String dimStr : data.dimensions) {
-                    ResourceLocation rl = ResourceLocation.tryParse(dimStr);
+                    Identifier rl = Identifier.tryParse(dimStr);
                     if (rl != null) discoveredDimensions.add(rl);
                 }
             }
 
             Map<String, StructureEntry> structureMap = new LinkedHashMap<>();
             for (CacheData.StructureData sd : data.structures) {
-                ResourceLocation id = ResourceLocation.tryParse(sd.id);
+                Identifier id = Identifier.tryParse(sd.id);
                 if (id != null) {
-                    Set<ResourceLocation> dims = new LinkedHashSet<>();
+                    Set<Identifier> dims = new LinkedHashSet<>();
                     if (sd.dimensions != null) {
                         for (String dimStr : sd.dimensions) {
-                            ResourceLocation rl = ResourceLocation.tryParse(dimStr);
+                            Identifier rl = Identifier.tryParse(dimStr);
                             if (rl != null) dims.add(rl);
                         }
                     }
@@ -287,7 +287,7 @@ public final class StructureDiscoveryService {
             }
 
             if (discoveredDimensions.isEmpty()) {
-                Set<ResourceLocation> derived = new LinkedHashSet<>();
+                Set<Identifier> derived = new LinkedHashSet<>();
                 for (StructureEntry se : structureMap.values()) derived.addAll(se.dimensions());
                 discoveredDimensions.addAll(derived);
                 Collections.sort(discoveredDimensions);
@@ -295,7 +295,7 @@ public final class StructureDiscoveryService {
 
             List<StructureTagEntry> tagEntries = new ArrayList<>();
             for (CacheData.TagData td : data.tags) {
-                ResourceLocation tagId = ResourceLocation.tryParse(td.tagId);
+                Identifier tagId = Identifier.tryParse(td.tagId);
                 if (tagId == null) continue;
                 List<StructureEntry> tagStructures = new ArrayList<>();
                 for (String structId : td.structureIds) {

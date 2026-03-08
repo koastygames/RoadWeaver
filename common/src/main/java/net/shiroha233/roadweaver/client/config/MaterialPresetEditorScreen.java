@@ -5,9 +5,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Block;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
@@ -40,7 +41,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     private Button dimensionButton;
     private DimensionListWidget dimensionListWidget;
     
-    private ResourceLocation filterDimension = ResourceLocation.parse("minecraft:overworld");
+    private Identifier filterDimension = Identifier.parse("minecraft:overworld");
     private PresetService.RoadType filterType = PresetService.RoadType.ARTIFICIAL;
     private boolean pendingCloseDimensionDropdown = false;
     
@@ -56,7 +57,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         String id;
         String name;
         PresetService.RoadType type;
-        Set<ResourceLocation> dimensions = new HashSet<>();
+        Set<Identifier> dimensions = new HashSet<>();
         List<String> materials = new ArrayList<>();
         List<String> slabMaterials = new ArrayList<>();
     }
@@ -179,12 +180,12 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     
     private void populateDimensions() {
         StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        List<ResourceLocation> dims = new ArrayList<>();
+        List<Identifier> dims = new ArrayList<>();
         if (result != null) {
             dims.addAll(result.dimensions());
         }
-        if (!dims.contains(ResourceLocation.parse("minecraft:overworld"))) {
-            dims.add(ResourceLocation.parse("minecraft:overworld"));
+        if (!dims.contains(Identifier.parse("minecraft:overworld"))) {
+            dims.add(Identifier.parse("minecraft:overworld"));
         }
         if (filterDimension == null || !dims.contains(filterDimension)) {
             filterDimension = dims.get(0);
@@ -195,7 +196,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         }
     }
 
-    private Component getDimensionDisplayName(ResourceLocation dimId) {
+    private Component getDimensionDisplayName(Identifier dimId) {
         String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
         Component translated = Component.translatable(key);
         if (!Objects.equals(translated.getString(), key)) {
@@ -221,7 +222,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         if (result == null || dimensionButton == null) return;
 
         List<DimensionListWidget.Row> rows = new ArrayList<>();
-        for (ResourceLocation dimId : result.dimensions()) {
+        for (Identifier dimId : result.dimensions()) {
             Component title = getDimensionDisplayName(dimId);
             Component subtitle = Component.literal(dimId.toString());
             rows.add(new DimensionListWidget.Row(dimId, title,
@@ -258,12 +259,14 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         DimensionListWidget dd = dimensionListWidget;
         Button btn = dimensionButton;
 
         if (dd != null && dd.isMouseOver(mouseX, mouseY)) {
-            dd.mouseClicked(mouseX, mouseY, button);
+            dd.mouseClicked(event, doubleClick);
             return true;
         }
 
@@ -275,7 +278,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
             }
         }
 
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
+        boolean handled = super.mouseClicked(event, doubleClick);
         if (pendingCloseDimensionDropdown) {
             pendingCloseDimensionDropdown = false;
             closeDimensionDropdown();
@@ -355,7 +358,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         refreshPresetListUI();
         
         if (presetList != null) {
-            presetList.setScrollAmount(presetList.getMaxScroll());
+            presetList.setScrollAmount(presetList.maxScrollAmount());
         }
     }
 
@@ -379,7 +382,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
             UiPreset p = presets.get(i);
             if (!matchesFilter(p)) continue;
             if (p.type == PresetService.RoadType.NATURAL) {
-                ResourceLocation biomeId = tryGetBiomeIdFromPreset(p);
+                Identifier biomeId = tryGetBiomeIdFromPreset(p);
                 if (biomeId != null) {
                     presetList.addPreset(p.id, getBiomeZhName(biomeId), getBiomeEnName(biomeId), i == activePresetIndex);
                     continue;
@@ -389,21 +392,21 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         }
     }
 
-    private ResourceLocation tryGetBiomeIdFromPreset(UiPreset p) {
+    private Identifier tryGetBiomeIdFromPreset(UiPreset p) {
         if (p == null || p.type != PresetService.RoadType.NATURAL) return null;
         if (p.id == null) return null;
         if (!p.id.startsWith("natural_")) return null;
         String rest = p.id.substring("natural_".length());
         if (rest.isBlank()) return null;
 
-        ResourceLocation vanilla = ResourceLocation.fromNamespaceAndPath("minecraft", rest);
+        Identifier vanilla = Identifier.fromNamespaceAndPath("minecraft", rest);
 
         int firstUnderscore = rest.indexOf('_');
         if (firstUnderscore > 0 && firstUnderscore < rest.length() - 1) {
             String ns = rest.substring(0, firstUnderscore);
             String path = rest.substring(firstUnderscore + 1);
             try {
-                ResourceLocation candidate = ResourceLocation.fromNamespaceAndPath(ns, path);
+                Identifier candidate = Identifier.fromNamespaceAndPath(ns, path);
                 String key = "biome." + candidate.getNamespace() + "." + candidate.getPath();
                 Component translated = Component.translatable(key);
                 if (!Objects.equals(translated.getString(), key)) {
@@ -415,14 +418,14 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         return vanilla;
     }
 
-    private String getBiomeZhName(ResourceLocation biomeId) {
+    private String getBiomeZhName(Identifier biomeId) {
         String key = "biome." + biomeId.getNamespace() + "." + biomeId.getPath();
         Component translated = Component.translatable(key);
         String s = translated.getString();
         return Objects.equals(s, key) ? biomeId.toString() : s;
     }
 
-    private String getBiomeEnName(ResourceLocation biomeId) {
+    private String getBiomeEnName(Identifier biomeId) {
         String path = biomeId.getPath();
         String[] parts = path.split("_");
         StringBuilder sb = new StringBuilder();
@@ -511,7 +514,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     private void onBlockSelectedFromCandidate(Block block) {
         if (activePresetIndex < 0) return;
         UiPreset p = presets.get(activePresetIndex);
-        ResourceLocation id = BuiltInRegistries.BLOCK.getKey(block);
+        Identifier id = BuiltInRegistries.BLOCK.getKey(block);
         if (id == null) return;
         String idStr = id.toString();
 
@@ -558,24 +561,24 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
 
         UiPreset p = (activePresetIndex >= 0 && activePresetIndex < presets.size()) ? presets.get(activePresetIndex) : null;
         if (p != null && p.type == PresetService.RoadType.NATURAL) {
-            ResourceLocation biomeId = tryGetBiomeIdFromPreset(p);
+            Identifier biomeId = tryGetBiomeIdFromPreset(p);
             if (biomeId != null) {
                 String zh = getBiomeZhName(biomeId);
                 String en = getBiomeEnName(biomeId);
                 int x = editorLeft;
                 int y = editorHeaderY;
 
-                g.pose().pushPose();
-                g.pose().translate(x, y, 0);
-                g.pose().scale(ZH_SCALE, ZH_SCALE, 1.0F);
+                g.pose().pushMatrix();
+                g.pose().translate(x, y);
+                g.pose().scale(ZH_SCALE, ZH_SCALE);
                 g.drawString(font, font.plainSubstrByWidth(zh, (int) (editorWidth / ZH_SCALE)), 0, 0, 0xFFFFFF, false);
-                g.pose().popPose();
+                g.pose().popMatrix();
 
-                g.pose().pushPose();
-                g.pose().translate(x, y + 18, 0);
-                g.pose().scale(EN_SCALE, EN_SCALE, 1.0F);
+                g.pose().pushMatrix();
+                g.pose().translate(x, y + 18);
+                g.pose().scale(EN_SCALE, EN_SCALE);
                 g.drawString(font, font.plainSubstrByWidth(en, (int) (editorWidth / EN_SCALE)), 0, 0, 0xBBBBBB, false);
-                g.pose().popPose();
+                g.pose().popMatrix();
             }
         }
         

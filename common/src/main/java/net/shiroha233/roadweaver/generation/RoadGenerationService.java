@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
@@ -40,7 +40,7 @@ public final class RoadGenerationService {
     private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING_COUNT = new ConcurrentHashMap<>();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
 
-    private static final ResourceLocation ROAD_CF_ID = ResourceLocation.fromNamespaceAndPath("roadweaver", "road_feature");
+    private static final Identifier ROAD_CF_ID = Identifier.fromNamespaceAndPath("roadweaver", "road_feature");
 
     public static void onServerStarted() {
         ALL_RUNNING.clear();
@@ -81,7 +81,7 @@ public final class RoadGenerationService {
 
         List<ServerPlayer> players = new ArrayList<>();
         for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
-            if (p != null && p.serverLevel() == level) players.add(p);
+            if (p != null && p.level() == level) players.add(p);
         }
 
         boolean pickHighway = false;
@@ -130,13 +130,13 @@ public final class RoadGenerationService {
             if (Thread.currentThread().isInterrupted()) return false;
 
             var reg = level.registryAccess()
-                    .registryOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
-            ConfiguredFeature<?, ?> cf = reg.get(ROAD_CF_ID);
+                    .lookupOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
+            ConfiguredFeature<?, ?> cf = reg.getValue(ROAD_CF_ID);
             PathFeatureConfig cfg = (cf != null && cf.config() instanceof PathFeatureConfig rfc) ? rfc : new PathFeatureConfig();
 
             if (Thread.currentThread().isInterrupted()) return false;
             ModConfig modCfg = ConfigService.get();
-            String dimId = level.dimension().location().toString();
+            String dimId = level.dimension().identifier().toString();
             if (!modCfg.roadsEnabledForDimension(dimId)) return true;
 
             RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
@@ -152,7 +152,7 @@ public final class RoadGenerationService {
         try {
             if (Thread.currentThread().isInterrupted()) return false;
             ModConfig cfg = ConfigService.get();
-            String dimId = level.dimension().location().toString();
+            String dimId = level.dimension().identifier().toString();
             if (!cfg.highwayEnabledForDimension(dimId)) return true;
 
             HighwayGenerationConfig genCfg = HighwayGenerationConfig.from(cfg);

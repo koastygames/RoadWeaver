@@ -48,8 +48,8 @@ public final class SegmentPaver {
             List<BlockState> baseMats;
             if (roadType == 1) {
                 PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(
-                        world.getLevel().dimension().location(),
-                        world.getBiome(pos).unwrapKey().map(k -> k.location()).orElse(null));
+                        world.getLevel().dimension().identifier(),
+                        world.getBiome(pos).unwrapKey().map(k -> k.identifier()).orElse(null));
                 if (biomePreset != null) {
                     baseMats = PresetService.toBlockStatesFromIdsAllowEmpty(biomePreset.materials());
                 } else {
@@ -69,8 +69,8 @@ public final class SegmentPaver {
                 slabs = slabMaterials;
             } else if (roadType == 1) {
                 PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(
-                        world.getLevel().dimension().location(),
-                        world.getBiome(pos).unwrapKey().map(k -> k.location()).orElse(null));
+                        world.getLevel().dimension().identifier(),
+                        world.getBiome(pos).unwrapKey().map(k -> k.identifier()).orElse(null));
                 slabs = biomePreset != null ? PresetService.toBlockStatesFromIdsAllowEmpty(biomePreset.slabMaterials())
                         : List.of();
             } else {

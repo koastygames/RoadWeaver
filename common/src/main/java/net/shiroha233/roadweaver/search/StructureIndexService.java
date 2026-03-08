@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,11 +38,11 @@ public final class StructureIndexService {
         if (cfg == null || !cfg.structurePredictionEnabled()) {
             return List.of();
         }
-        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString())) {
+        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().identifier().toString())) {
             return List.of();
         }
 
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int radiusChunks = Math.max(1, cfg.predictRadiusChunks());
         int minBlockX = (spawn.getX() >> 4) - radiusChunks;
         int maxBlockX = (spawn.getX() >> 4) + radiusChunks;
@@ -64,7 +65,7 @@ public final class StructureIndexService {
         if (cfg == null || !cfg.structurePredictionEnabled()) {
             return List.of();
         }
-        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString())) {
+        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().identifier().toString())) {
             return List.of();
         }
 

@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
@@ -71,7 +72,8 @@ public class SimpleTextInputScreen extends RoadWeaverScreen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
         if (keyCode == 257 || keyCode == 335) {
             submit();
             return true;
@@ -80,6 +82,6 @@ public class SimpleTextInputScreen extends RoadWeaverScreen {
             cancel();
             return true;
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 }

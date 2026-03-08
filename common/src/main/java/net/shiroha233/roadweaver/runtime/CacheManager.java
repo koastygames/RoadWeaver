@@ -72,16 +72,16 @@ public final class CacheManager {
             RoadShardStorage.closeConnection(level);
         } catch (Exception e) {
             LOGGER.warn("关闭维度 {} 数据库连接失败: {}",
-                    level.dimension().location(), e.getMessage());
+                    level.dimension().identifier(), e.getMessage());
         }
 
         RoadSpatialIndex.clearCache(level);
-        PendingStructureStorage.clearDimension(level.dimension().location());
+        PendingStructureStorage.clearDimension(level.dimension().identifier());
         RoadsideStructureRegistry.clearCache(level.dimension());
         BridgeTemplateStructureRegistry.clearCache(level.dimension());
         SignTextService.onDimensionUnload(level);
 
-        LOGGER.debug("CacheManager: 维度 {} 缓存已清理", level.dimension().location());
+        LOGGER.debug("CacheManager: 维度 {} 缓存已清理", level.dimension().identifier());
     }
 
     /**

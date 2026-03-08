@@ -92,9 +92,9 @@ public final class IdleRoadGenerationService {
     public static void tickPlayer(ServerPlayer player) {
         if (player == null) return;
 
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
+        String dimId = level.dimension().identifier().toString();
         if (!cfg.roadsEnabledForDimension(dimId)) return;
 
         int threads = Math.max(0, cfg.performance().idleGenerationThreads());
@@ -437,7 +437,7 @@ public final class IdleRoadGenerationService {
         var server = level.getServer();
         if (server == null) return out;
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            if (p != null && p.serverLevel() == level) out.add(p);
+            if (p != null && p.level() == level) out.add(p);
         }
         return out;
     }

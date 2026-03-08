@@ -1,6 +1,8 @@
 {
   "pack": {
-    "description": "RoadWeaver Resources",
-    "pack_format": 15
+    "description": "RoadWeaver resources for 1.21.11",
+    "pack_format": 81,
+    "min_format": 81,
+    "max_format": 81
   }
 }

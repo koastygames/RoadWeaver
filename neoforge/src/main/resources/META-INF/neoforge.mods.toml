@@ -1,27 +1,38 @@
+# NeoForge Mods.toml 配置文件
 modLoader = "javafml"
-loaderVersion = "[4,)"
+loaderVersion = "${loader_version_range}"
 license = "MIT"
 
 [[mods]]
-    modId = "roadweaver"
-    version = "2.0.9-1.21.1"
-    displayName = "RoadWeaver"
-    authors = "shiroha233"
-    description = "Automatically generates roads between structures"
+modId = "roadweaver"
+version = "${mod_version}"
+displayName = "RoadWeaver"
+authors = "shiroha233"
+credits = "Includes code adapted from 'settlement-roads-new' (CC0-1.0) by Countered."
+description = '''Automatically generates roads between structures like villages'''
+logoFile = "assets/roadweaver/icon.png"
 
+[[dependencies.roadweaver]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.roadweaver]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.roadweaver]]
+modId = "cloth_config"
+type = "optional"
+versionRange = "[21.11,)"
+ordering = "NONE"
+side = "CLIENT"
+
+# Mixin 配置
 [[mixins]]
-    config = "roadweaver.mixins.json"
-
-[[dependencies.roadweaver]]
-    modId = "neoforge"
-    type = "required"
-    versionRange = "[21.1,)"
-    ordering = "NONE"
-    side = "BOTH"
-
-[[dependencies.roadweaver]]
-    modId = "minecraft"
-    type = "required"
-    versionRange = "[1.21.1,1.22)"
-    ordering = "NONE"
-    side = "BOTH"
+config = "roadweaver.mixins.json"

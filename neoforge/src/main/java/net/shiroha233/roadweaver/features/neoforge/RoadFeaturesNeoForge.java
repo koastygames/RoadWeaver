@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver.features.neoforge;
 
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import net.shiroha233.roadweaver.RoadWeaver;
@@ -18,10 +18,10 @@ public final class RoadFeaturesNeoForge {
         modBus.addListener(RegisterEvent.class, event -> {
             if (event.getRegistryKey().equals(Registries.FEATURE)) {
                 event.register(Registries.FEATURE, 
-                    ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), 
+                    Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), 
                     () -> new PathFeature(PathFeatureConfig.CODEC));
                 event.register(Registries.FEATURE, 
-                    ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"), 
+                    Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"), 
                     () -> new HighwayFeature(HighwayFeatureConfig.CODEC));
             }
         });

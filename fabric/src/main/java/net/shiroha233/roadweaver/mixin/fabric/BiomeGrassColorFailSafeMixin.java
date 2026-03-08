@@ -23,9 +23,9 @@ public abstract class BiomeGrassColorFailSafeMixin {
         // 兼容性兜底：部分第三方模组会动态扩展 GrassColorModifier 枚举，若实现/变换异常可能触发 AbstractMethodError。
         // 我们在渲染线程上兜底，避免直接崩溃（退化为基础草色）。
         BiomeSpecialEffects effects = this.getSpecialEffects();
-        int base = effects.getGrassColorOverride().orElseGet(this::roadweaver$invokeGetGrassColorFromTexture);
+        int base = effects.grassColorOverride().orElseGet(this::roadweaver$invokeGetGrassColorFromTexture);
         try {
-            int out = effects.getGrassColorModifier().modifyColor(x, z, base);
+            int out = effects.grassColorModifier().modifyColor(x, z, base);
             cir.setReturnValue(out);
         } catch (AbstractMethodError e) {
             cir.setReturnValue(base);

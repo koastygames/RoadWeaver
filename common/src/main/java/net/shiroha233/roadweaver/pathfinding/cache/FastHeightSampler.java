@@ -33,7 +33,7 @@ public final class FastHeightSampler {
         RandomState randomState = chunkSource.getGeneratorState().randomState();
         NoiseRouter router = randomState.router();
         NoiseSettings settings = getNoiseSettings(level);
-        return new FastHeightSampler(router.initialDensityWithoutJaggedness(), settings);
+        return new FastHeightSampler(router.finalDensity(), settings);
     }
 
     public int sampleHeight(int x, int z) {

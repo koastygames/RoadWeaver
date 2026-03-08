@@ -8,6 +8,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
@@ -48,16 +49,16 @@ public final class HighwayPlanningService {
         if (level == null)
             return;
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
+        String dimId = level.dimension().identifier().toString();
         if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled())
             return;
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
-        BlockPos centerPos = level.getSharedSpawnPos();
+        BlockPos centerPos = LevelCompat.getWorldSpawnPos(level);
         var server = level.getServer();
         if (server != null) {
             var p = server.getPlayerList().getPlayers().stream()
-                    .filter(sp -> sp != null && sp.serverLevel() == level)
+                    .filter(sp -> sp != null && sp.level() == level)
                     .findFirst()
                     .orElse(null);
             if (p != null) {
@@ -75,16 +76,16 @@ public final class HighwayPlanningService {
         if (level == null)
             return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
+        String dimId = level.dimension().identifier().toString();
         if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled())
             return CompletableFuture.completedFuture(null);
 
         int gridBlocks = Math.max(1, cfg.highwayGridBlocks());
-        BlockPos centerPos = level.getSharedSpawnPos();
+        BlockPos centerPos = LevelCompat.getWorldSpawnPos(level);
         var server = level.getServer();
         if (server != null) {
             var p = server.getPlayerList().getPlayers().stream()
-                    .filter(sp -> sp != null && sp.serverLevel() == level)
+                    .filter(sp -> sp != null && sp.level() == level)
                     .findFirst()
                     .orElse(null);
             if (p != null) {
@@ -157,10 +158,10 @@ public final class HighwayPlanningService {
     public static void planAroundPlayer(ServerPlayer player) {
         if (player == null)
             return;
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
 
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
+        String dimId = level.dimension().identifier().toString();
         if (!cfg.highwayEnabledForDimension(dimId) || !cfg.highwayAutoPlanEnabled())
             return;
 

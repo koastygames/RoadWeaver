@@ -114,10 +114,10 @@ repositories {
 
 tasks.named('processResources', ProcessResources).configure {
     def replaceProperties = [
-        minecraft_version: '1.21.1',
-        minecraft_version_range: '[1.21.1,1.22)',
+        minecraft_version: '1.21.11',
+        minecraft_version_range: '[1.21.11,1.22)',
         neoforge_version: project.neoforge_version,
-        neoforge_version_range: '[21.1,)',
+        neoforge_version_range: '[21.11,)',
         loader_version_range: '[4,)',
         mod_id: 'roadweaver',
         mod_name: 'RoadWeaver',
@@ -142,9 +142,9 @@ dependencies {
     neoForge "net.neoforged:neoforge:${neoforge_version}"
 
     // Optional compat mods (dev only)
-    // TODO: 等待这些模组更新到 1.21.1 后取消注释
+    // TODO: 等待这些模组更新到 1.21.11 后取消注释
     // modCompileOnly("maven.modrinth:s3dmwKy5:xxx") { transitive = false } // GlitchCore
-    // modCompileOnly("maven.modrinth:e0bNACJD:xxx") { transitive = false } // SereneSeasons NeoForge 1.21.1
+    // modCompileOnly("maven.modrinth:e0bNACJD:xxx") { transitive = false } // SereneSeasons NeoForge 1.21.11
     // modCompileOnly("maven.modrinth:distanthorizons:xxx") { transitive = false } // Distant Horizons
 
     // Architectury API - 使用 Jar-in-Jar 内嵌
@@ -157,10 +157,9 @@ dependencies {
     
     // DynamicTrees - 可选依赖，用于 Mixin 兼容
     modCompileOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
-    modRuntimeOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
 
     // Touhou Little Maid (车万女仆)
-    modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
+    // 暂无 1.21.11 版本，待上游更新后再恢复运行时联调依赖
 
     // H2 Database - 道路数据持久化（纯Java，无native依赖）
     forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }

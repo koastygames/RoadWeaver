@@ -7,5 +7,5 @@ import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfigur
  * Highway Feature 配置
  */
 public final class HighwayFeatureConfig implements FeatureConfiguration {
-    public static final Codec<HighwayFeatureConfig> CODEC = Codec.unit(new HighwayFeatureConfig());
+    public static final Codec<HighwayFeatureConfig> CODEC = com.mojang.serialization.MapCodec.unit(new HighwayFeatureConfig()).codec();
 }

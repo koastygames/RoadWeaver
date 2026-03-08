@@ -1,11 +1,11 @@
 // 根项目配置 - 多模块项目
 plugins {
 	id 'architectury-plugin' version '3.4-SNAPSHOT'
-	id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
+	id 'dev.architectury.loom' version '1.13-SNAPSHOT' apply false
 }
 
 architectury {
-	minecraft = '1.21.1'
+	minecraft = '1.21.11'
 }
 
 allprojects {
@@ -13,9 +13,13 @@ allprojects {
 	apply plugin: 'architectury-plugin'
 	
 	group = 'net.shiroha233.roadweaver'
-	version = '2.1.1-1.21.1'
+	version = '2.2.0-1.21.11'
 	
 	repositories {
+		maven {
+			name = 'LocalMaven'
+			url = uri("${rootProject.projectDir}/gradle/local-maven")
+		}
 		maven { url = 'https://maven.architectury.dev/' }
 		maven { url = 'https://maven.fabricmc.net/' }
 		maven { url = 'https://maven.minecraftforge.net/' }
@@ -51,6 +55,8 @@ allprojects {
 		options.encoding = 'UTF-8'
 		options.release = 21
 	}
+
+	def runtimeJavaVersion = Integer.parseInt(rootProject.findProperty('runtime_java_version')?.toString() ?: '25')
 	
 	java {
 		toolchain {
@@ -59,11 +65,11 @@ allprojects {
 		withSourcesJar()
 	}
 	
-	// Gradle toolchain 默认只影响编译任务；runClient/Transformer 属于 JavaExec，
-	// 这里强制所有 JavaExec 使用 Java 21 launcher，保证开发运行环境一致。
+	// Gradle toolchains only affect compilation tasks.
+	// JavaExec-based dev runs need an explicit runtime launcher.
 	tasks.withType(JavaExec).configureEach {
 		javaLauncher = javaToolchains.launcherFor {
-			languageVersion = JavaLanguageVersion.of(21)
+			languageVersion = JavaLanguageVersion.of(runtimeJavaVersion)
 		}
 		// 设置运行游戏时的玩家名称
 		systemProperty 'minecraft.username', rootProject.properties.getOrDefault('minecraft_username', 'Player')
@@ -82,7 +88,7 @@ subprojects {
 	}
 	
 	dependencies {
-		minecraft "com.mojang:minecraft:1.21.1"
+		minecraft "com.mojang:minecraft:1.21.11"
 		mappings loom.officialMojangMappings()
 	}
 	

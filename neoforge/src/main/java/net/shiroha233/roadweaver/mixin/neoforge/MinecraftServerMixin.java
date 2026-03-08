@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver.mixin.neoforge;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.progress.ChunkProgressListener;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
@@ -17,7 +16,7 @@ import java.util.List;
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
     @Inject(method = "prepareLevels", at = @At("HEAD"))
-    private void roadweaver$preloadBeforePrepareLevels(ChunkProgressListener listener, CallbackInfo ci) {
+    private void roadweaver$preloadBeforePrepareLevels(CallbackInfo ci) {
         if (((MinecraftServer)(Object)this).isDedicatedServer()) return;
         ServerLevel level = ((MinecraftServer)(Object)this).overworld();
         if (level == null) return;

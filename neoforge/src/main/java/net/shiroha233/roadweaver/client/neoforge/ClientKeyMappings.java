@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.client.neoforge;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -16,17 +17,22 @@ import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import org.lwjgl.glfw.GLFW;
 
-@EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT)
 public class ClientKeyMappings {
     public static KeyMapping OPEN_MAP;
 
     @SubscribeEvent
     public static void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
-        OPEN_MAP = new KeyMapping("key.roadweaver.open_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, "key.categories.roadweaver");
+        OPEN_MAP = new KeyMapping(
+                "key.roadweaver.open_map",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_H,
+                KeyMapping.Category.register(Identifier.fromNamespaceAndPath("minecraft", "roadweaver"))
+        );
         event.register(OPEN_MAP);
     }
 
-    @EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
+    @EventBusSubscriber(modid = RoadWeaver.MOD_ID, value = Dist.CLIENT)
     public static class NeoForgeBusHandlers {
         @SubscribeEvent
         public static void onClientTick(ClientTickEvent.Post event) {

@@ -3,9 +3,12 @@ package net.shiroha233.roadweaver.client.map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,6 +28,8 @@ import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
+import net.shiroha233.roadweaver.helpers.PermissionCompat;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -37,7 +42,8 @@ import java.util.concurrent.CompletableFuture;
  * 道路地图界面
  */
 public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.Callbacks {
-    private static final ResourceLocation MAP_TEXTURE = ResourceLocation.fromNamespaceAndPath("roadweaver", "textures/gui/map.png");
+    private static final Identifier MAP_TEXTURE = Identifier.fromNamespaceAndPath("roadweaver", "textures/gui/map.png");
+    private static final double INITIAL_SNAPSHOT_MARGIN_FACTOR = 1.12D;
     
     // 翻译�?
     private static final Component BTN_CONFIG = Component.translatable("gui.roadweaver.config_button");
@@ -49,7 +55,7 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
 
     // 数据
     private MapSnapshot snapshot = MapSnapshot.empty();
-    private ResourceLocation currentDimensionId;
+    private Identifier currentDimensionId;
     
     // 组件
     private final MapState state = new MapState();
@@ -77,7 +83,7 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         MapSnapshotCache.cancelClear();
         Minecraft mc = this.minecraft;
         if (mc != null && mc.level != null) {
-            currentDimensionId = mc.level.dimension().location();
+            currentDimensionId = mc.level.dimension().identifier();
             MapSnapshot cached = MapSnapshotCache.peek(currentDimensionId);
             if (cached != null) {
                 this.snapshot = cached;
@@ -85,14 +91,8 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         }
         computeMapRect();
         inputHandler.updateLayout(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING);
-        
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
-        view.resetFromSnapshot(snapshot);
-        
-        if (mc != null && mc.player != null) {
-            view.calibrateInitialToPlayer(mc, contentW, contentH, MapTheme.GRID_TARGET_PX);
-        }
+
+        initializeView(mc);
         onRequestView();
     }
 
@@ -114,8 +114,10 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         ScreenBackgrounds.render(g, this.width, this.height);
         
         // 地图纹理
-        g.blit(MAP_TEXTURE, mapX, mapY, mapW, mapH, 0, 0, 
-               MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT, MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT);
+        g.blit(RenderPipelines.GUI_TEXTURED, MAP_TEXTURE, mapX, mapY, 0.0F, 0.0F,
+               mapW, mapH,
+               MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT,
+               MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT);
 
         // 标题
         int titleY = mapY - 8;
@@ -181,7 +183,7 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
 
         // 悬停高亮
         if (!contextMenu.isOpen()) {
-            MapInteraction.renderHoverHighlight(g, snapshot, view, mapX, mapY, mapW, mapH, 
+            MapInteraction.renderHoverHighlight(g, snapshot, view, mapX, mapY, mapW, mapH,
                     MapTheme.INNER_PADDING, mouseX, mouseY);
         }
 
@@ -306,7 +308,10 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         // 右键菜单点击
         if (contextMenu.isOpen()) {
             if (contextMenu.mouseClicked(mouseX, mouseY, button)) {
@@ -343,25 +348,31 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
                 computeConfigBtnBounds()[2], computeConfigBtnBounds()[3],
                 computeManualBtnBounds()[0], computeManualBtnBounds()[1],
                 computeManualBtnBounds()[2], computeManualBtnBounds()[3])
-               || super.mouseClicked(mouseX, mouseY, button);
+               || super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         return inputHandler.mouseDragged(mouseX, mouseY, button, dragX, dragY)
-               || super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+               || super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
         return inputHandler.mouseReleased(mouseX, mouseY, button)
-               || super.mouseReleased(mouseX, mouseY, button);
+               || super.mouseReleased(event);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        return inputHandler.keyPressed(keyCode, scanCode, modifiers, this.minecraft)
-               || super.keyPressed(keyCode, scanCode, modifiers);
+    public boolean keyPressed(KeyEvent event) {
+        return inputHandler.keyPressed(event, this.minecraft)
+               || super.keyPressed(event);
     }
 
     // ========== 回调实现 ==========
@@ -377,7 +388,7 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         var p = this.minecraft.player;
         if (p != null && this.minecraft.getSingleplayerServer() == null) {
             // 多人游戏：配置修改应限制�?OP（服务端权限等级 2+�?
-            if (!p.hasPermissions(2)) {
+            if (!PermissionCompat.hasCommandLevel2(p)) {
                 p.displayClientMessage(Component.translatable("gui.roadweaver.map.config.denied"), true);
                 return;
             }
@@ -404,7 +415,7 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         Minecraft mc = this.minecraft;
         if (mc == null) return;
 
-        ResourceLocation dimensionId = (mc.level != null) ? mc.level.dimension().location() : null;
+        Identifier dimensionId = (mc.level != null) ? mc.level.dimension().identifier() : null;
         if (dimensionId != null && (currentDimensionId == null || !dimensionId.equals(currentDimensionId))) {
             currentDimensionId = dimensionId;
             MapSnapshot cached = MapSnapshotCache.peek(currentDimensionId);
@@ -437,14 +448,14 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
                                  ComputeService.executor())
                     .thenAccept(snap -> mc.execute(() -> {
                         if (state.getCurrentRequestSeq() == currentSeq) {
-                            acceptSnapshot(currentSeq, levelFinal.dimension().location(), snap);
+                            acceptSnapshot(currentSeq, levelFinal.dimension().identifier(), snap);
                         }
                     }));
             }
         } else {
             // 多人模式：发送网络请�?
             int requestSeq = state.incrementAndGetRequestSeq();
-            ResourceLocation did = (mc.level != null) ? mc.level.dimension().location() : ResourceLocation.fromNamespaceAndPath("minecraft", "overworld");
+            Identifier did = (mc.level != null) ? mc.level.dimension().identifier() : Identifier.fromNamespaceAndPath("minecraft", "overworld");
             ClientNetBridge.requestSnapshot(requestSeq, did, minX, minZ, maxX, maxZ);
         }
     }
@@ -478,11 +489,11 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         if (server != null) {
             ServerLevel level = server.getLevel(Level.OVERWORLD);
             if (level != null) {
-                spawn = level.getSharedSpawnPos();
+                spawn = LevelCompat.getWorldSpawnPos(level);
             }
         }
         if (spawn == null && mc.level != null) {
-            spawn = mc.level.getSharedSpawnPos();
+            spawn = LevelCompat.getWorldSpawnPos(mc.level);
         }
         if (spawn == null) return;
         
@@ -503,15 +514,19 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         }
     }
 
-    public void acceptSnapshot(int requestSeq, ResourceLocation dimensionId, MapSnapshot snapshot) {
+    public void acceptSnapshot(int requestSeq, Identifier dimensionId, MapSnapshot snapshot) {
         if (dimensionId == null || snapshot == null) return;
         if (requestSeq != state.getCurrentRequestSeq()) return;
 
         // 如果客户端当前维度已变更，则丢弃过期回包，避免覆盖当前视�?
         if (currentDimensionId != null && !dimensionId.equals(currentDimensionId)) return;
 
+        boolean shouldRefitView = !hasSnapshotData(this.snapshot) && hasSnapshotData(snapshot);
         this.snapshot = snapshot;
         MapSnapshotCache.put(dimensionId, snapshot);
+        if (shouldRefitView) {
+            initializeView(this.minecraft);
+        }
     }
 
     // ========== 辅助方法 ==========
@@ -530,6 +545,31 @@ public class RoadMapScreen extends RoadWeaverScreen implements MapInputHandler.C
         mapH = h;
         mapX = (this.width - w) / 2;
         mapY = (this.height - h) / 2;
+    }
+
+    private void initializeView(Minecraft mc) {
+        int contentW = mapW - MapTheme.INNER_PADDING * 2;
+        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        view.resetFromSnapshot(snapshot);
+
+        if (hasSnapshotData(snapshot)) {
+            view.lockAspect(contentW, contentH);
+            double cx = (view.getMinX() + view.getMaxX()) * 0.5;
+            double cz = (view.getMinZ() + view.getMaxZ()) * 0.5;
+            view.applyZoomAround(cx, cz, INITIAL_SNAPSHOT_MARGIN_FACTOR, contentW, contentH, MapTheme.GRID_TARGET_PX);
+            return;
+        }
+
+        if (mc != null && mc.player != null) {
+            view.calibrateInitialToPlayer(mc, contentW, contentH, MapTheme.GRID_TARGET_PX);
+        }
+    }
+
+    private static boolean hasSnapshotData(MapSnapshot snapshot) {
+        return snapshot != null
+                && (snapshot.structuresCount() > 0
+                || !snapshot.connections().isEmpty()
+                || !snapshot.roadPolylines().isEmpty());
     }
 
     private int computeThickness() {

@@ -4,22 +4,22 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 
 public class MapNetworkPayloads {
-    public static final CustomPacketPayload.Type<MapRequestRectPayload> REQ_RECT = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_request_rect"));
-    public static final CustomPacketPayload.Type<MapSnapshotPayload> SNAP = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_snapshot"));
-    public static final CustomPacketPayload.Type<MapTeleportPayload> TP_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport"));
-    public static final CustomPacketPayload.Type<MapTeleportAckPayload> TP_ACK = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
-    public static final CustomPacketPayload.Type<MapManualConnectPayload> MAN_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
-    public static final CustomPacketPayload.Type<MapAccessSyncPayload> ACCESS_SYNC = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_access_sync"));
+    public static final CustomPacketPayload.Type<MapRequestRectPayload> REQ_RECT = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_request_rect"));
+    public static final CustomPacketPayload.Type<MapSnapshotPayload> SNAP = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_snapshot"));
+    public static final CustomPacketPayload.Type<MapTeleportPayload> TP_REQ = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_teleport"));
+    public static final CustomPacketPayload.Type<MapTeleportAckPayload> TP_ACK = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
+    public static final CustomPacketPayload.Type<MapManualConnectPayload> MAN_REQ = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
+    public static final CustomPacketPayload.Type<MapAccessSyncPayload> ACCESS_SYNC = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_access_sync"));
 
-    public record MapRequestRectPayload(int requestSeq, ResourceLocation dimension, int minX, int minZ, int maxX, int maxZ) implements CustomPacketPayload {
+    public record MapRequestRectPayload(int requestSeq, Identifier dimension, int minX, int minZ, int maxX, int maxZ) implements CustomPacketPayload {
         public static final StreamCodec<FriendlyByteBuf, MapRequestRectPayload> CODEC = StreamCodec.composite(
             ByteBufCodecs.VAR_INT, MapRequestRectPayload::requestSeq,
-            ResourceLocation.STREAM_CODEC, MapRequestRectPayload::dimension,
+            Identifier.STREAM_CODEC, MapRequestRectPayload::dimension,
             ByteBufCodecs.VAR_INT, MapRequestRectPayload::minX,
             ByteBufCodecs.VAR_INT, MapRequestRectPayload::minZ,
             ByteBufCodecs.VAR_INT, MapRequestRectPayload::maxX,
@@ -29,16 +29,16 @@ public class MapNetworkPayloads {
         @Override public Type<MapRequestRectPayload> type() { return REQ_RECT; }
     }
 
-    public record MapSnapshotPayload(int requestSeq, ResourceLocation dimension, MapSnapshot snapshot) implements CustomPacketPayload {
+    public record MapSnapshotPayload(int requestSeq, Identifier dimension, MapSnapshot snapshot) implements CustomPacketPayload {
         public static final StreamCodec<FriendlyByteBuf, MapSnapshotPayload> CODEC = StreamCodec.of(
             (buf, val) -> {
                 buf.writeVarInt(val.requestSeq);
-                buf.writeResourceLocation(val.dimension);
+                buf.writeIdentifier(val.dimension);
                 MapSnapshotCodec.write(buf, val.snapshot);
             },
             buf -> new MapSnapshotPayload(
                 buf.readVarInt(),
-                buf.readResourceLocation(),
+                buf.readIdentifier(),
                 MapSnapshotCodec.read(buf)
             )
         );

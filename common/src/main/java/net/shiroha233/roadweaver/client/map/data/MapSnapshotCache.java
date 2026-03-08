@@ -1,6 +1,6 @@
 package net.shiroha233.roadweaver.client.map.data;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
@@ -12,17 +12,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 地图快照缓存 - 线程安全的缓存管理
  */
 public final class MapSnapshotCache {
-    private static final ConcurrentHashMap<ResourceLocation, MapSnapshot> SNAPSHOTS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Identifier, MapSnapshot> SNAPSHOTS = new ConcurrentHashMap<>();
     private static final AtomicInteger CLEAR_SEQ = new AtomicInteger();
 
     private MapSnapshotCache() {}
 
-    public static MapSnapshot peek(ResourceLocation dimensionId) {
+    public static MapSnapshot peek(Identifier dimensionId) {
         if (dimensionId == null) return null;
         return SNAPSHOTS.get(dimensionId);
     }
 
-    public static void put(ResourceLocation dimensionId, MapSnapshot s) {
+    public static void put(Identifier dimensionId, MapSnapshot s) {
         if (dimensionId == null) return;
         if (s == null) SNAPSHOTS.remove(dimensionId);
         else SNAPSHOTS.put(dimensionId, s);

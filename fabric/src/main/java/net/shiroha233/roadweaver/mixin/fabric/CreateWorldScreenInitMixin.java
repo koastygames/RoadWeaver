@@ -1,6 +1,5 @@
 package net.shiroha233.roadweaver.mixin.fabric;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldCreationContext;
@@ -9,9 +8,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraft.world.level.levelgen.presets.WorldPreset;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import org.spongepowered.asm.mixin.Final;
@@ -20,10 +17,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.util.Optional;
-import java.util.OptionalLong;
-
 /**
  * Mixin 用于在创建世界界面初始化时获取 RegistryAccess 并发现结构
  * 
@@ -41,29 +34,18 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
         super(Component.empty());
     }
 
-    /**
-     * 在 CreateWorldScreen 构造函数返回时注入，获取 RegistryAccess 并发现结构
-     * 
-     * 1.20.1 构造函数签名：
-     * private CreateWorldScreen(Minecraft, Screen, WorldCreationContext, Optional<ResourceKey<WorldPreset>>, OptionalLong)
-     */
-    @Inject(method = "<init>(Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/gui/screens/Screen;Lnet/minecraft/client/gui/screens/worldselection/WorldCreationContext;Ljava/util/Optional;Ljava/util/OptionalLong;)V", at = @At("RETURN"))
-    private void onInitEnd(
-            Minecraft minecraft, Screen screen, WorldCreationContext worldCreationContext,
-            Optional<ResourceKey<WorldPreset>> optional, OptionalLong optionalLong, CallbackInfo ci
-    ) {
-        // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
+    @Inject(method = "init", at = @At("TAIL"))
+    private void onInitEnd(CallbackInfo ci) {
         try {
-            // 优先使用构造函数参数，避免某些阶段 uiState.getSettings() 尚未就绪。
-            WorldCreationContext settings = (worldCreationContext != null) ? worldCreationContext : uiState.getSettings();
+            WorldCreationContext settings = uiState != null ? uiState.getSettings() : null;
             if (settings != null) {
                 RegistryAccess.Frozen registryAccess = settings.worldgenLoadContext();
                 if (registryAccess == null) return;
 
-                Registry<Structure> structureRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE);
+                Registry<Structure> structureRegistry = registryAccess.lookupOrThrow(Registries.STRUCTURE);
                 Registry<LevelStem> levelStemRegistry = null;
                 try {
-                    levelStemRegistry = registryAccess.registryOrThrow(Registries.LEVEL_STEM);
+                    levelStemRegistry = registryAccess.lookupOrThrow(Registries.LEVEL_STEM);
                 } catch (Exception ignored) {
                 }
 
@@ -74,7 +56,6 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
                 }
             }
         } catch (Exception e) {
-            // 忽略错误，不影响正常流程
         }
     }
 }

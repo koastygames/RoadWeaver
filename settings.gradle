@@ -1,5 +1,9 @@
 pluginManagement {
 	repositories {
+		maven {
+			name = 'LocalMaven'
+			url = uri("${rootDir}/gradle/local-maven")
+		}
 		// Gradle Plugin Portal 优先（包含 Shadow 等插件）
 		gradlePluginPortal()
 		
@@ -28,6 +32,10 @@ pluginManagement {
 
 dependencyResolutionManagement {
 	repositories {
+		maven {
+			name = 'LocalMaven'
+			url = uri("${rootDir}/gradle/local-maven")
+		}
 		// 中国镜像源
 		maven { url = 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
 		maven { url = 'https://maven.aliyun.com/repository/public/' }

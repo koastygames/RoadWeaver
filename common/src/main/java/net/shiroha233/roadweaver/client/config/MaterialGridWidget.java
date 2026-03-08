@@ -4,9 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -91,9 +92,13 @@ public class MaterialGridWidget extends AbstractWidget {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!this.visible || !this.active) return false;
-        
+
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+
         int gridY = this.getY() + LABEL_HEIGHT;
         if (mouseX >= this.getX() && mouseX < this.getX() + width &&
             mouseY >= gridY && mouseY < gridY + rows * SLOT_SIZE) {
@@ -123,8 +128,9 @@ public class MaterialGridWidget extends AbstractWidget {
 
     private Block blockFromId(String id) {
         try {
-            ResourceLocation rl = ResourceLocation.parse(id);
-            return BuiltInRegistries.BLOCK.get(rl);
+            Identifier rl = Identifier.parse(id);
+            Block block = BuiltInRegistries.BLOCK.getValue(rl);
+            return block != null ? block : Blocks.AIR;
         } catch (Exception e) {
             return Blocks.AIR;
         }

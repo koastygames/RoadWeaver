@@ -1,6 +1,6 @@
 package net.shiroha233.roadweaver.config.structure;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -11,26 +11,26 @@ import java.util.Set;
  * 单个结构条目，用于 GUI 展示和选择
  */
 public final class StructureEntry implements Comparable<StructureEntry> {
-    private final ResourceLocation id;
+    private final Identifier id;
     private final String displayName;
     private final boolean isVanilla;
-    private final Set<ResourceLocation> dimensions;
+    private final Set<Identifier> dimensions;
 
-    public StructureEntry(ResourceLocation id, String displayName, boolean isVanilla) {
+    public StructureEntry(Identifier id, String displayName, boolean isVanilla) {
         this(id, displayName, isVanilla, Set.of());
     }
 
-    public StructureEntry(ResourceLocation id, String displayName, boolean isVanilla, Set<ResourceLocation> dimensions) {
+    public StructureEntry(Identifier id, String displayName, boolean isVanilla, Set<Identifier> dimensions) {
         this.id = id;
         this.displayName = displayName;
         this.isVanilla = isVanilla;
         this.dimensions = dimensions == null ? Set.of() : Collections.unmodifiableSet(new HashSet<>(dimensions));
     }
 
-    public ResourceLocation id() { return id; }
+    public Identifier id() { return id; }
     public String displayName() { return displayName; }
     public boolean isVanilla() { return isVanilla; }
-    public Set<ResourceLocation> dimensions() { return dimensions; }
+    public Set<Identifier> dimensions() { return dimensions; }
     public String namespace() { return id.getNamespace(); }
     public String path() { return id.getPath(); }
 

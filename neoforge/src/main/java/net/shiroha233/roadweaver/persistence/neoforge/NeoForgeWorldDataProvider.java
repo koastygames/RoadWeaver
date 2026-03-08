@@ -1,127 +1,90 @@
 package net.shiroha233.roadweaver.persistence.neoforge;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.Dynamic;
-import com.mojang.serialization.DynamicOps;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtOps;
-import net.minecraft.nbt.Tag;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.util.datafix.DataFixTypes;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.Map;
-import java.util.HashSet;
-import java.util.HashMap;
 
-/**
- * NeoForge 绔笘鐣屾暟鎹彁渚涜€呭疄鐜帮紝浣跨敤 SavedData 鍦?ServerLevel 鎸佷箙鍖栧瓨鍌ㄣ€?
- */
 public class NeoForgeWorldDataProvider extends WorldDataProvider {
-
     private static final String DATA_NAME = "roadweaver_world_data";
+    private static final SavedDataType<Data> TYPE = new SavedDataType<>(
+            DATA_NAME,
+            level -> new Data(),
+            Data::makeCodec
+    );
 
-    /**
-     * 瀹為檯鎸佷箙鍖栫殑鏁版嵁瀹瑰櫒銆?
-     * 淇濆瓨缁撴瀯浣嶇疆銆佺粨鏋勮繛鎺ャ€?
-     */
     public static class Data extends SavedData {
+        private record PlannedTileCenterEntry(long tileKey, long centerKey) {
+            private static final Codec<PlannedTileCenterEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                    Codec.LONG.fieldOf("tile_key").forGetter(PlannedTileCenterEntry::tileKey),
+                    Codec.LONG.fieldOf("center_key").forGetter(PlannedTileCenterEntry::centerKey)
+            ).apply(instance, PlannedTileCenterEntry::new));
+        }
+
+        private static final String KEY_LOCATIONS = "structure_locations";
+        private static final String KEY_CONNECTIONS = "connections";
+        private static final String KEY_HIGHWAY_CONNECTIONS = "highway_connections";
+        private static final String KEY_PLANNED_TILES = "planned_tiles";
+        private static final String KEY_PLANNED_TILE_CENTERS = "planned_tile_centers";
+        private static final Codec<Set<Long>> LONG_SET_CODEC = Codec.list(Codec.LONG).xmap(HashSet::new, ArrayList::new);
+        private static final Codec<Data> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                StructureLocationData.CODEC.optionalFieldOf(KEY_LOCATIONS, new StructureLocationData(List.of())).forGetter(Data::getStructureLocations),
+                Codec.list(StructureConnection.CODEC).optionalFieldOf(KEY_CONNECTIONS, List.of()).forGetter(Data::getConnections),
+                Codec.list(StructureConnection.CODEC).optionalFieldOf(KEY_HIGHWAY_CONNECTIONS, List.of()).forGetter(Data::getHighwayConnections),
+                LONG_SET_CODEC.optionalFieldOf(KEY_PLANNED_TILES, Set.of()).forGetter(Data::getPlannedTileKeys),
+                Codec.list(PlannedTileCenterEntry.CODEC).optionalFieldOf(KEY_PLANNED_TILE_CENTERS, List.of()).forGetter(Data::getPlannedTileCenterEntries)
+        ).apply(instance, Data::fromSerialized));
+
         private StructureLocationData structureLocations = new StructureLocationData(new ArrayList<>());
         private List<StructureConnection> connections = new ArrayList<>();
         private List<StructureConnection> highwayConnections = new ArrayList<>();
         private Set<Long> plannedTileKeys = new HashSet<>();
         private Map<Long, Long> plannedTileCenters = new HashMap<>();
 
-        // NBT 瀛楁鍚?
-        private static final String KEY_LOCATIONS = "structure_locations";
-        private static final String KEY_CONNECTIONS = "connections";
-        private static final String KEY_HIGHWAY_CONNECTIONS = "highway_connections";
-        private static final String KEY_PLANNED_TILES = "planned_tiles";
-        private static final String KEY_PLANNED_TILE_CENTERS = "planned_tile_centers";
+        private static Codec<Data> makeCodec(ServerLevel level) {
+            return CODEC;
+        }
 
-        public Data() {}
-
-        public static Data load(CompoundTag tag, HolderLookup.Provider provider) {
+        private static Data fromSerialized(
+                StructureLocationData structureLocations,
+                List<StructureConnection> connections,
+                List<StructureConnection> highwayConnections,
+                Set<Long> plannedTileKeys,
+                List<PlannedTileCenterEntry> plannedTileCenters
+        ) {
             Data data = new Data();
-            DynamicOps<Tag> ops = NbtOps.INSTANCE;
-
-            // 缁撴瀯浣嶇疆锛堜粠 CompoundTag 璇诲彇锛?
-            if (tag.contains(KEY_LOCATIONS)) {
-                Tag locTag = tag.get(KEY_LOCATIONS);
-                DataResult<StructureLocationData> res = StructureLocationData.CODEC.parse(new Dynamic<>(ops, locTag));
-                res.result().ifPresent(val -> data.structureLocations = val);
+            data.structureLocations = structureLocations != null ? structureLocations : new StructureLocationData(List.of());
+            data.connections = new ArrayList<>(connections != null ? connections : List.of());
+            data.highwayConnections = new ArrayList<>(highwayConnections != null ? highwayConnections : List.of());
+            data.plannedTileKeys = new HashSet<>(plannedTileKeys != null ? plannedTileKeys : Set.of());
+            if (plannedTileCenters != null) {
+                for (PlannedTileCenterEntry entry : plannedTileCenters) {
+                    data.plannedTileCenters.put(entry.tileKey(), entry.centerKey());
+                }
             }
-
-            // 缁撴瀯杩炴帴锛堜粠 ListTag 璇诲彇锛?
-            if (tag.contains(KEY_CONNECTIONS)) {
-                Tag conTag = tag.get(KEY_CONNECTIONS);
-                DataResult<List<StructureConnection>> res = Codec.list(StructureConnection.CODEC).parse(new Dynamic<>(ops, conTag));
-                res.result().ifPresent(val -> data.connections = val);
-            }
-
-            // Highway 缁撴瀯杩炴帴锛堜粠 ListTag 璇诲彇锛?
-            if (tag.contains(KEY_HIGHWAY_CONNECTIONS)) {
-                Tag conTag = tag.get(KEY_HIGHWAY_CONNECTIONS);
-                DataResult<List<StructureConnection>> res = Codec.list(StructureConnection.CODEC).parse(new Dynamic<>(ops, conTag));
-                res.result().ifPresent(val -> data.highwayConnections = val);
-            }
-
-            if (tag.contains(KEY_PLANNED_TILES)) {
-                Tag t = tag.get(KEY_PLANNED_TILES);
-                DataResult<List<Long>> res = Codec.list(Codec.LONG).parse(new Dynamic<>(ops, t));
-                res.result().ifPresent(list -> data.plannedTileKeys = new HashSet<>(list));
-            }
-
-            if (tag.contains(KEY_PLANNED_TILE_CENTERS)) {
-                Tag t = tag.get(KEY_PLANNED_TILE_CENTERS);
-                DataResult<Map<Long, Long>> res = Codec.unboundedMap(Codec.LONG, Codec.LONG).parse(new Dynamic<>(ops, t));
-                res.result().ifPresent(map -> data.plannedTileCenters = map);
-            }
-
             return data;
         }
 
-        @Override
-        public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-            Objects.requireNonNull(tag);
-            DynamicOps<Tag> ops = NbtOps.INSTANCE;
-
-            // 缁撴瀯浣嶇疆锛圧ecord 缂栫爜涓?CompoundTag锛?
-            StructureLocationData.CODEC.encodeStart(ops, structureLocations)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_LOCATIONS, Objects.requireNonNull(nbt)));
-
-            // 缁撴瀯杩炴帴锛圠ist 缂栫爜涓?ListTag锛?
-            Codec.list(StructureConnection.CODEC).encodeStart(ops, connections)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_CONNECTIONS, Objects.requireNonNull(nbt)));
-
-            // Highway 缁撴瀯杩炴帴锛圠ist 缂栫爜涓?ListTag锛?
-            Codec.list(StructureConnection.CODEC).encodeStart(ops, highwayConnections)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_HIGHWAY_CONNECTIONS, Objects.requireNonNull(nbt)));
-
-            Codec.list(Codec.LONG).encodeStart(ops, new java.util.ArrayList<>(plannedTileKeys))
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_PLANNED_TILES, Objects.requireNonNull(nbt)));
-
-            Codec.unboundedMap(Codec.LONG, Codec.LONG).encodeStart(ops, plannedTileCenters)
-                    .result()
-                    .ifPresent(nbt -> tag.put(KEY_PLANNED_TILE_CENTERS, Objects.requireNonNull(nbt)));
-
-            return tag;
+        private List<PlannedTileCenterEntry> getPlannedTileCenterEntries() {
+            List<PlannedTileCenterEntry> entries = new ArrayList<>(plannedTileCenters.size());
+            for (Map.Entry<Long, Long> entry : plannedTileCenters.entrySet()) {
+                entries.add(new PlannedTileCenterEntry(entry.getKey(), entry.getValue()));
+            }
+            return entries;
         }
 
-        // getters/setters
         public StructureLocationData getStructureLocations() {
             return structureLocations;
         }
@@ -169,7 +132,7 @@ public class NeoForgeWorldDataProvider extends WorldDataProvider {
     }
 
     private Data getOrCreate(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(new SavedData.Factory<>(Data::new, Data::load, DataFixTypes.LEVEL), DATA_NAME);
+        return level.getDataStorage().computeIfAbsent(TYPE);
     }
 
     @Override
@@ -222,4 +185,3 @@ public class NeoForgeWorldDataProvider extends WorldDataProvider {
         getOrCreate(level).setPlannedTileCenters(centers);
     }
 }
-

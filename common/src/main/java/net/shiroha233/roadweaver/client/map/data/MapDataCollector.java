@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
@@ -43,7 +44,7 @@ public final class MapDataCollector {
         List<StructureConnection> conns = (connections != null) ? new ArrayList<>(connections) : new ArrayList<>();
         List<List<BlockPos>> roads = new ArrayList<>();
         ModConfig cfg = ConfigService.get();
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int radiusBlocks;
         if (cfg.highway().enabled()) {
             radiusBlocks = cfg.highway().planningRadiusBlocks();
@@ -61,7 +62,7 @@ public final class MapDataCollector {
 
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && cfg.structurePrediction().isEnabledForDimension(level.dimension().identifier().toString());
         int[] src = allowPredicted
                 ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
                 : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
@@ -142,7 +143,7 @@ public final class MapDataCollector {
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && cfg.structurePrediction().isEnabledForDimension(level.dimension().identifier().toString());
         int[] src = allowPredicted
                 ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
                 : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
@@ -214,7 +215,7 @@ public final class MapDataCollector {
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && cfg.structurePrediction().isEnabledForDimension(level.dimension().identifier().toString());
         int[] src = allowPredicted
                 ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
                 : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
@@ -250,7 +251,7 @@ public final class MapDataCollector {
         int dynRadiusChunks = RoadPlanningService.getDynamicPlanRadiusChunks();
         int dynRadiusBlocks = Math.max(1, dynRadiusChunks) * RoadConstants.CHUNK_SIZE_BLOCKS;
         long initialR2 = (long) initialRadiusBlocks * (long) initialRadiusBlocks;
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
 
         java.util.Set<Long> plannedTiles = RoadPlanningService.getPlannedTiles(level);
         java.util.Map<Long, Long> centersMap = RoadPlanningService.getPlannedTileCenters(level);

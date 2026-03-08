@@ -8,7 +8,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
@@ -34,10 +34,10 @@ public final class RoadSqliteStorage {
     private static final int ROAD_CACHE_MAX = 4096;
 
     private static final class CacheKey {
-        private final ResourceLocation dimensionId;
+        private final Identifier dimensionId;
         private final long fingerprint;
 
-        private CacheKey(ResourceLocation dimensionId, long fingerprint) {
+        private CacheKey(Identifier dimensionId, long fingerprint) {
             this.dimensionId = dimensionId;
             this.fingerprint = fingerprint;
         }
@@ -147,7 +147,7 @@ public final class RoadSqliteStorage {
                 try (ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         long fp = rs.getLong("fingerprint");
-                        CacheKey key = new CacheKey(level.dimension().location(), fp);
+                        CacheKey key = new CacheKey(level.dimension().identifier(), fp);
                         RoadData cached = ROAD_CACHE.get(key);
                         if (cached != null) {
                             result.add(cached);
@@ -230,7 +230,7 @@ public final class RoadSqliteStorage {
                 stmt.setLong(1, fp);
                 stmt.executeUpdate();
             }
-            ROAD_CACHE.remove(new CacheKey(level.dimension().location(), fp));
+            ROAD_CACHE.remove(new CacheKey(level.dimension().identifier(), fp));
         } catch (SQLException e) {
             LOGGER.error("删除道路数据失败", e);
         }
@@ -273,7 +273,7 @@ public final class RoadSqliteStorage {
                 stmt.setBytes(8, data);
                 stmt.executeUpdate();
             }
-            ROAD_CACHE.put(new CacheKey(level.dimension().location(), fp), rd);
+            ROAD_CACHE.put(new CacheKey(level.dimension().identifier(), fp), rd);
 
             int minCX = minX >> 4, minCZ = minZ >> 4;
             int maxCX = maxX >> 4, maxCZ = maxZ >> 4;

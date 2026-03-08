@@ -70,7 +70,7 @@ public class BeardifierMixin implements RoadBeardifierAccess {
             int minZ = pos.getMinBlockZ();
             int maxX = pos.getMaxBlockX();
             int maxZ = pos.getMaxBlockZ();
-            String dimId = serverLevel.dimension().location().toString();
+            String dimId = serverLevel.dimension().identifier().toString();
             boolean includeBridgeSegments = !cfg.bridgeEnabledForDimension(dimId);
 
             List<RoadData> roads = RoadShardStorage.queryRect(serverLevel,

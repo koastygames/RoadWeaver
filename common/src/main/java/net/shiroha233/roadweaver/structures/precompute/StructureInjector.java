@@ -35,7 +35,7 @@ public final class StructureInjector {
             return;
         }
         
-        Registry<Structure> structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        Registry<Structure> structureRegistry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         StructureManager structureManager = level.structureManager();
         StructureTemplateManager templateManager = level.getStructureManager();
         
@@ -43,7 +43,7 @@ public final class StructureInjector {
         
         for (PendingRoadsideStructure pendingStructure : pending) {
             try {
-                Structure structure = structureRegistry.get(pendingStructure.structureId());
+                Structure structure = structureRegistry.getValue(pendingStructure.structureId());
                 if (structure == null) {
                     LOGGER.warn("Structure {} not found in registry, skipping", pendingStructure.structureId());
                     continue;

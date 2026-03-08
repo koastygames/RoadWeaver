@@ -8,7 +8,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
@@ -19,6 +19,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.helpers.PermissionCompat;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -81,8 +82,8 @@ public class MapNetworkFabric {
 
             CompletableFuture
                     .supplyAsync(() -> {
-                        var level = sp.serverLevel();
-                        ResourceLocation actualDimensionId = level.dimension().location();
+                        var level = sp.level();
+                        Identifier actualDimensionId = level.dimension().identifier();
                         MapSnapshot snapshot = MapDataCollector.build(
                                 level,
                                 payload.minX(),
@@ -101,7 +102,7 @@ public class MapNetworkFabric {
         ServerPlayNetworking.registerGlobalReceiver(TeleportRequestPayload.TYPE, (payload, context) -> {
             context.server().execute(() -> {
                 ServerPlayer sp = context.player();
-                boolean allowed = sp.isCreative() || sp.hasPermissions(2);
+                boolean allowed = sp.isCreative() || PermissionCompat.hasCommandLevel2(sp);
                 if (!allowed) {
                     ServerPlayNetworking.send(sp, new TeleportAckPayload(false, 0, 0, 0));
                     return;
@@ -109,16 +110,16 @@ public class MapNetworkFabric {
 
                 int x = payload.x();
                 int z = payload.z();
-                var level = sp.serverLevel();
+                var level = sp.level();
                 level.getChunk(x >> 4, z >> 4);
                 int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                if (ty <= level.getMinBuildHeight()) {
+                if (ty <= level.getMinY()) {
                     ty = level.getSeaLevel() + 1;
                 } else {
                     ty += 1;
                 }
 
-                sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
+                sp.teleportTo(level, x + 0.5, ty, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
                 ServerPlayNetworking.send(sp, new TeleportAckPayload(true, x, ty, z));
             });
         });
@@ -126,13 +127,13 @@ public class MapNetworkFabric {
         ServerPlayNetworking.registerGlobalReceiver(ManualConnectPayload.TYPE, (payload, context) -> {
             context.server().execute(() -> {
                 ServerPlayer sp = context.player();
-                boolean allowed = sp.hasPermissions(2);
+                boolean allowed = PermissionCompat.hasCommandLevel2(sp);
                 if (!allowed) {
                     sp.displayClientMessage(Component.translatable("gui.roadweaver.map.manual_connect.denied"), true);
                     return;
                 }
 
-                var level = sp.serverLevel();
+                var level = sp.level();
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 List<StructureConnection> origin = provider.getStructureConnections(level);
                 List<StructureConnection> list = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
@@ -193,7 +194,7 @@ public class MapNetworkFabric {
         );
     }
 
-    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
+    public static void requestSnapshot(int requestSeq, Identifier dimensionId, int minX, int minZ, int maxX, int maxZ) {
         ClientPlayNetworking.send(new RequestRectPayload(requestSeq, dimensionId, minX, minZ, maxX, maxZ));
     }
 
@@ -212,13 +213,13 @@ public class MapNetworkFabric {
         ServerPlayNetworking.send(player, new AccessSyncPayload(MapAccessService.canOpenMap(player)));
     }
 
-    private record RequestRectPayload(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ)
+    private record RequestRectPayload(int requestSeq, Identifier dimensionId, int minX, int minZ, int maxX, int maxZ)
             implements CustomPacketPayload {
-        private static final Type<RequestRectPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_request_rect"));
+        private static final Type<RequestRectPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_request_rect"));
         private static final StreamCodec<RegistryFriendlyByteBuf, RequestRectPayload> CODEC = CustomPacketPayload.codec(
                 (payload, buf) -> {
                     buf.writeVarInt(payload.requestSeq);
-                    buf.writeResourceLocation(payload.dimensionId);
+                    buf.writeIdentifier(payload.dimensionId);
                     buf.writeVarInt(payload.minX);
                     buf.writeVarInt(payload.minZ);
                     buf.writeVarInt(payload.maxX);
@@ -226,7 +227,7 @@ public class MapNetworkFabric {
                 },
                 buf -> new RequestRectPayload(
                         buf.readVarInt(),
-                        buf.readResourceLocation(),
+                        buf.readIdentifier(),
                         buf.readVarInt(),
                         buf.readVarInt(),
                         buf.readVarInt(),
@@ -240,17 +241,17 @@ public class MapNetworkFabric {
         }
     }
 
-    private record SnapshotPayload(int requestSeq, ResourceLocation dimensionId, MapSnapshot snapshot) implements CustomPacketPayload {
-        private static final Type<SnapshotPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_snapshot"));
+    private record SnapshotPayload(int requestSeq, Identifier dimensionId, MapSnapshot snapshot) implements CustomPacketPayload {
+        private static final Type<SnapshotPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_snapshot"));
         private static final StreamCodec<RegistryFriendlyByteBuf, SnapshotPayload> CODEC = CustomPacketPayload.codec(
                 (payload, buf) -> {
                     buf.writeVarInt(payload.requestSeq);
-                    buf.writeResourceLocation(payload.dimensionId);
+                    buf.writeIdentifier(payload.dimensionId);
                     MapSnapshotCodec.write(buf, payload.snapshot);
                 },
                 buf -> new SnapshotPayload(
                         buf.readVarInt(),
-                        buf.readResourceLocation(),
+                        buf.readIdentifier(),
                         MapSnapshotCodec.read(buf)
                 )
         );
@@ -262,7 +263,7 @@ public class MapNetworkFabric {
     }
 
     private record TeleportRequestPayload(int x, int y, int z) implements CustomPacketPayload {
-        private static final Type<TeleportRequestPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport"));
+        private static final Type<TeleportRequestPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_teleport"));
         private static final StreamCodec<RegistryFriendlyByteBuf, TeleportRequestPayload> CODEC = CustomPacketPayload.codec(
                 (payload, buf) -> {
                     buf.writeVarInt(payload.x);
@@ -283,7 +284,7 @@ public class MapNetworkFabric {
     }
 
     private record TeleportAckPayload(boolean ok, int x, int y, int z) implements CustomPacketPayload {
-        private static final Type<TeleportAckPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
+        private static final Type<TeleportAckPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
         private static final StreamCodec<RegistryFriendlyByteBuf, TeleportAckPayload> CODEC = CustomPacketPayload.codec(
                 (payload, buf) -> {
                     buf.writeBoolean(payload.ok);
@@ -306,7 +307,7 @@ public class MapNetworkFabric {
     }
 
     private record ManualConnectPayload(int ax, int az, int bx, int bz) implements CustomPacketPayload {
-        private static final Type<ManualConnectPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
+        private static final Type<ManualConnectPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
         private static final StreamCodec<RegistryFriendlyByteBuf, ManualConnectPayload> CODEC = CustomPacketPayload.codec(
                 (payload, buf) -> {
                     buf.writeVarInt(payload.ax);
@@ -329,7 +330,7 @@ public class MapNetworkFabric {
     }
 
     private record AccessSyncPayload(boolean allowed) implements CustomPacketPayload {
-        private static final Type<AccessSyncPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_access_sync"));
+        private static final Type<AccessSyncPayload> TYPE = new Type<>(Identifier.fromNamespaceAndPath("roadweaver", "map_access_sync"));
         private static final StreamCodec<RegistryFriendlyByteBuf, AccessSyncPayload> CODEC = CustomPacketPayload.codec(
                 (payload, buf) -> buf.writeBoolean(payload.allowed),
                 buf -> new AccessSyncPayload(buf.readBoolean())

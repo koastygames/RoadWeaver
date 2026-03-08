@@ -7,5 +7,5 @@ import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfigur
  * 普通道路 Feature 配置
  */
 public class PathFeatureConfig implements FeatureConfiguration {
-    public static final Codec<PathFeatureConfig> CODEC = Codec.unit(new PathFeatureConfig());
+    public static final Codec<PathFeatureConfig> CODEC = com.mojang.serialization.MapCodec.unit(new PathFeatureConfig()).codec();
 }

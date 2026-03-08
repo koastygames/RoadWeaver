@@ -7,6 +7,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
@@ -249,11 +250,11 @@ public final class InitialGenManager {
 
     private static void triggerCellPathPlanning(ServerLevel level, ModConfig cfg) {
         int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
-        BlockPos centerPos = level.getSharedSpawnPos();
+        BlockPos centerPos = LevelCompat.getWorldSpawnPos(level);
         var server = level.getServer();
         if (server != null) {
             var p = server.getPlayerList().getPlayers().stream()
-                    .filter(sp -> sp != null && sp.serverLevel() == level)
+                    .filter(sp -> sp != null && sp.level() == level)
                     .findFirst().orElse(null);
             if (p != null) centerPos = p.blockPosition();
         }

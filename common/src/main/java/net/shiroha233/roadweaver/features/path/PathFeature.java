@@ -50,7 +50,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             return false;
 
         ModConfig cfg = ConfigService.get();
-        String dimId = server.dimension().location().toString();
+        String dimId = server.dimension().identifier().toString();
         
         if (!cfg.roadsEnabledForDimension(dimId))
             return false;
@@ -89,7 +89,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             RandomSource random,
             ModConfig cfg,
             int averagingRadius) {
-        String dimId = server.dimension().location().toString();
+        String dimId = server.dimension().identifier().toString();
         
         if (!cfg.roadsEnabledForDimension(dimId)) {
             return;

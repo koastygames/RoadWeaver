@@ -9,7 +9,6 @@ public final class MapTheme {
     // 纹理配置
     public static final int TEX_WIDTH = 1536;
     public static final int TEX_HEIGHT = 1024;
-
     // 布局尺寸
     public static final int OUTER_PADDING = 36;
     public static final int INNER_PADDING = 25;

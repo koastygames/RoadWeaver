@@ -1,7 +1,6 @@
 package net.shiroha233.roadweaver.datagen;
 
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.shiroha233.roadweaver.RoadWeaver;
 
@@ -12,7 +11,6 @@ import net.shiroha233.roadweaver.RoadWeaver;
  * NeoForge only consumes biome_modifier resources from:
  * neoforge/src/main/resources/data/roadweaver/neoforge/biome_modifier
  */
-@EventBusSubscriber(modid = RoadWeaver.MOD_ID, bus = EventBusSubscriber.Bus.MOD)
 public class RoadWeaverDataGenerator {
 
     @SubscribeEvent

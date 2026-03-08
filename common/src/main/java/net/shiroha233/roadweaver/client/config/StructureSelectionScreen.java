@@ -5,8 +5,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.config.ConfigService;
@@ -32,7 +35,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     private EditBox searchBox;
     private String searchFilter = "";
     
-    private ResourceLocation currentDimension = null;
+    private Identifier currentDimension = null;
     private Button dimensionButton;
     private DimensionListWidget dimensionListWidget;
     private boolean pendingCloseDimensionDropdown = false;
@@ -308,7 +311,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         }
     }
 
-    private Component getDimensionDisplayName(ResourceLocation dimId) {
+    private Component getDimensionDisplayName(Identifier dimId) {
         String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
         Component translated = Component.translatable(key);
         if (!Objects.equals(translated.getString(), key)) {
@@ -334,7 +337,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
                 Component.translatable("config.roadweaver.structure_selection.dimension.all"),
                 null));
 
-        for (ResourceLocation dimId : result.dimensions()) {
+        for (Identifier dimId : result.dimensions()) {
             Component title = getDimensionDisplayName(dimId);
             Component subtitle = Component.literal(dimId.toString());
             rows.add(new DimensionListWidget.Row(dimId, title,
@@ -367,12 +370,14 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         DimensionListWidget dd = dimensionListWidget;
         Button btn = dimensionButton;
 
         if (dd != null && dd.isMouseOver(mouseX, mouseY)) {
-            dd.mouseClicked(mouseX, mouseY, button);
+            dd.mouseClicked(event, doubleClick);
             return true;
         }
 
@@ -384,7 +389,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
             }
         }
 
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
+        boolean handled = super.mouseClicked(event, doubleClick);
         if (pendingCloseDimensionDropdown) {
             pendingCloseDimensionDropdown = false;
             closeDimensionDropdown();
@@ -569,18 +574,18 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
         if (searchBox.isFocused()) {
-            return searchBox.keyPressed(keyCode, scanCode, modifiers);
+            return searchBox.keyPressed(event);
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public boolean charTyped(char codePoint, int modifiers) {
+    public boolean charTyped(CharacterEvent event) {
         if (searchBox.isFocused()) {
-            return searchBox.charTyped(codePoint, modifiers);
+            return searchBox.charTyped(event);
         }
-        return super.charTyped(codePoint, modifiers);
+        return super.charTyped(event);
     }
 }

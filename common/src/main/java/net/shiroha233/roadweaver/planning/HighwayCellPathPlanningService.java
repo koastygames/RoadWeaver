@@ -317,7 +317,7 @@ public final class HighwayCellPathPlanningService {
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && cfg.structurePrediction().isEnabledForDimension(level.dimension().identifier().toString());
         if (allowPredicted) {
             StructureIndexService.predictAndVerifyInRect(level, minX, minZ, maxXExcl - 1, maxZExcl - 1);
         }

@@ -1,6 +1,5 @@
 package net.shiroha233.roadweaver.command;
 
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -8,6 +7,8 @@ import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.players.NameAndId;
+import net.shiroha233.roadweaver.helpers.PermissionCompat;
 import net.shiroha233.roadweaver.map.permission.MapAccessMode;
 import net.shiroha233.roadweaver.map.permission.MapAccessPolicy;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
@@ -16,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public final class MapAccessCommand {
@@ -25,7 +25,7 @@ public final class MapAccessCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("roadweaver")
-                .requires(source -> source.hasPermission(2))
+                .requires(PermissionCompat::hasCommandLevel2)
                 .then(Commands.literal("mapaccess")
                         .then(Commands.literal("info")
                                 .executes(context -> info(context.getSource())))
@@ -68,12 +68,12 @@ public final class MapAccessCommand {
         return changed ? 1 : 0;
     }
 
-    private static int allow(CommandSourceStack source, Collection<GameProfile> profiles) {
+    private static int allow(CommandSourceStack source, Collection<NameAndId> profiles) {
         MinecraftServer server = source.getServer();
         List<String> names = new ArrayList<>();
         int changed = 0;
-        for (GameProfile profile : profiles) {
-            UUID playerId = profile.getId();
+        for (NameAndId profile : profiles) {
+            UUID playerId = profile.id();
             if (playerId == null) {
                 continue;
             }
@@ -92,12 +92,12 @@ public final class MapAccessCommand {
         return changed;
     }
 
-    private static int deny(CommandSourceStack source, Collection<GameProfile> profiles) {
+    private static int deny(CommandSourceStack source, Collection<NameAndId> profiles) {
         MinecraftServer server = source.getServer();
         List<String> names = new ArrayList<>();
         int changed = 0;
-        for (GameProfile profile : profiles) {
-            UUID playerId = profile.getId();
+        for (NameAndId profile : profiles) {
+            UUID playerId = profile.id();
             if (playerId == null) {
                 continue;
             }
@@ -120,9 +120,9 @@ public final class MapAccessCommand {
         return Component.translatable("command.roadweaver.mapaccess.mode." + mode.serializedName());
     }
 
-    private static String displayName(GameProfile profile, UUID playerId) {
-        if (profile.getName() != null && !profile.getName().isBlank()) {
-            return profile.getName();
+    private static String displayName(NameAndId profile, UUID playerId) {
+        if (profile.name() != null && !profile.name().isBlank()) {
+            return profile.name();
         }
         return playerId.toString();
     }
@@ -130,13 +130,7 @@ public final class MapAccessCommand {
     private static String resolvePlayerName(MinecraftServer server, UUID playerId) {
         ServerPlayer online = server.getPlayerList().getPlayer(playerId);
         if (online != null) {
-            return online.getGameProfile().getName();
-        }
-        if (server.getProfileCache() != null) {
-            Optional<GameProfile> cached = server.getProfileCache().get(playerId);
-            if (cached.isPresent() && cached.get().getName() != null && !cached.get().getName().isBlank()) {
-                return cached.get().getName();
-            }
+            return online.getGameProfile().name();
         }
         return playerId.toString();
     }

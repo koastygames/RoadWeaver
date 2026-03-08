@@ -5,7 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 import net.shiroha233.roadweaver.config.ConfigService;
@@ -24,8 +24,8 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
     private static final int BUTTON_HEIGHT = 20;
     
     private final Screen parent;
-    private final Set<ResourceLocation> selected = new LinkedHashSet<>();
-    private final List<ResourceLocation> allDimensions = new ArrayList<>();
+    private final Set<Identifier> selected = new LinkedHashSet<>();
+    private final List<Identifier> allDimensions = new ArrayList<>();
     
     private Button doneButton;
     private Button cancelButton;
@@ -43,7 +43,7 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
         ModConfig cfg = ConfigService.get();
         if (cfg != null && cfg.structurePredictionDimensionWhitelist() != null) {
             for (String s : cfg.structurePredictionDimensionWhitelist()) {
-                ResourceLocation rl = ResourceLocation.tryParse(s);
+                Identifier rl = Identifier.tryParse(s);
                 if (rl != null) {
                     selected.add(rl);
                 }
@@ -59,7 +59,7 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
         addFallbackDimension("minecraft:the_nether");
         addFallbackDimension("minecraft:the_end");
 
-        for (ResourceLocation rl : selected) {
+        for (Identifier rl : selected) {
             if (!allDimensions.contains(rl)) {
                 allDimensions.add(rl);
             }
@@ -88,7 +88,7 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
     }
 
     private void addFallbackDimension(String id) {
-        ResourceLocation rl = ResourceLocation.tryParse(id);
+        Identifier rl = Identifier.tryParse(id);
         if (rl == null) return;
         if (!allDimensions.contains(rl)) {
             allDimensions.add(rl);
@@ -106,7 +106,7 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
         ModConfig cfg = ConfigService.get();
         if (cfg != null) {
             List<String> out = new ArrayList<>();
-            for (ResourceLocation rl : selected) {
+            for (Identifier rl : selected) {
                 out.add(rl.toString());
             }
             cfg.setStructurePredictionDimensionWhitelist(out);

@@ -4,9 +4,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 import java.util.Objects;
@@ -21,11 +22,11 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
     private static final int ACTIVE_BG = 0xFF3A3A3A;
     private static final int HOVER_BG = 0xAA2A2A2A;
     
-    private final Consumer<ResourceLocation> onSelect;
+    private final Consumer<Identifier> onSelect;
     private boolean renderBackground = true;
     private boolean renderTopAndBottom = true;
 
-    public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<ResourceLocation> onSelect) {
+    public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<Identifier> onSelect) {
         super(minecraft, width, height, top, top + height);
         this.onSelect = onSelect;
     }
@@ -57,7 +58,7 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         this.renderTopAndBottom = renderTopAndBottom;
     }
 
-    public void setRows(List<Row> rows, ResourceLocation active) {
+    public void setRows(List<Row> rows, Identifier active) {
         clearRows();
         for (Row row : rows) {
             addEntry(new RowEntry(this, row, Objects.equals(row.dimensionId(), active), onSelect));
@@ -74,29 +75,32 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
     }
 
     @Override
-    protected int getScrollbarPosition() {
+    protected int scrollBarX() {
         return getRowLeft() + getRowWidth() + 6;
     }
 
-    public record Row(ResourceLocation dimensionId, Component title, Component subtitle) {}
+    public record Row(Identifier dimensionId, Component title, Component subtitle) {}
 
     public abstract static class Entry extends ContainerObjectSelectionList.Entry<Entry> {}
 
     private static final class RowEntry extends Entry {
+        private final DimensionListWidget owner;
         private final Row row;
         private final boolean active;
-        private final Consumer<ResourceLocation> onSelect;
+        private final Consumer<Identifier> onSelect;
 
-        private RowEntry(DimensionListWidget list, Row row, boolean active, Consumer<ResourceLocation> onSelect) {
+        private RowEntry(DimensionListWidget list, Row row, boolean active, Consumer<Identifier> onSelect) {
+            this.owner = list;
             this.row = row;
             this.active = active;
             this.onSelect = onSelect;
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                           int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             int bg = active ? ACTIVE_BG : (hovering ? HOVER_BG : 0);
+            int width = owner.getRowWidth();
+            int height = ROW_HEIGHT;
             if (bg != 0) {
                 graphics.fill(left, top, left + width, top + height, bg);
             }
@@ -125,12 +129,12 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (event.button() == 0) {
                 onSelect.accept(row.dimensionId());
                 return true;
             }
-            return false;
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override

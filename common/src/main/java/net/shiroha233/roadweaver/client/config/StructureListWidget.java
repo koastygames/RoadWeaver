@@ -1,14 +1,15 @@
 package net.shiroha233.roadweaver.client.config;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import dev.architectury.platform.Platform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.config.structure.StructureEntry;
 import net.shiroha233.roadweaver.config.structure.StructureTagEntry;
 
@@ -19,7 +20,7 @@ import java.util.function.Consumer;
  * 缁撴瀯鍒楄〃缁勪欢 - 鏀寔鏍戝舰灞曠ず銆佹ā缁勫浘锟?
  */
 public class StructureListWidget extends ContainerObjectSelectionList<StructureListWidget.Entry> {
-    private static final Map<String, Optional<ResourceLocation>> MOD_ICON_CACHE = new HashMap<>();
+    private static final Map<String, Optional<Identifier>> MOD_ICON_CACHE = new HashMap<>();
     private static final int ROW_HEIGHT = 24;
     private static final int CHECKBOX_SIZE = 10;
 
@@ -28,7 +29,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     }
 
     public void clearEntries() {
-        super.children().clear();
+        super.clearEntries();
     }
 
     public int doAddEntry(Entry entry) {
@@ -41,7 +42,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     }
 
     @Override
-    protected int getScrollbarPosition() {
+    protected int scrollBarX() {
         return getRowLeft() + getRowWidth() + 6;
     }
 
@@ -57,12 +58,12 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         return structure.displayName();
     }
 
-    static ResourceLocation getModIconTexture(String modId) {
+    static Identifier getModIconTexture(String modId) {
         if (modId == null || modId.isEmpty()) return null;
-        Optional<ResourceLocation> cached = MOD_ICON_CACHE.get(modId);
+        Optional<Identifier> cached = MOD_ICON_CACHE.get(modId);
         if (cached != null) return cached.orElse(null);
 
-        ResourceLocation resolved = null;
+        Identifier resolved = null;
         try {
             var optMod = Platform.getOptionalMod(modId);
             if (optMod.isPresent()) {
@@ -70,7 +71,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                 var logoOpt = mod.getLogoFile(32);
                 if (logoOpt.isPresent()) {
                     String logoPath = logoOpt.get();
-                    List<ResourceLocation> candidates = new ArrayList<>();
+                    List<Identifier> candidates = new ArrayList<>();
 
                     if (logoPath.startsWith("assets/")) {
                         String rel = logoPath.substring("assets/".length());
@@ -78,21 +79,21 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                         if (slash >= 0) {
                             String ns = rel.substring(0, slash);
                             String path = rel.substring(slash + 1);
-                            candidates.add(ResourceLocation.fromNamespaceAndPath(ns, path));
+                            candidates.add(Identifier.fromNamespaceAndPath(ns, path));
                         }
                     } else if (logoPath.indexOf(':') >= 0) {
-                        ResourceLocation rl = ResourceLocation.tryParse(logoPath);
+                        Identifier rl = Identifier.tryParse(logoPath);
                         if (rl != null) candidates.add(rl);
                     } else {
-                        candidates.add(ResourceLocation.fromNamespaceAndPath(modId, logoPath));
+                        candidates.add(Identifier.fromNamespaceAndPath(modId, logoPath));
                         if (!logoPath.startsWith("textures/")) {
-                            candidates.add(ResourceLocation.fromNamespaceAndPath(modId, "textures/" + logoPath));
-                            candidates.add(ResourceLocation.fromNamespaceAndPath(modId, "textures/gui/" + logoPath));
+                            candidates.add(Identifier.fromNamespaceAndPath(modId, "textures/" + logoPath));
+                            candidates.add(Identifier.fromNamespaceAndPath(modId, "textures/gui/" + logoPath));
                         }
                     }
 
                     var rm = Minecraft.getInstance().getResourceManager();
-                    for (ResourceLocation rl : candidates) {
+                    for (Identifier rl : candidates) {
                         if (rl == null) continue;
                         try {
                             if (rm.getResource(rl).isPresent()) {
@@ -145,8 +146,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             String expandIcon = expanded ? "v" : ">";
             graphics.drawString(mc.font, expandIcon, left + 2, top + 7, 0xFFFFFF, false);
@@ -162,11 +162,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             }
 
             int textX = left + 30;
-            ResourceLocation icon = getModIconTexture(modId);
+            Identifier icon = getModIconTexture(modId);
             if (icon != null) {
-                RenderSystem.enableBlend();
-                graphics.blit(icon, textX, top + 4, 0, 0, 16, 16, 16, 16);
-                RenderSystem.disableBlend();
+                graphics.blit(RenderPipelines.GUI_TEXTURED, icon, textX, top + 4, 0.0F, 0.0F, 16, 16, 16, 16);
                 textX += 18;
             }
 
@@ -174,8 +172,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            if (event.button() == 0) {
                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
                 if (mouseX >= rowLeft && mouseX <= rowLeft + 14) {
                     onExpandToggle.accept(modId);
@@ -190,7 +189,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override
@@ -213,8 +212,8 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
+            int width = list.getRowWidth();
             graphics.drawCenteredString(Minecraft.getInstance().font, message,
                     left + width / 2, top + 5, 0xAAAAAA);
         }
@@ -239,8 +238,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             graphics.drawString(Minecraft.getInstance().font, title, left + 5, top + 5, 0xFFFF00);
         }
 
@@ -273,8 +271,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
 
             int indent = 10;
@@ -293,8 +290,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            if (event.button() == 0) {
                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
                 int indent = 10;
                 if (mouseX >= rowLeft + indent && mouseX <= rowLeft + indent + 10) {
@@ -306,7 +304,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override
@@ -337,8 +335,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
 
             int checkboxX = left + INDENT;
@@ -356,15 +353,16 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            if (event.button() == 0) {
                 int left = list.getRowLeft();
                 if (mouseX >= left && mouseX <= left + this.list.getRowWidth()) {
                     onToggle.accept(structure);
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override
@@ -407,8 +405,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
 
@@ -431,8 +428,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            if (event.button() == 0) {
                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
                 int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
                 if (mouseX >= rowLeft + indent && mouseX <= rowLeft + indent + 10) {
@@ -444,7 +442,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override
@@ -481,8 +479,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             int indent = baseIndent + depth * INDENT_PER_LEVEL;
 
@@ -498,21 +495,24 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             int textColor = structure.isVanilla() ? 0xFFFFFF : 0xFFAAAA;
             graphics.drawString(mc.font, leafName, boxX + 14, top + 7, textColor, false);
 
-            if (hovering && mouseX >= boxX + 14) {
-                graphics.renderTooltip(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
+            if (hovering) {
+                int mouseX = (int) Math.round(mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / mc.getWindow().getScreenWidth());
+                int mouseY = (int) Math.round(mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / mc.getWindow().getScreenHeight());
+                graphics.setTooltipForNextFrame(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
             }
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            if (event.button() == 0) {
                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
                 if (mouseX >= rowLeft && mouseX <= rowLeft + this.list.getRowWidth()) {
                     onToggle.accept(structure);
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override
@@ -542,8 +542,7 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
 
         @Override
-        public void render(GuiGraphics graphics, int index, int top, int left, int width, int height,
-                          int mouseX, int mouseY, boolean hovering, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
 
             int boxX = left + 12;
@@ -558,21 +557,24 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
             String name = getLocalizedStructureName(structure);
             graphics.drawString(mc.font, name, boxX + 14, top + 7, textColor, false);
 
-            if (hovering && mouseX >= boxX + 14) {
-                graphics.renderTooltip(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
+            if (hovering) {
+                int mouseX = (int) Math.round(mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / mc.getWindow().getScreenWidth());
+                int mouseY = (int) Math.round(mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / mc.getWindow().getScreenHeight());
+                graphics.setTooltipForNextFrame(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
             }
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            double mouseX = event.x();
+            if (event.button() == 0) {
                 int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
                 if (mouseX >= rowLeft && mouseX <= rowLeft + this.list.getRowWidth()) {
                     onToggle.accept(structure);
                     return true;
                 }
             }
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override

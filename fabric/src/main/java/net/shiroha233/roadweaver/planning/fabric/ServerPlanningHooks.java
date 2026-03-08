@@ -76,7 +76,7 @@ public final class ServerPlanningHooks {
             if ((tick++ % 20) == 0) {
                 boolean highwayMode = ConfigService.get().highway().enabled();
                 for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                    SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
+                    SignTextService.onChunkReady(p.level(), p.chunkPosition());
                     if (highwayMode) {
                         HighwayPlanningService.planAroundPlayer(p);
                     } else {

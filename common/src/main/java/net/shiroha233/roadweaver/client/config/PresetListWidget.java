@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.input.MouseButtonEvent;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -46,7 +47,7 @@ public class PresetListWidget extends ContainerObjectSelectionList<PresetListWid
     }
 
     @Override
-    protected int getScrollbarPosition() {
+    protected int scrollBarX() {
         return this.getRowLeft() + this.getRowWidth() + 6;
     }
 
@@ -98,7 +99,9 @@ public class PresetListWidget extends ContainerObjectSelectionList<PresetListWid
         }
 
         @Override
-        public void render(GuiGraphics g, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isHovered, float partialTick) {
+        public void renderContent(GuiGraphics g, int top, int left, boolean isHovered, float partialTick) {
+            int width = PresetListWidget.this.getRowWidth();
+            int height = ROW_HEIGHT;
             if (active) {
                 g.fill(left, top, left + width, top + height, 0xFF333333);
                 g.renderOutline(left, top, width, height, 0xFFFFFFFF);
@@ -117,19 +120,19 @@ public class PresetListWidget extends ContainerObjectSelectionList<PresetListWid
             if (safeSubtitle != null && safeTitle.equals(safeSubtitle)) safeSubtitle = null;
 
             if (safeSubtitle != null) {
-                g.pose().pushPose();
-                g.pose().translate(textX, top + 4, 0);
-                g.pose().scale(TITLE_SCALE, TITLE_SCALE, 1.0F);
+                g.pose().pushMatrix();
+                g.pose().translate(textX, top + 4);
+                g.pose().scale(TITLE_SCALE, TITLE_SCALE);
                 String titleCut = mc.font.plainSubstrByWidth(safeTitle, (int) (maxTextWidth / TITLE_SCALE));
                 g.drawString(mc.font, titleCut, 0, 0, color, false);
-                g.pose().popPose();
+                g.pose().popMatrix();
 
-                g.pose().pushPose();
-                g.pose().translate(textX, top + 18, 0);
-                g.pose().scale(SUBTITLE_SCALE, SUBTITLE_SCALE, 1.0F);
+                g.pose().pushMatrix();
+                g.pose().translate(textX, top + 18);
+                g.pose().scale(SUBTITLE_SCALE, SUBTITLE_SCALE);
                 String subCut = mc.font.plainSubstrByWidth(safeSubtitle, (int) (maxTextWidth / SUBTITLE_SCALE));
                 g.drawString(mc.font, subCut, 0, 0, 0xBBBBBB, false);
-                g.pose().popPose();
+                g.pose().popMatrix();
             } else {
                 String titleCut = mc.font.plainSubstrByWidth(safeTitle, maxTextWidth);
                 g.drawString(mc.font, titleCut, textX, top + 10, color, false);
@@ -137,12 +140,12 @@ public class PresetListWidget extends ContainerObjectSelectionList<PresetListWid
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (event.button() == 0) {
                 onSelect.accept(this);
                 return true;
             }
-            return false;
+            return super.mouseClicked(event, doubleClick);
         }
 
         @Override

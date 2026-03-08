@@ -1,13 +1,14 @@
 package net.shiroha233.roadweaver.network.neoforge;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.core.BlockPos;
 
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -22,6 +23,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.helpers.PermissionCompat;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapNetworkPayloads;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -97,12 +99,16 @@ public class MapNetworkNeoForge {
             final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
             
             CompletableFuture.supplyAsync(() -> {
-                var level = sp.serverLevel();
-                ResourceLocation actualDimensionId = level.dimension().location();
+                var level = sp.level();
+                Identifier actualDimensionId = level.dimension().identifier();
                 MapSnapshot snap = MapDataCollector.build(level, payload.minX(), payload.minZ(), payload.maxX(), payload.maxZ(), cx, cz, radiusBlocksFinal);
                 return new MapNetworkPayloads.MapSnapshotPayload(payload.requestSeq(), actualDimensionId, snap);
-            }, ComputeService.executor())
-            .thenAccept(outPayload -> PacketDistributor.sendToPlayer(sp, outPayload));
+            }, ComputeService.executor()).thenAccept(outPayload -> {
+                var server = sp.level().getServer();
+                if (server != null) {
+                    server.execute(() -> PacketDistributor.sendToPlayer(sp, outPayload));
+                }
+            });
         });
     }
 
@@ -124,13 +130,13 @@ public class MapNetworkNeoForge {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer sp)) return;
             
-            boolean allowed = sp.isCreative() || sp.hasPermissions(2);
+            boolean allowed = sp.isCreative() || PermissionCompat.hasCommandLevel2(sp);
             if (!allowed) {
                 PacketDistributor.sendToPlayer(sp, new MapNetworkPayloads.MapTeleportAckPayload(false, 0, 0, 0));
                 return;
             }
             
-            var level = sp.serverLevel();
+            var level = sp.level();
             int x = payload.x();
             int z = payload.z();
             int chunkX = x >> 4;
@@ -145,8 +151,8 @@ public class MapNetworkNeoForge {
                         if (sp.isRemoved() || sp.hasDisconnected()) return;
                         
                         int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                        if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; else ty += 1;
-                        sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
+                        if (ty <= level.getMinY()) ty = level.getSeaLevel() + 1; else ty += 1;
+                        sp.teleportTo(level, x + 0.5, ty, z + 0.5, java.util.Set.of(), sp.getYRot(), sp.getXRot(), false);
                         PacketDistributor.sendToPlayer(sp, new MapNetworkPayloads.MapTeleportAckPayload(true, x, ty, z));
                     });
                 });
@@ -174,13 +180,13 @@ public class MapNetworkNeoForge {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer sp)) return;
 
-            boolean allowed = sp.hasPermissions(2);
+            boolean allowed = PermissionCompat.hasCommandLevel2(sp);
             if (!allowed) {
                 sp.displayClientMessage(Component.translatable("gui.roadweaver.map.manual_connect.denied"), true);
                 return;
             }
 
-            var level = sp.serverLevel();
+            var level = sp.level();
             WorldDataProvider provider = WorldDataProvider.getInstance();
             java.util.List<StructureConnection> origin = provider.getStructureConnections(level);
             java.util.List<StructureConnection> list = origin != null ? new java.util.ArrayList<>(origin) : new java.util.ArrayList<>();
@@ -199,16 +205,16 @@ public class MapNetworkNeoForge {
         });
     }
 
-    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
-        PacketDistributor.sendToServer(new MapNetworkPayloads.MapRequestRectPayload(requestSeq, dimensionId, minX, minZ, maxX, maxZ));
+    public static void requestSnapshot(int requestSeq, Identifier dimensionId, int minX, int minZ, int maxX, int maxZ) {
+        ClientPacketDistributor.sendToServer(new MapNetworkPayloads.MapRequestRectPayload(requestSeq, dimensionId, minX, minZ, maxX, maxZ));
     }
 
     public static void requestTeleport(int x, int y, int z) {
-        PacketDistributor.sendToServer(new MapNetworkPayloads.MapTeleportPayload(x, y, z));
+        ClientPacketDistributor.sendToServer(new MapNetworkPayloads.MapTeleportPayload(x, y, z));
     }
 
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
-        PacketDistributor.sendToServer(new MapNetworkPayloads.MapManualConnectPayload(new BlockPos(ax, 0, az), new BlockPos(bx, 0, bz)));
+        ClientPacketDistributor.sendToServer(new MapNetworkPayloads.MapManualConnectPayload(new BlockPos(ax, 0, az), new BlockPos(bx, 0, bz)));
     }
 
     public static void syncMapAccess(ServerPlayer player) {

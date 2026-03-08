@@ -26,7 +26,7 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
 
     @Override
     public String getRefMapperConfig() {
-        return "";
+        return null;
     }
 
     @Override
@@ -57,12 +57,17 @@ public class MixinConfigPlugin implements IMixinConfigPlugin {
      * </p>
      */
     private boolean isModLoaded(String modid) {
-        // 在 Mixin 加载阶段，只有 LoadingModList 可用
-        LoadingModList loadingModList = FMLLoader.getLoadingModList();
-        if (loadingModList != null) {
-            return loadingModList.getModFileById(modid) != null;
+        FMLLoader loader = FMLLoader.getCurrentOrNull();
+        if (loader == null) {
+            return false;
         }
-        return false;
+
+        try {
+            LoadingModList loadingModList = loader.getLoadingModList();
+            return loadingModList != null && loadingModList.getModFileById(modid) != null;
+        } catch (IllegalStateException ignored) {
+            return false;
+        }
     }
 
     @Override

@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver.features.path.pathlogic.core;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
@@ -55,7 +55,7 @@ public final class Road {
         List<BlockState> materials;
         List<BlockState> slabMaterials;
         PresetService.RoadType presetType = (type == 0) ? PresetService.RoadType.ARTIFICIAL : PresetService.RoadType.NATURAL;
-        ResourceLocation dimId = level.dimension().location();
+        Identifier dimId = level.dimension().identifier();
 
         if (presetType == PresetService.RoadType.ARTIFICIAL) {
             PresetService.PresetDef preset = PresetService.choosePreset(random, dimId, presetType);

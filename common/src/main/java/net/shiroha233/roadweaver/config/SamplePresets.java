@@ -1,6 +1,6 @@
 package net.shiroha233.roadweaver.config;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,9 +9,9 @@ import java.util.List;
  * 内置示例预设模板定义
  */
 final class SamplePresets {
-    private static final ResourceLocation OVERWORLD = ResourceLocation.parse("minecraft:overworld");
-    private static final ResourceLocation NETHER = ResourceLocation.parse("minecraft:the_nether");
-    private static final ResourceLocation END = ResourceLocation.parse("minecraft:the_end");
+    private static final Identifier OVERWORLD = Identifier.parse("minecraft:overworld");
+    private static final Identifier NETHER = Identifier.parse("minecraft:the_nether");
+    private static final Identifier END = Identifier.parse("minecraft:the_end");
 
     static final List<SamplePresetTemplate> SAMPLE_PRESETS;
 
@@ -244,7 +244,7 @@ final class SamplePresets {
 
     private static SamplePresetTemplate naturalPresetInDimensions(String biomeId,
             String displayName,
-            List<ResourceLocation> dimensions,
+            List<Identifier> dimensions,
             List<String> materials,
             List<String> slabMaterials) {
         String sanitizedId = biomeId.contains(":")
@@ -261,7 +261,7 @@ final class SamplePresets {
     }
 
     record SamplePresetTemplate(String id, String name, PresetService.RoadType type,
-            List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
+            List<Identifier> dimensions, List<String> materials, List<String> slabMaterials) {
         PresetService.PresetDef toPresetDef() {
             return new PresetService.PresetDef(
                     id,
@@ -277,7 +277,7 @@ final class SamplePresets {
             dto.id = id;
             dto.name = name;
             dto.type = type.name();
-            dto.dimensions = dimensions.stream().map(ResourceLocation::toString).toList();
+            dto.dimensions = dimensions.stream().map(Identifier::toString).toList();
             dto.materials = List.copyOf(materials);
             dto.slabMaterials = List.copyOf(slabMaterials);
             return dto;

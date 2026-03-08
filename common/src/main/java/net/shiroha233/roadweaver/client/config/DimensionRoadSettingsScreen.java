@@ -5,7 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 import net.shiroha233.roadweaver.config.ConfigService;
@@ -25,11 +25,11 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
     
     private final Screen parent;
     private final Map<String, DimensionRoadSettings> working = new HashMap<>();
-    private final List<ResourceLocation> allDimensions = new ArrayList<>();
+    private final List<Identifier> allDimensions = new ArrayList<>();
     
-    private ResourceLocation selectedDimension;
+    private Identifier selectedDimension;
     private DimensionListWidget dimensionList;
-    private List<ResourceLocation> dimensionsForList = new ArrayList<>();
+    private List<Identifier> dimensionsForList = new ArrayList<>();
     
     private Button roadsEnabledBtn;
     private Button bridgeEnabledBtn;
@@ -78,7 +78,7 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
         addFallbackDimension("minecraft:the_end");
 
         for (String s : working.keySet()) {
-            ResourceLocation rl = ResourceLocation.tryParse(s);
+            Identifier rl = Identifier.tryParse(s);
             if (rl != null && !allDimensions.contains(rl)) {
                 allDimensions.add(rl);
             }
@@ -90,7 +90,7 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
     }
 
     private void addFallbackDimension(String id) {
-        ResourceLocation rl = ResourceLocation.tryParse(id);
+        Identifier rl = Identifier.tryParse(id);
         if (rl == null) return;
         if (!allDimensions.contains(rl)) {
             allDimensions.add(rl);
@@ -124,9 +124,9 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
         dimensionList.setRows(buildRows(dimensionsForList), selectedDimension);
     }
 
-    private List<DimensionListWidget.Row> buildRows(List<ResourceLocation> dims) {
+    private List<DimensionListWidget.Row> buildRows(List<Identifier> dims) {
         List<DimensionListWidget.Row> rows = new ArrayList<>();
-        for (ResourceLocation dimId : dims) {
+        for (Identifier dimId : dims) {
             Component title = getDimensionDisplayName(dimId);
             Component subtitle = Component.literal(dimId.toString());
             rows.add(new DimensionListWidget.Row(dimId, title,
@@ -324,7 +324,7 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
         };
     }
 
-    private DimensionRoadSettings getWorkingSettings(ResourceLocation dimId) {
+    private DimensionRoadSettings getWorkingSettings(Identifier dimId) {
         if (dimId == null) return null;
         return working.get(dimId.toString());
     }
@@ -338,7 +338,7 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
         return s;
     }
 
-    private Component getDimensionDisplayName(ResourceLocation dimId) {
+    private Component getDimensionDisplayName(Identifier dimId) {
         if (dimId == null) return Component.literal("-");
         String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
         Component translated = Component.translatable(key);

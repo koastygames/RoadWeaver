@@ -1,7 +1,7 @@
 package net.shiroha233.roadweaver.structures.precompute;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Rotation;
@@ -15,10 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PendingStructureStorage {
     private PendingStructureStorage() {}
     
-    private static final ConcurrentHashMap<ResourceLocation, ConcurrentHashMap<Long, List<PendingRoadsideStructure>>> PENDING = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Identifier, ConcurrentHashMap<Long, List<PendingRoadsideStructure>>> PENDING = new ConcurrentHashMap<>();
     
     private static final int MAX_INJECTED_PER_DIM = 4096;
-    private static final ConcurrentHashMap<ResourceLocation, Set<Long>> INJECTED = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Identifier, Set<Long>> INJECTED = new ConcurrentHashMap<>();
     
     private static Set<Long> createLimitedSet() {
         return java.util.Collections.newSetFromMap(
@@ -34,11 +34,11 @@ public final class PendingStructureStorage {
     }
     
     public static void addPendingStructure(ServerLevel level, 
-                                           ResourceLocation structureId,
+                                           Identifier structureId,
                                            BlockPos anchor, 
                                            Rotation rotation,
                                            int sizeX, int sizeY, int sizeZ) {
-        ResourceLocation dimKey = level.dimension().location();
+        Identifier dimKey = level.dimension().identifier();
         PendingRoadsideStructure pending = new PendingRoadsideStructure(
             structureId, anchor, rotation, sizeX, sizeY, sizeZ
         );
@@ -50,7 +50,7 @@ public final class PendingStructureStorage {
     }
     
     public static List<PendingRoadsideStructure> getPendingStructures(ServerLevel level, ChunkPos chunkPos) {
-        ResourceLocation dimKey = level.dimension().location();
+        Identifier dimKey = level.dimension().identifier();
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
         Set<Long> injected = INJECTED.get(dimKey);
@@ -68,7 +68,7 @@ public final class PendingStructureStorage {
     }
     
     public static void markAsInjected(ServerLevel level, ChunkPos chunkPos) {
-        ResourceLocation dimKey = level.dimension().location();
+        Identifier dimKey = level.dimension().identifier();
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
         INJECTED.computeIfAbsent(dimKey, k -> createLimitedSet())
@@ -81,7 +81,7 @@ public final class PendingStructureStorage {
     }
     
     public static boolean hasPendingStructures(ServerLevel level, ChunkPos chunkPos) {
-        ResourceLocation dimKey = level.dimension().location();
+        Identifier dimKey = level.dimension().identifier();
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
         Set<Long> injected = INJECTED.get(dimKey);
@@ -98,7 +98,7 @@ public final class PendingStructureStorage {
         return structures != null && !structures.isEmpty();
     }
     
-    public static void clearDimension(ResourceLocation dimension) {
+    public static void clearDimension(Identifier dimension) {
         PENDING.remove(dimension);
         INJECTED.remove(dimension);
     }
@@ -109,7 +109,7 @@ public final class PendingStructureStorage {
     }
     
     public static int getPendingCount(ServerLevel level) {
-        ResourceLocation dimKey = level.dimension().location();
+        Identifier dimKey = level.dimension().identifier();
         var dimMap = PENDING.get(dimKey);
         if (dimMap == null) {
             return 0;

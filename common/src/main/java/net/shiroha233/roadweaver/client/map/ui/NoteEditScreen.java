@@ -3,9 +3,13 @@ package net.shiroha233.roadweaver.client.map.ui;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
@@ -17,7 +21,7 @@ import java.util.List;
  * 地图笔记编辑界面 - 采用类似原版书与笔的风格
  */
 public class NoteEditScreen extends RoadWeaverScreen {
-    private static final ResourceLocation BOOK_TEXTURE = ResourceLocation.fromNamespaceAndPath("minecraft", "textures/gui/book.png");
+    private static final Identifier BOOK_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/gui/book.png");
     
     // 书本尺寸（原版书本纹理参数）
     private static final int BOOK_WIDTH = 192;
@@ -69,7 +73,7 @@ public class NoteEditScreen extends RoadWeaverScreen {
         ScreenBackgrounds.render(g, this.width, this.height);
         
         // 绘制书本背景
-        g.blit(BOOK_TEXTURE, bookX, bookY, 0, 0, BOOK_WIDTH, BOOK_HEIGHT);
+        g.blit(RenderPipelines.GUI_TEXTURED, BOOK_TEXTURE, bookX, bookY, 0.0F, 0.0F, BOOK_WIDTH, BOOK_HEIGHT, BOOK_WIDTH, BOOK_HEIGHT);
         
         // 标题（优先显示别名，否则显示坐标�?
         String alias = ClientMapNotes.getAlias(targetPos);
@@ -108,7 +112,8 @@ public class NoteEditScreen extends RoadWeaverScreen {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
         // ESC 取消
         if (keyCode == 256) {
             this.minecraft.setScreen(parent);
@@ -204,11 +209,12 @@ public class NoteEditScreen extends RoadWeaverScreen {
             return true;
         }
         
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
-    public boolean charTyped(char c, int modifiers) {
+    public boolean charTyped(CharacterEvent event) {
+        char c = (char) event.codepoint();
         if (Character.isISOControl(c)) return false;
         
         String current = lines.get(cursorLine);
@@ -222,7 +228,9 @@ public class NoteEditScreen extends RoadWeaverScreen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
         // 点击文本区域定位光标
         int textX = bookX + TEXT_X_OFFSET;
         int textY = bookY + TEXT_Y_OFFSET;
@@ -248,7 +256,7 @@ public class NoteEditScreen extends RoadWeaverScreen {
             return true;
         }
         
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     private void save() {

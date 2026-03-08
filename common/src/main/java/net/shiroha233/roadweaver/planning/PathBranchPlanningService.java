@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
@@ -92,7 +93,7 @@ public final class PathBranchPlanningService {
         ModConfig cfg = ConfigService.get();
         if (cfg == null || !cfg.highway().enabled()) return false;
         int radiusBlocks = Math.max(16, cfg.highway().planningRadiusBlocks());
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int minX = spawn.getX() - radiusBlocks;
         int maxX = spawn.getX() + radiusBlocks;
         int minZ = spawn.getZ() - radiusBlocks;
@@ -198,7 +199,7 @@ public final class PathBranchPlanningService {
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && cfg.structurePrediction().isEnabledForDimension(level.dimension().identifier().toString());
         if (allowPredicted) {
             StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         }

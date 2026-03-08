@@ -176,7 +176,7 @@ public final class RoadSpatialIndex {
     }
 
     private static String dimKey(ServerLevel level) {
-        return level.dimension().location().toString();
+        return level.dimension().identifier().toString();
     }
 
     public static void clearCache(ServerLevel level) {

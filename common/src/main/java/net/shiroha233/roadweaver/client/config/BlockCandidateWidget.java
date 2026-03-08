@@ -7,15 +7,17 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.AbstractContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.core.Holder;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.item.BlockItem;
@@ -104,8 +106,8 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
     }
 
     private void addBlocksFromTab(Set<Block> out, String tabId) {
-        ResourceKey<CreativeModeTab> key = ResourceKey.create(Registries.CREATIVE_MODE_TAB, ResourceLocation.parse(tabId));
-        CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.get(key);
+        ResourceKey<CreativeModeTab> key = ResourceKey.create(Registries.CREATIVE_MODE_TAB, Identifier.parse(tabId));
+        CreativeModeTab tab = BuiltInRegistries.CREATIVE_MODE_TAB.get(key).map(Holder::value).orElse(null);
         if (tab == null) return;
         for (ItemStack stack : tab.getDisplayItems()) {
             if (stack.getItem() instanceof BlockItem blockItem) {
@@ -124,7 +126,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         filteredBlocks.clear();
         String q = searchBox.getValue().trim().toLowerCase();
         for (Block b : allBlocks) {
-            ResourceLocation id = BuiltInRegistries.BLOCK.getKey(b);
+            Identifier id = BuiltInRegistries.BLOCK.getKey(b);
             if (id == null) continue;
             if (q.isEmpty() || id.toString().toLowerCase().contains(q)) {
                 filteredBlocks.add(b);
@@ -201,8 +203,11 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.searchBox.mouseClicked(mouseX, mouseY, button)) return true;
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        int button = event.button();
+        if (this.searchBox.mouseClicked(event, doubleClick)) return true;
 
         if (button == 0) {
             int maxOffset = getMaxOffset();
@@ -246,8 +251,9 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (draggingScrollbar && button == 0) {
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        double mouseY = event.y();
+        if (draggingScrollbar && event.button() == 0) {
             int maxOffset = getMaxOffset();
             if (maxOffset <= 0) return true;
 
@@ -261,16 +267,17 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
             scrollOffset = Math.max(0, Math.min(target, maxOffset));
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        return super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent event) {
+        int button = event.button();
         if (button == 0 && draggingScrollbar) {
             draggingScrollbar = false;
             return true;
         }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     @Override

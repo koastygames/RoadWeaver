@@ -1,6 +1,6 @@
 package net.shiroha233.roadweaver.network.fabric;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Fabric 平台网络桥接实现
@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}
 
-    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
+    public static void requestSnapshot(int requestSeq, Identifier dimensionId, int minX, int minZ, int maxX, int maxZ) {
         MapNetworkFabric.requestSnapshot(requestSeq, dimensionId, minX, minZ, maxX, maxZ);
     }
 

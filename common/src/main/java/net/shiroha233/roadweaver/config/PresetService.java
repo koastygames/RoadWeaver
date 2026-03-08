@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -75,7 +75,7 @@ public final class PresetService {
 
                     String name = dto.name == null || dto.name.isBlank() ? id : dto.name;
                     RoadType type = parseRoadType(dto.type, id);
-                    List<ResourceLocation> dims = parseDimensions(dto.dimensions);
+                    List<Identifier> dims = parseDimensions(dto.dimensions);
 
                     PresetDef def = new PresetDef(id, name, type, Collections.unmodifiableList(dims),
                             Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs));
@@ -91,8 +91,8 @@ public final class PresetService {
         }
 
         if (!map.isEmpty()) {
-            ResourceLocation nether = ResourceLocation.parse("minecraft:the_nether");
-            ResourceLocation end = ResourceLocation.parse("minecraft:the_end");
+            Identifier nether = Identifier.parse("minecraft:the_nether");
+            Identifier end = Identifier.parse("minecraft:the_end");
             tryEnsureDimensionSamplePresets(presetDir, map, nether);
             tryEnsureDimensionSamplePresets(presetDir, map, end);
         }
@@ -114,8 +114,8 @@ public final class PresetService {
         List<String> valid = new ArrayList<>();
         for (String s : ids) {
             try {
-                ResourceLocation rl = ResourceLocation.parse(s);
-                Block b = BuiltInRegistries.BLOCK.get(rl);
+                Identifier rl = Identifier.parse(s);
+                Block b = BuiltInRegistries.BLOCK.getValue(rl);
                 if (b != null && b != Blocks.AIR)
                     valid.add(s);
             } catch (Throwable ignored) {
@@ -134,23 +134,23 @@ public final class PresetService {
         }
     }
 
-    private static List<ResourceLocation> parseDimensions(List<String> dimStrings) {
-        List<ResourceLocation> dims = new ArrayList<>();
+    private static List<Identifier> parseDimensions(List<String> dimStrings) {
+        List<Identifier> dims = new ArrayList<>();
         if (dimStrings != null) {
             for (String d : dimStrings) {
-                ResourceLocation rl = ResourceLocation.tryParse(d);
+                Identifier rl = Identifier.tryParse(d);
                 if (rl != null)
                     dims.add(rl);
             }
         }
         if (dims.isEmpty()) {
-            dims.add(ResourceLocation.parse("minecraft:overworld"));
+            dims.add(Identifier.parse("minecraft:overworld"));
         }
         return dims;
     }
 
     private static void tryEnsureDimensionSamplePresets(Path presetDir, Map<String, PresetDef> map,
-            ResourceLocation dimension) {
+            Identifier dimension) {
         if (dimension == null)
             return;
         boolean hasAny = false;
@@ -225,7 +225,7 @@ public final class PresetService {
         return List.copyOf(PRESETS.get().values());
     }
 
-    public static synchronized PresetDef choosePreset(RandomSource rnd, ResourceLocation dimension, RoadType type) {
+    public static synchronized PresetDef choosePreset(RandomSource rnd, Identifier dimension, RoadType type) {
         if (PRESETS.get().isEmpty())
             reload();
         Map<String, PresetDef> all = PRESETS.get();
@@ -255,8 +255,8 @@ public final class PresetService {
             return out;
         for (String s : ids) {
             try {
-                ResourceLocation rl = ResourceLocation.parse(s);
-                Block b = BuiltInRegistries.BLOCK.get(rl);
+                Identifier rl = Identifier.parse(s);
+                Block b = BuiltInRegistries.BLOCK.getValue(rl);
                 if (b != null && b != Blocks.AIR)
                     out.add(b.defaultBlockState());
             } catch (Throwable ignored) {
@@ -273,8 +273,8 @@ public final class PresetService {
             return out;
         for (String s : ids) {
             try {
-                ResourceLocation rl = ResourceLocation.parse(s);
-                Block b = BuiltInRegistries.BLOCK.get(rl);
+                Identifier rl = Identifier.parse(s);
+                Block b = BuiltInRegistries.BLOCK.getValue(rl);
                 if (b != null && b != Blocks.AIR)
                     out.add(b.defaultBlockState());
             } catch (Throwable ignored) {
@@ -291,8 +291,8 @@ public final class PresetService {
         return toBlockStatesAllowEmpty(ids);
     }
 
-    public static synchronized PresetDef findNaturalPresetForBiome(ResourceLocation dimension,
-            ResourceLocation biomeId) {
+    public static synchronized PresetDef findNaturalPresetForBiome(Identifier dimension,
+            Identifier biomeId) {
         if (biomeId == null)
             return null;
         if (PRESETS.get().isEmpty())
@@ -324,7 +324,7 @@ public final class PresetService {
     }
 
     public static synchronized void saveOrUpdatePresetFile(String id, String name, RoadType type,
-            List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
+            List<Identifier> dimensions, List<String> materials, List<String> slabMaterials) {
         if (id == null || id.isBlank()) {
             return;
         }
@@ -340,7 +340,7 @@ public final class PresetService {
         dto.id = id;
         dto.name = name;
         dto.type = type.name();
-        dto.dimensions = dimensions.stream().map(ResourceLocation::toString).toList();
+        dto.dimensions = dimensions.stream().map(Identifier::toString).toList();
         dto.materials = materials == null ? List.of() : new ArrayList<>(materials);
         dto.slabMaterials = slabMaterials == null ? List.of() : new ArrayList<>(slabMaterials);
         writePreset(presetDir.resolve(id + ".json"), dto);
@@ -348,7 +348,7 @@ public final class PresetService {
 
     public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials,
             List<String> slabMaterials) {
-        saveOrUpdatePresetFile(id, name, RoadType.ARTIFICIAL, List.of(ResourceLocation.parse("minecraft:overworld")),
+        saveOrUpdatePresetFile(id, name, RoadType.ARTIFICIAL, List.of(Identifier.parse("minecraft:overworld")),
                 materials, slabMaterials);
     }
 
@@ -375,7 +375,7 @@ public final class PresetService {
         List<String> slabMaterials;
     }
 
-    public record PresetDef(String id, String name, RoadType type, List<ResourceLocation> dimensions,
+    public record PresetDef(String id, String name, RoadType type, List<Identifier> dimensions,
             List<String> materials, List<String> slabMaterials) {
     }
 }

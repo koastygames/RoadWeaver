@@ -43,6 +43,6 @@ public final class ChunkGenTracker {
     }
 
     private static String makeKey(ServerLevel level, int chunkX, int chunkZ) {
-        return level.dimension().location() + ":" + chunkX + "," + chunkZ;
+        return level.dimension().identifier() + ":" + chunkX + "," + chunkZ;
     }
 }

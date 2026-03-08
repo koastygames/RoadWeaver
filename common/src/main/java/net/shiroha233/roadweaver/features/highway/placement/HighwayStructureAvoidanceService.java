@@ -48,7 +48,7 @@ public final class HighwayStructureAvoidanceService {
 
             for (long chunkLong : chunkRefs) {
                 ChunkPos chunkPos = new ChunkPos(chunkLong);
-                SectionPos sectionPos = SectionPos.of(chunkPos, level.getMinSection());
+                SectionPos sectionPos = SectionPos.of(chunkPos, level.getMinSectionY());
 
                 StructureStart start = sm.getStartForStructure(
                         sectionPos,

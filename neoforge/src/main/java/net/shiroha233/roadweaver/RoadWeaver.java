@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver;
 
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.command.MapAccessCommand;
-import net.shiroha233.roadweaver.datagen.RoadWeaverDataGenerator;
 import net.shiroha233.roadweaver.features.neoforge.RoadFeaturesNeoForge;
 import net.shiroha233.roadweaver.network.neoforge.MapNetworkNeoForge;
 import net.shiroha233.roadweaver.planning.neoforge.ServerPlanningHooks;
@@ -31,9 +30,6 @@ public class RoadWeaver {
         
         // 加载配置（common 实现，写入 config/roadweaver.json）
         ConfigService.load();
-        
-        // 注册数据生成事件（确保 runData 时 provider 被加入）
-        modEventBus.addListener(RoadWeaverDataGenerator::gatherData);
 
         // 注册结构类型（需要在特性注册之前）
         StructureRegistryNeoForge.register(modEventBus);
@@ -51,7 +47,8 @@ public class RoadWeaver {
         // 注册服务器规划钩子：初始与动态增量规划
         ServerPlanningHooks.register(modEventBus);
 
-        if (FMLLoader.getDist() == Dist.CLIENT) {
+        FMLLoader loader = FMLLoader.getCurrentOrNull();
+        if (loader != null && loader.getDist() == Dist.CLIENT) {
             // NeoForge 21.1.x 中配置屏幕的处理方式可能有所不同
             // 暂时注释掉，需要进一步研究正确的 API
             // ModLoadingContext.get().registerExtensionPoint(

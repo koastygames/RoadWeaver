@@ -20,7 +20,4 @@ public abstract class RoadWeaverScreen extends Screen {
     public void renderTransparentBackground(GuiGraphics graphics) {
     }
 
-    @Override
-    protected void renderBlurredBackground(float partialTick) {
-    }
 }

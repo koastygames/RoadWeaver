@@ -8,6 +8,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.features.longdrive.config.LongDriveGenerationConfig;
 import net.shiroha233.roadweaver.features.longdrive.generation.LongDriveRoad;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 import net.shiroha233.roadweaver.util.ComputeService;
 import org.slf4j.Logger;
@@ -41,7 +42,7 @@ public final class LongDrivePlanningService {
         ModConfig cfg = ConfigService.get();
         if (!cfg.longDrive().enabled()) return;
 
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int sy = level.getHeight(
                 net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE,
                 spawn.getX(), spawn.getZ());
@@ -67,7 +68,7 @@ public final class LongDrivePlanningService {
      */
     public static void tickPlayer(ServerPlayer player) {
         if (player == null) return;
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         ModConfig cfg = ConfigService.get();
         if (!cfg.longDrive().enabled()) return;
 

@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
@@ -37,7 +38,7 @@ public class ClientInit implements ClientModInitializer {
         OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.roadweaver.open_map",
                 GLFW.GLFW_KEY_H,
-                "key.categories.roadweaver"
+                KeyMapping.Category.register(Identifier.fromNamespaceAndPath("minecraft", "roadweaver"))
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

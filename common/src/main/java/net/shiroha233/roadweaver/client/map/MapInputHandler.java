@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.client.map;
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import org.lwjgl.glfw.GLFW;
@@ -141,10 +142,11 @@ public final class MapInputHandler {
         return true;
     }
 
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers, Minecraft mc) {
+    public boolean keyPressed(KeyEvent event, Minecraft mc) {
+        int keyCode = event.key();
         if (mc != null) {
             for (KeyMapping mapping : mc.options.keyMappings) {
-                if ("key.roadweaver.open_map".equals(mapping.getName()) && mapping.matches(keyCode, scanCode)) {
+                if ("key.roadweaver.open_map".equals(mapping.getName()) && mapping.matches(event)) {
                     while (mapping.consumeClick()) {}
                     callbacks.onCloseScreen();
                     return true;

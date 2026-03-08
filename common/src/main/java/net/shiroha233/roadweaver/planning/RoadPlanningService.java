@@ -10,6 +10,7 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.helpers.LevelCompat;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.planning.impl.KNNPlanner;
@@ -52,7 +53,7 @@ public final class RoadPlanningService {
         if (level == null) return;
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.planning().initialPlanRadiusChunks());
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int cx = spawn.getX() >> 4;
         int cz = spawn.getZ() >> 4;
         int minX = (cx - radiusChunks) * 16;
@@ -64,7 +65,7 @@ public final class RoadPlanningService {
 
     public static void planAroundPlayer(ServerPlayer player) {
         if (player == null) return;
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         ModConfig cfg = ConfigService.get();
         if (!cfg.planning().dynamicPlanEnabled()) return;
         int radiusChunks = Math.max(1, cfg.planning().dynamicPlanRadiusChunks());
@@ -153,7 +154,7 @@ public final class RoadPlanningService {
         if (level == null) return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.planning().initialPlanRadiusChunks());
-        BlockPos spawn = level.getSharedSpawnPos();
+        BlockPos spawn = LevelCompat.getWorldSpawnPos(level);
         int cx = spawn.getX() >> 4;
         int cz = spawn.getZ() >> 4;
         int minX = (cx - radiusChunks) * 16;

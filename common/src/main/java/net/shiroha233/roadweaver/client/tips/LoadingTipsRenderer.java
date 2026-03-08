@@ -1,7 +1,6 @@
 package net.shiroha233.roadweaver.client.tips;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
@@ -28,21 +27,18 @@ public final class LoadingTipsRenderer {
     private LoadingTipsRenderer() {
     }
 
-    /**
-     * 在世界加载界面右下角渲染一条提示文本
-     */
-    public static void render(GuiGraphics graphics) {
+    public static Component getCurrentTip() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) {
-            return;
+            return Component.empty();
         }
         if (TIPS.isEmpty()) {
-            return;
+            return Component.empty();
         }
 
         ModConfig config = ConfigService.get();
         if (config != null && !config.client().loadingTipsEnabled()) {
-            return;
+            return Component.empty();
         }
 
         long now = System.currentTimeMillis();
@@ -54,18 +50,7 @@ public final class LoadingTipsRenderer {
             currentIndex = (currentIndex + 1) % TIPS.size();
         }
 
-        Component tip = TIPS.get(currentIndex);
-
-        var font = mc.font;
-        int sw = mc.getWindow().getGuiScaledWidth();
-        int sh = mc.getWindow().getGuiScaledHeight();
-
-        int marginX = 6;
-        int marginY = 6;
-        int x = sw - font.width(tip) - marginX;
-        int y = sh - font.lineHeight - marginY;
-
-        graphics.drawString(font, tip, x, y, 0xFFFFFF, false);
+        return TIPS.get(currentIndex);
     }
 
     public static void reset() {
