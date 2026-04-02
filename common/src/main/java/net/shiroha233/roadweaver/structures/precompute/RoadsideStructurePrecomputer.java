@@ -3,11 +3,15 @@ package net.shiroha233.roadweaver.structures.precompute;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Vec3i;
+import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.*;
+
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
@@ -20,6 +24,7 @@ import net.shiroha233.roadweaver.structures.data.StructureScale;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry.RoadsideStructureEntry;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,12 +131,8 @@ public final class RoadsideStructurePrecomputer {
             
             double halfExtentInPerpDir;
             switch (rotation) {
-                case NONE, CLOCKWISE_180 -> {
-                    halfExtentInPerpDir = (Math.abs(perpX) * sizeX + Math.abs(perpZ) * sizeZ) / 2.0;
-                }
-                case CLOCKWISE_90, COUNTERCLOCKWISE_90 -> {
-                    halfExtentInPerpDir = (Math.abs(perpX) * sizeZ + Math.abs(perpZ) * sizeX) / 2.0;
-                }
+                case NONE, CLOCKWISE_180 -> halfExtentInPerpDir = (Math.abs(perpX) * sizeX + Math.abs(perpZ) * sizeZ) / 2.0;
+                case CLOCKWISE_90, COUNTERCLOCKWISE_90 -> halfExtentInPerpDir = (Math.abs(perpX) * sizeZ + Math.abs(perpZ) * sizeX) / 2.0;
                 default -> halfExtentInPerpDir = Math.max(sizeX, sizeZ) / 2.0;
             }
             
@@ -139,45 +140,66 @@ public final class RoadsideStructurePrecomputer {
             
             int placeX = middle.getX() + (int) Math.round(perpX * centerOffset);
             int placeZ = middle.getZ() + (int) Math.round(perpZ * centerOffset);
-            int placeY = (targetY != null && i < targetY.size()) ? targetY.get(i) : cache.height(level, placeX, placeZ);
-            
-            int anchorX = placeX;
-            int anchorZ = placeZ;
+
+            // Get structure-defined start height offset mapped on heightmap
+            WorldGenerationContext worldGenContext = new WorldGenerationContext(level.getChunkSource().getGenerator(), level);
+            int startHeight = structure.startHeight().sample(random, worldGenContext);
+
+            Heightmap.Types heightmap = structure.projectStartToHeightmap();
+            boolean useBaseHeight = structure.useAccurateHeight();
+
+            // Calculate baseHeight based on structure definition
+            // The original logic of targetY override is commented out, as it might mess up with the structure height
+            // and make the structure float or buried. However, the code is preserved for future use.
+            int baseHeight = /* (targetY != null && i < targetY.size()) ?
+                targetY.get(i) : */
+                getHeight(placeX, placeZ, level, cache, heightmap, useBaseHeight);
+
+            int placeY = baseHeight + startHeight;
+
+            // The center of the structure. Used by terrain check.
+            // Use baseHeight as Y value since the terrain check wants to compare the surface/heightmap height instead
+            // of the height after offset.
+            BlockPos center = new BlockPos(placeX, baseHeight, placeZ);
+
+            // Calculate the structure anchor after rotation
             switch (rotation) {
                 case NONE -> {
-                    anchorX -= sizeX / 2;
-                    anchorZ -= sizeZ / 2;
+                    placeX -= sizeX / 2;
+                    placeZ -= sizeZ / 2;
                 }
                 case CLOCKWISE_90 -> {
-                    anchorX += sizeZ / 2;
-                    anchorZ -= sizeX / 2;
+                    placeX += sizeZ / 2;
+                    placeZ -= sizeX / 2;
                 }
                 case CLOCKWISE_180 -> {
-                    anchorX += sizeX / 2;
-                    anchorZ += sizeZ / 2;
+                    placeX += sizeX / 2;
+                    placeZ += sizeZ / 2;
                 }
                 case COUNTERCLOCKWISE_90 -> {
-                    anchorX -= sizeZ / 2;
-                    anchorZ += sizeX / 2;
+                    placeX -= sizeZ / 2;
+                    placeZ += sizeX / 2;
                 }
             }
-            
-            BlockPos placePos = new BlockPos(anchorX, placeY, anchorZ);
-            
-            ChunkPos chunkPos = new ChunkPos(placePos);
+
+            // The anchor of the structure placement. The placeX and placeZ value has been transformed by the
+            // switch-case above.
+            BlockPos anchor = new BlockPos(placeX, placeY, placeZ);
+            ChunkPos chunkPos = new ChunkPos(anchor);
+
             long chunkKey = chunkPos.toLong();
-            if (placedChunks.contains(chunkKey)) {
+            if (placedChunks.contains(chunkKey) ||
+                    !structure.skipTerrainCheck() &&
+                    !checkTerrainConditions(center, sizeHint, cache, level, heightmap, useBaseHeight)) {
+                LOGGER.debug("Structure {} at {} failed the terrain check", entry.id(), anchor);
                 continue;
             }
-            
-            if (!checkTerrainConditions(cache, level, placePos, sizeHint)) {
-                continue;
-            }
-            
+
+            // Push the precalculated data to pending queue
             PendingStructureStorage.addPendingStructure(
                 level,
                 entry.id(),
-                placePos,
+                anchor,
                 rotation,
                 sizeHint.getX(),
                 sizeHint.getY(),
@@ -187,8 +209,7 @@ public final class RoadsideStructurePrecomputer {
             placedChunks.add(chunkKey);
             placedCount++;
             
-            LOGGER.debug("Precomputed structure {} at {} for chunk [{}, {}]",
-                entry.id(), placePos, chunkPos.x, chunkPos.z);
+            LOGGER.debug("Precomputed structure {} at {} for chunk [{}, {}]", entry.id(), anchor, chunkPos.x, chunkPos.z);
         }
         
         return placedCount;
@@ -239,29 +260,62 @@ public final class RoadsideStructurePrecomputer {
         
         return candidates.get(candidates.size() - 1);
     }
-    
-    private static boolean checkTerrainConditions(TerrainSamplingCache cache,
-                                                  ServerLevel level,
-                                                  BlockPos pos,
-                                                  Vec3i size) {
-        if (cache.isColumnWater(level, pos.getX(), pos.getZ())) {
+
+    /**
+     * Check if the terrain on a certain structure's center position meets the following condition:
+     *
+     * <ul>
+     *     <li>The center's column does NOT have water body (river, ocean, etc.) on the surface.</li>
+     *     <li>The height change from the center to the edge on 4 directions (-X, +X, -Z, +Z) does NOT exceed
+     *     {@link RoadConstants#MAX_STRUCTURE_SLOPE}. Note that the height change is NOT slope, as this method only
+     *     calculates the absolute value of the height of the center minus the height of the center of the edge and
+     *     comparing this value to {@link RoadConstants#MAX_STRUCTURE_SLOPE}, but not dividing it by the distance on
+     *     XZ-plane.</li>
+     * </ul>
+     *
+     * @param center The center of the structure.
+     * @param size The size of the structure, represented by {@link Vec3i}.
+     * @param cache The {@link TerrainSamplingCache} object storing the terrain cache. Used in {@link #getHeight}.
+     * @param level The {@link ServerLevel} object representing the world.
+     * @param heightmap The heightmap type that needs to be sampled. Used in {@link #getHeight}.
+     * @param useBaseHeight Whether to use {@link TerrainSamplingCache#height} or {@link ChunkGenerator#getBaseHeight}
+     *                      to calculate the terrain height. Used in {@link #getHeight}.
+     * @return {@code true} if the terrain at the structure's center position meets the condition, {@code false}
+     * otherwise.
+     */
+    private static boolean checkTerrainConditions(
+        BlockPos center,
+        Vec3i size,
+        TerrainSamplingCache cache,
+        ServerLevel level,
+        Heightmap.Types heightmap,
+        boolean useBaseHeight
+    ) {
+        int x = center.getX();
+        int y = center.getY();
+        int z = center.getZ();
+
+        // Check if the center's column has water body on the surface
+        if (cache.isColumnWater(level, x, z)) {
             return false;
         }
-        
-        int centerY = cache.height(level, pos.getX(), pos.getZ());
+
         int halfX = size.getX() / 2;
         int halfZ = size.getZ() / 2;
-        
+
+        // Calculate the slope from the center to 4 directions (-X, +X, -Z, +Z)
         int maxSlope = RoadConstants.MAX_STRUCTURE_SLOPE;
-        int y1 = cache.height(level, pos.getX() - halfX, pos.getZ());
-        int y2 = cache.height(level, pos.getX() + halfX, pos.getZ());
-        int y3 = cache.height(level, pos.getX(), pos.getZ() - halfZ);
-        int y4 = cache.height(level, pos.getX(), pos.getZ() + halfZ);
+        int y1 = getHeight(x - halfX, z, level, cache, heightmap, useBaseHeight);
+        int y2 = getHeight(x + halfX, z, level, cache, heightmap, useBaseHeight);
+        int y3 = getHeight(x, z - halfZ, level, cache, heightmap, useBaseHeight);
+        int y4 = getHeight(x, z + halfZ, level, cache, heightmap, useBaseHeight);
+
+        //LOGGER.debug("y={} y1={} y2={} y3={} y4={}", y, y1, y2, y3, y4);
         
-        return Math.abs(y1 - centerY) <= maxSlope &&
-               Math.abs(y2 - centerY) <= maxSlope &&
-               Math.abs(y3 - centerY) <= maxSlope &&
-               Math.abs(y4 - centerY) <= maxSlope;
+        return Math.abs(y1 - y) <= maxSlope &&
+               Math.abs(y2 - y) <= maxSlope &&
+               Math.abs(y3 - y) <= maxSlope &&
+               Math.abs(y4 - y) <= maxSlope;
     }
     
     private static int getOffsetForScale(StructureScale scale, ModConfig cfg) {
@@ -270,6 +324,37 @@ public final class RoadsideStructurePrecomputer {
             case MEDIUM -> cfg.roadsideStructure().mediumStructureOffset();
             case LARGE -> cfg.roadsideStructure().largeStructureOffset();
         };
+    }
+
+    /**
+     * Calculate the terrain height of a specific coordinate.
+     * <p>
+     * When {@code useBaseHeight} is set to {@code false}, this method will use fast {@link TerrainSamplingCache#height}
+     * to sample the height on the specific coordinate, which is inaccurate and can only probe the surface height, thus
+     * {@code heightmap} is ignored in this case.
+     * <p>
+     * On the other hand, when {@code useBaseHeight} is set to true, this method will use the more accurate
+     * {@link ChunkGenerator#getBaseHeight} to sample the height, which can specify the heightmap type that needs to be
+     * sampled, but much slower compared to {@link TerrainSamplingCache#height}. In this case, parameter {@code cache}
+     * is ignored since it is no longer engaged in height calculation.
+     *
+     * @param x The X value of the coordinate being sampled.
+     * @param z The Z value of the coordinate being sampled.
+     * @param level The {@link ServerLevel} object representing the world.
+     * @param cache The {@link TerrainSamplingCache} object storing the terrain cache. Used when {@code useBaseHeight}
+     *              is {@code false}.
+     * @param heightmap The heightmap type that needs to be sampled. Used when {@code useBaseHeight} is {@code true}.
+     * @param useBaseHeight Whether to use {@link TerrainSamplingCache#height} or {@link ChunkGenerator#getBaseHeight}
+     *                      to calculate the terrain height.
+     * @return The calculated height of the coordinate.
+     */
+    private static int getHeight(int x, int z, ServerLevel level, TerrainSamplingCache cache, Heightmap.Types heightmap, boolean useBaseHeight) {
+        if (!useBaseHeight) {
+            return cache.height(level, x, z);
+        }
+
+        ServerChunkCache chunkSource = level.getChunkSource();
+        return chunkSource.getGenerator().getBaseHeight(x, z, heightmap, level, chunkSource.getGeneratorState().randomState());
     }
     
     private static Rotation calculateRotation(double dirX, double dirZ, boolean leftSide, boolean faceRoad) {
