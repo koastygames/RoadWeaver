@@ -9,11 +9,11 @@
 	},
 	"use_accurate_height": true,
 	"template": "roadweaver:roadside/small/graves/easter_egg",
-	"size_hint": [4, 4, 3],
+	"size_hint": [3, 2, 4],
 	"weight": 1,
 	"scale": "small",
 	"placement_rule": {
 		"allowed_biomes": [],
-		"min_road_length": 100
+		"min_road_length": 250
 	}
 }

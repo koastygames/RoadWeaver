@@ -14,6 +14,6 @@
 	"scale": "small",
 	"placement_rule": {
 		"allowed_biomes": [],
-		"min_road_length": 100
+		"min_road_length": 250
 	}
 }
