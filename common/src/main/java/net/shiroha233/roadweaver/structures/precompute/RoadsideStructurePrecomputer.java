@@ -149,18 +149,14 @@ public final class RoadsideStructurePrecomputer {
             boolean useBaseHeight = structure.useAccurateHeight();
 
             // Calculate baseHeight based on structure definition
-            // The original logic of targetY override is commented out, as it might mess up with the structure height
-            // and make the structure float or buried. However, the code is preserved for future use.
-            int baseHeight = /* (targetY != null && i < targetY.size()) ?
-                targetY.get(i) : */
+            int baseHeight = (targetY != null && i < targetY.size()) ?
+                targetY.get(i) :
                 getHeight(placeX, placeZ, level, cache, heightmap, useBaseHeight);
 
             int placeY = baseHeight + startHeight;
 
             // The center of the structure. Used by terrain check.
-            // Use baseHeight as Y value since the terrain check wants to compare the surface/heightmap height instead
-            // of the height after offset.
-            BlockPos center = new BlockPos(placeX, baseHeight, placeZ);
+            BlockPos center = new BlockPos(placeX, placeY, placeZ);
 
             // Calculate the structure anchor after rotation
             switch (rotation) {
@@ -292,8 +288,9 @@ public final class RoadsideStructurePrecomputer {
         boolean useBaseHeight
     ) {
         int x = center.getX();
-        int y = center.getY();
         int z = center.getZ();
+
+        int y = getHeight(x, z, level, cache, heightmap, useBaseHeight);
 
         // Check if the center's column has water body on the surface
         if (cache.isColumnWater(level, x, z)) {
