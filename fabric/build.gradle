@@ -7,6 +7,24 @@ architectury {
 	fabric()
 }
 
+loom {
+	runs {
+		client {
+			ideConfigGenerated = true
+			runDir "run/client"
+			programArgs "--username", rootProject.properties.getOrDefault('minecraft_username', 'Player1')
+		}
+
+		client2 {
+			client()
+			ideConfigGenerated = true
+			name "Fabric Client 2"
+			runDir "run/client_alt"
+			programArgs "--username", rootProject.properties.getOrDefault('minecraft_second_username', 'Player2')
+		}
+	}
+}
+
 configurations {
 	common
 	shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
