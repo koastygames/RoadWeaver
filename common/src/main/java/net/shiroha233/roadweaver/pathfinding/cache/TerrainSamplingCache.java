@@ -17,6 +17,7 @@ public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Holder<Biome>> biomeCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Boolean> accurateChunkHints = new ConcurrentHashMap<>();
 
     private volatile FastHeightSampler fastSampler;
     private volatile AccurateHeightSampler accurateSampler;
@@ -24,6 +25,10 @@ public final class TerrainSamplingCache {
 
     private static long hashXZ(int x, int z) {
         return ((long) x << 32) | (z & 0xffffffffL);
+    }
+
+    private static long chunkKey(int chunkX, int chunkZ) {
+        return ((long) chunkX << 32) | (chunkZ & 0xffffffffL);
     }
 
     public int height(ServerLevel level, int x, int z) {
@@ -35,7 +40,7 @@ public final class TerrainSamplingCache {
         }
         TerrainSamplingStats.recordCacheMiss();
         int h;
-        if (highPrecisionMode) {
+        if (highPrecisionMode && shouldUseAccurate(x, z)) {
             ensureAccurateSampler(level);
             h = accurateSampler.surfaceHeight(x, z);
         } else {
@@ -72,7 +77,7 @@ public final class TerrainSamplingCache {
         }
         TerrainSamplingStats.recordCacheMiss();
         int h;
-        if (highPrecisionMode) {
+        if (highPrecisionMode && shouldUseAccurate(x, z)) {
             ensureAccurateSampler(level);
             h = accurateSampler.oceanFloorWg(x, z);
         } else {
@@ -157,10 +162,45 @@ public final class TerrainSamplingCache {
         this.highPrecisionMode = false;
         heightCache.clear();
         oceanFloorCache.clear();
+        accurateChunkHints.clear();
     }
 
     public boolean isHighPrecisionMode() {
         return highPrecisionMode;
+    }
+
+    public AccurateHeightSampler getAccurateSampler(ServerLevel level) {
+        ensureAccurateSampler(level);
+        return accurateSampler;
+    }
+
+    public void clearAccurateCorridor() {
+        accurateChunkHints.clear();
+    }
+
+    public void markAccurateChunk(int chunkX, int chunkZ, int radiusChunks) {
+        int radius = Math.max(0, radiusChunks);
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                accurateChunkHints.put(chunkKey(chunkX + dx, chunkZ + dz), Boolean.TRUE);
+            }
+        }
+    }
+
+    public void markAccurateBlock(int x, int z, int radiusChunks) {
+        markAccurateChunk(x >> 4, z >> 4, radiusChunks);
+    }
+
+    public void markAccurateLine(int startX, int startZ, int endX, int endZ, int radiusChunks, int stepBlocks) {
+        int distance = Math.max(Math.abs(endX - startX), Math.abs(endZ - startZ));
+        int step = Math.max(1, stepBlocks);
+        int samples = Math.max(1, (distance + step - 1) / step);
+        for (int i = 0; i <= samples; i++) {
+            double t = (double) i / samples;
+            int x = (int) Math.round(startX + (endX - startX) * t);
+            int z = (int) Math.round(startZ + (endZ - startZ) * t);
+            markAccurateBlock(x, z, radiusChunks);
+        }
     }
 
     public void clear() {
@@ -170,8 +210,16 @@ public final class TerrainSamplingCache {
         heightCache.clear();
         oceanFloorCache.clear();
         biomeCache.clear();
+        accurateChunkHints.clear();
         if (fastSampler != null) fastSampler.clearCache();
         if (accurateSampler != null) accurateSampler.clear();
+    }
+
+    private boolean shouldUseAccurate(int x, int z) {
+        if (accurateChunkHints.isEmpty()) {
+            return true;
+        }
+        return accurateChunkHints.containsKey(chunkKey(x >> 4, z >> 4));
     }
 
     private void ensureFastSampler(ServerLevel level) {

@@ -41,21 +41,28 @@ public final class RoadPathCalculator {
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
         boolean accurateSampling = pathCfg.isAccurateSampling();
-        if (accurateSampling) {
-            cache.enableHighPrecision(level);
-        }
+        cache.clearAccurateCorridor();
 
         try {
             BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
             BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
-            if (pathCfg.hierarchicalPathfindingEnabled()) {
+            if (accurateSampling || pathCfg.hierarchicalPathfindingEnabled()) {
+                int prewarmSteps = pathCfg.hierarchicalPathfindingEnabled()
+                        ? Math.max(500, maxSteps / 4)
+                        : Math.max(128, maxSteps / 12);
                 TerrainCachePrewarmer.prewarmAlongRoute(
                         startGround,
                         endGround,
                         level,
-                        Math.max(500, maxSteps / 4),
+                        prewarmSteps,
                         cache);
+            }
+
+            if (accurateSampling) {
+                cache.enableHighPrecision(level);
+                startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
+                endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
             }
 
             return calculateDirect(startGround, endGround, width, level, maxSteps, cache, pathCfg);
@@ -63,6 +70,7 @@ public final class RoadPathCalculator {
             if (accurateSampling) {
                 cache.disableHighPrecision();
             }
+            cache.clearAccurateCorridor();
         }
     }
 
@@ -159,7 +167,7 @@ public final class RoadPathCalculator {
             centers.add(seg.middlePos());
         }
 
-        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
 
         int minWaterDepth = bridgeMinWaterDepth;
         int sea = level.getSeaLevel();

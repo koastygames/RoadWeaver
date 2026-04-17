@@ -171,7 +171,7 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
         cur = backStart;
         while (cur != null) { rawPath.add(cur.pos); cur = cur.parent; }
 
-        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         if (needsRefinement) {
             rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
         }

@@ -148,7 +148,7 @@ public final class GradientDescentPathfinder implements Pathfinder {
         Node c = endNode;
         while (c != null) { rawPath.add(c.pos); c = c.parent; }
         Collections.reverse(rawPath);
-        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         if (needsRefinement) {
             rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
         }

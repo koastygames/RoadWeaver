@@ -211,7 +211,7 @@ public final class HighwayBidirectionalAStarPathfinder {
             cur = cur.parent;
         }
 
-        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         PathfindingCostConfig costCfg = cfg.pathfindingCost();
         boolean needsRefinement = costCfg == null || costCfg.needsRefinement();
         if (needsRefinement) {

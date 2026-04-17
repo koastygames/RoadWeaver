@@ -36,21 +36,28 @@ public final class HighwayPathCalculator {
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
         boolean accurateSampling = cfg.pathfindingCost() != null && cfg.pathfindingCost().isAccurateSampling();
-        if (accurateSampling) {
-            cache.enableHighPrecision(level);
-        }
+        cache.clearAccurateCorridor();
 
         try {
             BlockPos startGround = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
             BlockPos endGround = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
 
-            if (cfg.hierarchicalPathfindingEnabled()) {
+            if (accurateSampling || cfg.hierarchicalPathfindingEnabled()) {
+                int prewarmSteps = cfg.hierarchicalPathfindingEnabled()
+                        ? Math.max(500, maxSteps / 4)
+                        : Math.max(128, maxSteps / 12);
                 TerrainCachePrewarmer.prewarmAlongRoute(
                         startGround,
                         endGround,
                         level,
-                        Math.max(500, maxSteps / 4),
+                        prewarmSteps,
                         cache);
+            }
+
+            if (accurateSampling) {
+                cache.enableHighPrecision(level);
+                startGround = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
+                endGround = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
             }
 
             return HighwayBidirectionalAStarPathfinder.calculateLandPath(
@@ -65,6 +72,7 @@ public final class HighwayPathCalculator {
             if (accurateSampling) {
                 cache.disableHighPrecision();
             }
+            cache.clearAccurateCorridor();
         }
     }
 

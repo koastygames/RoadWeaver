@@ -44,7 +44,9 @@ public final class PathPostProcessor {
             rawTargetY[i] = rawPath.get(i).getY();
         }
 
-        AccurateHeightSampler sampler = accurate != null ? accurate : AccurateHeightSampler.create(level);
+        AccurateHeightSampler sampler = accurate != null
+                ? accurate
+                : (cache != null ? cache.getAccurateSampler(level) : AccurateHeightSampler.create(level));
 
         List<BlockPos> simplified = simplifyPath(rawPath);
         boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, bridgeMinWaterDepth, sampler);
