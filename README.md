@@ -13,7 +13,7 @@ A Minecraft mod that automatically generates beautiful roads between villages or
 ### 1. Smart Road Generation
 
 - **Intelligent Pathfinding**: Multiple pathfinding algorithms that avoid steep and dangerous areas; adjusts routes based on terrain height, biomes, and ground stability
-- **Bezier Curves**: Applies Bezier curve smoothing to polyline paths, creating natural smooth curves and avoiding sharp turns
+- **Bézier curves**: Applies Bézier curve smoothing to polyline paths, creating natural smooth curves and avoiding sharp turns
 - **Multiple Road Types**:
   - Artificial roads: (stone bricks, slabs), (dirt, mud bricks), etc., or customize your own in the preset editor
   - Natural roads: Biome-adaptive road materials
