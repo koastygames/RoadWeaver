@@ -11,7 +11,6 @@ import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.features.longdrive.config.LongDriveGenerationConfig;
 import net.shiroha233.roadweaver.features.longdrive.pathfinding.GreedyForwardPathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathResult;
-import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
@@ -60,11 +59,6 @@ public final class LongDriveRoad {
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
             // 长途模式使用精准采样，避免快速采样导致的地形/水深误判
-            int step = Math.max(1, genConfig.pathfindingCost().effectiveAStarStep());
-            int corridorLength = Math.max(step, maxSteps * step);
-            int corridorEndX = start.getX() + (int) Math.round(dirX * corridorLength);
-            int corridorEndZ = start.getZ() + (int) Math.round(dirZ * corridorLength);
-            cache.markAccurateLine(start.getX(), start.getZ(), corridorEndX, corridorEndZ, 1, Math.max(32, step * 2));
             cache.enableHighPrecision(level);
             GreedyForwardPathfinder pathfinder = new GreedyForwardPathfinder();
             PathResult result = pathfinder.findPath(
@@ -76,9 +70,8 @@ public final class LongDriveRoad {
             List<BlockPos> rawPath = result.segments().stream()
                     .map(RoadSegmentPlacement::middlePos)
                     .toList();
-            AccurateHeightSampler accurate = cache.getAccurateSampler(level);
             List<RoadSegmentPlacement> segments = PathPostProcessor.process(
-                    rawPath, width, level, cache, genConfig.bridgeMinWaterDepth(), accurate);
+                    rawPath, width, level, cache, genConfig.bridgeMinWaterDepth());
 
             if (segments == null || segments.size() < 3) return null;
 
@@ -97,7 +90,6 @@ public final class LongDriveRoad {
             LOGGER.warn("LongDriveRoad: generation failed from {}", start, t);
             return null;
         } finally {
-            cache.clearAccurateCorridor();
             cache.clear();
         }
     }

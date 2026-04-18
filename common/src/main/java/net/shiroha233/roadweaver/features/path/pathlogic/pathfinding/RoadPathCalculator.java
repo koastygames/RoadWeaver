@@ -41,28 +41,21 @@ public final class RoadPathCalculator {
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
         boolean accurateSampling = pathCfg.isAccurateSampling();
-        cache.clearAccurateCorridor();
+        if (accurateSampling) {
+            cache.enableHighPrecision(level);
+        }
 
         try {
             BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
             BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
-            if (accurateSampling || pathCfg.hierarchicalPathfindingEnabled()) {
-                int prewarmSteps = pathCfg.hierarchicalPathfindingEnabled()
-                        ? Math.max(500, maxSteps / 4)
-                        : Math.max(128, maxSteps / 12);
+            if (pathCfg.hierarchicalPathfindingEnabled()) {
                 TerrainCachePrewarmer.prewarmAlongRoute(
                         startGround,
                         endGround,
                         level,
-                        prewarmSteps,
+                        Math.max(500, maxSteps / 4),
                         cache);
-            }
-
-            if (accurateSampling) {
-                cache.enableHighPrecision(level);
-                startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
-                endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
             }
 
             return calculateDirect(startGround, endGround, width, level, maxSteps, cache, pathCfg);
@@ -70,7 +63,6 @@ public final class RoadPathCalculator {
             if (accurateSampling) {
                 cache.disableHighPrecision();
             }
-            cache.clearAccurateCorridor();
         }
     }
 

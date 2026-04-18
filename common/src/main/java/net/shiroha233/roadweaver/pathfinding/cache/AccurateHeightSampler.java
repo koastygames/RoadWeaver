@@ -5,7 +5,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
-import net.minecraft.world.level.levelgen.RandomState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class AccurateHeightSampler {
     private final ServerLevel level;
     private final ChunkGenerator generator;
-    private final DirectColumnHeightSampler directSampler;
     private final NoiseChunkHeightSampler noiseChunkSampler;
 
     private final ConcurrentHashMap<Long, Integer> motionBlockingCache = new ConcurrentHashMap<>();
@@ -30,28 +28,25 @@ public final class AccurateHeightSampler {
 
     private AccurateHeightSampler(ServerLevel level,
                                   ChunkGenerator generator,
-                                  DirectColumnHeightSampler directSampler,
                                   NoiseChunkHeightSampler noiseChunkSampler) {
         this.level = level;
         this.generator = generator;
-        this.directSampler = directSampler;
         this.noiseChunkSampler = noiseChunkSampler;
     }
 
     public static AccurateHeightSampler create(ServerLevel level) {
         var chunkSource = level.getChunkSource();
         ChunkGenerator generator = chunkSource.getGenerator();
-        RandomState randomState = chunkSource.getGeneratorState().randomState();
-        DirectColumnHeightSampler directSampler = null;
         NoiseChunkHeightSampler noiseChunkSampler = null;
         if (generator instanceof NoiseBasedChunkGenerator noiseGenerator) {
-            directSampler = DirectColumnHeightSampler.create(level, noiseGenerator, randomState);
-            noiseChunkSampler = NoiseChunkHeightSampler.create(level, noiseGenerator, randomState);
+            noiseChunkSampler = NoiseChunkHeightSampler.create(
+                    level,
+                    noiseGenerator,
+                    chunkSource.getGeneratorState().randomState());
         }
         return new AccurateHeightSampler(
                 level,
                 generator,
-                directSampler,
                 noiseChunkSampler);
     }
 
@@ -83,14 +78,7 @@ public final class AccurateHeightSampler {
         }
         AccurateSamplingStats.recordCacheMiss();
         int h;
-        if (directSampler != null) {
-            h = switch (type) {
-                case MOTION_BLOCKING_NO_LEAVES -> directSampler.motionBlockingNoLeaves(x, z);
-                case WORLD_SURFACE_WG -> directSampler.worldSurfaceWg(x, z);
-                case OCEAN_FLOOR_WG -> directSampler.oceanFloorWg(x, z);
-                default -> generator.getBaseHeight(x, z, type, level, level.getChunkSource().getGeneratorState().randomState());
-            };
-        } else if (noiseChunkSampler != null) {
+        if (noiseChunkSampler != null) {
             h = switch (type) {
                 case MOTION_BLOCKING_NO_LEAVES -> noiseChunkSampler.motionBlockingNoLeaves(x, z);
                 case WORLD_SURFACE_WG -> noiseChunkSampler.worldSurfaceWg(x, z);
@@ -108,9 +96,6 @@ public final class AccurateHeightSampler {
         motionBlockingCache.clear();
         worldSurfaceCache.clear();
         oceanFloorCache.clear();
-        if (directSampler != null) {
-            directSampler.clear();
-        }
         if (noiseChunkSampler != null) {
             noiseChunkSampler.clear();
         }

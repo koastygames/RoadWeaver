@@ -12,7 +12,6 @@ public final class TerrainCachePrewarmer {
     private TerrainCachePrewarmer() {}
 
     private static final int COARSE_STEP = 64;
-    private static final int ACCURATE_CORRIDOR_RADIUS_CHUNKS = 1;
 
     public static void prewarmAlongRoute(BlockPos startGround, BlockPos endGround,
                                          ServerLevel level, int maxSteps,
@@ -27,12 +26,8 @@ public final class TerrainCachePrewarmer {
         int d = COARSE_STEP;
         BlockPos start = new BlockPos(snapToGrid(startGround.getX(), d), 0, snapToGrid(startGround.getZ(), d));
         BlockPos end = new BlockPos(snapToGrid(endGround.getX(), d), 0, snapToGrid(endGround.getZ(), d));
-        cache.markAccurateLine(start.getX(), start.getZ(), end.getX(), end.getZ(),
-                ACCURATE_CORRIDOR_RADIUS_CHUNKS, d);
         BlockPos startG = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
         BlockPos endG = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
-        cache.markAccurateBlock(startG.getX(), startG.getZ(), ACCURATE_CORRIDOR_RADIUS_CHUNKS);
-        cache.markAccurateBlock(endG.getX(), endG.getZ(), ACCURATE_CORRIDOR_RADIUS_CHUNKS);
 
         PriorityQueue<CoarseNode> open = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<Long, CoarseNode> best = new HashMap<>();
@@ -53,7 +48,6 @@ public final class TerrainCachePrewarmer {
             if (cur == null) break;
             long ck = posKey2d(cur.pos);
             if (!closed.add(ck)) continue;
-            cache.markAccurateBlock(cur.pos.getX(), cur.pos.getZ(), ACCURATE_CORRIDOR_RADIUS_CHUNKS);
 
             if (manhattan2d(cur.pos, endG) < d * 2) return;
 
@@ -78,7 +72,6 @@ public final class TerrainCachePrewarmer {
                     CoarseNode nxt = new CoarseNode(np, cur, g, f);
                     best.put(nk, nxt);
                     open.add(nxt);
-                    cache.markAccurateBlock(nx, nz, ACCURATE_CORRIDOR_RADIUS_CHUNKS);
                 }
             }
         }
