@@ -15,46 +15,17 @@ import java.util.function.Consumer;
 /**
  * 维度列表组件
  */
-public class DimensionListWidget extends ContainerObjectSelectionList<DimensionListWidget.Entry> {
+public class DimensionListWidget extends RoadWeaverSelectionList<DimensionListWidget.Entry> {
     private static final int ROW_HEIGHT = 22;
-    private static final int BG_COLOR = 0xAA0A0A0A;
     private static final int ACTIVE_BG = 0xFF3A3A3A;
     private static final int HOVER_BG = 0xAA2A2A2A;
     
     private final Consumer<ResourceLocation> onSelect;
-    private boolean renderBackground = true;
-    private boolean renderTopAndBottom = true;
 
     public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<ResourceLocation> onSelect) {
-        super(minecraft, width, height, top, top + height);
+        super(minecraft, width, height, top, ROW_HEIGHT, 20);
         this.onSelect = onSelect;
-    }
-
-    @Override
-    protected void renderListBackground(GuiGraphics graphics) {
-        if (!renderBackground) {
-            return;
-        }
-        graphics.fill(getX(), getY(), getRight(), getBottom(), BG_COLOR);
-    }
-
-    @Override
-    protected void renderListSeparators(GuiGraphics graphics) {
-        if (renderTopAndBottom) {
-            super.renderListSeparators(graphics);
-        }
-    }
-
-    public void setLeftPos(int left) {
-        setX(left);
-    }
-
-    public void setRenderBackground(boolean renderBackground) {
-        this.renderBackground = renderBackground;
-    }
-
-    public void setRenderTopAndBottom(boolean renderTopAndBottom) {
-        this.renderTopAndBottom = renderTopAndBottom;
+        setBackgroundColor(0xAA0A0A0A);
     }
 
     public void setRows(List<Row> rows, ResourceLocation active) {
@@ -66,16 +37,6 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
 
     public void clearRows() {
         super.clearEntries();
-    }
-
-    @Override
-    public int getRowWidth() {
-        return width - 20;
-    }
-
-    @Override
-    protected int getScrollbarPosition() {
-        return getRowLeft() + getRowWidth() + 6;
     }
 
     public record Row(ResourceLocation dimensionId, Component title, Component subtitle) {}

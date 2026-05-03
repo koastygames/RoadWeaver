@@ -9,9 +9,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraft.world.level.levelgen.presets.WorldPreset;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import org.spongepowered.asm.mixin.Final;
@@ -20,9 +18,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
-import java.util.Optional;
-import java.util.OptionalLong;
 
 /**
  * Mixin 用于在创建世界界面初始化时获取 RegistryAccess 并发现结构
@@ -42,20 +37,12 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
     }
 
     /**
-     * 在 CreateWorldScreen 构造函数返回时注入，获取 RegistryAccess 并发现结构
-     * 
-     * 1.20.1 构造函数签名：
-     * private CreateWorldScreen(Minecraft, Screen, WorldCreationContext, Optional<ResourceKey<WorldPreset>>, OptionalLong)
+     * 在 CreateWorldScreen 初始化完成后注入，避免 1.21.1 构造器签名变化导致注入失效。
      */
-    @Inject(method = "<init>(Lnet/minecraft/client/Minecraft;Lnet/minecraft/client/gui/screens/Screen;Lnet/minecraft/client/gui/screens/worldselection/WorldCreationContext;Ljava/util/Optional;Ljava/util/OptionalLong;)V", at = @At("RETURN"))
-    private void onInitEnd(
-            Minecraft minecraft, Screen screen, WorldCreationContext worldCreationContext,
-            Optional<ResourceKey<WorldPreset>> optional, OptionalLong optionalLong, CallbackInfo ci
-    ) {
-        // 从 WorldCreationContext 获取 RegistryAccess 并发现结构
+    @Inject(method = "init", at = @At("TAIL"))
+    private void onInitEnd(CallbackInfo ci) {
         try {
-            // 优先使用构造函数参数，避免某些阶段 uiState.getSettings() 尚未就绪。
-            WorldCreationContext settings = (worldCreationContext != null) ? worldCreationContext : uiState.getSettings();
+            WorldCreationContext settings = uiState != null ? uiState.getSettings() : null;
             if (settings != null) {
                 RegistryAccess.Frozen registryAccess = settings.worldgenLoadContext();
                 if (registryAccess == null) return;

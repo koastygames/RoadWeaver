@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
+import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.config.structure.StructureEntry;
@@ -48,6 +49,8 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
 
     @Override
     protected void init() {
+        StructureDiscoveryService.tryDiscoverFromCurrentContext();
+
         searchBox = new EditBox(font, width / 2 - 100, 22, 200, 18,
                 Component.translatable("config.roadweaver.structure_selection.search"));
         searchBox.setHint(Component.translatable("config.roadweaver.structure_selection.search.hint"));
@@ -68,6 +71,8 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         int listTop = HEADER_HEIGHT;
         int listBottom = height - FOOTER_HEIGHT;
         listWidget = new StructureListWidget(minecraft, width, listBottom - listTop, listTop);
+        listWidget.setRenderBackground(false);
+        listWidget.setRenderTopAndBottom(false);
         addRenderableWidget(listWidget);
         rebuildList();
 
@@ -289,6 +294,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
 
     private boolean matchesDimension(StructureEntry entry) {
         if (currentDimension == null) return true;
+        if (entry.dimensions().isEmpty()) return true;
         return entry.dimensions().contains(currentDimension);
     }
 
@@ -309,12 +315,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     }
 
     private Component getDimensionDisplayName(ResourceLocation dimId) {
-        String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
-        Component translated = Component.translatable(key);
-        if (!Objects.equals(translated.getString(), key)) {
-            return translated;
-        }
-        return Component.literal(dimId.toString());
+        return DimensionUiHelper.getDisplayName(dimId);
     }
 
     private void toggleDimensionDropdown() {
@@ -329,17 +330,9 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
         if (result == null || dimensionButton == null) return;
 
-        List<DimensionListWidget.Row> rows = new ArrayList<>();
-        rows.add(new DimensionListWidget.Row(null,
-                Component.translatable("config.roadweaver.structure_selection.dimension.all"),
-                null));
-
-        for (ResourceLocation dimId : result.dimensions()) {
-            Component title = getDimensionDisplayName(dimId);
-            Component subtitle = Component.literal(dimId.toString());
-            rows.add(new DimensionListWidget.Row(dimId, title,
-                    !Objects.equals(title.getString(), subtitle.getString()) ? subtitle : null));
-        }
+        List<DimensionListWidget.Row> rows = DimensionUiHelper.buildRows(
+                DimensionUiHelper.collectDimensions(result, List.of()),
+                true);
 
         int top = dimensionButton.getY() + dimensionButton.getHeight() + 2;
         int maxH = Math.max(height - FOOTER_HEIGHT - top - 4, 44);
@@ -550,8 +543,10 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         ScreenBackgrounds.render(graphics, this.width, this.height);
+        RoadWeaverUi.drawPanel(graphics, width / 2 - 116, 18, 232, 50);
+        RoadWeaverUi.drawPanel(graphics, 8, HEADER_HEIGHT - 4, width - 16, height - HEADER_HEIGHT - FOOTER_HEIGHT + 8);
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, width / 2, 8, 0xFFFFFF);
+        RoadWeaverUi.drawScreenHeader(graphics, font, width, title, null);
     }
 
     @Override

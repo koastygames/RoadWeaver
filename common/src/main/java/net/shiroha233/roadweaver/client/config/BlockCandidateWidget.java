@@ -24,6 +24,7 @@ import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
 
 import java.util.ArrayList;
@@ -161,6 +162,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        RoadWeaverUi.drawPanel(g, x - 4, y - 4, width + 8, height + 8);
         this.searchBox.render(g, mouseX, mouseY, partialTick);
 
         int startY = y + 20;
@@ -178,7 +180,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
             int bx = x + c * SLOT_SIZE;
             int by = startY + r * SLOT_SIZE;
             
-            g.fill(bx, by, bx + SLOT_SIZE, by + SLOT_SIZE, 0x80000000);
+            g.fill(bx, by, bx + SLOT_SIZE, by + SLOT_SIZE, 0x920F1318);
             
             Block b = filteredBlocks.get(i);
             ItemStack stack = new ItemStack(b);
@@ -186,6 +188,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
             
             if (mouseX >= bx && mouseX < bx + SLOT_SIZE && mouseY >= by && mouseY < by + SLOT_SIZE) {
                 g.fill(bx, by, bx + SLOT_SIZE, by + SLOT_SIZE, 0x80FFFFFF);
+                g.renderOutline(bx, by, SLOT_SIZE, SLOT_SIZE, 0xFFC8D2DE);
                 SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
             }
         }
@@ -195,8 +198,8 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
             int thumbHeight = getThumbHeight(maxOffset);
             int thumbY = getThumbY(maxOffset, thumbHeight);
             int barX = x + width - SCROLLBAR_WIDTH;
-            g.fill(barX, startY, barX + SCROLLBAR_WIDTH, startY + barHeight, 0x40000000);
-            g.fill(barX, thumbY, barX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFFFFFFF);
+            g.fill(barX, startY, barX + SCROLLBAR_WIDTH, startY + barHeight, 0x600A0C10);
+            g.fill(barX, thumbY, barX + SCROLLBAR_WIDTH, thumbY + thumbHeight, 0xFFD6DEE8);
         }
     }
 

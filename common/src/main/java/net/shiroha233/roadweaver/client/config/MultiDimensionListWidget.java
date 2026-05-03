@@ -15,19 +15,18 @@ import java.util.Set;
 /**
  * 多维度选择列表组件
  */
-public class MultiDimensionListWidget extends ContainerObjectSelectionList<MultiDimensionListWidget.Entry> {
-    private static final int ROW_HEIGHT = 20;
+public class MultiDimensionListWidget extends RoadWeaverSelectionList<MultiDimensionListWidget.DimensionEntry> {
+    private static final int ROW_HEIGHT = 30;
     
     private final Set<ResourceLocation> selectedDimensions;
     private boolean active = true;
-    private boolean renderBackground = true;
-    private boolean renderTopAndBottom = true;
 
-    public MultiDimensionListWidget(Minecraft minecraft, int width, int height, int top, int bottom, Set<ResourceLocation> selectedDimensions) {
-        super(minecraft, width, height, top, bottom);
+    public MultiDimensionListWidget(Minecraft minecraft, int width, int height, int top, Set<ResourceLocation> selectedDimensions) {
+        super(minecraft, width, height, top, ROW_HEIGHT, 20);
         this.selectedDimensions = selectedDimensions;
-        this.setRenderBackground(false);
-        this.setRenderTopAndBottom(false);
+        setBackgroundColor(0xAA14181D);
+        setRenderBackground(false);
+        setRenderTopAndBottom(false);
     }
 
     public void setActive(boolean active) {
@@ -39,67 +38,43 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
     }
 
     public void setDimensions(List<ResourceLocation> allDimensions) {
-        this.clearEntries();
+        super.clearEntries();
         for (ResourceLocation dim : allDimensions) {
-            this.addEntry(new Entry(dim));
+            this.addEntry(new DimensionEntry(dim));
         }
     }
 
-    @Override
-    public int getRowWidth() {
-        return this.width - 20;
-    }
-
-    @Override
-    protected int getScrollbarPosition() {
-        return this.getRowLeft() + this.getRowWidth() + 6;
-    }
-
-    @Override
-    protected void renderListBackground(GuiGraphics graphics) {
-        if (renderBackground) {
-            super.renderListBackground(graphics);
-        }
-    }
-
-    @Override
-    protected void renderListSeparators(GuiGraphics graphics) {
-        if (renderTopAndBottom) {
-            super.renderListSeparators(graphics);
-        }
-    }
-
-    public void setLeftPos(int left) {
-        setX(left);
-    }
-
-    public void setRenderBackground(boolean renderBackground) {
-        this.renderBackground = renderBackground;
-    }
-
-    public void setRenderTopAndBottom(boolean renderTopAndBottom) {
-        this.renderTopAndBottom = renderTopAndBottom;
-    }
-
-    public class Entry extends ContainerObjectSelectionList.Entry<Entry> {
+    public class DimensionEntry extends ContainerObjectSelectionList.Entry<DimensionEntry> {
         private final ResourceLocation dimensionId;
 
-        public Entry(ResourceLocation dimensionId) {
+        public DimensionEntry(ResourceLocation dimensionId) {
             this.dimensionId = dimensionId;
         }
 
         @Override
         public void render(GuiGraphics g, int index, int top, int left, int width, int height, int mouseX, int mouseY, boolean isHovered, float partialTick) {
             boolean selected = selectedDimensions.contains(dimensionId);
+            if (selected) {
+                g.fill(left, top, left + width, top + height, 0xD2333C47);
+                g.renderOutline(left, top, width, height, 0xFFCDD7E4);
+            } else if (isHovered) {
+                g.fill(left, top, left + width, top + height, 0xAA222830);
+            }
             
-            g.fill(left + 2, top + 2, left + 14, top + 14, 0xFF000000);
-            g.renderOutline(left + 2, top + 2, 12, 12, 0xFFAAAAAA);
+            g.fill(left + 4, top + 8, left + 16, top + 20, 0xFF000000);
+            g.renderOutline(left + 4, top + 8, 12, 12, 0xFFAAB2BE);
             
             if (selected) {
-                g.drawCenteredString(Minecraft.getInstance().font, "x", left + 8, top + 2, 0xFF55FF55);
+                g.drawCenteredString(Minecraft.getInstance().font, "x", left + 10, top + 8, 0xFF55FF55);
             }
 
-            g.drawString(Minecraft.getInstance().font, dimensionId.toString(), left + 20, top + 4, 0xFFFFFF, false);
+            Minecraft mc = Minecraft.getInstance();
+            String title = DimensionUiHelper.getDisplayName(dimensionId).getString();
+            String subtitle = dimensionId.toString();
+            g.drawString(mc.font, mc.font.plainSubstrByWidth(title, Math.max(10, width - 40)), left + 24, top + 5, 0xFFFFFF, false);
+            if (!title.equals(subtitle)) {
+                g.drawString(mc.font, mc.font.plainSubstrByWidth(subtitle, Math.max(10, width - 40)), left + 24, top + 16, 0x98A3AF, false);
+            }
         }
 
         @Override

@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.client.render.SafeGuiItemRenderer;
 
 import java.util.ArrayList;
@@ -57,12 +58,13 @@ public class MaterialGridWidget extends AbstractWidget {
 
     @Override
     public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.drawString(Minecraft.getInstance().font, this.label, this.getX(), this.getY(), isTarget ? 0xFFFF00 : 0xFFFFFF, false);
+        RoadWeaverUi.drawPanel(g, this.getX() - 4, this.getY() - 4, this.width + 8, this.height + 8);
+        g.drawString(Minecraft.getInstance().font, this.label, this.getX(), this.getY(), isTarget ? 0xFFF4E58A : 0xFFFFFF, false);
 
         int gridY = this.getY() + LABEL_HEIGHT;
         int index = 0;
-        int bgColor = isTarget ? 0xC0000000 : 0x80000000;
-        int borderColor = isTarget ? 0xFFFFFF00 : 0xFF888888;
+        int bgColor = isTarget ? 0xC014171C : 0x920F1318;
+        int borderColor = isTarget ? 0xFFF4E58A : 0xFFA4AFBC;
 
         g.fill(this.getX() - 1, gridY - 1, this.getX() + width + 1, gridY + rows * SLOT_SIZE + 1, borderColor);
         
@@ -77,12 +79,13 @@ public class MaterialGridWidget extends AbstractWidget {
                     Block b = blockFromId(materialIds.get(index));
                     if (b != null && b != Blocks.AIR) {
                         ItemStack stack = new ItemStack(b);
-                        SafeGuiItemRenderer.renderFakeItemSafe(g, stack, x + 1, y + 1);
-                        
-                        if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
-                             g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0x80FFFFFF);
-                             SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
-                        }
+                         SafeGuiItemRenderer.renderFakeItemSafe(g, stack, x + 1, y + 1);
+                         
+                         if (mouseX >= x && mouseX < x + SLOT_SIZE && mouseY >= y && mouseY < y + SLOT_SIZE) {
+                              g.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0x80FFFFFF);
+                              g.renderOutline(x, y, SLOT_SIZE, SLOT_SIZE, 0xFFC8D2DE);
+                              SafeGuiItemRenderer.renderTooltipSafe(g, Minecraft.getInstance().font, stack, mouseX, mouseY);
+                         }
                     }
                 }
                 index++;

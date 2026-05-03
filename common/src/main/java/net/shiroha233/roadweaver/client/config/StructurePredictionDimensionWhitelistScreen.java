@@ -8,9 +8,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
+import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -26,6 +26,7 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
     private final Screen parent;
     private final Set<ResourceLocation> selected = new LinkedHashSet<>();
     private final List<ResourceLocation> allDimensions = new ArrayList<>();
+    private MultiDimensionListWidget dimensionListWidget;
     
     private Button doneButton;
     private Button cancelButton;
@@ -50,26 +51,17 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
             }
         }
 
-        StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        if (result != null && result.dimensions() != null) {
-            allDimensions.addAll(result.dimensions());
-        }
-
-        addFallbackDimension("minecraft:overworld");
-        addFallbackDimension("minecraft:the_nether");
-        addFallbackDimension("minecraft:the_end");
-
-        for (ResourceLocation rl : selected) {
-            if (!allDimensions.contains(rl)) {
-                allDimensions.add(rl);
-            }
-        }
+        allDimensions.addAll(DimensionUiHelper.collectDimensions(DimensionUiHelper.getLatestDiscoveryResult(), selected));
 
         int top = 32;
         int bottom = this.height - 44;
 
-        MultiDimensionListWidget list = new MultiDimensionListWidget(Minecraft.getInstance(), this.width, bottom - top, top, bottom, selected);
+        MultiDimensionListWidget list = new MultiDimensionListWidget(Minecraft.getInstance(), this.width - 24, bottom - top, top, selected);
+        list.setLeftPos(12);
+        list.setRenderBackground(false);
+        list.setRenderTopAndBottom(false);
         list.setDimensions(allDimensions);
+        dimensionListWidget = list;
         addRenderableWidget(list);
 
         int btnY = this.height - 28;
@@ -85,14 +77,6 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
 
         addRenderableWidget(cancelButton);
         addRenderableWidget(doneButton);
-    }
-
-    private void addFallbackDimension(String id) {
-        ResourceLocation rl = ResourceLocation.tryParse(id);
-        if (rl == null) return;
-        if (!allDimensions.contains(rl)) {
-            allDimensions.add(rl);
-        }
     }
 
     private void onCancel() {
@@ -121,10 +105,9 @@ public class StructurePredictionDimensionWhitelistScreen extends RoadWeaverScree
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         ScreenBackgrounds.render(g, this.width, this.height);
-        g.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
-        g.drawCenteredString(this.font,
-                Component.translatable("config.roadweaver.structure_prediction_dimension_whitelist.subtitle"),
-                this.width / 2, 22, 0xAAAAAA);
+        RoadWeaverUi.drawPanel(g, 8, 30, this.width - 16, this.height - 76);
+        RoadWeaverUi.drawScreenHeader(g, this.font, this.width, this.title,
+                Component.translatable("config.roadweaver.structure_prediction_dimension_whitelist.subtitle"));
         super.render(g, mouseX, mouseY, partialTick);
     }
 

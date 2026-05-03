@@ -11,8 +11,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
+import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.config.PresetService;
-import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -47,6 +47,18 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     private int editorLeft;
     private int editorWidth;
     private int editorHeaderY;
+    private int leftPanelX;
+    private int leftPanelY;
+    private int leftPanelWidth;
+    private int leftPanelHeight;
+    private int editorPanelX;
+    private int editorPanelY;
+    private int editorPanelWidth;
+    private int editorPanelHeight;
+    private int candidatePanelX;
+    private int candidatePanelY;
+    private int candidatePanelWidth;
+    private int candidatePanelHeight;
     
     private final List<UiPreset> presets = new ArrayList<>();
     private final Set<String> originalIds = new HashSet<>();
@@ -93,7 +105,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
 
         int listTop = this.nameBox.getY() + this.nameBox.getHeight() + 4;
         int listHeight = bottomY - listTop - 26;
-        this.presetList = new PresetListWidget(minecraft, leftPanelW, listHeight, listTop, bottomY - 26, this::selectPresetEntry);
+        this.presetList = new PresetListWidget(minecraft, leftPanelW, listHeight, listTop, this::selectPresetEntry);
         this.presetList.setLeftPos(leftPanelX);
         this.addRenderableWidget(presetList);
         
@@ -124,6 +136,19 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         int contentH = bottomY - topBarY - 4;
         this.blockCandidateWidget = new BlockCandidateWidget(candidateX, topBarY, candidateW, contentH, this::onBlockSelectedFromCandidate);
         this.addRenderableWidget(blockCandidateWidget);
+
+        this.leftPanelX = leftPanelX - 4;
+        this.leftPanelY = topBarY - 4;
+        this.leftPanelWidth = leftPanelW + 8;
+        this.leftPanelHeight = contentH + 8;
+        this.editorPanelX = editorX - 4;
+        this.editorPanelY = topBarY - 4;
+        this.editorPanelWidth = editorW + 8;
+        this.editorPanelHeight = contentH + 8;
+        this.candidatePanelX = candidateX - 4;
+        this.candidatePanelY = topBarY - 4;
+        this.candidatePanelWidth = candidateW + 8;
+        this.candidatePanelHeight = contentH + 8;
 
         int topY = topBarY;
         int typeW = 76;
@@ -178,14 +203,9 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     }
     
     private void populateDimensions() {
-        StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        List<ResourceLocation> dims = new ArrayList<>();
-        if (result != null) {
-            dims.addAll(result.dimensions());
-        }
-        if (!dims.contains(ResourceLocation.parse("minecraft:overworld"))) {
-            dims.add(ResourceLocation.parse("minecraft:overworld"));
-        }
+        List<ResourceLocation> dims = DimensionUiHelper.collectDimensions(
+                DimensionUiHelper.getLatestDiscoveryResult(),
+                filterDimension == null ? List.of() : List.of(filterDimension));
         if (filterDimension == null || !dims.contains(filterDimension)) {
             filterDimension = dims.get(0);
         }
@@ -196,12 +216,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     }
 
     private Component getDimensionDisplayName(ResourceLocation dimId) {
-        String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
-        Component translated = Component.translatable(key);
-        if (!Objects.equals(translated.getString(), key)) {
-            return translated;
-        }
-        return Component.literal(dimId.toString());
+        return DimensionUiHelper.getDisplayName(dimId);
     }
 
     private Component getDimensionButtonText() {
@@ -217,16 +232,12 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     }
 
     private void openDimensionDropdown() {
-        StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        if (result == null || dimensionButton == null) return;
+        if (dimensionButton == null) return;
 
-        List<DimensionListWidget.Row> rows = new ArrayList<>();
-        for (ResourceLocation dimId : result.dimensions()) {
-            Component title = getDimensionDisplayName(dimId);
-            Component subtitle = Component.literal(dimId.toString());
-            rows.add(new DimensionListWidget.Row(dimId, title,
-                    !Objects.equals(title.getString(), subtitle.getString()) ? subtitle : null));
-        }
+        List<ResourceLocation> dimensions = DimensionUiHelper.collectDimensions(
+                DimensionUiHelper.getLatestDiscoveryResult(),
+                filterDimension == null ? List.of() : List.of(filterDimension));
+        List<DimensionListWidget.Row> rows = DimensionUiHelper.buildRows(dimensions, false);
         if (rows.isEmpty()) return;
 
         int top = dimensionButton.getY() + dimensionButton.getHeight() + 2;
@@ -554,6 +565,9 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         ScreenBackgrounds.render(g, this.width, this.height);
+        RoadWeaverUi.drawPanel(g, leftPanelX, leftPanelY, leftPanelWidth, leftPanelHeight);
+        RoadWeaverUi.drawPanel(g, editorPanelX, editorPanelY, editorPanelWidth, editorPanelHeight);
+        RoadWeaverUi.drawPanel(g, candidatePanelX, candidatePanelY, candidatePanelWidth, candidatePanelHeight);
         super.render(g, mouseX, mouseY, partialTick);
 
         UiPreset p = (activePresetIndex >= 0 && activePresetIndex < presets.size()) ? presets.get(activePresetIndex) : null;
@@ -579,7 +593,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
             }
         }
         
-        g.drawCenteredString(font, this.title, this.width / 2, 8, 0xFFFFFF);
+        RoadWeaverUi.drawScreenHeader(g, font, this.width, this.title, null);
     }
     
     @Override

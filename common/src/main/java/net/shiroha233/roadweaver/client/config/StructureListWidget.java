@@ -18,31 +18,22 @@ import java.util.function.Consumer;
 /**
  * 缁撴瀯鍒楄〃缁勪欢 - 鏀寔鏍戝舰灞曠ず銆佹ā缁勫浘锟?
  */
-public class StructureListWidget extends ContainerObjectSelectionList<StructureListWidget.Entry> {
+public class StructureListWidget extends RoadWeaverSelectionList<StructureListWidget.Entry> {
     private static final Map<String, Optional<ResourceLocation>> MOD_ICON_CACHE = new HashMap<>();
     private static final int ROW_HEIGHT = 24;
     private static final int CHECKBOX_SIZE = 10;
 
     public StructureListWidget(Minecraft minecraft, int width, int height, int top) {
-        super(minecraft, width, height, top, top + height);
+        super(minecraft, width, height, top, ROW_HEIGHT, 40);
+        setBackgroundColor(0xAA101216);
     }
 
     public void clearEntries() {
-        super.children().clear();
+        super.clearEntries();
     }
 
     public int doAddEntry(Entry entry) {
         return super.addEntry(entry);
-    }
-
-    @Override
-    public int getRowWidth() {
-        return width - 40;
-    }
-
-    @Override
-    protected int getScrollbarPosition() {
-        return getRowLeft() + getRowWidth() + 6;
     }
 
     static String getLocalizedStructureName(StructureEntry structure) {

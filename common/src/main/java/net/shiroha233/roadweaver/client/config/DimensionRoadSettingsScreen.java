@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
+import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.DimensionRoadSettings;
 import net.shiroha233.roadweaver.config.ModConfig;
@@ -68,32 +69,19 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
             }
         }
 
-        StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        if (result != null && result.dimensions() != null) {
-            allDimensions.addAll(result.dimensions());
-        }
-
-        addFallbackDimension("minecraft:overworld");
-        addFallbackDimension("minecraft:the_nether");
-        addFallbackDimension("minecraft:the_end");
-
+        Set<ResourceLocation> extraDimensions = new LinkedHashSet<>();
         for (String s : working.keySet()) {
             ResourceLocation rl = ResourceLocation.tryParse(s);
-            if (rl != null && !allDimensions.contains(rl)) {
-                allDimensions.add(rl);
+            if (rl != null) {
+                extraDimensions.add(rl);
             }
         }
 
+        StructureDiscoveryService.DiscoveryResult result = DimensionUiHelper.getLatestDiscoveryResult();
+        allDimensions.addAll(DimensionUiHelper.collectDimensions(result, extraDimensions));
+
         if (selectedDimension == null || !allDimensions.contains(selectedDimension)) {
             selectedDimension = allDimensions.isEmpty() ? null : allDimensions.get(0);
-        }
-    }
-
-    private void addFallbackDimension(String id) {
-        ResourceLocation rl = ResourceLocation.tryParse(id);
-        if (rl == null) return;
-        if (!allDimensions.contains(rl)) {
-            allDimensions.add(rl);
         }
     }
 
@@ -125,14 +113,7 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
     }
 
     private List<DimensionListWidget.Row> buildRows(List<ResourceLocation> dims) {
-        List<DimensionListWidget.Row> rows = new ArrayList<>();
-        for (ResourceLocation dimId : dims) {
-            Component title = getDimensionDisplayName(dimId);
-            Component subtitle = Component.literal(dimId.toString());
-            rows.add(new DimensionListWidget.Row(dimId, title,
-                    !Objects.equals(title.getString(), subtitle.getString()) ? subtitle : null));
-        }
-        return rows;
+        return DimensionUiHelper.buildRows(dims, false);
     }
 
     private void buildRightPanel() {
@@ -339,13 +320,7 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
     }
 
     private Component getDimensionDisplayName(ResourceLocation dimId) {
-        if (dimId == null) return Component.literal("-");
-        String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
-        Component translated = Component.translatable(key);
-        if (!Objects.equals(translated.getString(), key)) {
-            return translated;
-        }
-        return Component.literal(dimId.toString());
+        return DimensionUiHelper.getDisplayName(dimId);
     }
 
     private void onCancel() {
@@ -375,16 +350,20 @@ public class DimensionRoadSettingsScreen extends RoadWeaverScreen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         ScreenBackgrounds.render(g, this.width, this.height);
-        g.drawCenteredString(this.font, this.title, this.width / 2, 12, 0xFFFFFF);
-        g.drawCenteredString(this.font,
-                Component.translatable("gui.roadweaver.dimension_road_settings.subtitle"),
-                this.width / 2, 24, 0xAAAAAA);
+        int leftW = Math.max(140, Math.min(220, this.width / 3));
+        int leftPanelHeight = this.height - 76;
+        int rightX = 10 + leftW + 10;
+        int rightWidth = this.width - rightX - 10;
+        RoadWeaverUi.drawPanel(g, 6, 36, leftW + 8, leftPanelHeight);
+        RoadWeaverUi.drawPanel(g, rightX - 4, 36, rightWidth + 8, leftPanelHeight);
+        RoadWeaverUi.drawScreenHeader(g, this.font, this.width, this.title,
+                Component.translatable("gui.roadweaver.dimension_road_settings.subtitle"));
 
         if (selectedDimension != null) {
             Component dimLine = Component.translatable(
                     "gui.roadweaver.dimension_road_settings.current_dimension",
-                    Component.literal(selectedDimension.toString()));
-            g.drawString(this.font, dimLine, 10 + Math.max(140, Math.min(220, this.width / 3)) + 10, 40, 0xFFFFFF, false);
+                    getDimensionDisplayName(selectedDimension));
+            g.drawString(this.font, dimLine, rightX, 40, 0xFFFFFF, false);
         }
 
         super.render(g, mouseX, mouseY, partialTick);

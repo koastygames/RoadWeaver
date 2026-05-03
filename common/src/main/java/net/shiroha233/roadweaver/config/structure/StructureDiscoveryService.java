@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.config.structure;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -165,13 +166,30 @@ public final class StructureDiscoveryService {
 
     /** 获取缓存的发现结果，必要时从文件加载 */
     public static DiscoveryResult getResult() {
-        if (cachedResult == null && !hasDiscovered) tryDiscoverFromCurrentContext();
-        if (cachedResult == null && !hasDiscovered) loadCacheFromFile();
+        if (cachedResult == null && !hasDiscovered) {
+            tryDiscoverFromCurrentContext();
+        }
+        if (cachedResult == null && !hasDiscovered) {
+            loadCacheFromFile();
+        }
+        if (cachedResult != null && cachedResult.dimensions().isEmpty()) {
+            tryDiscoverFromCurrentContext();
+        }
         return cachedResult;
     }
 
     public static void tryDiscoverFromCurrentContext() {
-        LOGGER.debug("跳过客户端反射获取，使用缓存文件");
+        if (Platform.getEnvironment() != Env.CLIENT) {
+            return;
+        }
+
+        try {
+            RegistryAccess access = ClientRegistryAccessHelper.tryGetClientRegistryAccess();
+            if (access != null) {
+                discoverFromRegistryAccess(access);
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     public static boolean hasResult() { return getResult() != null; }
@@ -179,6 +197,57 @@ public final class StructureDiscoveryService {
     public static void clearCache() {
         cachedResult = null;
         hasDiscovered = false;
+    }
+
+    private static class ClientRegistryAccessHelper {
+        static RegistryAccess tryGetClientRegistryAccess() {
+            try {
+                Class<?> minecraftClass = Class.forName("net.minecraft.client.Minecraft");
+                Object mc = minecraftClass.getMethod("getInstance").invoke(null);
+                if (mc == null) {
+                    return null;
+                }
+
+                var levelField = minecraftClass.getDeclaredField("level");
+                levelField.setAccessible(true);
+                Object level = levelField.get(mc);
+                if (level != null) {
+                    var registryAccessMethod = level.getClass().getMethod("registryAccess");
+                    return (RegistryAccess) registryAccessMethod.invoke(level);
+                }
+
+                var screenField = minecraftClass.getDeclaredField("screen");
+                screenField.setAccessible(true);
+                Object screen = screenField.get(mc);
+                if (screen == null) {
+                    return null;
+                }
+
+                Class<?> createWorldScreenClass = Class.forName("net.minecraft.client.gui.screens.worldselection.CreateWorldScreen");
+                if (!createWorldScreenClass.isInstance(screen)) {
+                    return null;
+                }
+
+                var uiStateField = createWorldScreenClass.getDeclaredField("uiState");
+                uiStateField.setAccessible(true);
+                Object uiState = uiStateField.get(screen);
+                if (uiState == null) {
+                    return null;
+                }
+
+                var getSettingsMethod = uiState.getClass().getMethod("getSettings");
+                Object context = getSettingsMethod.invoke(uiState);
+                if (context == null) {
+                    return null;
+                }
+
+                var worldgenLoadContextMethod = context.getClass().getMethod("worldgenLoadContext");
+                return (RegistryAccess) worldgenLoadContextMethod.invoke(context);
+            } catch (Exception e) {
+                LOGGER.debug("客户端注册表发现失败: {}", e.getMessage());
+                return null;
+            }
+        }
     }
 
     // ==================== 内部工具方法 ====================
