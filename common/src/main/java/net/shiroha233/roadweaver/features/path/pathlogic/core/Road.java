@@ -15,6 +15,7 @@ import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator;
+import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
@@ -79,7 +80,7 @@ public final class Road {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return null;
             
-            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, genConfig.bridgeMinWaterDepth());
+            List<RoadSpan> spans = PathSpanExtractor.extractSpans(segments, level, cache, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
             long ownerA2d = PlanningUtils.pos2dKey(rawStart);
             long ownerB2d = PlanningUtils.pos2dKey(rawEnd);

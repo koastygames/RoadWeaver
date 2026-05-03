@@ -12,7 +12,7 @@ public final class PathfindingCostConfig implements SubConfig {
     public enum PathfindingAlgorithm { ASTAR_BASIC, ASTAR_BIDIRECTIONAL, GRADIENT_DESCENT, POTENTIAL_FIELD }
 
     /** 采样精度模式枚举 */
-    public enum SamplingPrecision { NORMAL, HIGH, ULTRA_HIGH }
+    public enum SamplingPrecision { NORMAL, HIGH }
 
     private double orthoStepCost = RoadConstants.DEFAULT_ORTHO_STEP_COST;
     private double diagStepCost = RoadConstants.DEFAULT_DIAG_STEP_COST;
@@ -26,11 +26,9 @@ public final class PathfindingCostConfig implements SubConfig {
     private double deviationWeight = RoadConstants.DEFAULT_DEVIATION_WEIGHT;
     private int aStarStep = RoadConstants.DEFAULT_ASTAR_STEP;
     private int aStarMaxSteps = RoadConstants.DEFAULT_ASTAR_MAX_STEPS;
-    private boolean hierarchicalPathfindingEnabled = false;
     private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
-    private int accurateSamplingDivisor = RoadConstants.DEFAULT_ACCURATE_SAMPLING_DIVISOR;
     private int quantizedSamplingChunkRadius = RoadConstants.DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS;
-    private SamplingPrecision samplingPrecision = SamplingPrecision.NORMAL;
+    private SamplingPrecision samplingPrecision = SamplingPrecision.HIGH;
 
     @Override
     public void sanitize() {
@@ -49,9 +47,6 @@ public final class PathfindingCostConfig implements SubConfig {
                 Math.min(RoadConstants.ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
         if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
         if (samplingPrecision == null) samplingPrecision = SamplingPrecision.NORMAL;
-        if (accurateSamplingDivisor <= 1) accurateSamplingDivisor = 0;
-        else if (accurateSamplingDivisor <= 3) accurateSamplingDivisor = 2;
-        else accurateSamplingDivisor = 4;
         quantizedSamplingChunkRadius = Math.max(0,
                 Math.min(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX, quantizedSamplingChunkRadius));
     }
@@ -71,9 +66,7 @@ public final class PathfindingCostConfig implements SubConfig {
         copy.deviationWeight = this.deviationWeight;
         copy.aStarStep = this.aStarStep;
         copy.aStarMaxSteps = this.aStarMaxSteps;
-        copy.hierarchicalPathfindingEnabled = this.hierarchicalPathfindingEnabled;
         copy.pathfindingAlgorithm = this.pathfindingAlgorithm;
-        copy.accurateSamplingDivisor = this.accurateSamplingDivisor;
         copy.quantizedSamplingChunkRadius = this.quantizedSamplingChunkRadius;
         copy.samplingPrecision = this.samplingPrecision;
         return copy;
@@ -103,21 +96,17 @@ public final class PathfindingCostConfig implements SubConfig {
     public void setAStarStep(int v) { this.aStarStep = v; }
     public int aStarMaxSteps() { return aStarMaxSteps; }
     public void setAStarMaxSteps(int v) { this.aStarMaxSteps = v; }
-    public boolean hierarchicalPathfindingEnabled() { return hierarchicalPathfindingEnabled; }
-    public void setHierarchicalPathfindingEnabled(boolean v) { this.hierarchicalPathfindingEnabled = v; }
     public PathfindingAlgorithm pathfindingAlgorithm() { return pathfindingAlgorithm; }
     public void setPathfindingAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
     public PathfindingAlgorithm algorithm() { return pathfindingAlgorithm; }
     public void setAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
-    public int accurateSamplingDivisor() { return accurateSamplingDivisor; }
-    public void setAccurateSamplingDivisor(int v) { this.accurateSamplingDivisor = v; }
     public int quantizedSamplingChunkRadius() { return quantizedSamplingChunkRadius; }
     public void setQuantizedSamplingChunkRadius(int v) { this.quantizedSamplingChunkRadius = v; }
     public SamplingPrecision samplingPrecision() { return samplingPrecision; }
     public void setSamplingPrecision(SamplingPrecision v) { this.samplingPrecision = v; }
-    /** 寻路阶段是否使用精确采样（HIGH / ULTRA_HIGH） */
+    /** 寻路阶段是否使用精确采样。 */
     public boolean isAccurateSampling() { return samplingPrecision != SamplingPrecision.NORMAL; }
-    /** 是否需要后处理二次精化（NORMAL / ULTRA_HIGH 需要，HIGH 不需要） */
+    /** 普通采样使用后处理精化，高精度采样直接使用精确结果。 */
     public boolean needsRefinement() { return samplingPrecision != SamplingPrecision.HIGH; }
     public int effectiveAStarStep() {
         if (aStarStep < RoadConstants.ASTAR_STEP_MIN) return RoadConstants.DEFAULT_ASTAR_STEP;

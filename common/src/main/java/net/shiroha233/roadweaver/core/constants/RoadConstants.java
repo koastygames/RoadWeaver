@@ -7,8 +7,8 @@ public final class RoadConstants {
 
     private RoadConstants() {}
 
-    public static final int DEFAULT_ASTAR_STEP = 8;
-    public static final int DEFAULT_ASTAR_MAX_STEPS = 20_000;
+    public static final int DEFAULT_ASTAR_STEP = 4;
+    public static final int DEFAULT_ASTAR_MAX_STEPS = 200_000;
     public static final int ASTAR_MAX_STEPS_MIN = 3_000;
     public static final int ASTAR_MAX_STEPS_MAX = 200_000;
     public static final int ASTAR_STEP_MAX = 128;
@@ -134,7 +134,6 @@ public final class RoadConstants {
     public static final int BELOW_DEPTH_1 = 1;
     public static final int BELOW_DEPTH_2 = 2;
 
-    public static final int DEFAULT_ACCURATE_SAMPLING_DIVISOR = 0;
     public static final int DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS = 1;
     public static final int QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX = 8;
 

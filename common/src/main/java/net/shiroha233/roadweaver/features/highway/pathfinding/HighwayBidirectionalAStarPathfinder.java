@@ -215,8 +215,7 @@ public final class HighwayBidirectionalAStarPathfinder {
         PathfindingCostConfig costCfg = cfg.pathfindingCost();
         boolean needsRefinement = costCfg == null || costCfg.needsRefinement();
         if (needsRefinement) {
-            int divisor = costCfg != null ? costCfg.accurateSamplingDivisor() : 0;
-            rawPath = accurate.samplePathHeights(rawPath, divisor);
+            rawPath = accurate.samplePathHeights(rawPath, 0);
         }
         return PathPostProcessor.process(
                 rawPath,

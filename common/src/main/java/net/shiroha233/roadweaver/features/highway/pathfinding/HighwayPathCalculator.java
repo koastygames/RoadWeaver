@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
-import net.shiroha233.roadweaver.pathfinding.cache.TerrainCachePrewarmer;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 
 import java.util.List;
@@ -43,15 +42,6 @@ public final class HighwayPathCalculator {
         try {
             BlockPos startGround = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
             BlockPos endGround = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
-
-            if (cfg.hierarchicalPathfindingEnabled()) {
-                TerrainCachePrewarmer.prewarmAlongRoute(
-                        startGround,
-                        endGround,
-                        level,
-                        Math.max(500, maxSteps / 4),
-                        cache);
-            }
 
             return HighwayBidirectionalAStarPathfinder.calculateLandPath(
                     startGround,

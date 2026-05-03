@@ -14,7 +14,7 @@ import net.shiroha233.roadweaver.features.highway.HighwayRoadTypes;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
 import net.shiroha233.roadweaver.features.highway.pathfinding.HighwayPathCalculator;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureRoadOffsetService;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator;
+import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
@@ -59,7 +59,7 @@ public final class HighwayRoad {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 3) return false;
 
-            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, adapted.bridgeMinWaterDepth());
+            List<RoadSpan> spans = PathSpanExtractor.extractSpans(segments, level, cache, adapted.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
             RoadData rd = new RoadData(

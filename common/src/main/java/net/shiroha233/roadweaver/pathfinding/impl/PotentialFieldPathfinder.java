@@ -35,7 +35,7 @@ public final class PotentialFieldPathfinder implements Pathfinder {
         List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
         if (rawPath == null) return PathResult.failure();
         if (rawPath.isEmpty()) return PathResult.success(Collections.emptyList());
-        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.needsRefinement());
         return segments != null ? PathResult.success(segments) : PathResult.failure();
     }
 
@@ -204,10 +204,10 @@ public final class PotentialFieldPathfinder implements Pathfinder {
 
     private List<RoadSegmentPlacement> reconstructPath(List<BlockPos> rawPath, int width,
                                                        ServerLevel level, TerrainSamplingCache cache,
-                                                       int samplingDivisor, boolean needsRefinement) {
+                                                       boolean needsRefinement) {
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         if (needsRefinement) {
-            rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
+            rawPath = accurate.samplePathHeights(rawPath, 0);
         }
         return PathPostProcessor.process(rawPath, width, level, cache,
                 RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);

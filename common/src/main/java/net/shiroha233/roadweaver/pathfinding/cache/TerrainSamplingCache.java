@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Long, Boolean> waterCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Boolean> nearWaterCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, ConcurrentHashMap<Long, Boolean>> nearWaterCacheByDistance = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> columnWaterCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
@@ -84,6 +84,10 @@ public final class TerrainSamplingCache {
     }
 
     public boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
+        int distance = Math.max(0, neighborDistance);
+        ConcurrentHashMap<Long, Boolean> nearWaterCache = nearWaterCacheByDistance.computeIfAbsent(
+                distance,
+                ignored -> new ConcurrentHashMap<>());
         long key = hashXZ(x, z);
         Boolean cached = nearWaterCache.get(key);
         if (cached != null) {
@@ -91,7 +95,7 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        int d = neighborDistance;
+        int d = distance;
         int[][] offsets = {
                 {d, 0}, {-d, 0}, {0, d}, {0, -d},
                 {d, d}, {d, -d}, {-d, d}, {-d, -d}
@@ -148,15 +152,19 @@ public final class TerrainSamplingCache {
 
     public void enableHighPrecision(ServerLevel level) {
         this.highPrecisionMode = true;
-        heightCache.clear();
-        oceanFloorCache.clear();
+        clearPrecisionDerivedCaches();
         ensureAccurateSampler(level);
     }
 
     public void disableHighPrecision() {
         this.highPrecisionMode = false;
+        clearPrecisionDerivedCaches();
+    }
+
+    private void clearPrecisionDerivedCaches() {
         heightCache.clear();
         oceanFloorCache.clear();
+        columnWaterCache.clear();
     }
 
     public boolean isHighPrecisionMode() {
@@ -170,7 +178,7 @@ public final class TerrainSamplingCache {
 
     public void clear() {
         waterCache.clear();
-        nearWaterCache.clear();
+        nearWaterCacheByDistance.clear();
         columnWaterCache.clear();
         heightCache.clear();
         oceanFloorCache.clear();

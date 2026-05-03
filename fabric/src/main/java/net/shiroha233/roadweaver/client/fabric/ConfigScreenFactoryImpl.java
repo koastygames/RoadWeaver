@@ -656,13 +656,6 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
-                .startBooleanToggle(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled"), cfg.hierarchicalPathfindingEnabled())
-                .setDefaultValue(def.hierarchicalPathfindingEnabled())
-                .setTooltip(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
-                .setSaveConsumer(cfg::setHierarchicalPathfindingEnabled)
-                .build());
-
-        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.a_star_step"), cfg.aStarStep())
                 .setDefaultValue(def.aStarStep())
                 .setTooltip(Component.translatable("config.roadweaver.a_star_step.tooltip"))
@@ -676,13 +669,6 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.a_star_max_steps.tooltip"))
                 .setMin(100).setMax(RoadConstants.ASTAR_MAX_STEPS_MAX)
                 .setSaveConsumer(cfg::setAStarMaxSteps)
-                .build());
-
-        category.addEntry(eb
-                .startIntSlider(Component.translatable("config.roadweaver.accurate_sampling_divisor"), cfg.accurateSamplingDivisor(), 0, 4)
-                .setDefaultValue(def.accurateSamplingDivisor())
-                .setTooltip(Component.translatable("config.roadweaver.accurate_sampling_divisor.tooltip"))
-                .setSaveConsumer(cfg::setAccurateSamplingDivisor)
                 .build());
 
         category.addEntry(eb

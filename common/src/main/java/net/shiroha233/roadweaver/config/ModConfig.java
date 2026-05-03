@@ -154,10 +154,6 @@ public final class ModConfig {
         return chooseBool(s == null ? null : s.roadSignsEnabled(), roadAppearance.roadSignsEnabled());
     }
 
-    public boolean hierarchicalPathfindingEnabled() {
-        return pathfindingCost.hierarchicalPathfindingEnabled();
-    }
-
     public int highwayRoadWidth() {
         return highway.roadWidth();
     }
