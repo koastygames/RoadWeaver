@@ -218,6 +218,7 @@
   "tip.roadweaver.loading.3": "较大的初始规划半径可能会显著降低新世界的创建速度。",
   "tip.roadweaver.loading.4": "初始加载是为了确保你进入世界时有完整的道路。",
   "tip.roadweaver.loading.5": "不要 tp 到未铺设的道路区域！",
+  "tip.roadweaver.loading.tectonic": "您已加入 Tectonic 地形模组，会严重拖慢寻路速度，请耐心等待喵......",
   "gui.roadweaver.preset_editor.title": "自定义道路材质预设",
   "gui.roadweaver.preset_editor.search": "搜索方块...",
   "gui.roadweaver.preset_editor.name": "预设名称",

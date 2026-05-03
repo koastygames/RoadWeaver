@@ -26,7 +26,7 @@ public final class PathfindingCostConfig implements SubConfig {
     private double deviationWeight = RoadConstants.DEFAULT_DEVIATION_WEIGHT;
     private int aStarStep = RoadConstants.DEFAULT_ASTAR_STEP;
     private int aStarMaxSteps = RoadConstants.DEFAULT_ASTAR_MAX_STEPS;
-    private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
+    private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
     private int quantizedSamplingChunkRadius = RoadConstants.DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS;
     private SamplingPrecision samplingPrecision = SamplingPrecision.HIGH;
 
@@ -45,7 +45,7 @@ public final class PathfindingCostConfig implements SubConfig {
         aStarStep = Math.min(RoadConstants.ASTAR_STEP_MAX, aStarStep);
         aStarMaxSteps = Math.max(RoadConstants.ASTAR_MAX_STEPS_MIN,
                 Math.min(RoadConstants.ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
-        if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
+        if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
         if (samplingPrecision == null) samplingPrecision = SamplingPrecision.NORMAL;
         quantizedSamplingChunkRadius = Math.max(0,
                 Math.min(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX, quantizedSamplingChunkRadius));
