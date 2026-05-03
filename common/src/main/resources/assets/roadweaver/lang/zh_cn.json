@@ -129,6 +129,8 @@
   "config.roadweaver.a_star_max_steps.tooltip": "A* 算法单次搜索的最大步数限制，防止在复杂地形中无限搜索。",
   "config.roadweaver.accurate_sampling_divisor": "精确采样除数",
   "config.roadweaver.accurate_sampling_divisor.tooltip": "将 A* 步长除以此值作为精确高度采样间隔。有效值：0（仅采样每个节点）、2（步长/2）、4（步长/4）。数值越大采样越密、道路越平滑，但性能消耗更高。默认 0。",
+  "config.roadweaver.quantized_sampling_chunk_radius": "量化采样辐射区块数",
+  "config.roadweaver.quantized_sampling_chunk_radius.tooltip": "基于粗寻路路径，对命中区块向四周额外辐射的区块圈数。0 = 仅采样路过区块；1 = 默认额外辐射 1 圈区块。",
   "config.roadweaver.sampling_precision": "采样精度模式",
   "config.roadweaver.sampling_precision.option.normal": "普通",
   "config.roadweaver.sampling_precision.option.high": "高精度",

@@ -4,6 +4,7 @@ package net.shiroha233.roadweaver.pathfinding.terrain;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 
 import java.util.List;
@@ -12,8 +13,6 @@ import java.util.List;
  * 普通道路搜索地形场工厂。
  */
 public final class PathTerrainFieldFactory {
-    private static final int DEFAULT_CORRIDOR_CHUNK_RADIUS = 2;
-
     private PathTerrainFieldFactory() {}
 
     public static PathTerrainField cached(ServerLevel level, TerrainSamplingCache cache, int step) {
@@ -23,12 +22,15 @@ public final class PathTerrainFieldFactory {
     public static PathTerrainField quantized(ServerLevel level,
                                              TerrainSamplingCache cache,
                                              List<BlockPos> coarsePath,
-                                             int step) {
+                                             int step,
+                                             int chunkRadius) {
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         return QuantizedChunkTerrainField.build(
                 level,
                 cache,
+                accurate,
                 coarsePath,
                 Math.max(RoadConstants.ASTAR_STEP_MIN, step),
-                DEFAULT_CORRIDOR_CHUNK_RADIUS);
+                Math.max(0, Math.min(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX, chunkRadius)));
     }
 }

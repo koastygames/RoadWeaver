@@ -135,6 +135,8 @@ public final class RoadConstants {
     public static final int BELOW_DEPTH_2 = 2;
 
     public static final int DEFAULT_ACCURATE_SAMPLING_DIVISOR = 0;
+    public static final int DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS = 1;
+    public static final int QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX = 8;
 
     public static final int GRADIENT_DESCENT_STEPS_MULTIPLIER = 3;
     public static final double GRADIENT_DESCENT_SUCCESS_DISTANCE_FACTOR = 1.5;

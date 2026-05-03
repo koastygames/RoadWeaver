@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
-import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 
@@ -54,14 +53,15 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
 
     public static QuantizedChunkTerrainField build(ServerLevel level,
                                                    TerrainSamplingCache cache,
+                                                   AccurateHeightSampler accurate,
                                                    List<BlockPos> coarsePath,
                                                    int step,
-                                                   int corridorChunkRadius) {
+                                                   int chunkRadius) {
         if (coarsePath == null || coarsePath.isEmpty()) {
             return null;
         }
 
-        int radius = Math.max(0, corridorChunkRadius);
+        int radius = Math.max(0, chunkRadius);
         Set<Long> chunks = new HashSet<>();
         int minChunkX = Integer.MAX_VALUE;
         int minChunkZ = Integer.MAX_VALUE;
@@ -100,15 +100,14 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
 
         int seaLevel = level.getSeaLevel();
         QuantizedChunkTerrainField field = new QuantizedChunkTerrainField(step, seaLevel, minX, minZ, sizeX, sizeZ);
-        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
 
         for (long chunkKey : chunks) {
             int chunkX = ChunkPos.getX(chunkKey);
             int chunkZ = ChunkPos.getZ(chunkKey);
             int chunkMinX = chunkX << 4;
             int chunkMinZ = chunkZ << 4;
-            int chunkMaxX = chunkMinX + RoadConstants.CHUNK_SIZE_BLOCKS - 1;
-            int chunkMaxZ = chunkMinZ + RoadConstants.CHUNK_SIZE_BLOCKS - 1;
+            int chunkMaxX = chunkMinX + 15;
+            int chunkMaxZ = chunkMinZ + 15;
 
             int gridStartX = Math.max(0, ceilDiv(chunkMinX - minX, step));
             int gridEndX = Math.min(sizeX - 1, floorDiv(chunkMaxX - minX, step));
@@ -125,7 +124,6 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
                     int oceanFloor = accurate.oceanFloorWg(worldX, worldZ);
                     int height = motion > seaLevel + 2 ? motion : worldSurface;
                     Holder<Biome> biome = cache.getBiome(level, worldX, worldZ);
-
                     boolean biomeWater = biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN);
                     boolean columnWater = (biomeWater && oceanFloor < seaLevel)
                             || ((height <= seaLevel + 1) && (oceanFloor < height - 1));
@@ -197,6 +195,22 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
     @Override
     public int step() {
         return step;
+    }
+
+    public List<BlockPos> gridPositions() {
+        List<BlockPos> out = new java.util.ArrayList<>(sizeX * sizeZ);
+        for (int gz = 0; gz < sizeZ; gz++) {
+            int worldZ = minZ + gz * step;
+            for (int gx = 0; gx < sizeX; gx++) {
+                int idx = index(gx, gz);
+                if (validCells[idx] == 0) {
+                    continue;
+                }
+                int worldX = minX + gx * step;
+                out.add(new BlockPos(worldX, heights[idx], worldZ));
+            }
+        }
+        return out;
     }
 
     private int indexForWorld(int x, int z) {

@@ -31,7 +31,27 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
     public PathResult findPath(BlockPos start, BlockPos end, int width,
                                ServerLevel level, int maxSteps,
                                TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
-        if (start.equals(end)) return PathResult.success(Collections.emptyList());
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        if (rawPath == null) return PathResult.failure();
+        if (rawPath.isEmpty()) return PathResult.success(Collections.emptyList());
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
+        return segments != null ? PathResult.success(segments) : PathResult.failure();
+    }
+
+    @Override
+    public PathResult findRawPath(BlockPos start, BlockPos end,
+                                  ServerLevel level, int maxSteps,
+                                  TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        if (rawPath == null) return PathResult.failure();
+        if (rawPath.isEmpty()) return PathResult.success(Collections.emptyList());
+        return PathResult.raw(rawPath);
+    }
+
+    private List<BlockPos> searchRawPath(BlockPos start, BlockPos end,
+                                         ServerLevel level, int maxSteps,
+                                         PathTerrainField terrain, PathfindingCostConfig cfg) {
+        if (start.equals(end)) return Collections.emptyList();
 
         int d = cfg.effectiveAStarStep();
         int[][] offsets = {
@@ -58,7 +78,7 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
         try {
             while (!openF.isEmpty() && !openB.isEmpty() && stepsBudget-- > 0) {
                 ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
-                if (Thread.currentThread().isInterrupted()) return PathResult.failure();
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 Node peekF = openF.peek(), peekB = openB.peek();
                 boolean expandForward;
@@ -76,12 +96,10 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
                 }
 
                 if (meet != null) {
-                    List<RoadSegmentPlacement> segments = reconstructPath(meet.forward, meet.backward,
-                            width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
-                    return segments != null ? PathResult.success(segments) : PathResult.failure();
+                    return reconstructRawPath(meet.forward, meet.backward);
                 }
             }
-            return PathResult.failure();
+            return null;
         } finally {
             openF.clear(); openB.clear();
             nodesF.clear(); nodesB.clear();
@@ -159,10 +177,19 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
                 + deviationCost;
     }
 
-    private List<RoadSegmentPlacement> reconstructPath(Node meetForward, Node meetBackward,
-                                                        int width, ServerLevel level,
-                                                        TerrainSamplingCache cache,
-                                                        int samplingDivisor, boolean needsRefinement) {
+    private List<RoadSegmentPlacement> reconstructPath(List<BlockPos> rawPath,
+                                                       int width, ServerLevel level,
+                                                       TerrainSamplingCache cache,
+                                                       int samplingDivisor, boolean needsRefinement) {
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
+        if (needsRefinement) {
+            rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
+        }
+        return PathPostProcessor.process(rawPath, width, level, cache,
+                RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+    }
+
+    private List<BlockPos> reconstructRawPath(Node meetForward, Node meetBackward) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
         while (cur != null) { rawPath.add(cur.pos); cur = cur.parent; }
@@ -172,13 +199,7 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
                 ? meetBackward.parent : meetBackward;
         cur = backStart;
         while (cur != null) { rawPath.add(cur.pos); cur = cur.parent; }
-
-        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
-        if (needsRefinement) {
-            rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
-        }
-        return PathPostProcessor.process(rawPath, width, level, cache,
-                RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+        return rawPath;
     }
 
     private static double heuristic(BlockPos a, BlockPos b, PathfindingCostConfig cfg) {

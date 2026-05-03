@@ -17,6 +17,8 @@ import net.shiroha233.roadweaver.pathfinding.cache.TerrainCachePrewarmer;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainFieldFactory;
+import net.shiroha233.roadweaver.pathfinding.terrain.QuantizedChunkTerrainField;
+import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
 
 import java.util.*;
 
@@ -56,38 +58,63 @@ public final class RoadPathCalculator {
         }
 
         PathTerrainField coarseTerrain = PathTerrainFieldFactory.cached(level, cache, dGrid);
-        List<RoadSegmentPlacement> coarseSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, coarseTerrain, pathCfg);
-        if (coarseSegments == null || coarseSegments.isEmpty() || !pathCfg.isAccurateSampling()) {
-            return coarseSegments;
-        }
-
-        List<BlockPos> coarsePath = coarseSegments.stream()
-                .map(RoadSegmentPlacement::middlePos)
-                .toList();
-        PathTerrainField quantizedTerrain = PathTerrainFieldFactory.quantized(level, cache, coarsePath, dGrid);
-        if (quantizedTerrain == null) {
-            return coarseSegments;
-        }
-
-        List<RoadSegmentPlacement> finalSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, quantizedTerrain, pathCfg);
-        return finalSegments != null && !finalSegments.isEmpty() ? finalSegments : coarseSegments;
-    }
-
-    private static List<RoadSegmentPlacement> calculateDirect(BlockPos startGround,
-                                                              BlockPos endGround,
-                                                              int width,
-                                                              ServerLevel level,
-                                                              int maxSteps,
-                                                              TerrainSamplingCache cache,
-                                                              PathTerrainField terrain,
-                                                              PathfindingCostConfig pathCfg) {
-        var algo = pathCfg.pathfindingAlgorithm();
-        Pathfinder pathfinder = PathfinderFactory.create(algo);
-        PathResult result = pathfinder.findPath(startGround, endGround, width, level, maxSteps, cache, terrain, pathCfg);
-        if (!result.success() || result.isEmpty()) {
+        List<BlockPos> coarsePath = calculateRawPath(startGround, endGround, level, maxSteps, cache, coarseTerrain, pathCfg);
+        if (coarsePath == null || coarsePath.isEmpty()) {
             return null;
         }
-        return result.segments();
+
+        if (!pathCfg.isAccurateSampling()) {
+            return finalizePath(coarsePath, width, level, cache, pathCfg);
+        }
+
+        PathTerrainField quantizedTerrain = PathTerrainFieldFactory.quantized(
+                level,
+                cache,
+                coarsePath,
+                dGrid,
+                pathCfg.quantizedSamplingChunkRadius());
+        if (quantizedTerrain == null) {
+            return finalizePath(coarsePath, width, level, cache, pathCfg);
+        }
+
+        List<BlockPos> finalRawPath = calculateRawPath(startGround, endGround, level, maxSteps, cache, quantizedTerrain, pathCfg);
+        if (finalRawPath == null || finalRawPath.isEmpty()) {
+            finalRawPath = coarsePath;
+        }
+        return finalizePath(finalRawPath, width, level, cache, pathCfg);
+    }
+
+    private static List<BlockPos> calculateRawPath(BlockPos startGround,
+                                                   BlockPos endGround,
+                                                   ServerLevel level,
+                                                   int maxSteps,
+                                                   TerrainSamplingCache cache,
+                                                   PathTerrainField terrain,
+                                                   PathfindingCostConfig pathCfg) {
+        var algo = pathCfg.pathfindingAlgorithm();
+        Pathfinder pathfinder = PathfinderFactory.create(algo);
+        PathResult result = pathfinder.findRawPath(startGround, endGround, level, maxSteps, cache, terrain, pathCfg);
+        if (!result.success() || !result.hasRawPath()) {
+            return null;
+        }
+        return result.rawPath();
+    }
+
+    private static List<RoadSegmentPlacement> finalizePath(List<BlockPos> rawPath,
+                                                           int width,
+                                                           ServerLevel level,
+                                                           TerrainSamplingCache cache,
+                                                           PathfindingCostConfig pathCfg) {
+        if (rawPath == null || rawPath.size() < 2) {
+            return null;
+        }
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
+        List<BlockPos> finalPath = rawPath;
+        if (pathCfg.needsRefinement()) {
+            finalPath = accurate.samplePathHeights(rawPath, pathCfg.accurateSamplingDivisor());
+        }
+        return PathPostProcessor.process(finalPath, width, level, cache,
+                net.shiroha233.roadweaver.core.constants.RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
     }
 
     static int calculateTerrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level, int step) {

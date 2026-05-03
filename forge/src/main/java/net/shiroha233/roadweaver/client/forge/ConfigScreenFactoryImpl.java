@@ -686,6 +686,14 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.quantized_sampling_chunk_radius"), cfg.quantizedSamplingChunkRadius())
+                .setDefaultValue(def.quantizedSamplingChunkRadius())
+                .setTooltip(Component.translatable("config.roadweaver.quantized_sampling_chunk_radius.tooltip"))
+                .setMin(0).setMax(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX)
+                .setSaveConsumer(cfg::setQuantizedSamplingChunkRadius)
+                .build());
+
+        category.addEntry(eb
                 .startEnumSelector(Component.translatable("config.roadweaver.sampling_precision"),
                         PathfindingCostConfig.SamplingPrecision.class, cfg.samplingPrecision())
                 .setDefaultValue(def.samplingPrecision())

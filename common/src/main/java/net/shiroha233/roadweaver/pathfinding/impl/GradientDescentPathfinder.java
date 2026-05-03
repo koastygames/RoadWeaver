@@ -38,6 +38,25 @@ public final class GradientDescentPathfinder implements Pathfinder {
     public PathResult findPath(BlockPos start, BlockPos end, int width,
                                ServerLevel level, int maxSteps,
                                TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        if (rawPath == null || rawPath.isEmpty()) {
+            return PathResult.failure();
+        }
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
+        return segments != null ? PathResult.success(segments) : PathResult.failure();
+    }
+
+    @Override
+    public PathResult findRawPath(BlockPos start, BlockPos end,
+                                  ServerLevel level, int maxSteps,
+                                  TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        return rawPath == null || rawPath.isEmpty() ? PathResult.failure() : PathResult.raw(rawPath);
+    }
+
+    private List<BlockPos> searchRawPath(BlockPos start, BlockPos end,
+                                         ServerLevel level, int maxSteps,
+                                         PathTerrainField terrain, PathfindingCostConfig cfg) {
         int manhattan = manhattan2d(start, end);
         int dynamicBuffer = Math.min(512, Math.max(SEARCH_BUFFER, manhattan / 4));
         int minX = Math.min(start.getX(), end.getX()) - dynamicBuffer;
@@ -64,14 +83,13 @@ public final class GradientDescentPathfinder implements Pathfinder {
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
                 ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
-                if (Thread.currentThread().isInterrupted()) return PathResult.failure();
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 Node current = openSet.poll();
                 if (current == null) break;
 
                 if (manhattan2d(current.pos, end) < (int) (d * RoadConstants.GRADIENT_DESCENT_SUCCESS_DISTANCE_FACTOR)) {
-                    List<RoadSegmentPlacement> segments = reconstructPath(current, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
-                    return segments != null ? PathResult.success(segments) : PathResult.failure();
+                    return reconstructRawPath(current);
                 }
 
                 closed.add(current.pos);
@@ -98,7 +116,7 @@ public final class GradientDescentPathfinder implements Pathfinder {
                     }
                 }
             }
-            return PathResult.failure();
+            return null;
         } finally {
             openSet.clear();
             allNodes.clear();
@@ -144,19 +162,23 @@ public final class GradientDescentPathfinder implements Pathfinder {
                 + nearWaterPenalty;
     }
 
-    private List<RoadSegmentPlacement> reconstructPath(Node endNode, int width,
-                                                        ServerLevel level, TerrainSamplingCache cache,
-                                                        int samplingDivisor, boolean needsRefinement) {
-        List<BlockPos> rawPath = new ArrayList<>();
-        Node c = endNode;
-        while (c != null) { rawPath.add(c.pos); c = c.parent; }
-        Collections.reverse(rawPath);
+    private List<RoadSegmentPlacement> reconstructPath(List<BlockPos> rawPath, int width,
+                                                       ServerLevel level, TerrainSamplingCache cache,
+                                                       int samplingDivisor, boolean needsRefinement) {
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         if (needsRefinement) {
             rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
         }
         return PathPostProcessor.process(rawPath, width, level, cache,
                 RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+    }
+
+    private List<BlockPos> reconstructRawPath(Node endNode) {
+        List<BlockPos> rawPath = new ArrayList<>();
+        Node c = endNode;
+        while (c != null) { rawPath.add(c.pos); c = c.parent; }
+        Collections.reverse(rawPath);
+        return rawPath;
     }
 
     private static int manhattan2d(BlockPos a, BlockPos b) {

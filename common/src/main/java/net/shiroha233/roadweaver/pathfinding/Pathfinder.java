@@ -14,4 +14,10 @@ public interface Pathfinder {
     PathResult findPath(BlockPos start, BlockPos end, int width,
                         ServerLevel level, int maxSteps,
                         TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig config);
+
+    default PathResult findRawPath(BlockPos start, BlockPos end,
+                                   ServerLevel level, int maxSteps,
+                                   TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig config) {
+        return findPath(start, end, 1, level, maxSteps, cache, terrain, config);
+    }
 }

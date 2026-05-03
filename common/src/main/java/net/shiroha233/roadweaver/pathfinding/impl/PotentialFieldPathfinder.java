@@ -32,7 +32,27 @@ public final class PotentialFieldPathfinder implements Pathfinder {
     public PathResult findPath(BlockPos start, BlockPos end, int width,
                                ServerLevel level, int maxSteps,
                                TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
-        if (start.equals(end)) return PathResult.success(Collections.emptyList());
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        if (rawPath == null) return PathResult.failure();
+        if (rawPath.isEmpty()) return PathResult.success(Collections.emptyList());
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
+        return segments != null ? PathResult.success(segments) : PathResult.failure();
+    }
+
+    @Override
+    public PathResult findRawPath(BlockPos start, BlockPos end,
+                                  ServerLevel level, int maxSteps,
+                                  TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        if (rawPath == null) return PathResult.failure();
+        if (rawPath.isEmpty()) return PathResult.success(Collections.emptyList());
+        return PathResult.raw(rawPath);
+    }
+
+    private List<BlockPos> searchRawPath(BlockPos start, BlockPos end,
+                                         ServerLevel level, int maxSteps,
+                                         PathTerrainField terrain, PathfindingCostConfig cfg) {
+        if (start.equals(end)) return Collections.emptyList();
 
         int d = cfg.effectiveAStarStep();
         int[][] offsets = {
@@ -60,14 +80,13 @@ public final class PotentialFieldPathfinder implements Pathfinder {
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
                 ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
-                if (Thread.currentThread().isInterrupted()) return PathResult.failure();
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 Node current = openSet.poll();
                 if (current == null) break;
 
                 if (manhattan2d(current.pos, end) < (int) (d * RoadConstants.POTENTIAL_FIELD_SUCCESS_DISTANCE_FACTOR)) {
-                    List<RoadSegmentPlacement> segments = reconstructPath(current, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
-                    return segments != null ? PathResult.success(segments) : PathResult.failure();
+                    return reconstructRawPath(current);
                 }
 
                 closed.add(current.pos);
@@ -79,7 +98,7 @@ public final class PotentialFieldPathfinder implements Pathfinder {
                 double[] contour = contourDirection(grad[0], grad[1], goalDx, goalDz);
 
                 for (int[] off : offsets) {
-                    if (Thread.currentThread().isInterrupted()) return PathResult.failure();
+                    if (Thread.currentThread().isInterrupted()) return null;
                     BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
                     if (nxz.getX() < minX || nxz.getX() > maxX || nxz.getZ() < minZ || nxz.getZ() > maxZ) continue;
                     if (!terrain.contains(nxz.getX(), nxz.getZ())) continue;
@@ -104,7 +123,7 @@ public final class PotentialFieldPathfinder implements Pathfinder {
                     openSet.add(next);
                 }
             }
-            return PathResult.failure();
+            return null;
         } finally {
             openSet.clear();
             allNodes.clear();
@@ -183,19 +202,23 @@ public final class PotentialFieldPathfinder implements Pathfinder {
                 + nearWaterPenalty;
     }
 
-    private List<RoadSegmentPlacement> reconstructPath(Node endNode, int width,
-                                                        ServerLevel level, TerrainSamplingCache cache,
-                                                        int samplingDivisor, boolean needsRefinement) {
-        List<BlockPos> rawPath = new ArrayList<>();
-        Node c = endNode;
-        while (c != null) { rawPath.add(c.pos); c = c.parent; }
-        Collections.reverse(rawPath);
+    private List<RoadSegmentPlacement> reconstructPath(List<BlockPos> rawPath, int width,
+                                                       ServerLevel level, TerrainSamplingCache cache,
+                                                       int samplingDivisor, boolean needsRefinement) {
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         if (needsRefinement) {
             rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
         }
         return PathPostProcessor.process(rawPath, width, level, cache,
                 RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+    }
+
+    private List<BlockPos> reconstructRawPath(Node endNode) {
+        List<BlockPos> rawPath = new ArrayList<>();
+        Node c = endNode;
+        while (c != null) { rawPath.add(c.pos); c = c.parent; }
+        Collections.reverse(rawPath);
+        return rawPath;
     }
 
     private static int manhattan2d(BlockPos a, BlockPos b) {

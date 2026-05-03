@@ -29,6 +29,7 @@ public final class PathfindingCostConfig implements SubConfig {
     private boolean hierarchicalPathfindingEnabled = false;
     private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
     private int accurateSamplingDivisor = RoadConstants.DEFAULT_ACCURATE_SAMPLING_DIVISOR;
+    private int quantizedSamplingChunkRadius = RoadConstants.DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS;
     private SamplingPrecision samplingPrecision = SamplingPrecision.NORMAL;
 
     @Override
@@ -51,6 +52,8 @@ public final class PathfindingCostConfig implements SubConfig {
         if (accurateSamplingDivisor <= 1) accurateSamplingDivisor = 0;
         else if (accurateSamplingDivisor <= 3) accurateSamplingDivisor = 2;
         else accurateSamplingDivisor = 4;
+        quantizedSamplingChunkRadius = Math.max(0,
+                Math.min(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX, quantizedSamplingChunkRadius));
     }
 
     @Override
@@ -71,6 +74,7 @@ public final class PathfindingCostConfig implements SubConfig {
         copy.hierarchicalPathfindingEnabled = this.hierarchicalPathfindingEnabled;
         copy.pathfindingAlgorithm = this.pathfindingAlgorithm;
         copy.accurateSamplingDivisor = this.accurateSamplingDivisor;
+        copy.quantizedSamplingChunkRadius = this.quantizedSamplingChunkRadius;
         copy.samplingPrecision = this.samplingPrecision;
         return copy;
     }
@@ -107,6 +111,8 @@ public final class PathfindingCostConfig implements SubConfig {
     public void setAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
     public int accurateSamplingDivisor() { return accurateSamplingDivisor; }
     public void setAccurateSamplingDivisor(int v) { this.accurateSamplingDivisor = v; }
+    public int quantizedSamplingChunkRadius() { return quantizedSamplingChunkRadius; }
+    public void setQuantizedSamplingChunkRadius(int v) { this.quantizedSamplingChunkRadius = v; }
     public SamplingPrecision samplingPrecision() { return samplingPrecision; }
     public void setSamplingPrecision(SamplingPrecision v) { this.samplingPrecision = v; }
     /** 寻路阶段是否使用精确采样（HIGH / ULTRA_HIGH） */
