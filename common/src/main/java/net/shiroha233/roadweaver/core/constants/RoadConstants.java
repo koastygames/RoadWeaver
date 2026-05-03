@@ -7,7 +7,7 @@ public final class RoadConstants {
 
     private RoadConstants() {}
 
-    public static final int DEFAULT_ASTAR_STEP = 4;
+    public static final int DEFAULT_ASTAR_STEP = 8;
     public static final int DEFAULT_ASTAR_MAX_STEPS = 200_000;
     public static final int ASTAR_MAX_STEPS_MIN = 3_000;
     public static final int ASTAR_MAX_STEPS_MAX = 200_000;

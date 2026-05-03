@@ -2,6 +2,7 @@
 package net.shiroha233.roadweaver.pathfinding.terrain;
 
 import net.minecraft.core.Holder;
+import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 
 /**
@@ -24,4 +25,25 @@ public interface PathTerrainField {
     boolean contains(int x, int z);
 
     int step();
+
+    default boolean isWaterBiome(int x, int z) {
+        if (!contains(x, z)) {
+            return false;
+        }
+        Holder<Biome> biomeHolder = biome(x, z);
+        return biomeHolder != null
+                && (biomeHolder.is(BiomeTags.IS_RIVER)
+                || biomeHolder.is(BiomeTags.IS_OCEAN)
+                || biomeHolder.is(BiomeTags.IS_DEEP_OCEAN));
+    }
+
+    default int waterDepth(int x, int z) {
+        return Math.max(0, seaLevel() - oceanFloor(x, z));
+    }
+
+    default boolean isBridgeWater(int x, int z, int minWaterDepth) {
+        return contains(x, z)
+                && isColumnWater(x, z)
+                && waterDepth(x, z) >= Math.max(1, minWaterDepth);
+    }
 }

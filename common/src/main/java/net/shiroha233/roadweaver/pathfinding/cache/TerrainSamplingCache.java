@@ -119,11 +119,15 @@ public final class TerrainSamplingCache {
         }
         TerrainSamplingStats.recordCacheMiss();
         int of = oceanFloor(level, x, z);
-        int h = height(level, x, z);
         int sea = level.getSeaLevel();
+        int surface = height(level, x, z);
+        if (highPrecisionMode) {
+            ensureAccurateSampler(level);
+            surface = accurateSampler.worldSurfaceWg(x, z);
+        }
         boolean isWaterBiome = isWaterLike(level, x, z);
         boolean biomeWater = isWaterBiome && of < sea;
-        boolean heightWater = (h <= sea + 1) && (of < h - 1);
+        boolean heightWater = (surface <= sea + 1) && (of < surface - 1);
         boolean res = biomeWater || heightWater;
         columnWaterCache.put(key, res);
         return res;

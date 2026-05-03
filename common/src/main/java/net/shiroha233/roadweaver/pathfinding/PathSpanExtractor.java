@@ -8,6 +8,7 @@ import net.shiroha233.roadweaver.core.model.RoadSpan;
 import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,14 @@ public final class PathSpanExtractor {
                                               ServerLevel level,
                                               TerrainSamplingCache cache,
                                               int bridgeMinWaterDepth) {
+        return extractSpans(segments, level, cache, null, bridgeMinWaterDepth);
+    }
+
+    public static List<RoadSpan> extractSpans(List<RoadSegmentPlacement> segments,
+                                              ServerLevel level,
+                                              TerrainSamplingCache cache,
+                                              PathTerrainField terrain,
+                                              int bridgeMinWaterDepth) {
         List<RoadSpan> spans = new ArrayList<>();
         if (segments == null || segments.isEmpty()) {
             return spans;
@@ -38,7 +47,7 @@ public final class PathSpanExtractor {
         }
 
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
-        collectBridgeSpans(spans, centers, level, cache, accurate, bridgeMinWaterDepth);
+        collectBridgeSpans(spans, centers, level, cache, terrain, accurate, bridgeMinWaterDepth);
         collectTunnelSpans(spans, centers);
         return spans;
     }
@@ -47,31 +56,16 @@ public final class PathSpanExtractor {
                                            List<BlockPos> centers,
                                            ServerLevel level,
                                            TerrainSamplingCache cache,
+                                           PathTerrainField terrain,
                                            AccurateHeightSampler accurate,
                                            int bridgeMinWaterDepth) {
-        int sea = level.getSeaLevel();
         int minWaterDepth = bridgeMinWaterDepth;
         boolean inWater = false;
         int waterStart = -1;
 
         for (int i = 0; i < centers.size(); i++) {
             BlockPos pos = centers.get(i);
-            if (!isWaterLike(cache, pos.getX(), pos.getZ(), level)) {
-                if (inWater) {
-                    appendBridgeSpan(spans, centers, waterStart, i);
-                    inWater = false;
-                    waterStart = -1;
-                }
-                continue;
-            }
-
-            int oceanFloor = accurate.oceanFloorWg(pos.getX(), pos.getZ());
-            int surfaceY = accurate.worldSurfaceWg(pos.getX(), pos.getZ());
-            boolean biomeWater = oceanFloor < sea;
-            boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
-            boolean waterColumn = biomeWater || heightWater;
-            int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;
-            boolean water = waterColumn && waterDepth >= minWaterDepth;
+            boolean water = isBridgeWater(level, cache, terrain, accurate, pos, minWaterDepth);
 
             if (water && !inWater) {
                 inWater = true;
@@ -86,6 +80,29 @@ public final class PathSpanExtractor {
         if (inWater && waterStart >= 0) {
             appendBridgeSpan(spans, centers, waterStart, centers.size() - 1);
         }
+    }
+
+    private static boolean isBridgeWater(ServerLevel level,
+                                         TerrainSamplingCache cache,
+                                         PathTerrainField terrain,
+                                         AccurateHeightSampler accurate,
+                                         BlockPos pos,
+                                         int minWaterDepth) {
+        if (terrain != null && terrain.contains(pos.getX(), pos.getZ())) {
+            return terrain.isBridgeWater(pos.getX(), pos.getZ(), minWaterDepth);
+        }
+        if (!isWaterLike(cache, pos.getX(), pos.getZ(), level)) {
+            return false;
+        }
+
+        int sea = level.getSeaLevel();
+        int oceanFloor = accurate.oceanFloorWg(pos.getX(), pos.getZ());
+        int surfaceY = accurate.worldSurfaceWg(pos.getX(), pos.getZ());
+        boolean biomeWater = oceanFloor < sea;
+        boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
+        boolean waterColumn = biomeWater || heightWater;
+        int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;
+        return waterColumn && waterDepth >= Math.max(1, minWaterDepth);
     }
 
     private static void appendBridgeSpan(List<RoadSpan> spans,

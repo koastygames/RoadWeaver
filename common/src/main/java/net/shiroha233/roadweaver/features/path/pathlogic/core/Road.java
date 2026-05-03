@@ -15,8 +15,10 @@ import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator;
+import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator.PathCalculationResult;
 import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
@@ -72,15 +74,18 @@ public final class Road {
         
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
-            List<RoadSegmentPlacement> rawSegments = RoadPathCalculator.calculateAStarRoadPath(
+            PathCalculationResult pathResult = RoadPathCalculator.calculateAStarRoadPathDetailed(
                     rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
+            List<RoadSegmentPlacement> rawSegments = pathResult.segments();
             if (rawSegments == null || rawSegments.size() < 5) return null;
             
             List<RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return null;
             
-            List<RoadSpan> spans = PathSpanExtractor.extractSpans(segments, level, cache, genConfig.bridgeMinWaterDepth());
+            PathTerrainField terrain = pathResult.terrain();
+            List<RoadSpan> spans = PathSpanExtractor.extractSpans(
+                    segments, level, cache, terrain, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
             long ownerA2d = PlanningUtils.pos2dKey(rawStart);
             long ownerB2d = PlanningUtils.pos2dKey(rawEnd);

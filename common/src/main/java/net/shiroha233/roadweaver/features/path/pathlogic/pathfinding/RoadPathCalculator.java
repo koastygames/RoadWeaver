@@ -32,6 +32,16 @@ public final class RoadPathCalculator {
                                                                     int maxSteps,
                                                                     TerrainSamplingCache cache,
                                                                     RoadGenerationConfig cfg) {
+        return calculateAStarRoadPathDetailed(startIn, endIn, width, level, maxSteps, cache, cfg).segments();
+    }
+
+    public static PathCalculationResult calculateAStarRoadPathDetailed(BlockPos startIn,
+                                                                       BlockPos endIn,
+                                                                       int width,
+                                                                       ServerLevel level,
+                                                                       int maxSteps,
+                                                                       TerrainSamplingCache cache,
+                                                                       RoadGenerationConfig cfg) {
         PathfindingCostConfig pathCfg = cfg.pathfinding();
         int dGrid = pathCfg.effectiveAStarStep();
         int sx = snapToGrid(startIn.getX(), dGrid);
@@ -48,11 +58,11 @@ public final class RoadPathCalculator {
         PathTerrainField coarseTerrain = PathTerrainFieldFactory.cached(level, cache, dGrid);
         List<BlockPos> coarsePath = calculateRawPath(startGround, endGround, level, maxSteps, cache, coarseTerrain, pathCfg);
         if (coarsePath == null || coarsePath.isEmpty()) {
-            return null;
+            return PathCalculationResult.failure();
         }
 
         if (!pathCfg.isAccurateSampling()) {
-            return finalizePath(coarsePath, width, level, cache, pathCfg);
+            return finalizePath(coarsePath, width, level, cache, null, pathCfg);
         }
 
         PathTerrainField quantizedTerrain = PathTerrainFieldFactory.quantized(
@@ -62,14 +72,14 @@ public final class RoadPathCalculator {
                 dGrid,
                 pathCfg.quantizedSamplingChunkRadius());
         if (quantizedTerrain == null) {
-            return finalizePath(coarsePath, width, level, cache, pathCfg);
+            return finalizePath(coarsePath, width, level, cache, null, pathCfg);
         }
 
         List<BlockPos> finalRawPath = calculateRawPath(startGround, endGround, level, maxSteps, cache, quantizedTerrain, pathCfg);
         if (finalRawPath == null || finalRawPath.isEmpty()) {
             finalRawPath = coarsePath;
         }
-        return finalizePath(finalRawPath, width, level, cache, pathCfg);
+        return finalizePath(finalRawPath, width, level, cache, quantizedTerrain, pathCfg);
     }
 
     private static List<BlockPos> calculateRawPath(BlockPos startGround,
@@ -88,24 +98,39 @@ public final class RoadPathCalculator {
         return result.rawPath();
     }
 
-    private static List<RoadSegmentPlacement> finalizePath(List<BlockPos> rawPath,
-                                                           int width,
-                                                           ServerLevel level,
-                                                           TerrainSamplingCache cache,
-                                                           PathfindingCostConfig pathCfg) {
+    private static PathCalculationResult finalizePath(List<BlockPos> rawPath,
+                                                      int width,
+                                                      ServerLevel level,
+                                                      TerrainSamplingCache cache,
+                                                      PathTerrainField terrain,
+                                                      PathfindingCostConfig pathCfg) {
         if (rawPath == null || rawPath.size() < 2) {
-            return null;
+            return PathCalculationResult.failure();
         }
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         List<BlockPos> finalPath = rawPath;
         if (pathCfg.needsRefinement()) {
             finalPath = accurate.samplePathHeights(rawPath, 0);
         }
-        return PathPostProcessor.process(finalPath, width, level, cache,
-                net.shiroha233.roadweaver.core.constants.RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+        List<RoadSegmentPlacement> segments = PathPostProcessor.process(
+                finalPath,
+                width,
+                level,
+                cache,
+                terrain,
+                net.shiroha233.roadweaver.core.constants.RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH,
+                net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.CurveMode.CATMULL_ROM,
+                accurate);
+        return segments == null ? PathCalculationResult.failure() : new PathCalculationResult(segments, terrain);
     }
 
     static int heightSampler(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
         return cache.height(level, x, z);
+    }
+
+    public record PathCalculationResult(List<RoadSegmentPlacement> segments, PathTerrainField terrain) {
+        public static PathCalculationResult failure() {
+            return new PathCalculationResult(null, null);
+        }
     }
 }

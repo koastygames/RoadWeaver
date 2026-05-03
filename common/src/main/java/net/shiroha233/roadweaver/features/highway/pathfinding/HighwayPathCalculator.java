@@ -5,6 +5,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainFieldFactory;
 
 import java.util.List;
 
@@ -21,8 +23,18 @@ public final class HighwayPathCalculator {
                                                                   int maxSteps,
                                                                   TerrainSamplingCache cache,
                                                                   HighwayGenerationConfig cfg) {
+        return calculateHighwayPathDetailed(startIn, endIn, width, level, maxSteps, cache, cfg).segments();
+    }
+
+    public static PathCalculationResult calculateHighwayPathDetailed(BlockPos startIn,
+                                                                     BlockPos endIn,
+                                                                     int width,
+                                                                     ServerLevel level,
+                                                                     int maxSteps,
+                                                                     TerrainSamplingCache cache,
+                                                                     HighwayGenerationConfig cfg) {
         if (startIn == null || endIn == null || level == null || cache == null || cfg == null) {
-            return null;
+            return PathCalculationResult.failure();
         }
 
         int dGrid = cfg.pathfindingCost().effectiveAStarStep();
@@ -42,15 +54,45 @@ public final class HighwayPathCalculator {
         try {
             BlockPos startGround = new BlockPos(start.getX(), cache.height(level, start.getX(), start.getZ()), start.getZ());
             BlockPos endGround = new BlockPos(end.getX(), cache.height(level, end.getX(), end.getZ()), end.getZ());
-
-            return HighwayBidirectionalAStarPathfinder.calculateLandPath(
+            HighwayBidirectionalAStarPathfinder.PathCalculationResult coarseResult = HighwayBidirectionalAStarPathfinder.calculateLandPath(
                     startGround,
                     endGround,
                     width,
                     level,
                     maxSteps,
                     cache,
-                    cfg);
+                    cfg,
+                    null);
+            if (!accurateSampling || coarseResult.segments() == null || coarseResult.segments().isEmpty()) {
+                return new PathCalculationResult(coarseResult.segments(), coarseResult.terrain());
+            }
+
+            List<BlockPos> coarsePath = coarseResult.segments().stream()
+                    .map(RoadSegmentPlacement::middlePos)
+                    .toList();
+            PathTerrainField terrain = PathTerrainFieldFactory.quantized(
+                    level,
+                    cache,
+                    coarsePath,
+                    dGrid,
+                    cfg.pathfindingCost().quantizedSamplingChunkRadius());
+            if (terrain == null) {
+                return new PathCalculationResult(coarseResult.segments(), null);
+            }
+
+            HighwayBidirectionalAStarPathfinder.PathCalculationResult refinedResult = HighwayBidirectionalAStarPathfinder.calculateLandPath(
+                    startGround,
+                    endGround,
+                    width,
+                    level,
+                    maxSteps,
+                    cache,
+                    cfg,
+                    terrain);
+            if (refinedResult.segments() == null || refinedResult.segments().isEmpty()) {
+                return new PathCalculationResult(coarseResult.segments(), null);
+            }
+            return new PathCalculationResult(refinedResult.segments(), refinedResult.terrain());
         } finally {
             if (accurateSampling) {
                 cache.disableHighPrecision();
@@ -60,5 +102,11 @@ public final class HighwayPathCalculator {
 
     private static int snapToGrid(int v, int gridSize) {
         return Math.floorDiv(v, gridSize) * gridSize;
+    }
+
+    public record PathCalculationResult(List<RoadSegmentPlacement> segments, PathTerrainField terrain) {
+        public static PathCalculationResult failure() {
+            return new PathCalculationResult(null, null);
+        }
     }
 }

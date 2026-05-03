@@ -13,9 +13,11 @@ import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.highway.HighwayRoadTypes;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
 import net.shiroha233.roadweaver.features.highway.pathfinding.HighwayPathCalculator;
+import net.shiroha233.roadweaver.features.highway.pathfinding.HighwayPathCalculator.PathCalculationResult;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureRoadOffsetService;
 import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
 import java.util.ArrayList;
@@ -51,15 +53,18 @@ public final class HighwayRoad {
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
             RoadGenerationConfig adapted = genConfig.toRoadGenerationConfig();
-            List<RoadSegmentPlacement> rawSegments = HighwayPathCalculator.calculateHighwayPath(
+            PathCalculationResult pathResult = HighwayPathCalculator.calculateHighwayPathDetailed(
                     rawStart, rawEnd, width, level, Math.max(1, maxSteps), cache, genConfig);
+            List<RoadSegmentPlacement> rawSegments = pathResult.segments();
             if (rawSegments == null || rawSegments.size() < 3) return false;
 
             List<RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 3) return false;
 
-            List<RoadSpan> spans = PathSpanExtractor.extractSpans(segments, level, cache, adapted.bridgeMinWaterDepth());
+            PathTerrainField terrain = pathResult.terrain();
+            List<RoadSpan> spans = PathSpanExtractor.extractSpans(
+                    segments, level, cache, terrain, adapted.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
 
             RoadData rd = new RoadData(

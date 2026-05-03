@@ -11,8 +11,12 @@ import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.features.longdrive.config.LongDriveGenerationConfig;
 import net.shiroha233.roadweaver.features.longdrive.pathfinding.GreedyForwardPathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathResult;
+import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
+import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainFieldFactory;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,9 +65,26 @@ public final class LongDriveRoad {
             // 长途模式使用精准采样，避免快速采样导致的地形/水深误判
             cache.enableHighPrecision(level);
             GreedyForwardPathfinder pathfinder = new GreedyForwardPathfinder();
-            PathResult result = pathfinder.findPath(
+            PathResult coarseResult = pathfinder.findPath(
                     start, dirX, dirZ, maxSteps, width, level, cache,
                     genConfig.pathfindingCost(), genConfig.directionBias());
+            if (!coarseResult.success() || coarseResult.segments().size() < 3) return null;
+
+            List<BlockPos> coarsePath = coarseResult.segments().stream()
+                    .map(RoadSegmentPlacement::middlePos)
+                    .toList();
+            PathTerrainField terrain = PathTerrainFieldFactory.quantized(
+                    level,
+                    cache,
+                    coarsePath,
+                    Math.max(1, genConfig.pathfindingCost().effectiveAStarStep()),
+                    genConfig.pathfindingCost().quantizedSamplingChunkRadius());
+            PathResult result = terrain == null
+                    ? coarseResult
+                    : pathfinder.findPath(
+                            start, dirX, dirZ, maxSteps, width, level, cache,
+                            terrain,
+                            genConfig.pathfindingCost(), genConfig.directionBias());
 
             if (!result.success() || result.segments().size() < 3) return null;
 
@@ -71,11 +92,18 @@ public final class LongDriveRoad {
                     .map(RoadSegmentPlacement::middlePos)
                     .toList();
             List<RoadSegmentPlacement> segments = PathPostProcessor.process(
-                    rawPath, width, level, cache, genConfig.bridgeMinWaterDepth());
+                    rawPath,
+                    width,
+                    level,
+                    cache,
+                    terrain,
+                    genConfig.bridgeMinWaterDepth(),
+                    SplineHelper.CurveMode.CATMULL_ROM,
+                    null);
 
             if (segments == null || segments.size() < 3) return null;
 
-            List<RoadSpan> spans = extractSpans(segments, level, cache);
+            List<RoadSpan> spans = extractSpans(segments, level, cache, terrain);
             List<Integer> targetY = computeTargetY(segments, spans);
 
             RoadData rd = new RoadData(
@@ -95,36 +123,15 @@ public final class LongDriveRoad {
     }
 
     private List<RoadSpan> extractSpans(List<RoadSegmentPlacement> segments,
-                                        ServerLevel level, TerrainSamplingCache cache) {
-        List<RoadSpan> spans = new ArrayList<>();
-        int minWaterDepth = genConfig.bridgeMinWaterDepth();
-        
-        int i = 0;
-        while (i < segments.size()) {
-            BlockPos pos = segments.get(i).middlePos();
-            int oceanFloor = cache.oceanFloor(level, pos.getX(), pos.getZ());
-            int waterDepth = Math.max(0, level.getSeaLevel() - oceanFloor);
-            
-            if (waterDepth >= minWaterDepth) {
-                int start = i;
-                while (i < segments.size()) {
-                    BlockPos p = segments.get(i).middlePos();
-                    int floor = cache.oceanFloor(level, p.getX(), p.getZ());
-                    int depth = Math.max(0, level.getSeaLevel() - floor);
-                    if (depth < minWaterDepth) break;
-                    i++;
-                }
-                if (i > start) {
-                    spans.add(new RoadSpan(
-                            segments.get(start).middlePos(),
-                            segments.get(i - 1).middlePos(),
-                            SpanType.BRIDGE));
-                }
-            } else {
-                i++;
-            }
-        }
-        return spans;
+                                        ServerLevel level,
+                                        TerrainSamplingCache cache,
+                                        PathTerrainField terrain) {
+        return PathSpanExtractor.extractSpans(
+                segments,
+                level,
+                cache,
+                terrain,
+                genConfig.bridgeMinWaterDepth());
     }
 
     private List<Integer> computeTargetY(List<RoadSegmentPlacement> segments, List<RoadSpan> spans) {
