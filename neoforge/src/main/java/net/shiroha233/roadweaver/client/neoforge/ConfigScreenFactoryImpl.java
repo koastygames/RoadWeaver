@@ -1,3 +1,4 @@
+/* 文件职责：构建 NeoForge 平台的模组配置界面。 */
 package net.shiroha233.roadweaver.client.neoforge;
 
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
@@ -656,13 +657,6 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
-                .startBooleanToggle(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled"), cfg.hierarchicalPathfindingEnabled())
-                .setDefaultValue(def.hierarchicalPathfindingEnabled())
-                .setTooltip(Component.translatable("config.roadweaver.hierarchical_pathfinding_enabled.tooltip"))
-                .setSaveConsumer(cfg::setHierarchicalPathfindingEnabled)
-                .build());
-
-        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.a_star_step"), cfg.aStarStep())
                 .setDefaultValue(def.aStarStep())
                 .setTooltip(Component.translatable("config.roadweaver.a_star_step.tooltip"))
@@ -679,10 +673,11 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
-                .startIntSlider(Component.translatable("config.roadweaver.accurate_sampling_divisor"), cfg.accurateSamplingDivisor(), 0, 4)
-                .setDefaultValue(def.accurateSamplingDivisor())
-                .setTooltip(Component.translatable("config.roadweaver.accurate_sampling_divisor.tooltip"))
-                .setSaveConsumer(cfg::setAccurateSamplingDivisor)
+                .startIntField(Component.translatable("config.roadweaver.quantized_sampling_chunk_radius"), cfg.quantizedSamplingChunkRadius())
+                .setDefaultValue(def.quantizedSamplingChunkRadius())
+                .setTooltip(Component.translatable("config.roadweaver.quantized_sampling_chunk_radius.tooltip"))
+                .setMin(0).setMax(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX)
+                .setSaveConsumer(cfg::setQuantizedSamplingChunkRadius)
                 .build());
 
         category.addEntry(eb

@@ -12,6 +12,7 @@ import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
 import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.*;
@@ -25,18 +26,19 @@ public final class HighwayBidirectionalAStarPathfinder {
     private static final int BIOME_BASE_COST = 12;
     private static final double HEURISTIC_EPSILON = 0.2;
 
-    public static List<RoadSegmentPlacement> calculateLandPath(BlockPos startGround,
-                                                               BlockPos endGround,
-                                                               int width,
-                                                               ServerLevel level,
-                                                               int maxSteps,
-                                                               TerrainSamplingCache cache,
-                                                               HighwayGenerationConfig cfg) {
+    public static PathCalculationResult calculateLandPath(BlockPos startGround,
+                                                          BlockPos endGround,
+                                                          int width,
+                                                          ServerLevel level,
+                                                          int maxSteps,
+                                                          TerrainSamplingCache cache,
+                                                          HighwayGenerationConfig cfg,
+                                                          PathTerrainField terrain) {
         if (startGround == null || endGround == null || level == null || cache == null || cfg == null) {
-            return null;
+            return PathCalculationResult.failure();
         }
         if (startGround.equals(endGround)) {
-            return Collections.emptyList();
+            return new PathCalculationResult(Collections.emptyList(), terrain);
         }
 
         PathfindingCostConfig pathCfg = cfg.pathfindingCost();
@@ -84,18 +86,18 @@ public final class HighwayBidirectionalAStarPathfinder {
             Meet meet;
             if (expandForward) {
                 meet = expandOneSide(openF, nodesF, closedF, nodesB, closedB, nodesB,
-                        true, startGround, endGround, level, cache, neighborOffsets, d, cfg);
+                        true, startGround, endGround, level, cache, terrain, neighborOffsets, d, cfg);
             } else {
                 meet = expandOneSide(openB, nodesB, closedB, nodesF, closedF, nodesF,
-                        false, endGround, startGround, level, cache, neighborOffsets, d, cfg);
+                        false, endGround, startGround, level, cache, terrain, neighborOffsets, d, cfg);
             }
 
             if (meet != null) {
-                return reconstructPath(meet.forward, meet.backward, width, level, cache, cfg);
+                return reconstructPath(meet.forward, meet.backward, width, level, cache, cfg, terrain);
             }
         }
 
-        return null;
+        return PathCalculationResult.failure();
     }
 
     private static Meet expandOneSide(PriorityQueue<Node> open,
@@ -109,6 +111,7 @@ public final class HighwayBidirectionalAStarPathfinder {
                                      BlockPos to,
                                      ServerLevel level,
                                      TerrainSamplingCache cache,
+                                     PathTerrainField terrain,
                                      int[][] neighborOffsets,
                                      int d,
                                      HighwayGenerationConfig cfg) {
@@ -125,23 +128,26 @@ public final class HighwayBidirectionalAStarPathfinder {
                 return null;
             }
             BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
-            int y = heightSampler(cache, nxz.getX(), nxz.getZ(), level);
+            if (terrain != null && !terrain.contains(nxz.getX(), nxz.getZ())) {
+                continue;
+            }
+            int y = heightSampler(cache, terrain, nxz.getX(), nxz.getZ(), level);
             BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
             if (closedThis.contains(np)) continue;
 
-            Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+            Holder<Biome> biome = biome(cache, terrain, level, np.getX(), np.getZ());
             int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
                     || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
             int elevation = Math.abs(y - current.pos.getY());
 
             int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);
             double stepCost = (offsetSum == 2 * d) ? pathCfg.diagStepCost() : pathCfg.orthoStepCost();
-            int stabilityCost = calculateTerrainStability(cache, np, y, level, d);
+            int stabilityCost = calculateTerrainStability(cache, terrain, np, y, level, d);
 
-            int sea = level.getSeaLevel();
-            boolean waterColumn = isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
-            boolean nearWater = isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
-            int oceanFloor = oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
+            int sea = terrain != null ? terrain.seaLevel() : level.getSeaLevel();
+            boolean waterColumn = isColumnWater(cache, terrain, nxz.getX(), nxz.getZ(), level);
+            boolean nearWater = isNearWaterLike(cache, terrain, nxz.getX(), nxz.getZ(), level, d);
+            int oceanFloor = oceanFloorSampler(cache, terrain, nxz.getX(), nxz.getZ(), level);
             int waterDepth = Math.max(0, sea - oceanFloor);
             int waterDepthCost = waterColumn ? (int) (waterDepth * pathCfg.waterDepthWeight()) : 0;
             int nearWaterCost = nearWater ? (int) pathCfg.nearWaterCost() : 0;
@@ -189,12 +195,13 @@ public final class HighwayBidirectionalAStarPathfinder {
         return null;
     }
 
-    private static List<RoadSegmentPlacement> reconstructPath(Node meetForward,
-                                                              Node meetBackward,
-                                                              int width,
-                                                              ServerLevel level,
-                                                              TerrainSamplingCache cache,
-                                                              HighwayGenerationConfig cfg) {
+    private static PathCalculationResult reconstructPath(Node meetForward,
+                                                         Node meetBackward,
+                                                         int width,
+                                                         ServerLevel level,
+                                                         TerrainSamplingCache cache,
+                                                         HighwayGenerationConfig cfg,
+                                                         PathTerrainField terrain) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node cur = meetForward;
         while (cur != null) {
@@ -211,21 +218,22 @@ public final class HighwayBidirectionalAStarPathfinder {
             cur = cur.parent;
         }
 
-        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
         PathfindingCostConfig costCfg = cfg.pathfindingCost();
         boolean needsRefinement = costCfg == null || costCfg.needsRefinement();
         if (needsRefinement) {
-            int divisor = costCfg != null ? costCfg.accurateSamplingDivisor() : 0;
-            rawPath = accurate.samplePathHeights(rawPath, divisor);
+            rawPath = accurate.samplePathHeights(rawPath, 0);
         }
-        return PathPostProcessor.process(
+        List<RoadSegmentPlacement> segments = PathPostProcessor.process(
                 rawPath,
                 width,
                 level,
                 cache,
+                terrain,
                 cfg.bridgeMinWaterDepth(),
                 SplineHelper.CurveMode.BEZIER_CASTELJAU,
                 accurate);
+        return segments == null ? PathCalculationResult.failure() : new PathCalculationResult(segments, terrain);
     }
 
     private static double heuristic(BlockPos a, BlockPos b, PathfindingCostConfig cfg) {
@@ -248,28 +256,61 @@ public final class HighwayBidirectionalAStarPathfinder {
         return num / den;
     }
 
-    private static int heightSampler(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
+    private static int heightSampler(TerrainSamplingCache cache, PathTerrainField terrain, int x, int z, ServerLevel level) {
+        if (terrain != null && terrain.contains(x, z)) {
+            return terrain.height(x, z);
+        }
         return cache.height(level, x, z);
     }
 
-    private static int oceanFloorSampler(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
+    private static int oceanFloorSampler(TerrainSamplingCache cache, PathTerrainField terrain, int x, int z, ServerLevel level) {
+        if (terrain != null && terrain.contains(x, z)) {
+            return terrain.oceanFloor(x, z);
+        }
         return cache.oceanFloor(level, x, z);
     }
 
-    private static boolean isColumnWater(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
+    private static boolean isColumnWater(TerrainSamplingCache cache, PathTerrainField terrain, int x, int z, ServerLevel level) {
+        if (terrain != null && terrain.contains(x, z)) {
+            return terrain.isColumnWater(x, z);
+        }
         return cache.isColumnWater(level, x, z);
     }
 
-    private static boolean isNearWaterLike(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
+    private static boolean isNearWaterLike(TerrainSamplingCache cache,
+                                           PathTerrainField terrain,
+                                           int x,
+                                           int z,
+                                           ServerLevel level,
+                                           int step) {
+        if (terrain != null && terrain.contains(x, z)) {
+            return terrain.isNearWater(x, z, step);
+        }
         return cache.isNearWaterLike(level, x, z, 16);
     }
 
-    private static int calculateTerrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level, int step) {
+    private static Holder<Biome> biome(TerrainSamplingCache cache,
+                                       PathTerrainField terrain,
+                                       ServerLevel level,
+                                       int x,
+                                       int z) {
+        if (terrain != null && terrain.contains(x, z)) {
+            return terrain.biome(x, z);
+        }
+        return cache.getBiome(level, x, z);
+    }
+
+    private static int calculateTerrainStability(TerrainSamplingCache cache,
+                                                 PathTerrainField terrain,
+                                                 BlockPos pos,
+                                                 int y,
+                                                 ServerLevel level,
+                                                 int step) {
         int cost = 0;
-        if (Math.abs(heightSampler(cache, pos.getX() + step, pos.getZ(), level) - y) > 0) cost++;
-        if (Math.abs(heightSampler(cache, pos.getX() - step, pos.getZ(), level) - y) > 0) cost++;
-        if (Math.abs(heightSampler(cache, pos.getX(), pos.getZ() + step, level) - y) > 0) cost++;
-        if (Math.abs(heightSampler(cache, pos.getX(), pos.getZ() - step, level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, terrain, pos.getX() + step, pos.getZ(), level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, terrain, pos.getX() - step, pos.getZ(), level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, terrain, pos.getX(), pos.getZ() + step, level) - y) > 0) cost++;
+        if (Math.abs(heightSampler(cache, terrain, pos.getX(), pos.getZ() - step, level) - y) > 0) cost++;
         return cost;
     }
 
@@ -294,6 +335,12 @@ public final class HighwayBidirectionalAStarPathfinder {
         Meet(Node forward, Node backward) {
             this.forward = forward;
             this.backward = backward;
+        }
+    }
+
+    public record PathCalculationResult(List<RoadSegmentPlacement> segments, PathTerrainField terrain) {
+        public static PathCalculationResult failure() {
+            return new PathCalculationResult(null, null);
         }
     }
 }

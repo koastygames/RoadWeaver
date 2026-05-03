@@ -10,6 +10,7 @@ import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.pathfinding.GreedyPathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathResult;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.ArrayList;
@@ -30,6 +31,15 @@ public final class GreedyForwardPathfinder implements GreedyPathfinder {
     public PathResult findPath(BlockPos start, double dirX, double dirZ,
                                int maxSteps, int width,
                                ServerLevel level, TerrainSamplingCache cache,
+                               PathfindingCostConfig cfg, double dirBias) {
+        return findPath(start, dirX, dirZ, maxSteps, width, level, cache, null, cfg, dirBias);
+    }
+
+    @Override
+    public PathResult findPath(BlockPos start, double dirX, double dirZ,
+                               int maxSteps, int width,
+                               ServerLevel level, TerrainSamplingCache cache,
+                               PathTerrainField terrain,
                                PathfindingCostConfig cfg, double dirBias) {
         int d = cfg.aStarStep();
         int[][] offsets = {
@@ -63,13 +73,14 @@ public final class GreedyForwardPathfinder implements GreedyPathfinder {
                     int nz = current.getZ() + off[1];
                     long key = posKey(nx, nz);
                     if (visited.contains(key)) continue;
+                    if (terrain != null && !terrain.contains(nx, nz)) continue;
 
-                    int ny = cache.height(level, nx, nz);
+                    int ny = sampleHeight(cache, terrain, level, nx, nz);
                     BlockPos np = new BlockPos(nx, ny, nz);
 
                     double cost = evaluateStep(
                             current, np, off, d, dirX, dirZ, dirBias,
-                            level, cache, cfg, terrainScale);
+                            level, cache, terrain, cfg, terrainScale);
                     if (cost < bestCost) {
                         bestCost = cost;
                         best = np;
@@ -110,6 +121,7 @@ public final class GreedyForwardPathfinder implements GreedyPathfinder {
             BlockPos current, BlockPos next, int[] offset, int d,
             double dirX, double dirZ, double dirBias,
             ServerLevel level, TerrainSamplingCache cache,
+            PathTerrainField terrain,
             PathfindingCostConfig cfg, double terrainScale) {
 
         // 方向代价（主导因素）
@@ -129,35 +141,60 @@ public final class GreedyForwardPathfinder implements GreedyPathfinder {
         boolean isDiag = (Math.abs(offset[0]) + Math.abs(offset[1])) == 2 * d;
         double stepCost = isDiag ? cfg.diagStepCost() : cfg.orthoStepCost();
 
-        int stability = terrainStability(cache, next, next.getY(), level, d);
+        int stability = terrainStability(cache, terrain, next, next.getY(), level, d);
 
-        boolean waterCol = cache.isColumnWater(level, next.getX(), next.getZ());
-        boolean nearWater = cache.isNearWaterLike(level, next.getX(), next.getZ(), d);
-        int oceanFloor = cache.oceanFloor(level, next.getX(), next.getZ());
-        int waterDepth = Math.max(0, level.getSeaLevel() - oceanFloor);
+        boolean waterCol = terrain != null
+                ? terrain.isColumnWater(next.getX(), next.getZ())
+                : cache.isColumnWater(level, next.getX(), next.getZ());
+        boolean nearWater = terrain != null
+                ? terrain.isNearWater(next.getX(), next.getZ(), d)
+                : cache.isNearWaterLike(level, next.getX(), next.getZ(), d);
+        int oceanFloor = terrain != null
+                ? terrain.oceanFloor(next.getX(), next.getZ())
+                : cache.oceanFloor(level, next.getX(), next.getZ());
+        int seaLevel = terrain != null ? terrain.seaLevel() : level.getSeaLevel();
+        int waterDepth = Math.max(0, seaLevel - oceanFloor);
         double waterPenalty = 0.0;
         if (waterCol) {
             waterPenalty = WATER_COLUMN_PENALTY + waterDepth * 40.0;
         }
         double nearWaterPenalty = nearWater ? 200.0 : 0.0;
 
-        Holder<Biome> biome = cache.getBiome(level, next.getX(), next.getZ());
+        Holder<Biome> biome = terrain != null
+                ? terrain.biome(next.getX(), next.getZ())
+                : cache.getBiome(level, next.getX(), next.getZ());
         int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
                 || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? (BIOME_BASE_COST * 4) : 0;
 
-        double terrain = (elevCost + stepCost + stability * 10.0
+        double terrainCost = (elevCost + stepCost + stability * 10.0
                 + biomeCost * 2.0 + waterPenalty + nearWaterPenalty) * terrainScale;
 
-        return dirCost + terrain;
+        return dirCost + terrainCost;
     }
 
-    private int terrainStability(TerrainSamplingCache cache, BlockPos pos, int y, ServerLevel level, int step) {
+    private int terrainStability(TerrainSamplingCache cache,
+                                 PathTerrainField terrain,
+                                 BlockPos pos,
+                                 int y,
+                                 ServerLevel level,
+                                 int step) {
         int cost = 0;
-        if (Math.abs(cache.height(level, pos.getX() + step, pos.getZ()) - y) > 0) cost++;
-        if (Math.abs(cache.height(level, pos.getX() - step, pos.getZ()) - y) > 0) cost++;
-        if (Math.abs(cache.height(level, pos.getX(), pos.getZ() + step) - y) > 0) cost++;
-        if (Math.abs(cache.height(level, pos.getX(), pos.getZ() - step) - y) > 0) cost++;
+        if (Math.abs(sampleHeight(cache, terrain, level, pos.getX() + step, pos.getZ()) - y) > 0) cost++;
+        if (Math.abs(sampleHeight(cache, terrain, level, pos.getX() - step, pos.getZ()) - y) > 0) cost++;
+        if (Math.abs(sampleHeight(cache, terrain, level, pos.getX(), pos.getZ() + step) - y) > 0) cost++;
+        if (Math.abs(sampleHeight(cache, terrain, level, pos.getX(), pos.getZ() - step) - y) > 0) cost++;
         return cost;
+    }
+
+    private int sampleHeight(TerrainSamplingCache cache,
+                             PathTerrainField terrain,
+                             ServerLevel level,
+                             int x,
+                             int z) {
+        if (terrain != null && terrain.contains(x, z)) {
+            return terrain.height(x, z);
+        }
+        return cache.height(level, x, z);
     }
 
     private long posKey(BlockPos p) {

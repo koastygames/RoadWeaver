@@ -1,3 +1,4 @@
+/* 文件职责：定义路边结构的编解码协议与放置行为。 */
 package net.shiroha233.roadweaver.structures.types;
 
 import com.mojang.serialization.Codec;
@@ -13,6 +14,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.BoundingBox;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
@@ -20,6 +22,8 @@ import net.minecraft.world.level.levelgen.structure.StructureType;
 import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+import net.minecraft.world.level.levelgen.heightproviders.ConstantHeight;
+import net.minecraft.world.level.levelgen.heightproviders.HeightProvider;
 import net.shiroha233.roadweaver.structures.data.LootConfig;
 import net.shiroha233.roadweaver.structures.data.MobSpawnRule;
 import net.shiroha233.roadweaver.structures.data.RoadsidePlacementRule;
@@ -45,7 +49,11 @@ public class RoadsideStructure extends Structure {
             StructureScale.CODEC.optionalFieldOf("scale", StructureScale.SMALL).forGetter(s -> s.scale),
             RoadsidePlacementRule.CODEC.optionalFieldOf("placement_rule", RoadsidePlacementRule.UNIVERSAL).forGetter(s -> s.placementRule),
             MobSpawnRule.LIST_CODEC.optionalFieldOf("mob_spawns", List.of()).forGetter(s -> s.mobSpawns),
-            LootConfig.LIST_CODEC.optionalFieldOf("loot_configs", List.of()).forGetter(s -> s.lootConfigs)
+            LootConfig.LIST_CODEC.optionalFieldOf("loot_configs", List.of()).forGetter(s -> s.lootConfigs),
+            HeightProvider.CODEC.optionalFieldOf("start_height", ConstantHeight.ZERO).forGetter(RoadsideStructure::startHeight),
+            Heightmap.Types.CODEC.optionalFieldOf("project_start_to_heightmap", Heightmap.Types.WORLD_SURFACE_WG).forGetter(s -> s.projectStartToHeightmap),
+            Codec.BOOL.optionalFieldOf("skip_terrain_check", false).forGetter(s -> s.skipTerrainCheck),
+            Codec.BOOL.optionalFieldOf("use_accurate_height", false).forGetter(s -> s.useAccurateHeight)
         ).apply(instance, RoadsideStructure::new)
     );
     
@@ -57,16 +65,26 @@ public class RoadsideStructure extends Structure {
     private final RoadsidePlacementRule placementRule;
     private final List<MobSpawnRule> mobSpawns;
     private final List<LootConfig> lootConfigs;
+    private final HeightProvider startHeight;
+    private final Heightmap.Types projectStartToHeightmap;
+    private final boolean skipTerrainCheck;
+    private final boolean useAccurateHeight;
     
-    public RoadsideStructure(StructureSettings settings,
-                            ResourceLocation templateId,
-                            Vec3i sizeHint,
-                            int weight,
-                            boolean faceRoad,
-                            StructureScale scale,
-                            RoadsidePlacementRule placementRule,
-                            List<MobSpawnRule> mobSpawns,
-                            List<LootConfig> lootConfigs) {
+    public RoadsideStructure(
+        StructureSettings settings,
+        ResourceLocation templateId,
+        Vec3i sizeHint,
+        int weight,
+        boolean faceRoad,
+        StructureScale scale,
+        RoadsidePlacementRule placementRule,
+        List<MobSpawnRule> mobSpawns,
+        List<LootConfig> lootConfigs,
+        HeightProvider startHeight,
+        Heightmap.Types projectStartToHeightmap,
+        boolean skipTerrainCheck,
+        boolean useAccurateHeight
+    ) {
         super(settings);
         this.templateId = templateId;
         this.sizeHint = sizeHint;
@@ -76,6 +94,10 @@ public class RoadsideStructure extends Structure {
         this.placementRule = placementRule;
         this.mobSpawns = mobSpawns;
         this.lootConfigs = lootConfigs;
+        this.startHeight = startHeight;
+        this.projectStartToHeightmap = projectStartToHeightmap;
+        this.skipTerrainCheck = skipTerrainCheck;
+        this.useAccurateHeight = useAccurateHeight;
     }
     
     @Override
@@ -118,6 +140,22 @@ public class RoadsideStructure extends Structure {
     
     public List<LootConfig> lootConfigs() {
         return lootConfigs;
+    }
+
+    public HeightProvider startHeight() {
+        return startHeight;
+    }
+
+    public Heightmap.Types projectStartToHeightmap() {
+        return projectStartToHeightmap;
+    }
+
+    public boolean skipTerrainCheck() {
+        return skipTerrainCheck;
+    }
+
+    public boolean useAccurateHeight() {
+        return useAccurateHeight;
     }
     
     public StructureStart placeAt(WorldGenLevel level,

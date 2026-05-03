@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Long, Boolean> waterCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Boolean> nearWaterCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, ConcurrentHashMap<Long, Boolean>> nearWaterCacheByDistance = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> columnWaterCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
@@ -84,6 +84,10 @@ public final class TerrainSamplingCache {
     }
 
     public boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
+        int distance = Math.max(0, neighborDistance);
+        ConcurrentHashMap<Long, Boolean> nearWaterCache = nearWaterCacheByDistance.computeIfAbsent(
+                distance,
+                ignored -> new ConcurrentHashMap<>());
         long key = hashXZ(x, z);
         Boolean cached = nearWaterCache.get(key);
         if (cached != null) {
@@ -91,7 +95,7 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        int d = neighborDistance;
+        int d = distance;
         int[][] offsets = {
                 {d, 0}, {-d, 0}, {0, d}, {0, -d},
                 {d, d}, {d, -d}, {-d, d}, {-d, -d}
@@ -115,11 +119,15 @@ public final class TerrainSamplingCache {
         }
         TerrainSamplingStats.recordCacheMiss();
         int of = oceanFloor(level, x, z);
-        int h = height(level, x, z);
         int sea = level.getSeaLevel();
+        int surface = height(level, x, z);
+        if (highPrecisionMode) {
+            ensureAccurateSampler(level);
+            surface = accurateSampler.worldSurfaceWg(x, z);
+        }
         boolean isWaterBiome = isWaterLike(level, x, z);
         boolean biomeWater = isWaterBiome && of < sea;
-        boolean heightWater = (h <= sea + 1) && (of < h - 1);
+        boolean heightWater = (surface <= sea + 1) && (of < surface - 1);
         boolean res = biomeWater || heightWater;
         columnWaterCache.put(key, res);
         return res;
@@ -148,24 +156,33 @@ public final class TerrainSamplingCache {
 
     public void enableHighPrecision(ServerLevel level) {
         this.highPrecisionMode = true;
-        heightCache.clear();
-        oceanFloorCache.clear();
+        clearPrecisionDerivedCaches();
         ensureAccurateSampler(level);
     }
 
     public void disableHighPrecision() {
         this.highPrecisionMode = false;
+        clearPrecisionDerivedCaches();
+    }
+
+    private void clearPrecisionDerivedCaches() {
         heightCache.clear();
         oceanFloorCache.clear();
+        columnWaterCache.clear();
     }
 
     public boolean isHighPrecisionMode() {
         return highPrecisionMode;
     }
 
+    public AccurateHeightSampler getAccurateSampler(ServerLevel level) {
+        ensureAccurateSampler(level);
+        return accurateSampler;
+    }
+
     public void clear() {
         waterCache.clear();
-        nearWaterCache.clear();
+        nearWaterCacheByDistance.clear();
         columnWaterCache.clear();
         heightCache.clear();
         oceanFloorCache.clear();

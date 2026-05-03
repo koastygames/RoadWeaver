@@ -1,3 +1,4 @@
+/* 文件职责：实现基于地形场读取的基础 A* 普通道路寻路。 */
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
@@ -12,6 +13,7 @@ import net.shiroha233.roadweaver.pathfinding.PathResult;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import java.util.*;
 
@@ -28,7 +30,26 @@ public final class BasicAStarPathfinder implements Pathfinder {
     @Override
     public PathResult findPath(BlockPos start, BlockPos end, int width,
                                ServerLevel level, int maxSteps,
-                               TerrainSamplingCache cache, PathfindingCostConfig cfg) {
+                               TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        if (rawPath == null || rawPath.isEmpty()) {
+            return PathResult.failure();
+        }
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.needsRefinement());
+        return segments != null ? PathResult.success(segments) : PathResult.failure();
+    }
+
+    @Override
+    public PathResult findRawPath(BlockPos start, BlockPos end,
+                                  ServerLevel level, int maxSteps,
+                                  TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
+        List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
+        return rawPath == null || rawPath.isEmpty() ? PathResult.failure() : PathResult.raw(rawPath);
+    }
+
+    private List<BlockPos> searchRawPath(BlockPos start, BlockPos end,
+                                         ServerLevel level, int maxSteps,
+                                         PathTerrainField terrain, PathfindingCostConfig cfg) {
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<BlockPos, Node> allNodes = new HashMap<>();
         Set<BlockPos> closed = new HashSet<>();
@@ -48,28 +69,28 @@ public final class BasicAStarPathfinder implements Pathfinder {
         try {
             while (!openSet.isEmpty() && stepsBudget-- > 0) {
                 ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
-                if (Thread.currentThread().isInterrupted()) return PathResult.failure();
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 Node current = openSet.poll();
                 if (current == null) break;
 
                 if (manhattan2d(current.pos, end) < d * 2) {
-                    List<RoadSegmentPlacement> segments = reconstructPath(current, width, level, cache, cfg.accurateSamplingDivisor(), cfg.needsRefinement());
-                    return segments != null ? PathResult.success(segments) : PathResult.failure();
+                    return reconstructRawPath(current);
                 }
 
                 closed.add(current.pos);
                 allNodes.remove(current.pos);
 
                 for (int[] off : offsets) {
-                    if (Thread.currentThread().isInterrupted()) return PathResult.failure();
+                    if (Thread.currentThread().isInterrupted()) return null;
                     BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
-                    int y = heightSampler(cache, nxz.getX(), nxz.getZ(), level);
+                    if (!terrain.contains(nxz.getX(), nxz.getZ())) continue;
+                    int y = heightSampler(terrain, nxz.getX(), nxz.getZ());
                     BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
                     if (closed.contains(np)) continue;
 
                     double tentativeG = current.g + computeMoveCost(current.pos, np, nxz, off, d,
-                            start, end, level, cache, cfg);
+                            start, end, terrain, cfg);
 
                     Node n = allNodes.get(np);
                     if (n == null || tentativeG < n.g) {
@@ -81,7 +102,7 @@ public final class BasicAStarPathfinder implements Pathfinder {
                     }
                 }
             }
-            return PathResult.failure();
+            return null;
         } finally {
             openSet.clear();
             allNodes.clear();
@@ -91,20 +112,19 @@ public final class BasicAStarPathfinder implements Pathfinder {
     }
 
     private double computeMoveCost(BlockPos current, BlockPos np, BlockPos nxz, int[] off, int d,
-                                   BlockPos start, BlockPos end,
-                                   ServerLevel level, TerrainSamplingCache cache,
+                                   BlockPos start, BlockPos end, PathTerrainField terrain,
                                    PathfindingCostConfig cfg) {
-        Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+        Holder<Biome> biome = biome(terrain, np.getX(), np.getZ());
         int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
                 || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
         int elevation = Math.abs(np.getY() - current.getY());
         int offsetSum = Math.abs(off[0]) + Math.abs(off[1]);
         double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
-        int stabilityCost = calculateTerrainStability(cache, np, np.getY(), level, d);
-        int sea = level.getSeaLevel();
-        boolean waterColumn = isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
-        boolean nearWater = isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
-        int oceanFloor = oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
+        int stabilityCost = calculateTerrainStability(terrain, np, np.getY(), d);
+        int sea = terrain.seaLevel();
+        boolean waterColumn = isColumnWater(terrain, nxz.getX(), nxz.getZ());
+        boolean nearWater = isNearWaterLike(terrain, nxz.getX(), nxz.getZ(), d);
+        int oceanFloor = oceanFloorSampler(terrain, nxz.getX(), nxz.getZ());
         int waterDepth = Math.max(0, sea - oceanFloor);
         int waterDepthCost = waterColumn ? (int) (waterDepth * cfg.waterDepthWeight()) : 0;
         int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
@@ -120,19 +140,23 @@ public final class BasicAStarPathfinder implements Pathfinder {
                 + deviationCost;
     }
 
-    private List<RoadSegmentPlacement> reconstructPath(Node endNode, int width,
-                                                        ServerLevel level, TerrainSamplingCache cache,
-                                                        int samplingDivisor, boolean needsRefinement) {
+    private List<RoadSegmentPlacement> reconstructPath(List<BlockPos> rawPath, int width,
+                                                       ServerLevel level, TerrainSamplingCache cache,
+                                                       boolean needsRefinement) {
+        AccurateHeightSampler accurate = cache.getAccurateSampler(level);
+        if (needsRefinement) {
+            rawPath = accurate.samplePathHeights(rawPath, 0);
+        }
+        return PathPostProcessor.process(rawPath, width, level, cache,
+                RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+    }
+
+    private List<BlockPos> reconstructRawPath(Node endNode) {
         List<BlockPos> rawPath = new ArrayList<>();
         Node c = endNode;
         while (c != null) { rawPath.add(c.pos); c = c.parent; }
         Collections.reverse(rawPath);
-        AccurateHeightSampler accurate = AccurateHeightSampler.create(level);
-        if (needsRefinement) {
-            rawPath = accurate.samplePathHeights(rawPath, samplingDivisor);
-        }
-        return PathPostProcessor.process(rawPath, width, level, cache,
-                RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH, accurate);
+        return rawPath;
     }
 
     private static int manhattan2d(BlockPos a, BlockPos b) {

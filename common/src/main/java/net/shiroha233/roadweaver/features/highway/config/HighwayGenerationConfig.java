@@ -9,7 +9,6 @@ import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
  */
 public record HighwayGenerationConfig(
         PathfindingCostConfig pathfindingCost,
-        boolean hierarchicalPathfindingEnabled,
         int roadWidth,
         int averagingRadius,
         boolean slopeLimitEnabled,
@@ -26,7 +25,6 @@ public record HighwayGenerationConfig(
 
         return new HighwayGenerationConfig(
                 cost,
-                cfg.hierarchicalPathfindingEnabled(),
                 cfg.highwayRoadWidth(),
                 cfg.averagingRadius(),
                 cfg.highwaySlopeLimitEnabled(),

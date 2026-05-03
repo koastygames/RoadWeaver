@@ -160,7 +160,9 @@ dependencies {
     modRuntimeOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
 
     // Touhou Little Maid (车万女仆)
-    modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
+    if (project.findProperty("enableTouhouLittleMaidRuntime") == "true") {
+        modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
+    }
 
     // H2 Database - 道路数据持久化（纯Java，无native依赖）
     forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
