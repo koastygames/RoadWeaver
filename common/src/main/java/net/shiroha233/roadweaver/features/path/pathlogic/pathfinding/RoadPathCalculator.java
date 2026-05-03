@@ -1,3 +1,4 @@
+/* 文件职责：组织普通道路两阶段寻路与路径后续跨度提取。 */
 package net.shiroha233.roadweaver.features.path.pathlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
@@ -14,6 +15,8 @@ import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainCachePrewarmer;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainFieldFactory;
 
 import java.util.*;
 
@@ -40,30 +43,34 @@ public final class RoadPathCalculator {
         BlockPos start = new BlockPos(sx, startIn.getY(), sz);
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
-        boolean accurateSampling = pathCfg.isAccurateSampling();
-        if (accurateSampling) {
-            cache.enableHighPrecision(level);
+        BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
+        BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
+
+        if (pathCfg.hierarchicalPathfindingEnabled()) {
+            TerrainCachePrewarmer.prewarmAlongRoute(
+                    startGround,
+                    endGround,
+                    level,
+                    Math.max(500, maxSteps / 4),
+                    cache);
         }
 
-        try {
-            BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
-            BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
-
-            if (pathCfg.hierarchicalPathfindingEnabled()) {
-                TerrainCachePrewarmer.prewarmAlongRoute(
-                        startGround,
-                        endGround,
-                        level,
-                        Math.max(500, maxSteps / 4),
-                        cache);
-            }
-
-            return calculateDirect(startGround, endGround, width, level, maxSteps, cache, pathCfg);
-        } finally {
-            if (accurateSampling) {
-                cache.disableHighPrecision();
-            }
+        PathTerrainField coarseTerrain = PathTerrainFieldFactory.cached(level, cache, dGrid);
+        List<RoadSegmentPlacement> coarseSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, coarseTerrain, pathCfg);
+        if (coarseSegments == null || coarseSegments.isEmpty() || !pathCfg.isAccurateSampling()) {
+            return coarseSegments;
         }
+
+        List<BlockPos> coarsePath = coarseSegments.stream()
+                .map(RoadSegmentPlacement::middlePos)
+                .toList();
+        PathTerrainField quantizedTerrain = PathTerrainFieldFactory.quantized(level, cache, coarsePath, dGrid);
+        if (quantizedTerrain == null) {
+            return coarseSegments;
+        }
+
+        List<RoadSegmentPlacement> finalSegments = calculateDirect(startGround, endGround, width, level, maxSteps, cache, quantizedTerrain, pathCfg);
+        return finalSegments != null && !finalSegments.isEmpty() ? finalSegments : coarseSegments;
     }
 
     private static List<RoadSegmentPlacement> calculateDirect(BlockPos startGround,
@@ -72,10 +79,11 @@ public final class RoadPathCalculator {
                                                               ServerLevel level,
                                                               int maxSteps,
                                                               TerrainSamplingCache cache,
+                                                              PathTerrainField terrain,
                                                               PathfindingCostConfig pathCfg) {
         var algo = pathCfg.pathfindingAlgorithm();
         Pathfinder pathfinder = PathfinderFactory.create(algo);
-        PathResult result = pathfinder.findPath(startGround, endGround, width, level, maxSteps, cache, pathCfg);
+        PathResult result = pathfinder.findPath(startGround, endGround, width, level, maxSteps, cache, terrain, pathCfg);
         if (!result.success() || result.isEmpty()) {
             return null;
         }

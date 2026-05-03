@@ -1,8 +1,8 @@
+/* 文件职责：提供基于地形场的梯度与等高线方向计算。 */
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.heightSampler;
 
@@ -12,12 +12,12 @@ import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.heigh
 public final class TerrainGradientHelper {
     private TerrainGradientHelper() {}
 
-    public static double[] terrainGradient(TerrainSamplingCache cache, int x, int z,
-                                           ServerLevel level, int step) {
-        int hE = heightSampler(cache, x + step, z, level);
-        int hW = heightSampler(cache, x - step, z, level);
-        int hN = heightSampler(cache, x, z + step, level);
-        int hS = heightSampler(cache, x, z - step, level);
+    public static double[] terrainGradient(PathTerrainField terrain, int x, int z, int step) {
+        int center = heightSampler(terrain, x, z);
+        int hE = terrain.contains(x + step, z) ? heightSampler(terrain, x + step, z) : center;
+        int hW = terrain.contains(x - step, z) ? heightSampler(terrain, x - step, z) : center;
+        int hN = terrain.contains(x, z + step) ? heightSampler(terrain, x, z + step) : center;
+        int hS = terrain.contains(x, z - step) ? heightSampler(terrain, x, z - step) : center;
         double dhdx = (hE - hW) / (2.0 * step);
         double dhdz = (hN - hS) / (2.0 * step);
         return new double[]{dhdx, dhdz};

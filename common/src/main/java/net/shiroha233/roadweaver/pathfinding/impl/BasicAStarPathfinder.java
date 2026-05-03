@@ -1,3 +1,4 @@
+/* 文件职责：实现基于地形场读取的基础 A* 普通道路寻路。 */
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
@@ -12,6 +13,7 @@ import net.shiroha233.roadweaver.pathfinding.PathResult;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import java.util.*;
 
@@ -28,7 +30,7 @@ public final class BasicAStarPathfinder implements Pathfinder {
     @Override
     public PathResult findPath(BlockPos start, BlockPos end, int width,
                                ServerLevel level, int maxSteps,
-                               TerrainSamplingCache cache, PathfindingCostConfig cfg) {
+                               TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<BlockPos, Node> allNodes = new HashMap<>();
         Set<BlockPos> closed = new HashSet<>();
@@ -64,12 +66,13 @@ public final class BasicAStarPathfinder implements Pathfinder {
                 for (int[] off : offsets) {
                     if (Thread.currentThread().isInterrupted()) return PathResult.failure();
                     BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
-                    int y = heightSampler(cache, nxz.getX(), nxz.getZ(), level);
+                    if (!terrain.contains(nxz.getX(), nxz.getZ())) continue;
+                    int y = heightSampler(terrain, nxz.getX(), nxz.getZ());
                     BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
                     if (closed.contains(np)) continue;
 
                     double tentativeG = current.g + computeMoveCost(current.pos, np, nxz, off, d,
-                            start, end, level, cache, cfg);
+                            start, end, terrain, cfg);
 
                     Node n = allNodes.get(np);
                     if (n == null || tentativeG < n.g) {
@@ -91,20 +94,19 @@ public final class BasicAStarPathfinder implements Pathfinder {
     }
 
     private double computeMoveCost(BlockPos current, BlockPos np, BlockPos nxz, int[] off, int d,
-                                   BlockPos start, BlockPos end,
-                                   ServerLevel level, TerrainSamplingCache cache,
+                                   BlockPos start, BlockPos end, PathTerrainField terrain,
                                    PathfindingCostConfig cfg) {
-        Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+        Holder<Biome> biome = biome(terrain, np.getX(), np.getZ());
         int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
                 || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
         int elevation = Math.abs(np.getY() - current.getY());
         int offsetSum = Math.abs(off[0]) + Math.abs(off[1]);
         double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
-        int stabilityCost = calculateTerrainStability(cache, np, np.getY(), level, d);
-        int sea = level.getSeaLevel();
-        boolean waterColumn = isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
-        boolean nearWater = isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
-        int oceanFloor = oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
+        int stabilityCost = calculateTerrainStability(terrain, np, np.getY(), d);
+        int sea = terrain.seaLevel();
+        boolean waterColumn = isColumnWater(terrain, nxz.getX(), nxz.getZ());
+        boolean nearWater = isNearWaterLike(terrain, nxz.getX(), nxz.getZ(), d);
+        int oceanFloor = oceanFloorSampler(terrain, nxz.getX(), nxz.getZ());
         int waterDepth = Math.max(0, sea - oceanFloor);
         int waterDepthCost = waterColumn ? (int) (waterDepth * cfg.waterDepthWeight()) : 0;
         int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;

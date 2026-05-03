@@ -1,3 +1,4 @@
+/* 文件职责：实现基于地形场读取的势场普通道路寻路。 */
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
@@ -12,6 +13,7 @@ import net.shiroha233.roadweaver.pathfinding.PathResult;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import java.util.*;
 
@@ -29,7 +31,7 @@ public final class PotentialFieldPathfinder implements Pathfinder {
     @Override
     public PathResult findPath(BlockPos start, BlockPos end, int width,
                                ServerLevel level, int maxSteps,
-                               TerrainSamplingCache cache, PathfindingCostConfig cfg) {
+                               TerrainSamplingCache cache, PathTerrainField terrain, PathfindingCostConfig cfg) {
         if (start.equals(end)) return PathResult.success(Collections.emptyList());
 
         int d = cfg.effectiveAStarStep();
@@ -72,7 +74,7 @@ public final class PotentialFieldPathfinder implements Pathfinder {
 
                 double goalDx = end.getX() - current.pos.getX();
                 double goalDz = end.getZ() - current.pos.getZ();
-                double[] grad = terrainGradient(cache, current.pos.getX(), current.pos.getZ(), level, d);
+                double[] grad = terrainGradient(terrain, current.pos.getX(), current.pos.getZ(), d);
                 double gradMag = gradientMagnitude(grad[0], grad[1]);
                 double[] contour = contourDirection(grad[0], grad[1], goalDx, goalDz);
 
@@ -80,15 +82,16 @@ public final class PotentialFieldPathfinder implements Pathfinder {
                     if (Thread.currentThread().isInterrupted()) return PathResult.failure();
                     BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
                     if (nxz.getX() < minX || nxz.getX() > maxX || nxz.getZ() < minZ || nxz.getZ() > maxZ) continue;
+                    if (!terrain.contains(nxz.getX(), nxz.getZ())) continue;
 
-                    int y = heightSampler(cache, nxz.getX(), nxz.getZ(), level);
+                    int y = heightSampler(terrain, nxz.getX(), nxz.getZ());
                     BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
                     if (closed.contains(np)) continue;
 
                     double moveCost = computeMoveCost(
                             current.pos, np, nxz, off, d,
                             grad, gradMag, contour,
-                            level, cache, cfg);
+                            terrain, cfg);
 
                     double tentativeG = current.g + moveCost;
                     Node existing = allNodes.get(np);
@@ -113,7 +116,7 @@ public final class PotentialFieldPathfinder implements Pathfinder {
     private double computeMoveCost(BlockPos current, BlockPos np, BlockPos nxz,
                                    int[] off, int d,
                                    double[] grad, double gradMag, double[] contour,
-                                   ServerLevel level, TerrainSamplingCache cache,
+                                   PathTerrainField terrain,
                                    PathfindingCostConfig cfg) {
         double moveX = off[0];
         double moveZ = off[1];
@@ -152,15 +155,15 @@ public final class PotentialFieldPathfinder implements Pathfinder {
             }
         }
 
-        int stabilityCost = calculateTerrainStability(cache, np, np.getY(), level, d);
+        int stabilityCost = calculateTerrainStability(terrain, np, np.getY(), d);
 
-        Holder<Biome> biome = cache.getBiome(level, np.getX(), np.getZ());
+        Holder<Biome> biome = biome(terrain, np.getX(), np.getZ());
         int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
                 || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? (BIOME_BASE_COST * 3) : 0;
-        boolean waterColumn = isColumnWater(cache, nxz.getX(), nxz.getZ(), level);
-        boolean nearWater = isNearWaterLike(cache, nxz.getX(), nxz.getZ(), level);
-        int sea = level.getSeaLevel();
-        int oceanFloor = oceanFloorSampler(cache, nxz.getX(), nxz.getZ(), level);
+        boolean waterColumn = isColumnWater(terrain, nxz.getX(), nxz.getZ());
+        boolean nearWater = isNearWaterLike(terrain, nxz.getX(), nxz.getZ(), d);
+        int sea = terrain.seaLevel();
+        int oceanFloor = oceanFloorSampler(terrain, nxz.getX(), nxz.getZ());
         int waterDepth = Math.max(0, sea - oceanFloor);
 
         double waterPenalty = 0.0;
