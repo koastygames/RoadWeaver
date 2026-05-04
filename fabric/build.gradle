@@ -1,3 +1,4 @@
+// 负责 Fabric 子项目的构建、开发运行依赖与产物打包。
 plugins {
 	id 'com.gradleup.shadow' version '8.3.6'
 }
@@ -7,19 +8,24 @@ architectury {
 	fabric()
 }
 
+def enableModMenuDevRuntime = providers.gradleProperty("fabric_enable_modmenu")
+	.map(String::toBoolean)
+	.getOrElse(false)
+
+configurations.configureEach {
+	resolutionStrategy.force("io.github.llamalad7:mixinextras-fabric:0.5.0")
+}
+
 configurations {
 	common
-	shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
-	shadowSqlite // 用于打包数据库依赖
+	shadowCommon // 避免与 Loom 的 shadow 配置冲突。
+	shadowSqlite // 打包嵌入式数据库依赖。
 	compileClasspath.extendsFrom common
 	runtimeClasspath.extendsFrom common
 	developmentFabric.extendsFrom common
 }
 
 repositories {
-	maven {
-		url = "https://api.modrinth.com/maven"
-	}
 	maven {
 		url "https://maven.shedaniel.me/"
 		name "Shedaniel Maven"
@@ -30,35 +36,39 @@ dependencies {
 	implementation project(":common")
 	common(project(path: ":common", configuration: "namedElements")) { transitive = false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive = false }
-	
+
+	// 显式拉起新版本 MixinExtras，避免 dev launch 继续注入旧版 0.4.1。
+	modImplementation("io.github.llamalad7:mixinextras-fabric:0.5.0")
+
 	// Fabric Loader
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	
+
 	// Fabric API
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	
-	// Architectury API - 内嵌到模组中
+
+	// Architectury API，打包进最终模组。
 	modImplementation("dev.architectury:architectury-fabric:${project.architectury_version}") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
 	include("dev.architectury:architectury-fabric:${project.architectury_version}")
-	
+
 	// Cloth Config API for Fabric
 	modApi("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
-	
-	// 可选开发模组
-	modLocalRuntime("maven.modrinth:mOgUt4GM:${project.modmenu_version}")
-	modRuntimeOnly("maven.modrinth:mOgUt4GM:${project.modmenu_version}")
-	
-	// H2 Database - 道路数据持久化（纯Java，无native依赖）
-	// compileOnly: 编译时, modLocalRuntime: 开发运行时（避免 Architectury Transformer 处理）, shadowSqlite: 生产打包
+
+	// 可选开发期 UI 模组，默认关闭，避免 dev run 被外部仓库网络抖动阻塞。
+	if (enableModMenuDevRuntime) {
+		modLocalRuntime("com.terraformersmc:modmenu:${project.modmenu_version}") {
+			transitive = false
+		}
+	}
+
+	// H2 数据库用于纯 Java 持久化，不引入 native 依赖。
 	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
 	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
 	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
-
 }
 
 processResources {
@@ -73,25 +83,20 @@ shadowJar {
 	exclude "architectury.common.json"
 	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
 	archiveClassifier.set("dev-shadow")
-	
-	// 重定位 H2 Database 包
+
+	// 重新定位 H2 包名，避免与外部环境冲突。
 	relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
-	
-	// 排除不需要的文件
+
 	exclude 'META-INF/versions/**'
-	// 排除 H2 中可能触发审查的动态编译/网络服务相关类
-	// SourceCompiler 会使用 JavaCompiler/Groovy 动态编译，Server/tools 可能被视为网络服务能力
+	// 收紧 H2 中与动态编译、工具、服务端相关的类，降低运行面。
 	exclude 'org/h2/util/SourceCompiler*'
 	exclude 'org/h2/tools/**'
 	exclude 'org/h2/server/**'
 	exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
 	exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
 	exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
-	
-	// 强制更新 META-INF/services 里的类名
+
 	mergeServiceFiles()
-	
-	// 排除 module-info.class 避免 JPMS 冲突
 	exclude 'module-info.class'
 }
 
@@ -104,7 +109,7 @@ remapJar {
 jar {
 	archiveClassifier.set("dev")
 	from("${rootProject.projectDir}/LICENSE") {
-		rename { "${it}_${base.archivesName.get()}"}
+		rename { "${it}_${base.archivesName.get()}" }
 	}
 }
 
@@ -124,7 +129,7 @@ components.java {
 sourceSets {
 	main {
 		java {
-			// Avoid JPMS split-package with shaded common (network package) in dev runtime
+			// 避免开发环境下 shaded common 触发 JPMS split-package。
 		}
 		resources {
 			exclude 'assets/roadweaver/lang/*.json'

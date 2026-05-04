@@ -8,7 +8,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 区块生成阶段追踪器，仅在首次世界生成阶段阻拦树木放置
+ * 鍖哄潡鐢熸垚闃舵杩借釜鍣紝浠呭湪棣栨涓栫晫鐢熸垚闃舵闃绘嫤鏍戞湪鏀剧疆
  */
 public final class ChunkGenTracker {
     private ChunkGenTracker() {}

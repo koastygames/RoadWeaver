@@ -25,7 +25,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 初始道路生成管理器，服务器启动时阻塞生成初始规划范围内的道路并提供进度统计
+ * 鍒濆閬撹矾鐢熸垚绠＄悊鍣紝鏈嶅姟鍣ㄥ惎鍔ㄦ椂闃诲鐢熸垚鍒濆瑙勫垝鑼冨洿鍐呯殑閬撹矾骞舵彁渚涜繘搴︾粺璁?
  */
 public final class InitialGenManager {
     private InitialGenManager() {}
@@ -105,7 +105,7 @@ public final class InitialGenManager {
             return;
         }
 
-        // Highway 模式：先生成公路
+        // Highway 妯″紡锛氬厛鐢熸垚鍏矾
         List<StructureConnection> highwayList = provider.getHighwayConnections(level);
         int plannedHighwayCount = 0;
 
@@ -120,10 +120,10 @@ public final class InitialGenManager {
             }
         }
 
-        // 触发网格单元格内部路网规划
+        // 瑙﹀彂缃戞牸鍗曞厓鏍煎唴閮ㄨ矾缃戣鍒?
         triggerCellPathPlanning(level, cfg);
 
-        // 生成格内路网
+        // 鐢熸垚鏍煎唴璺綉
         List<StructureConnection> pathList = provider.getStructureConnections(level);
         if (pathList != null && !pathList.isEmpty()) {
             List<StructureConnection> roadTasks = filterPlanned(pathList);
@@ -160,7 +160,7 @@ public final class InitialGenManager {
         RoadSnapService.snapAllRoads(level, minX, minZ, maxX, maxZ);
     }
 
-    // ==================== 提取的通用辅助方法 ====================
+    // ==================== 鎻愬彇鐨勯€氱敤杈呭姪鏂规硶 ====================
 
     private static List<StructureConnection> filterPlanned(List<StructureConnection> list) {
         List<StructureConnection> out = new ArrayList<>();

@@ -7,6 +7,7 @@ import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.CurveMode;
 import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.Vec2d;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import java.util.*;
 
@@ -29,11 +30,20 @@ public final class PathPostProcessor {
                                                      ServerLevel level, TerrainSamplingCache cache,
                                                      int bridgeMinWaterDepth,
                                                      AccurateHeightSampler accurate) {
-        return process(rawPath, width, level, cache, bridgeMinWaterDepth, CurveMode.CATMULL_ROM, accurate);
+        return process(rawPath, width, level, cache, null, bridgeMinWaterDepth, CurveMode.CATMULL_ROM, accurate);
     }
 
     public static List<RoadSegmentPlacement> process(List<BlockPos> rawPath, int width,
                                                      ServerLevel level, TerrainSamplingCache cache,
+                                                     int bridgeMinWaterDepth,
+                                                     CurveMode curveMode,
+                                                     AccurateHeightSampler accurate) {
+        return process(rawPath, width, level, cache, null, bridgeMinWaterDepth, curveMode, accurate);
+    }
+
+    public static List<RoadSegmentPlacement> process(List<BlockPos> rawPath, int width,
+                                                     ServerLevel level, TerrainSamplingCache cache,
+                                                     PathTerrainField terrain,
                                                      int bridgeMinWaterDepth,
                                                      CurveMode curveMode,
                                                      AccurateHeightSampler accurate) {
@@ -44,10 +54,12 @@ public final class PathPostProcessor {
             rawTargetY[i] = rawPath.get(i).getY();
         }
 
-        AccurateHeightSampler sampler = accurate != null ? accurate : AccurateHeightSampler.create(level);
+        AccurateHeightSampler sampler = accurate != null
+                ? accurate
+                : (cache != null ? cache.getAccurateSampler(level) : AccurateHeightSampler.create(level));
 
         List<BlockPos> simplified = simplifyPath(rawPath);
-        boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, bridgeMinWaterDepth, sampler);
+        boolean[] bridgeMask = detectBridgeMask(simplified, level, cache, terrain, bridgeMinWaterDepth, sampler);
         List<BlockPos> straightened = straightenBridgeRuns(simplified, bridgeMask);
         List<BlockPos> controlPoints = relaxPathSkippingBridge(straightened, bridgeMask);
         if (controlPoints.size() < 2) return new ArrayList<>();
@@ -227,21 +239,25 @@ public final class PathPostProcessor {
     }
 
     static boolean[] detectBridgeMask(List<BlockPos> nodes, ServerLevel level,
-                                      TerrainSamplingCache cache, int bridgeMinWaterDepth,
+                                      TerrainSamplingCache cache, PathTerrainField terrain,
+                                      int bridgeMinWaterDepth,
                                       AccurateHeightSampler sampler) {
         int n = nodes.size();
         boolean[] mask = new boolean[n];
-        int minDepth = Math.max(1, bridgeMinWaterDepth);
-        int sea = level.getSeaLevel();
         for (int i = 0; i < n; i++) {
             BlockPos p = nodes.get(i);
+            if (terrain != null && terrain.contains(p.getX(), p.getZ())) {
+                mask[i] = terrain.isBridgeWater(p.getX(), p.getZ(), bridgeMinWaterDepth);
+                continue;
+            }
             if (!isWaterLike(cache, p.getX(), p.getZ(), level)) continue;
+            int sea = level.getSeaLevel();
             int oceanFloor = sampler.oceanFloorWg(p.getX(), p.getZ());
             int surfaceY = sampler.worldSurfaceWg(p.getX(), p.getZ());
             boolean biomeWater = oceanFloor < sea;
             boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
             int waterDepth = (biomeWater || heightWater) ? Math.max(0, sea - oceanFloor) : 0;
-            mask[i] = waterDepth >= minDepth;
+            mask[i] = waterDepth >= Math.max(1, bridgeMinWaterDepth);
         }
         return mask;
     }

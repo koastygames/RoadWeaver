@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 统一缓存生命周期管理器
+ * 缂備胶鍠嶇粩瀵哥磽閹惧磭鎽犻柣銏㈠枎閹筹繝宕ㄩ妸锔藉焸缂佺媴绱曢幃濠囧闯?
  */
 public final class CacheManager {
     private CacheManager() {}
@@ -24,25 +24,25 @@ public final class CacheManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
     /**
-     * 服务器启动时初始化
+     * 闁哄牆绉存慨鐔煎闯閵娿儲鍎欓柛鏂诲妽濡炲倿宕氬┑鍡╂綏闁?
      */
     public static void onServerStarted() {
         RoadsideStructureRegistry.clearCache();
         BridgeTemplateStructureRegistry.clearCache();
         RoadSpatialIndex.clearAllCache();
         TerrainSamplingStats.reset();
-        LOGGER.debug("CacheManager: 缓存已初始化");
+        LOGGER.debug("CacheManager: caches initialized");
     }
 
     /**
-     * 服务器停止时清理所有缓存
+     * 闁哄牆绉存慨鐔煎闯閵娿儰绮绘慨婵勫灪濡炲倸銆掗崨顖涘€為柟纰樺亾闁哄牆顦辩槐锔锯偓?
      */
     public static void onServerStopping(Iterable<ServerLevel> levels) {
         for (ServerLevel level : levels) {
             try {
                 RoadShardStorage.flushAll(level);
             } catch (Exception e) {
-                LOGGER.warn("刷写 RoadShardStorage 失败: {}", e.getMessage());
+                LOGGER.warn("RoadShardStorage flush failed: {}", e.getMessage());
             }
         }
 
@@ -59,11 +59,11 @@ public final class CacheManager {
         SignTextService.clearPending();
         TerrainSamplingStats.reset();
 
-        LOGGER.debug("CacheManager: 所有缓存已清理");
+        LOGGER.debug("CacheManager: caches cleared on shutdown");
     }
 
     /**
-     * 维度卸载时清理该维度关联的缓存
+     * 缂備焦娼欑€规娊宕″灞剧グ闁哄啳鍩栫粩濠氭偠閸℃凹鍤夌紓浣规綑鐎规娊宕楃€圭姳绮撻柣銊ュ缁憋妇鈧?
      */
     public static void onDimensionUnload(ServerLevel level) {
         if (level == null) return;
@@ -71,7 +71,7 @@ public final class CacheManager {
         try {
             RoadShardStorage.closeConnection(level);
         } catch (Exception e) {
-            LOGGER.warn("关闭维度 {} 数据库连接失败: {}",
+            LOGGER.warn("Failed to close dimension {} storage: {}",
                     level.dimension().identifier(), e.getMessage());
         }
 
@@ -81,11 +81,11 @@ public final class CacheManager {
         BridgeTemplateStructureRegistry.clearCache(level.dimension());
         SignTextService.onDimensionUnload(level);
 
-        LOGGER.debug("CacheManager: 维度 {} 缓存已清理", level.dimension().identifier());
+        LOGGER.debug("CacheManager: dimension {} cache cleared", level.dimension().identifier());
     }
 
     /**
-     * 道路数据变更后使对应区块的空间索引缓存失效
+     * 闂侇剚鎹侀惌楣冨极閻楀牆绁﹂柛娆惿戝ú鍧楀触鎼存繂鈻忛悗鐢垫嚀缁ㄦ煡宕犻崫鍕仴闁汇劌瀚埞鏍⒒鐎电鍋嶇€殿喗娲滅槐锔锯偓娑櫭妵鎴﹀极?
      */
     public static void invalidateRoadCache(ServerLevel level, int chunkX, int chunkZ) {
         RoadSpatialIndex.invalidateChunk(level, chunkX, chunkZ);

@@ -4,15 +4,15 @@ import net.shiroha233.roadweaver.config.SubConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 
 /**
- * 寻路代价权重配置
+ * 负责维护寻路算法与采样精度相关的代价配置。
  */
 public final class PathfindingCostConfig implements SubConfig {
 
-    /** 寻路算法枚举 */
+    /** 寻路算法枚举。 */
     public enum PathfindingAlgorithm { ASTAR_BASIC, ASTAR_BIDIRECTIONAL, GRADIENT_DESCENT, POTENTIAL_FIELD }
 
-    /** 采样精度模式枚举 */
-    public enum SamplingPrecision { NORMAL, HIGH, ULTRA_HIGH }
+    /** 采样精度模式枚举。 */
+    public enum SamplingPrecision { FAST, PRECISE }
 
     private double orthoStepCost = RoadConstants.DEFAULT_ORTHO_STEP_COST;
     private double diagStepCost = RoadConstants.DEFAULT_DIAG_STEP_COST;
@@ -26,10 +26,9 @@ public final class PathfindingCostConfig implements SubConfig {
     private double deviationWeight = RoadConstants.DEFAULT_DEVIATION_WEIGHT;
     private int aStarStep = RoadConstants.DEFAULT_ASTAR_STEP;
     private int aStarMaxSteps = RoadConstants.DEFAULT_ASTAR_MAX_STEPS;
-    private boolean hierarchicalPathfindingEnabled = false;
-    private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
-    private int accurateSamplingDivisor = RoadConstants.DEFAULT_ACCURATE_SAMPLING_DIVISOR;
-    private SamplingPrecision samplingPrecision = SamplingPrecision.NORMAL;
+    private PathfindingAlgorithm pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
+    private int quantizedSamplingChunkRadius = RoadConstants.DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS;
+    private SamplingPrecision samplingPrecision = SamplingPrecision.PRECISE;
 
     @Override
     public void sanitize() {
@@ -44,13 +43,18 @@ public final class PathfindingCostConfig implements SubConfig {
         heuristicWeight = Math.max(0, heuristicWeight);
         deviationWeight = Math.max(0, deviationWeight);
         aStarStep = Math.min(RoadConstants.ASTAR_STEP_MAX, aStarStep);
-        aStarMaxSteps = Math.max(RoadConstants.ASTAR_MAX_STEPS_MIN,
+        aStarMaxSteps = Math.max(
+                RoadConstants.ASTAR_MAX_STEPS_MIN,
                 Math.min(RoadConstants.ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
-        if (pathfindingAlgorithm == null) pathfindingAlgorithm = PathfindingAlgorithm.POTENTIAL_FIELD;
-        if (samplingPrecision == null) samplingPrecision = SamplingPrecision.NORMAL;
-        if (accurateSamplingDivisor <= 1) accurateSamplingDivisor = 0;
-        else if (accurateSamplingDivisor <= 3) accurateSamplingDivisor = 2;
-        else accurateSamplingDivisor = 4;
+        if (pathfindingAlgorithm == null) {
+            pathfindingAlgorithm = PathfindingAlgorithm.GRADIENT_DESCENT;
+        }
+        if (samplingPrecision == null) {
+            samplingPrecision = SamplingPrecision.PRECISE;
+        }
+        quantizedSamplingChunkRadius = Math.max(
+                0,
+                Math.min(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX, quantizedSamplingChunkRadius));
     }
 
     @Override
@@ -68,54 +72,62 @@ public final class PathfindingCostConfig implements SubConfig {
         copy.deviationWeight = this.deviationWeight;
         copy.aStarStep = this.aStarStep;
         copy.aStarMaxSteps = this.aStarMaxSteps;
-        copy.hierarchicalPathfindingEnabled = this.hierarchicalPathfindingEnabled;
         copy.pathfindingAlgorithm = this.pathfindingAlgorithm;
-        copy.accurateSamplingDivisor = this.accurateSamplingDivisor;
+        copy.quantizedSamplingChunkRadius = this.quantizedSamplingChunkRadius;
         copy.samplingPrecision = this.samplingPrecision;
         return copy;
     }
 
     public double orthoStepCost() { return orthoStepCost; }
-    public void setOrthoStepCost(double v) { this.orthoStepCost = v; }
+    public void setOrthoStepCost(double value) { this.orthoStepCost = value; }
     public double diagStepCost() { return diagStepCost; }
-    public void setDiagStepCost(double v) { this.diagStepCost = v; }
+    public void setDiagStepCost(double value) { this.diagStepCost = value; }
     public int elevationWeight() { return elevationWeight; }
-    public void setElevationWeight(int v) { this.elevationWeight = v; }
+    public void setElevationWeight(int value) { this.elevationWeight = value; }
     public int biomeWeight() { return biomeWeight; }
-    public void setBiomeWeight(int v) { this.biomeWeight = v; }
+    public void setBiomeWeight(int value) { this.biomeWeight = value; }
     public int stabilityWeight() { return stabilityWeight; }
-    public void setStabilityWeight(int v) { this.stabilityWeight = v; }
+    public void setStabilityWeight(int value) { this.stabilityWeight = value; }
     public int waterDepthWeight() { return waterDepthWeight; }
-    public void setWaterDepthWeight(int v) { this.waterDepthWeight = v; }
+    public void setWaterDepthWeight(int value) { this.waterDepthWeight = value; }
     public int nearWaterCost() { return nearWaterCost; }
-    public void setNearWaterCost(int v) { this.nearWaterCost = v; }
+    public void setNearWaterCost(int value) { this.nearWaterCost = value; }
     public int waterProximityCost() { return waterProximityCost; }
-    public void setWaterProximityCost(int v) { this.waterProximityCost = v; }
+    public void setWaterProximityCost(int value) { this.waterProximityCost = value; }
     public double heuristicWeight() { return heuristicWeight; }
-    public void setHeuristicWeight(double v) { this.heuristicWeight = v; }
+    public void setHeuristicWeight(double value) { this.heuristicWeight = value; }
     public double deviationWeight() { return deviationWeight; }
-    public void setDeviationWeight(double v) { this.deviationWeight = v; }
+    public void setDeviationWeight(double value) { this.deviationWeight = value; }
     public int aStarStep() { return aStarStep; }
-    public void setAStarStep(int v) { this.aStarStep = v; }
+    public void setAStarStep(int value) { this.aStarStep = value; }
     public int aStarMaxSteps() { return aStarMaxSteps; }
-    public void setAStarMaxSteps(int v) { this.aStarMaxSteps = v; }
-    public boolean hierarchicalPathfindingEnabled() { return hierarchicalPathfindingEnabled; }
-    public void setHierarchicalPathfindingEnabled(boolean v) { this.hierarchicalPathfindingEnabled = v; }
+    public void setAStarMaxSteps(int value) { this.aStarMaxSteps = value; }
     public PathfindingAlgorithm pathfindingAlgorithm() { return pathfindingAlgorithm; }
-    public void setPathfindingAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
+    public void setPathfindingAlgorithm(PathfindingAlgorithm value) { this.pathfindingAlgorithm = value; }
     public PathfindingAlgorithm algorithm() { return pathfindingAlgorithm; }
-    public void setAlgorithm(PathfindingAlgorithm v) { this.pathfindingAlgorithm = v; }
-    public int accurateSamplingDivisor() { return accurateSamplingDivisor; }
-    public void setAccurateSamplingDivisor(int v) { this.accurateSamplingDivisor = v; }
+    public void setAlgorithm(PathfindingAlgorithm value) { this.pathfindingAlgorithm = value; }
+    public int quantizedSamplingChunkRadius() { return quantizedSamplingChunkRadius; }
+    public void setQuantizedSamplingChunkRadius(int value) { this.quantizedSamplingChunkRadius = value; }
     public SamplingPrecision samplingPrecision() { return samplingPrecision; }
-    public void setSamplingPrecision(SamplingPrecision v) { this.samplingPrecision = v; }
-    /** 寻路阶段是否使用精确采样（HIGH / ULTRA_HIGH） */
-    public boolean isAccurateSampling() { return samplingPrecision != SamplingPrecision.NORMAL; }
-    /** 是否需要后处理二次精化（NORMAL / ULTRA_HIGH 需要，HIGH 不需要） */
-    public boolean needsRefinement() { return samplingPrecision != SamplingPrecision.HIGH; }
+    public void setSamplingPrecision(SamplingPrecision value) { this.samplingPrecision = value; }
+
+    /** 寻路阶段是否使用精确采样。 */
+    public boolean isAccurateSampling() {
+        return samplingPrecision != SamplingPrecision.FAST;
+    }
+
+    /** 普通采样使用后处理精化，高精度采样直接使用精确结果。 */
+    public boolean needsRefinement() {
+        return samplingPrecision != SamplingPrecision.PRECISE;
+    }
+
     public int effectiveAStarStep() {
-        if (aStarStep < RoadConstants.ASTAR_STEP_MIN) return RoadConstants.DEFAULT_ASTAR_STEP;
-        if (aStarStep > RoadConstants.ASTAR_STEP_MAX) return RoadConstants.ASTAR_STEP_MAX;
+        if (aStarStep < RoadConstants.ASTAR_STEP_MIN) {
+            return RoadConstants.DEFAULT_ASTAR_STEP;
+        }
+        if (aStarStep > RoadConstants.ASTAR_STEP_MAX) {
+            return RoadConstants.ASTAR_STEP_MAX;
+        }
         return aStarStep;
     }
 }

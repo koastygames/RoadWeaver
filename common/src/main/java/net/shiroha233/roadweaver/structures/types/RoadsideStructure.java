@@ -1,3 +1,4 @@
+/* 文件职责：定义路边结构的编解码协议与放置行为。 */
 package net.shiroha233.roadweaver.structures.types;
 
 import com.mojang.serialization.Codec;
@@ -38,14 +39,14 @@ public class RoadsideStructure extends Structure {
     public static final MapCodec<RoadsideStructure> CODEC = RecordCodecBuilder.mapCodec(instance ->
         instance.group(
             settingsCodec(instance),
-            Identifier.CODEC.fieldOf("template").forGetter(s -> s.templateId),
-            Vec3i.CODEC.optionalFieldOf("size_hint", new Vec3i(5, 5, 5)).forGetter(s -> s.sizeHint),
-            Codec.INT.optionalFieldOf("weight", 10).forGetter(s -> s.weight),
-            Codec.BOOL.optionalFieldOf("face_road", true).forGetter(s -> s.faceRoad),
-            StructureScale.CODEC.optionalFieldOf("scale", StructureScale.SMALL).forGetter(s -> s.scale),
-            RoadsidePlacementRule.CODEC.optionalFieldOf("placement_rule", RoadsidePlacementRule.UNIVERSAL).forGetter(s -> s.placementRule),
-            MobSpawnRule.LIST_CODEC.optionalFieldOf("mob_spawns", List.of()).forGetter(s -> s.mobSpawns),
-            LootConfig.LIST_CODEC.optionalFieldOf("loot_configs", List.of()).forGetter(s -> s.lootConfigs)
+            Identifier.CODEC.fieldOf("template").forGetter(RoadsideStructure::templateId),
+            Vec3i.CODEC.optionalFieldOf("size_hint", new Vec3i(5, 5, 5)).forGetter(RoadsideStructure::sizeHint),
+            Codec.INT.optionalFieldOf("weight", 10).forGetter(RoadsideStructure::weight),
+            Codec.BOOL.optionalFieldOf("face_road", true).forGetter(RoadsideStructure::faceRoad),
+            StructureScale.CODEC.optionalFieldOf("scale", StructureScale.SMALL).forGetter(RoadsideStructure::scale),
+            RoadsidePlacementRule.CODEC.optionalFieldOf("placement_rule", RoadsidePlacementRule.UNIVERSAL).forGetter(RoadsideStructure::placementRule),
+            MobSpawnRule.LIST_CODEC.optionalFieldOf("mob_spawns", List.of()).forGetter(RoadsideStructure::mobSpawns),
+            LootConfig.LIST_CODEC.optionalFieldOf("loot_configs", List.of()).forGetter(RoadsideStructure::lootConfigs)
         ).apply(instance, RoadsideStructure::new)
     );
     
@@ -57,16 +58,17 @@ public class RoadsideStructure extends Structure {
     private final RoadsidePlacementRule placementRule;
     private final List<MobSpawnRule> mobSpawns;
     private final List<LootConfig> lootConfigs;
-    
-    public RoadsideStructure(StructureSettings settings,
-                            Identifier templateId,
-                            Vec3i sizeHint,
-                            int weight,
-                            boolean faceRoad,
-                            StructureScale scale,
-                            RoadsidePlacementRule placementRule,
-                            List<MobSpawnRule> mobSpawns,
-                            List<LootConfig> lootConfigs) {
+    public RoadsideStructure(
+        StructureSettings settings,
+        Identifier templateId,
+        Vec3i sizeHint,
+        int weight,
+        boolean faceRoad,
+        StructureScale scale,
+        RoadsidePlacementRule placementRule,
+        List<MobSpawnRule> mobSpawns,
+        List<LootConfig> lootConfigs
+    ) {
         super(settings);
         this.templateId = templateId;
         this.sizeHint = sizeHint;
@@ -119,7 +121,7 @@ public class RoadsideStructure extends Structure {
     public List<LootConfig> lootConfigs() {
         return lootConfigs;
     }
-    
+
     public StructureStart placeAt(WorldGenLevel level,
                                   StructureManager structureManager,
                                   StructureTemplateManager templateManager,

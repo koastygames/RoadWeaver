@@ -18,8 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 长途驾驶主干道规划服务
- * 维护主干道"路头"位置，确保路头始终领先玩家 leadDistance 格
+ * 闀块€旈┚椹朵富骞查亾瑙勫垝鏈嶅姟
+ * 缁存姢涓诲共閬?璺ご"浣嶇疆锛岀‘淇濊矾澶村缁堥鍏堢帺瀹?leadDistance 鏍?
  */
 public final class LongDrivePlanningService {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
@@ -35,7 +35,7 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 初始规划
+     * 鍒濆瑙勫垝
      */
     public static void initialPlan(ServerLevel level) {
         if (level == null) return;
@@ -64,7 +64,7 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 玩家移动时检查是否需要延伸主干道
+     * 鐜╁绉诲姩鏃舵鏌ユ槸鍚﹂渶瑕佸欢浼镐富骞查亾
      */
     public static void tickPlayer(ServerPlayer player) {
         if (player == null) return;
@@ -116,7 +116,7 @@ public final class LongDrivePlanningService {
     }
 
     /**
-     * 基于世界种子计算主干道大方向（归一化 XZ 向量）
+     * 鍩轰簬涓栫晫绉嶅瓙璁＄畻涓诲共閬撳ぇ鏂瑰悜锛堝綊涓€鍖?XZ 鍚戦噺锛?
      */
     static double[] computeDirection(ServerLevel level) {
         long seed = level.getSeed();

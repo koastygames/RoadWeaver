@@ -35,7 +35,7 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import java.util.*;
 
 /**
- * 道路世界生成 Feature
+ * 閬撹矾涓栫晫鐢熸垚 Feature
  */
 public class PathFeature extends Feature<PathFeatureConfig> {
     public PathFeature(Codec<PathFeatureConfig> codec) {

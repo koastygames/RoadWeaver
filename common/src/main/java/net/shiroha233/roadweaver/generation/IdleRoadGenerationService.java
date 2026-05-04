@@ -31,10 +31,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * 闲时道路生成服务：
- * 1) 围绕玩家持续扩张规划半径；
- * 2) 将该半径内的 PLANNED 任务交给闲时线程专属生成；
- * 3) 玩家离开该半径后，任务自动释放给常规生成线程。
+ * 闂叉椂閬撹矾鐢熸垚鏈嶅姟锛?
+ * 1) 鍥寸粫鐜╁鎸佺画鎵╁紶瑙勫垝鍗婂緞锛?
+ * 2) 灏嗚鍗婂緞鍐呯殑 PLANNED 浠诲姟浜ょ粰闂叉椂绾跨▼涓撳睘鐢熸垚锛?
+ * 3) 鐜╁绂诲紑璇ュ崐寰勫悗锛屼换鍔¤嚜鍔ㄩ噴鏀剧粰甯歌鐢熸垚绾跨▼銆?
  */
 public final class IdleRoadGenerationService {
     private IdleRoadGenerationService() {}

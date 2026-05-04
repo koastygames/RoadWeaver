@@ -28,7 +28,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 道路生成调度器，管理 Path/Highway 双队列的 tick 驱动异步生成
+ * 閬撹矾鐢熸垚璋冨害鍣紝绠＄悊 Path/Highway 鍙岄槦鍒楃殑 tick 椹卞姩寮傛鐢熸垚
  */
 public final class RoadGenerationService {
     private RoadGenerationService() {}
@@ -65,7 +65,7 @@ public final class RoadGenerationService {
         IdleRoadGenerationService.onServerStopping();
     }
 
-    // ==================== tick 调度 ====================
+    // ==================== tick 璋冨害 ====================
 
     public static void tick(ServerLevel level) {
         refreshQueue(level);
@@ -122,7 +122,7 @@ public final class RoadGenerationService {
         }
     }
 
-    // ==================== 纯生成逻辑（无副作用） ====================
+    // ==================== 绾敓鎴愰€昏緫锛堟棤鍓綔鐢級 ====================
 
     public static boolean generateTask(ServerLevel level, StructureConnection conn) {
         if (level == null || conn == null) return false;
@@ -162,7 +162,7 @@ public final class RoadGenerationService {
         }
     }
 
-    // ==================== 安全生成包装 ====================
+    // ==================== 瀹夊叏鐢熸垚鍖呰 ====================
 
     private static void safeGenerate(ServerLevel level, StructureConnection conn, long epoch) {
         try {
@@ -222,7 +222,7 @@ public final class RoadGenerationService {
         }
     }
 
-    // ==================== 状态更新辅�?====================
+    // ==================== 鐘舵€佹洿鏂拌緟锟?====================
 
     private static void updateConnectionStatus(ServerLevel level, StructureConnection conn, ConnectionStatus status) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
@@ -269,7 +269,7 @@ public final class RoadGenerationService {
         if (proc != null) proc.remove(k);
     }
 
-    // ==================== 队列刷新 ====================
+    // ==================== 闃熷垪鍒锋柊 ====================
 
     private static void refreshQueue(ServerLevel level) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
@@ -313,7 +313,7 @@ public final class RoadGenerationService {
         }
     }
 
-    // ==================== 优先级轮�?====================
+    // ==================== 浼樺厛绾ц疆锟?====================
 
     private static StructureConnection pollNearest(ConcurrentLinkedQueue<StructureConnection> q, List<ServerPlayer> players) {
         if (q.isEmpty()) return null;

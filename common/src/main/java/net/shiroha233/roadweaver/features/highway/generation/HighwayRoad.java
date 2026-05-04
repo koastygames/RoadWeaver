@@ -13,9 +13,11 @@ import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.highway.HighwayRoadTypes;
 import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
 import net.shiroha233.roadweaver.features.highway.pathfinding.HighwayPathCalculator;
+import net.shiroha233.roadweaver.features.highway.pathfinding.HighwayPathCalculator.PathCalculationResult;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.StructureRoadOffsetService;
-import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCalculator;
+import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
 import java.util.ArrayList;
@@ -24,45 +26,68 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Highway 道路生成器
+ * 负责生成高速公路道路数据并写入持久化存储。
  */
 public final class HighwayRoad {
     private final ServerLevel level;
     private final StructureConnection connection;
-    private final HighwayGenerationConfig genConfig;
+    private final HighwayGenerationConfig generationConfig;
 
-    public HighwayRoad(ServerLevel level, StructureConnection connection, HighwayGenerationConfig genConfig) {
+    public HighwayRoad(ServerLevel level, StructureConnection connection, HighwayGenerationConfig generationConfig) {
         this.level = level;
         this.connection = connection;
-        this.genConfig = genConfig;
+        this.generationConfig = generationConfig;
     }
 
     public boolean generateRoad(int maxSteps) {
-        if (level == null || connection == null || genConfig == null) return false;
-        if (!Level.OVERWORLD.equals(level.dimension())) return false;
-        int width = Math.max(1, genConfig.roadWidth());
+        if (level == null || connection == null || generationConfig == null) {
+            return false;
+        }
+        if (!Level.OVERWORLD.equals(level.dimension())) {
+            return false;
+        }
 
+        int width = Math.max(1, generationConfig.roadWidth());
         List<BlockState> materials = List.of();
         List<BlockState> slabMaterials = List.of();
-
         BlockPos rawStart = connection.from();
         BlockPos rawEnd = connection.to();
 
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
-            RoadGenerationConfig adapted = genConfig.toRoadGenerationConfig();
-            List<RoadSegmentPlacement> rawSegments = HighwayPathCalculator.calculateHighwayPath(
-                    rawStart, rawEnd, width, level, Math.max(1, maxSteps), cache, genConfig);
-            if (rawSegments == null || rawSegments.size() < 3) return false;
+            RoadGenerationConfig adaptedConfig = generationConfig.toRoadGenerationConfig();
+            PathCalculationResult pathResult = HighwayPathCalculator.calculateHighwayPathDetailed(
+                    rawStart,
+                    rawEnd,
+                    width,
+                    level,
+                    Math.max(1, maxSteps),
+                    cache,
+                    generationConfig);
+            List<RoadSegmentPlacement> rawSegments = pathResult.segments();
+            if (rawSegments == null || rawSegments.size() < 3) {
+                return false;
+            }
 
             List<RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
-                    level, rawSegments, rawStart, rawEnd);
-            if (segments == null || segments.size() < 3) return false;
+                    level,
+                    rawSegments,
+                    rawStart,
+                    rawEnd);
+            if (segments == null || segments.size() < 3) {
+                return false;
+            }
 
-            List<RoadSpan> spans = RoadPathCalculator.extractSpans(segments, level, cache, adapted.bridgeMinWaterDepth());
-            List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
+            PathTerrainField terrain = pathResult.terrain();
+            List<RoadSpan> spans = PathSpanExtractor.extractSpans(
+                    segments,
+                    level,
+                    cache,
+                    terrain,
+                    adaptedConfig.bridgeMinWaterDepth());
+            List<Integer> targetY = computeTargetY(level, segments, spans, generationConfig);
 
-            RoadData rd = new RoadData(
+            RoadData roadData = new RoadData(
                     width,
                     HighwayRoadTypes.HIGHWAY,
                     materials,
@@ -71,9 +96,8 @@ public final class HighwayRoad {
                     spans,
                     targetY,
                     RoadData.NO_OWNER_2D,
-                    RoadData.NO_OWNER_2D
-            );
-            RoadShardStorage.addRoad(level, rd);
+                    RoadData.NO_OWNER_2D);
+            RoadShardStorage.addRoad(level, roadData);
             return true;
         } finally {
             cache.clear();
@@ -81,56 +105,73 @@ public final class HighwayRoad {
     }
 
     private static List<Integer> computeTargetY(ServerLevel level,
-                                               List<RoadSegmentPlacement> segments,
-                                               List<RoadSpan> spans,
-                                               TerrainSamplingCache cache,
-                                               HighwayGenerationConfig cfg) {
-        int n = segments.size();
-        List<BlockPos> centers = new ArrayList<>(n);
-        for (RoadSegmentPlacement s : segments) centers.add(s.middlePos());
+            List<RoadSegmentPlacement> segments,
+            List<RoadSpan> spans,
+            HighwayGenerationConfig generationConfig) {
+        int segmentCount = segments.size();
+        List<BlockPos> centers = new ArrayList<>(segmentCount);
+        for (RoadSegmentPlacement segment : segments) {
+            centers.add(segment.middlePos());
+        }
 
-        boolean[] isBridge = new boolean[n];
+        boolean[] bridgeMask = new boolean[segmentCount];
         if (spans != null && !spans.isEmpty()) {
             Map<Long, Integer> indexMap = new HashMap<>();
-            for (int i = 0; i < centers.size(); i++) indexMap.put(centers.get(i).asLong(), i);
-            for (RoadSpan sp : spans) {
-                if (sp.type() != SpanType.BRIDGE) continue;
-                Integer si = indexMap.get(sp.start().asLong());
-                Integer ei = indexMap.get(sp.end().asLong());
-                if (si == null || ei == null) continue;
-                int a = Math.max(0, Math.min(si, ei));
-                int b = Math.min(n - 1, Math.max(si, ei));
-                for (int k = a; k <= b; k++) isBridge[k] = true;
+            for (int i = 0; i < centers.size(); i++) {
+                indexMap.put(centers.get(i).asLong(), i);
+            }
+            for (RoadSpan span : spans) {
+                if (span.type() != SpanType.BRIDGE) {
+                    continue;
+                }
+                Integer startIndex = indexMap.get(span.start().asLong());
+                Integer endIndex = indexMap.get(span.end().asLong());
+                if (startIndex == null || endIndex == null) {
+                    continue;
+                }
+                int min = Math.max(0, Math.min(startIndex, endIndex));
+                int max = Math.min(segmentCount - 1, Math.max(startIndex, endIndex));
+                for (int index = min; index <= max; index++) {
+                    bridgeMask[index] = true;
+                }
             }
         }
 
-        int avg = Math.max(0, cfg.averagingRadius());
-        int[] base = new int[n];
-        for (int i = 0; i < n; i++) {
-            int sum = 0, cnt = 0;
-            int lo = Math.max(0, i - avg);
-            int hi = Math.min(n - 1, i + avg);
-            for (int j = lo; j <= hi; j++) {
-                BlockPos sp = centers.get(j);
-                int yTop = sp.getY();
-                sum += yTop;
-                cnt++;
+        int averagingRadius = Math.max(0, generationConfig.averagingRadius());
+        int[] baseHeights = new int[segmentCount];
+        for (int i = 0; i < segmentCount; i++) {
+            int sum = 0;
+            int count = 0;
+            int min = Math.max(0, i - averagingRadius);
+            int max = Math.min(segmentCount - 1, i + averagingRadius);
+            for (int index = min; index <= max; index++) {
+                sum += centers.get(index).getY();
+                count++;
             }
-            base[i] = cnt > 0 ? (int) Math.round(sum / (double) cnt) : centers.get(i).getY();
+            baseHeights[i] = count > 0 ? (int) Math.round(sum / (double) count) : centers.get(i).getY();
         }
 
-        if (!cfg.slopeLimitEnabled()) {
-            List<Integer> out = new ArrayList<>(n);
-            for (int v : base) out.add(v);
-            return out;
+        if (!generationConfig.slopeLimitEnabled()) {
+            List<Integer> result = new ArrayList<>(segmentCount);
+            for (int value : baseHeights) {
+                result.add(value);
+            }
+            return result;
         }
 
-        int slopeRunBlocks = Math.max(1, cfg.slopeRunBlocks());
-        int slopeRiseBlocks = Math.max(0, cfg.slopeRiseBlocks());
-        int[] smoothed = HighwayHeightSmoother.smooth(base, centers, isBridge, slopeRunBlocks, slopeRiseBlocks);
+        int slopeRunBlocks = Math.max(1, generationConfig.slopeRunBlocks());
+        int slopeRiseBlocks = Math.max(0, generationConfig.slopeRiseBlocks());
+        int[] smoothed = HighwayHeightSmoother.smooth(
+                baseHeights,
+                centers,
+                bridgeMask,
+                slopeRunBlocks,
+                slopeRiseBlocks);
 
-        List<Integer> out = new ArrayList<>(n);
-        for (int v : smoothed) out.add(v);
-        return out;
+        List<Integer> result = new ArrayList<>(segmentCount);
+        for (int value : smoothed) {
+            result.add(value);
+        }
+        return result;
     }
 }

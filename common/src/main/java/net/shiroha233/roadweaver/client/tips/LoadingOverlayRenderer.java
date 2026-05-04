@@ -37,6 +37,8 @@ public final class LoadingOverlayRenderer {
             return;
         }
 
+        LoadingTipsRenderer.renderTopWarnings(graphics);
+
         ModConfig config = ConfigService.get();
         boolean tipsEnabled = config == null || config.client().loadingTipsEnabled();
         boolean progressEnabled = config == null || config.loadingProgressEnabled();

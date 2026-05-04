@@ -26,7 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Highway 网格单元格四边驱动的 Path 规划服务
+ * Highway 缃戞牸鍗曞厓鏍煎洓杈归┍鍔ㄧ殑 Path 瑙勫垝鏈嶅姟
  */
 public final class HighwayCellPathPlanningService {
     private HighwayCellPathPlanningService() {}

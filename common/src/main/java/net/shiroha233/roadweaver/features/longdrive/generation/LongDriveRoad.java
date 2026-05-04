@@ -11,8 +11,12 @@ import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.features.longdrive.config.LongDriveGenerationConfig;
 import net.shiroha233.roadweaver.features.longdrive.pathfinding.GreedyForwardPathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathResult;
+import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
+import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainFieldFactory;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,71 +27,115 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 长途驾驶主干道生成器
- * 使用 Highway 材质 + Path 机制（路基/路灯/半砖），roadType=LONG_DRIVE(3)
+ * 负责生成长途主干道道路数据并写入持久化存储。
  */
 public final class LongDriveRoad {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
     private final ServerLevel level;
     private final BlockPos start;
-    private final double dirX;
-    private final double dirZ;
-    private final LongDriveGenerationConfig genConfig;
+    private final double directionX;
+    private final double directionZ;
+    private final LongDriveGenerationConfig generationConfig;
 
-    public LongDriveRoad(ServerLevel level, BlockPos start, double dirX, double dirZ,
-                         LongDriveGenerationConfig genConfig) {
+    public LongDriveRoad(ServerLevel level,
+            BlockPos start,
+            double directionX,
+            double directionZ,
+            LongDriveGenerationConfig generationConfig) {
         this.level = level;
         this.start = start;
-        this.dirX = dirX;
-        this.dirZ = dirZ;
-        this.genConfig = genConfig;
+        this.directionX = directionX;
+        this.directionZ = directionZ;
+        this.generationConfig = generationConfig;
     }
 
-    /**
-     * 生成一段主干道
-     * @param maxSteps 贪婪寻路最大步数
-     * @return 路径末端位置，null 表示失败
-     */
     public BlockPos generate(int maxSteps) {
-        if (level == null || genConfig == null) return null;
-        int width = Math.max(1, genConfig.roadWidth());
+        if (level == null || generationConfig == null) {
+            return null;
+        }
 
+        int width = Math.max(1, generationConfig.roadWidth());
         List<BlockState> materials = List.of(Blocks.GRAY_CONCRETE.defaultBlockState());
         List<BlockState> slabMaterials = List.of(Blocks.GRAY_CONCRETE.defaultBlockState());
 
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
-            // 长途模式使用精准采样，避免快速采样导致的地形/水深误判
             cache.enableHighPrecision(level);
             GreedyForwardPathfinder pathfinder = new GreedyForwardPathfinder();
-            PathResult result = pathfinder.findPath(
-                    start, dirX, dirZ, maxSteps, width, level, cache,
-                    genConfig.pathfindingCost(), genConfig.directionBias());
+            PathResult coarseResult = pathfinder.findPath(
+                    start,
+                    directionX,
+                    directionZ,
+                    maxSteps,
+                    width,
+                    level,
+                    cache,
+                    generationConfig.pathfindingCost(),
+                    generationConfig.directionBias());
+            if (!coarseResult.success() || coarseResult.segments().size() < 3) {
+                return null;
+            }
 
-            if (!result.success() || result.segments().size() < 3) return null;
+            List<BlockPos> coarsePath = coarseResult.segments().stream()
+                    .map(RoadSegmentPlacement::middlePos)
+                    .toList();
+            PathTerrainField terrain = PathTerrainFieldFactory.quantized(
+                    level,
+                    cache,
+                    coarsePath,
+                    Math.max(1, generationConfig.pathfindingCost().effectiveAStarStep()),
+                    generationConfig.pathfindingCost().quantizedSamplingChunkRadius());
+            PathResult result = terrain == null
+                    ? coarseResult
+                    : pathfinder.findPath(
+                            start,
+                            directionX,
+                            directionZ,
+                            maxSteps,
+                            width,
+                            level,
+                            cache,
+                            terrain,
+                            generationConfig.pathfindingCost(),
+                            generationConfig.directionBias());
+            if (!result.success() || result.segments().size() < 3) {
+                return null;
+            }
 
             List<BlockPos> rawPath = result.segments().stream()
                     .map(RoadSegmentPlacement::middlePos)
                     .toList();
             List<RoadSegmentPlacement> segments = PathPostProcessor.process(
-                    rawPath, width, level, cache, genConfig.bridgeMinWaterDepth());
+                    rawPath,
+                    width,
+                    level,
+                    cache,
+                    terrain,
+                    generationConfig.bridgeMinWaterDepth(),
+                    SplineHelper.CurveMode.CATMULL_ROM,
+                    null);
+            if (segments == null || segments.size() < 3) {
+                return null;
+            }
 
-            if (segments == null || segments.size() < 3) return null;
-
-            List<RoadSpan> spans = extractSpans(segments, level, cache);
+            List<RoadSpan> spans = extractSpans(segments, terrain, cache);
             List<Integer> targetY = computeTargetY(segments, spans);
 
-            RoadData rd = new RoadData(
-                    width, LongDriveRoadTypes.LONG_DRIVE,
-                    materials, slabMaterials, segments, spans, targetY,
-                    RoadData.NO_OWNER_2D, RoadData.NO_OWNER_2D);
-            RoadShardStorage.addRoad(level, rd);
-
-            BlockPos last = segments.get(segments.size() - 1).middlePos();
-            return last;
-        } catch (Throwable t) {
-            LOGGER.warn("LongDriveRoad: generation failed from {}", start, t);
+            RoadData roadData = new RoadData(
+                    width,
+                    LongDriveRoadTypes.LONG_DRIVE,
+                    materials,
+                    slabMaterials,
+                    segments,
+                    spans,
+                    targetY,
+                    RoadData.NO_OWNER_2D,
+                    RoadData.NO_OWNER_2D);
+            RoadShardStorage.addRoad(level, roadData);
+            return segments.get(segments.size() - 1).middlePos();
+        } catch (Throwable throwable) {
+            LOGGER.warn("LongDriveRoad: generation failed from {}", start, throwable);
             return null;
         } finally {
             cache.clear();
@@ -95,121 +143,126 @@ public final class LongDriveRoad {
     }
 
     private List<RoadSpan> extractSpans(List<RoadSegmentPlacement> segments,
-                                        ServerLevel level, TerrainSamplingCache cache) {
-        List<RoadSpan> spans = new ArrayList<>();
-        int minWaterDepth = genConfig.bridgeMinWaterDepth();
-        
-        int i = 0;
-        while (i < segments.size()) {
-            BlockPos pos = segments.get(i).middlePos();
-            int oceanFloor = cache.oceanFloor(level, pos.getX(), pos.getZ());
-            int waterDepth = Math.max(0, level.getSeaLevel() - oceanFloor);
-            
-            if (waterDepth >= minWaterDepth) {
-                int start = i;
-                while (i < segments.size()) {
-                    BlockPos p = segments.get(i).middlePos();
-                    int floor = cache.oceanFloor(level, p.getX(), p.getZ());
-                    int depth = Math.max(0, level.getSeaLevel() - floor);
-                    if (depth < minWaterDepth) break;
-                    i++;
-                }
-                if (i > start) {
-                    spans.add(new RoadSpan(
-                            segments.get(start).middlePos(),
-                            segments.get(i - 1).middlePos(),
-                            SpanType.BRIDGE));
-                }
-            } else {
-                i++;
-            }
-        }
-        return spans;
+            PathTerrainField terrain,
+            TerrainSamplingCache cache) {
+        return PathSpanExtractor.extractSpans(
+                segments,
+                level,
+                cache,
+                terrain,
+                generationConfig.bridgeMinWaterDepth());
     }
 
     private List<Integer> computeTargetY(List<RoadSegmentPlacement> segments, List<RoadSpan> spans) {
-        int n = segments.size();
-        List<BlockPos> centers = new ArrayList<>(n);
-        for (RoadSegmentPlacement s : segments) centers.add(s.middlePos());
+        int segmentCount = segments.size();
+        List<BlockPos> centers = new ArrayList<>(segmentCount);
+        for (RoadSegmentPlacement segment : segments) {
+            centers.add(segment.middlePos());
+        }
 
-        boolean[] isBridge = new boolean[n];
+        boolean[] bridgeMask = new boolean[segmentCount];
         if (spans != null && !spans.isEmpty()) {
             Map<Long, Integer> indexMap = new HashMap<>();
             for (int i = 0; i < centers.size(); i++) {
                 indexMap.put(centers.get(i).asLong(), i);
             }
-            for (RoadSpan sp : spans) {
-                if (sp.type() != SpanType.BRIDGE) continue;
-                Integer si = indexMap.get(sp.start().asLong());
-                Integer ei = indexMap.get(sp.end().asLong());
-                if (si == null || ei == null) continue;
-                int a = Math.max(0, Math.min(si, ei));
-                int b = Math.min(n - 1, Math.max(si, ei));
-                for (int k = a; k <= b; k++) isBridge[k] = true;
-            }
-        }
-
-        int avg = Math.max(0, genConfig.averagingRadius());
-        int[] base = new int[n];
-        for (int i = 0; i < n; i++) {
-            int sum = 0, cnt = 0;
-            int lo = Math.max(0, i - avg);
-            int hi = Math.min(n - 1, i + avg);
-            for (int j = lo; j <= hi; j++) {
-                sum += centers.get(j).getY();
-                cnt++;
-            }
-            base[i] = cnt > 0 ? Math.round(sum / (float) cnt) : centers.get(i).getY();
-        }
-
-        if (!genConfig.slopeLimitEnabled()) {
-            List<Integer> out = new ArrayList<>(n);
-            for (int v : base) out.add(v);
-            return out;
-        }
-
-        int[] smoothed = base.clone();
-        int step2 = Math.max(0, Math.min(8, genConfig.maxSlopeStepPerTwoSegments()));
-        int halfLow = Math.max(0, step2 / 2);
-        int halfHigh = Math.max(0, (step2 + 1) / 2);
-
-        int i = 0;
-        while (i < n) {
-            while (i < n && isBridge[i]) i++;
-            int s = i;
-            while (i < n && !isBridge[i]) i++;
-            int e = i - 1;
-            if (s > e) continue;
-            
-            for (int ii = s + 1; ii <= e; ii++) {
-                int y = smoothed[ii];
-                int py = smoothed[ii - 1];
-                int limit = (ii == s + 1) ? halfLow : halfHigh;
-                if (y > py + limit) y = py + limit;
-                if (y < py - limit) y = py - limit;
-                if (ii >= s + 2) {
-                    int p2 = smoothed[ii - 2];
-                    y = Math.max(p2 - step2, Math.min(p2 + step2, y));
+            for (RoadSpan span : spans) {
+                if (span.type() != SpanType.BRIDGE) {
+                    continue;
                 }
-                smoothed[ii] = y;
-            }
-            
-            for (int ii = e - 1; ii >= s; ii--) {
-                int y = smoothed[ii];
-                int ny = smoothed[ii + 1];
-                int limit = (ii == e - 1) ? halfLow : halfHigh;
-                if (y > ny + limit) y = ny + limit;
-                if (y < ny - limit) y = ny - limit;
-                if (ii <= e - 2) {
-                    int n2 = smoothed[ii + 2];
-                    y = Math.max(n2 - step2, Math.min(n2 + step2, y));
+                Integer startIndex = indexMap.get(span.start().asLong());
+                Integer endIndex = indexMap.get(span.end().asLong());
+                if (startIndex == null || endIndex == null) {
+                    continue;
                 }
-                smoothed[ii] = y;
+                int min = Math.max(0, Math.min(startIndex, endIndex));
+                int max = Math.min(segmentCount - 1, Math.max(startIndex, endIndex));
+                for (int index = min; index <= max; index++) {
+                    bridgeMask[index] = true;
+                }
             }
         }
 
-        List<Integer> out = new ArrayList<>(n);
-        for (int v : smoothed) out.add(v);
-        return out;
+        int averagingRadius = Math.max(0, generationConfig.averagingRadius());
+        int[] baseHeights = new int[segmentCount];
+        for (int i = 0; i < segmentCount; i++) {
+            int sum = 0;
+            int count = 0;
+            int min = Math.max(0, i - averagingRadius);
+            int max = Math.min(segmentCount - 1, i + averagingRadius);
+            for (int index = min; index <= max; index++) {
+                sum += centers.get(index).getY();
+                count++;
+            }
+            baseHeights[i] = count > 0 ? Math.round(sum / (float) count) : centers.get(i).getY();
+        }
+
+        if (!generationConfig.slopeLimitEnabled()) {
+            List<Integer> result = new ArrayList<>(segmentCount);
+            for (int value : baseHeights) {
+                result.add(value);
+            }
+            return result;
+        }
+
+        int[] smoothed = baseHeights.clone();
+        int stepPerTwoSegments = Math.max(0, Math.min(8, generationConfig.maxSlopeStepPerTwoSegments()));
+        int firstStepLimit = Math.max(0, stepPerTwoSegments / 2);
+        int followingStepLimit = Math.max(0, (stepPerTwoSegments + 1) / 2);
+
+        int cursor = 0;
+        while (cursor < segmentCount) {
+            while (cursor < segmentCount && bridgeMask[cursor]) {
+                cursor++;
+            }
+            int startIndex = cursor;
+            while (cursor < segmentCount && !bridgeMask[cursor]) {
+                cursor++;
+            }
+            int endIndex = cursor - 1;
+            if (startIndex > endIndex) {
+                continue;
+            }
+
+            for (int index = startIndex + 1; index <= endIndex; index++) {
+                int y = smoothed[index];
+                int prevY = smoothed[index - 1];
+                int limit = index == startIndex + 1 ? firstStepLimit : followingStepLimit;
+                if (y > prevY + limit) {
+                    y = prevY + limit;
+                }
+                if (y < prevY - limit) {
+                    y = prevY - limit;
+                }
+                if (index >= startIndex + 2) {
+                    int prevPrevY = smoothed[index - 2];
+                    y = Math.max(prevPrevY - stepPerTwoSegments, Math.min(prevPrevY + stepPerTwoSegments, y));
+                }
+                smoothed[index] = y;
+            }
+
+            for (int index = endIndex - 1; index >= startIndex; index--) {
+                int y = smoothed[index];
+                int nextY = smoothed[index + 1];
+                int limit = index == endIndex - 1 ? firstStepLimit : followingStepLimit;
+                if (y > nextY + limit) {
+                    y = nextY + limit;
+                }
+                if (y < nextY - limit) {
+                    y = nextY - limit;
+                }
+                if (index <= endIndex - 2) {
+                    int nextNextY = smoothed[index + 2];
+                    y = Math.max(nextNextY - stepPerTwoSegments, Math.min(nextNextY + stepPerTwoSegments, y));
+                }
+                smoothed[index] = y;
+            }
+        }
+
+        List<Integer> result = new ArrayList<>(segmentCount);
+        for (int value : smoothed) {
+            result.add(value);
+        }
+        return result;
     }
 }
