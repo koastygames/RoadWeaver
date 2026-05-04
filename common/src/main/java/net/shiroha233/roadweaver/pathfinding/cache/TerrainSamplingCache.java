@@ -4,6 +4,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,6 +16,7 @@ public final class TerrainSamplingCache {
     private final ConcurrentHashMap<Integer, ConcurrentHashMap<Long, Boolean>> nearWaterCacheByDistance = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> columnWaterCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Integer> motionBlockingCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Holder<Biome>> biomeCache = new ConcurrentHashMap<>();
 
@@ -54,11 +56,7 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        var chunkSource = level.getChunkSource();
-        var randomState = chunkSource.getGeneratorState().randomState();
-        var biomeSource = chunkSource.getGenerator().getBiomeSource();
-        Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, 16, z >> 2, randomState.sampler());
-        boolean res = biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN);
+        boolean res = isColumnWater(level, x, z);
         waterCache.put(key, res);
         return res;
     }
@@ -76,11 +74,35 @@ public final class TerrainSamplingCache {
             ensureAccurateSampler(level);
             h = accurateSampler.oceanFloorWg(x, z);
         } else {
-            ensureFastSampler(level);
-            h = fastSampler.sampleHeight(x, z);
+            h = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
         }
         oceanFloorCache.put(key, h);
         return h;
+    }
+
+    public int motionBlockingNoLeaves(ServerLevel level, int x, int z) {
+        long key = hashXZ(x, z);
+        Integer cached = motionBlockingCache.get(key);
+        if (cached != null) {
+            TerrainSamplingStats.recordCacheHit();
+            return cached;
+        }
+        TerrainSamplingStats.recordCacheMiss();
+        int h;
+        if (highPrecisionMode) {
+            ensureAccurateSampler(level);
+            h = accurateSampler.motionBlockingNoLeaves(x, z);
+        } else {
+            h = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        }
+        motionBlockingCache.put(key, h);
+        return h;
+    }
+
+    public int waterDepth(ServerLevel level, int x, int z) {
+        int top = motionBlockingNoLeaves(level, x, z);
+        int floor = oceanFloor(level, x, z);
+        return Math.max(0, top - floor);
     }
 
     public boolean isNearWaterLike(ServerLevel level, int x, int z, int neighborDistance) {
@@ -101,7 +123,7 @@ public final class TerrainSamplingCache {
                 {d, d}, {d, -d}, {-d, d}, {-d, -d}
         };
         for (int[] off : offsets) {
-            if (isWaterLike(level, x + off[0], z + off[1])) {
+            if (isColumnWater(level, x + off[0], z + off[1])) {
                 nearWaterCache.put(key, true);
                 return true;
             }
@@ -118,17 +140,9 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        int of = oceanFloor(level, x, z);
-        int sea = level.getSeaLevel();
-        int surface = height(level, x, z);
-        if (highPrecisionMode) {
-            ensureAccurateSampler(level);
-            surface = accurateSampler.worldSurfaceWg(x, z);
-        }
-        boolean isWaterBiome = isWaterLike(level, x, z);
-        boolean biomeWater = isWaterBiome && of < sea;
-        boolean heightWater = (surface <= sea + 1) && (of < surface - 1);
-        boolean res = biomeWater || heightWater;
+        int top = motionBlockingNoLeaves(level, x, z);
+        int floor = oceanFloor(level, x, z);
+        boolean res = top > floor;
         columnWaterCache.put(key, res);
         return res;
     }
@@ -167,6 +181,7 @@ public final class TerrainSamplingCache {
 
     private void clearPrecisionDerivedCaches() {
         heightCache.clear();
+        motionBlockingCache.clear();
         oceanFloorCache.clear();
         columnWaterCache.clear();
     }
@@ -185,6 +200,7 @@ public final class TerrainSamplingCache {
         nearWaterCacheByDistance.clear();
         columnWaterCache.clear();
         heightCache.clear();
+        motionBlockingCache.clear();
         oceanFloorCache.clear();
         biomeCache.clear();
         if (fastSampler != null) fastSampler.clearCache();

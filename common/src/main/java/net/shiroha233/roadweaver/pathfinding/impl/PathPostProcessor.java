@@ -251,12 +251,9 @@ public final class PathPostProcessor {
                 continue;
             }
             if (!isWaterLike(cache, p.getX(), p.getZ(), level)) continue;
-            int sea = level.getSeaLevel();
             int oceanFloor = sampler.oceanFloorWg(p.getX(), p.getZ());
-            int surfaceY = sampler.worldSurfaceWg(p.getX(), p.getZ());
-            boolean biomeWater = oceanFloor < sea;
-            boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
-            int waterDepth = (biomeWater || heightWater) ? Math.max(0, sea - oceanFloor) : 0;
+            int topY = sampler.surfaceHeight(p.getX(), p.getZ());
+            int waterDepth = Math.max(0, topY - oceanFloor);
             mask[i] = waterDepth >= Math.max(1, bridgeMinWaterDepth);
         }
         return mask;

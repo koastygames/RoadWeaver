@@ -38,7 +38,7 @@ public interface PathTerrainField {
     }
 
     default int waterDepth(int x, int z) {
-        return Math.max(0, seaLevel() - oceanFloor(x, z));
+        return Math.max(0, height(x, z) - oceanFloor(x, z));
     }
 
     default boolean isBridgeWater(int x, int z, int minWaterDepth) {

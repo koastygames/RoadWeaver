@@ -95,14 +95,10 @@ public final class PathSpanExtractor {
             return false;
         }
 
-        int sea = level.getSeaLevel();
         int oceanFloor = accurate.oceanFloorWg(pos.getX(), pos.getZ());
-        int surfaceY = accurate.worldSurfaceWg(pos.getX(), pos.getZ());
-        boolean biomeWater = oceanFloor < sea;
-        boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
-        boolean waterColumn = biomeWater || heightWater;
-        int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;
-        return waterColumn && waterDepth >= Math.max(1, minWaterDepth);
+        int topY = accurate.surfaceHeight(pos.getX(), pos.getZ());
+        int waterDepth = Math.max(0, topY - oceanFloor);
+        return waterDepth >= Math.max(1, minWaterDepth);
     }
 
     private static void appendBridgeSpan(List<RoadSpan> spans,

@@ -124,9 +124,7 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
                     int oceanFloor = accurate.oceanFloorWg(worldX, worldZ);
                     int height = motion > seaLevel + 2 ? motion : worldSurface;
                     Holder<Biome> biome = cache.getBiome(level, worldX, worldZ);
-                    boolean biomeWater = biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN);
-                    boolean columnWater = (biomeWater && oceanFloor < seaLevel)
-                            || ((worldSurface <= seaLevel + 1) && (oceanFloor < worldSurface - 1));
+                    boolean columnWater = height > oceanFloor;
 
                     field.heights[index] = (short) height;
                     field.oceanFloors[index] = (short) oceanFloor;
