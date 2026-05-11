@@ -66,10 +66,6 @@ public final class InitialGenManager {
             RoadPlanningService.initialPlan(level);
         }
 
-        if (cfg.longDrive().enabled()) {
-            net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService.initialPlan(level);
-        }
-
         WorldDataProvider provider = WorldDataProvider.getInstance();
         if (cfg.highway().enabled()) {
             List<StructureConnection> highways = provider.getHighwayConnections(level);

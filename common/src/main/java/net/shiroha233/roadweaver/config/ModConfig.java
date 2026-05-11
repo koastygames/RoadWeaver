@@ -17,7 +17,6 @@ public final class ModConfig {
     private RoadAppearanceConfig roadAppearance = new RoadAppearanceConfig();
     private BridgeConfig bridge = new BridgeConfig();
     private HighwayConfig highway = new HighwayConfig();
-    private LongDriveConfig longDrive = new LongDriveConfig();
     private PerformanceConfig performance = new PerformanceConfig();
     private RoadsideStructureConfig roadsideStructure = new RoadsideStructureConfig();
     private ClientConfig client = new ClientConfig();
@@ -30,7 +29,6 @@ public final class ModConfig {
         if (roadAppearance == null) roadAppearance = new RoadAppearanceConfig();
         if (bridge == null) bridge = new BridgeConfig();
         if (highway == null) highway = new HighwayConfig();
-        if (longDrive == null) longDrive = new LongDriveConfig();
         if (performance == null) performance = new PerformanceConfig();
         if (roadsideStructure == null) roadsideStructure = new RoadsideStructureConfig();
         if (client == null) client = new ClientConfig();
@@ -41,7 +39,6 @@ public final class ModConfig {
         roadAppearance.sanitize();
         bridge.sanitize();
         highway.sanitize();
-        longDrive.sanitize();
         performance.sanitize();
         roadsideStructure.sanitize();
         client.sanitize();
@@ -62,7 +59,6 @@ public final class ModConfig {
     public RoadAppearanceConfig roadAppearance() { return roadAppearance; }
     public BridgeConfig bridge() { return bridge; }
     public HighwayConfig highway() { return highway; }
-    public LongDriveConfig longDrive() { return longDrive; }
     public PerformanceConfig performance() { return performance; }
     public RoadsideStructureConfig roadsideStructure() { return roadsideStructure; }
     public ClientConfig client() { return client; }

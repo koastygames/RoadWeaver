@@ -9,7 +9,6 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
-import net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
@@ -67,9 +66,6 @@ public final class ServerPlanningHooks {
                 HighwayPlanningService.initialPlanAsync(level);
             }
 
-            if (ConfigService.get().longDrive().enabled()) {
-                LongDrivePlanningService.initialPlan(level);
-            }
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -83,7 +79,6 @@ public final class ServerPlanningHooks {
                         RoadPlanningService.planAroundPlayer(p);
                     }
                     IdleRoadGenerationService.tickPlayer(p);
-                    LongDrivePlanningService.tickPlayer(p);
                 }
             }
 
@@ -104,7 +99,6 @@ public final class ServerPlanningHooks {
             RoadGenerationService.onServerStopping();
             HighwayPlanningService.resetAll();
             HighwayCellPathPlanningService.resetAll();
-            LongDrivePlanningService.resetAll();
             CacheManager.onServerStopping(server.getAllLevels());
             ThreadPoolManager.onServerStopping();
             SignTextService.clearPending();

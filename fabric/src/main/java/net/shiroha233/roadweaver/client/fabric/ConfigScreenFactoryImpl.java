@@ -35,9 +35,6 @@ public class ConfigScreenFactoryImpl {
         buildPlanningCategory(builder, eb, conf, defaultConf);
         
         buildHighwayCategory(builder, eb, conf, defaultConf);
-        
-        buildLongDriveCategory(builder, eb, conf, defaultConf);
-        
         buildRoadGenerationCategory(builder, eb, conf, defaultConf);
         
         buildSurfaceSettingsCategory(builder, eb, conf, defaultConf);
@@ -235,59 +232,6 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.highway_penetration_weight.tooltip"))
                 .setMin(0)
                 .setSaveConsumer(cfg::setPenetrationWeight)
-                .build());
-    }
-
-    private static void buildLongDriveCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {
-        ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.long_drive"));
-        LongDriveConfig cfg = conf.longDrive();
-        LongDriveConfig def = defaultConf.longDrive();
-
-        category.addEntry(eb
-                .startBooleanToggle(Component.translatable("config.roadweaver.long_drive_enabled"), cfg.enabled())
-                .setDefaultValue(def.enabled())
-                .setTooltip(Component.translatable("config.roadweaver.long_drive_enabled.tooltip"))
-                .setSaveConsumer(cfg::setEnabled)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.long_drive_road_width"), cfg.roadWidth())
-                .setDefaultValue(def.roadWidth())
-                .setTooltip(Component.translatable("config.roadweaver.long_drive_road_width.tooltip"))
-                .setMin(1).setMax(15)
-                .setSaveConsumer(cfg::setRoadWidth)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.long_drive_segment_length"), cfg.segmentLength())
-                .setDefaultValue(def.segmentLength())
-                .setTooltip(Component.translatable("config.roadweaver.long_drive_segment_length.tooltip"))
-                .setMin(50).setMax(5000)
-                .setSaveConsumer(cfg::setSegmentLength)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.long_drive_a_star_step"), cfg.aStarStep())
-                .setDefaultValue(def.aStarStep())
-                .setTooltip(Component.translatable("config.roadweaver.long_drive_a_star_step.tooltip"))
-                .setMin(4).setMax(128)
-                .setSaveConsumer(cfg::setAStarStep)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.long_drive_lead_distance"), cfg.leadDistance())
-                .setDefaultValue(def.leadDistance())
-                .setTooltip(Component.translatable("config.roadweaver.long_drive_lead_distance.tooltip"))
-                .setMin(200).setMax(10000)
-                .setSaveConsumer(cfg::setLeadDistance)
-                .build());
-
-        category.addEntry(eb
-                .startDoubleField(Component.translatable("config.roadweaver.long_drive_direction_bias"), cfg.directionBias())
-                .setDefaultValue(def.directionBias())
-                .setTooltip(Component.translatable("config.roadweaver.long_drive_direction_bias.tooltip"))
-                .setMin(0).setMax(1000)
-                .setSaveConsumer(cfg::setDirectionBias)
                 .build());
     }
 
