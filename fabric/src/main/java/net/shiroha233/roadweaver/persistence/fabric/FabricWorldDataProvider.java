@@ -69,4 +69,14 @@ public class FabricWorldDataProvider extends WorldDataProvider {
     public void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers) {
         ((AttachmentTarget) level).setAttached(WorldDataAttachment.PLANNED_TILE_CENTERS, centers);
     }
+
+    @Override
+    public Map<Long, Long> getHighwayIntersections(ServerLevel level) {
+        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.HIGHWAY_INTERSECTIONS, HashMap::new);
+    }
+
+    @Override
+    public void setHighwayIntersections(ServerLevel level, Map<Long, Long> intersections) {
+        ((AttachmentTarget) level).setAttached(WorldDataAttachment.HIGHWAY_INTERSECTIONS, intersections);
+    }
 }

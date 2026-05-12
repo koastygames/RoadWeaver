@@ -63,6 +63,28 @@ public class WorldDataAttachment {
             )
     );
 
+    public static final AttachmentType<java.util.Map<Long, Long>> HIGHWAY_INTERSECTIONS = AttachmentRegistry.createPersistent(
+            new ResourceLocation(RoadWeaver.MOD_ID, "highway_intersections"),
+            Codec.unboundedMap(Codec.STRING, Codec.LONG).xmap(
+                    m -> {
+                        java.util.HashMap<Long, Long> out = new java.util.HashMap<>();
+                        for (java.util.Map.Entry<String, Long> e : m.entrySet()) {
+                            try {
+                                out.put(Long.parseLong(e.getKey()), e.getValue());
+                            } catch (NumberFormatException ignored) {}
+                        }
+                        return out;
+                    },
+                    m -> {
+                        java.util.HashMap<String, Long> out = new java.util.HashMap<>();
+                        for (java.util.Map.Entry<Long, Long> e : m.entrySet()) {
+                            out.put(Long.toString(e.getKey()), e.getValue());
+                        }
+                        return out;
+                    }
+            )
+    );
+
     public static final AttachmentType<MapAccessPolicy> MAP_ACCESS_POLICY = AttachmentRegistry.createPersistent(
             new ResourceLocation(RoadWeaver.MOD_ID, "map_access_policy"),
             MapAccessPolicy.CODEC

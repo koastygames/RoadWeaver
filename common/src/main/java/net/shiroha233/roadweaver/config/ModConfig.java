@@ -198,6 +198,18 @@ public final class ModConfig {
         return highway.dynamicPlanEnabled();
     }
 
+    public boolean highwayTerrainAwarePlanning() {
+        return highway.terrainAwarePlanning();
+    }
+
+    public int highwayIntersectionWindowSize() {
+        return highway.intersectionWindowSize();
+    }
+
+    public double highwayIntersectionEdgeMargin() {
+        return highway.intersectionEdgeMargin();
+    }
+
     public List<String> structurePredictionDimensionWhitelist() {
         return structurePrediction.dimensionWhitelist();
     }

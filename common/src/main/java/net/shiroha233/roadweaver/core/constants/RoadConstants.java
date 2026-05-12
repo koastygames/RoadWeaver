@@ -165,6 +165,16 @@ public final class RoadConstants {
 
     public static final int CHUNK_SIZE_BLOCKS = 16;
 
+    // 公路动态交叉点选择
+    public static final int DEFAULT_INTERSECTION_WINDOW_SIZE = 64;
+    public static final int INTERSECTION_WINDOW_SIZE_MIN = 16;
+    public static final int INTERSECTION_WINDOW_SIZE_MAX = 256;
+    public static final double DEFAULT_INTERSECTION_EDGE_MARGIN = 0.1;
+    public static final double INTERSECTION_EDGE_MARGIN_MAX = 0.4;
+    public static final int HIGHWAY_TERRAIN_SAMPLING_STEP = 4;
+    public static final double DIAGONAL_WATER_RATIO_THRESHOLD = 0.3;
+    public static final double DIAGONAL_DISTANCE_FACTOR = 1.8;
+
     // 道路吸附后处理
     public static final int ROAD_SNAP_THRESHOLD = 12;
     public static final int ROAD_SNAP_SPLIT_THRESHOLD = 24;

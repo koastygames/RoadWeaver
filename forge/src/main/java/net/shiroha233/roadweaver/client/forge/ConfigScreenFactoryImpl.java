@@ -203,6 +203,31 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.highway_terrain_aware_planning"), cfg.terrainAwarePlanning())
+                .setDefaultValue(def.terrainAwarePlanning())
+                .setTooltip(Component.translatable("config.roadweaver.highway_terrain_aware_planning.tooltip"))
+                .setSaveConsumer(cfg::setTerrainAwarePlanning)
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.highway_intersection_window_size"), cfg.intersectionWindowSize())
+                .setDefaultValue(def.intersectionWindowSize())
+                .setTooltip(Component.translatable("config.roadweaver.highway_intersection_window_size.tooltip"))
+                .setMin(RoadConstants.INTERSECTION_WINDOW_SIZE_MIN)
+                .setMax(RoadConstants.INTERSECTION_WINDOW_SIZE_MAX)
+                .setSaveConsumer(cfg::setIntersectionWindowSize)
+                .build());
+
+        category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.highway_intersection_edge_margin"), cfg.intersectionEdgeMargin())
+                .setDefaultValue(def.intersectionEdgeMargin())
+                .setTooltip(Component.translatable("config.roadweaver.highway_intersection_edge_margin.tooltip"))
+                .setMin(0.0D)
+                .setMax(RoadConstants.INTERSECTION_EDGE_MARGIN_MAX)
+                .setSaveConsumer(cfg::setIntersectionEdgeMargin)
+                .build());
+
+        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.highway_a_star_step"), cfg.aStarStep())
                 .setDefaultValue(def.aStarStep())
                 .setTooltip(Component.translatable("config.roadweaver.highway_a_star_step.tooltip"))

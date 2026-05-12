@@ -36,6 +36,9 @@ public abstract class WorldDataProvider {
     public abstract Map<Long, Long> getPlannedTileCenters(ServerLevel level);
     public abstract void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers);
 
+    public abstract Map<Long, Long> getHighwayIntersections(ServerLevel level);
+    public abstract void setHighwayIntersections(ServerLevel level, Map<Long, Long> intersections);
+
     /**
      * 添加单个结构位置（幂等）
      */

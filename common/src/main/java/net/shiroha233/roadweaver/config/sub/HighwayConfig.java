@@ -19,11 +19,15 @@ public final class HighwayConfig implements SubConfig {
     private int aStarMaxSteps = RoadConstants.DEFAULT_HIGHWAY_ASTAR_MAX_STEPS;
     private double floatingWeight = RoadConstants.DEFAULT_HIGHWAY_FLOATING_WEIGHT;
     private double penetrationWeight = RoadConstants.DEFAULT_HIGHWAY_PENETRATION_WEIGHT;
+    private Boolean terrainAwarePlanning = true;
+    private int intersectionWindowSize = RoadConstants.DEFAULT_INTERSECTION_WINDOW_SIZE;
+    private double intersectionEdgeMargin = RoadConstants.DEFAULT_INTERSECTION_EDGE_MARGIN;
 
     @Override
     public void sanitize() {
         if (dynamicPlanEnabled == null) dynamicPlanEnabled = true;
         if (slopeLimitEnabled == null) slopeLimitEnabled = true;
+        if (terrainAwarePlanning == null) terrainAwarePlanning = true;
         gridBlocks = Math.max(RoadConstants.HIGHWAY_GRID_BLOCKS_MIN, Math.min(RoadConstants.HIGHWAY_GRID_BLOCKS_MAX, gridBlocks));
         roadWidth = Math.max(RoadConstants.HIGHWAY_ROAD_WIDTH_MIN, Math.min(RoadConstants.HIGHWAY_ROAD_WIDTH_MAX, roadWidth));
         if (slopeRunBlocks < RoadConstants.HIGHWAY_SLOPE_RUN_MIN || slopeRunBlocks > RoadConstants.HIGHWAY_SLOPE_RUN_MAX) {
@@ -34,6 +38,8 @@ public final class HighwayConfig implements SubConfig {
         aStarMaxSteps = Math.max(RoadConstants.HIGHWAY_ASTAR_MAX_STEPS_MIN, Math.min(RoadConstants.HIGHWAY_ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
         floatingWeight = Math.max(0, floatingWeight);
         penetrationWeight = Math.max(0, penetrationWeight);
+        intersectionWindowSize = Math.max(RoadConstants.INTERSECTION_WINDOW_SIZE_MIN, Math.min(RoadConstants.INTERSECTION_WINDOW_SIZE_MAX, intersectionWindowSize));
+        intersectionEdgeMargin = Math.max(0, Math.min(RoadConstants.INTERSECTION_EDGE_MARGIN_MAX, intersectionEdgeMargin));
     }
 
     @Override
@@ -51,6 +57,9 @@ public final class HighwayConfig implements SubConfig {
         copy.aStarMaxSteps = this.aStarMaxSteps;
         copy.floatingWeight = this.floatingWeight;
         copy.penetrationWeight = this.penetrationWeight;
+        copy.terrainAwarePlanning = this.terrainAwarePlanning;
+        copy.intersectionWindowSize = this.intersectionWindowSize;
+        copy.intersectionEdgeMargin = this.intersectionEdgeMargin;
         return copy;
     }
 
@@ -82,4 +91,10 @@ public final class HighwayConfig implements SubConfig {
     public void setFloatingWeight(double v) { this.floatingWeight = v; }
     public double penetrationWeight() { return penetrationWeight; }
     public void setPenetrationWeight(double v) { this.penetrationWeight = v; }
+    public boolean terrainAwarePlanning() { return terrainAwarePlanning == null || terrainAwarePlanning; }
+    public void setTerrainAwarePlanning(boolean v) { this.terrainAwarePlanning = v; }
+    public int intersectionWindowSize() { return intersectionWindowSize; }
+    public void setIntersectionWindowSize(int v) { this.intersectionWindowSize = v; }
+    public double intersectionEdgeMargin() { return intersectionEdgeMargin; }
+    public void setIntersectionEdgeMargin(double v) { this.intersectionEdgeMargin = v; }
 }

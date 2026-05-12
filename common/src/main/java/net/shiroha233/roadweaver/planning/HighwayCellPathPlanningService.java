@@ -11,15 +11,18 @@ import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.features.highway.planning.IntersectionSelector;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.impl.KNNPlanner;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +38,7 @@ public final class HighwayCellPathPlanningService {
     private static final int BORDER_ENTRY_MIN_BLOCKS = 48;
     private static final int BORDER_ENTRY_MAX_BLOCKS = 256;
     private static final int BACKFILL_BUDGET_PER_TICK = 2;
+    private static final int MAX_RING_SEARCH_DEPTH = 3;
 
     public static void resetAll() {
         PLANNED_CELLS.clear();
@@ -83,8 +87,32 @@ public final class HighwayCellPathPlanningService {
         ModConfig cfg = ConfigService.get();
         if (cfg == null || !cfg.highway().enabled()) return;
 
-        int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
+        if (cfg.highway().terrainAwarePlanning()) {
+            if (triggerTerrainAwareCells(level, cfg, highwayEdge)) return;
+        }
 
+        triggerLegacyCells(cfg, level, highwayEdge);
+    }
+
+    private static boolean triggerTerrainAwareCells(ServerLevel level, ModConfig cfg, StructureConnection highwayEdge) {
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        Map<Long, Long> intersections = provider.getHighwayIntersections(level);
+        if (intersections == null || intersections.isEmpty()) return false;
+
+        int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
+        LinkedHashSet<Long> affectedCells = new LinkedHashSet<>();
+        addHubCellKey(affectedCells, intersections, highwayEdge.from(), gridBlocks);
+        addHubCellKey(affectedCells, intersections, highwayEdge.to(), gridBlocks);
+        if (affectedCells.isEmpty()) return false;
+
+        for (long cellKey : affectedCells) {
+            maybePlanCell(level, cfg, cellKeyGx(cellKey), cellKeyGz(cellKey));
+        }
+        return true;
+    }
+
+    private static void triggerLegacyCells(ModConfig cfg, ServerLevel level, StructureConnection highwayEdge) {
+        int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
         int x0 = highwayEdge.from().getX();
         int z0 = highwayEdge.from().getZ();
         int x1 = highwayEdge.to().getX();
@@ -130,10 +158,47 @@ public final class HighwayCellPathPlanningService {
         if (cellGx < -1_000_000 || cellGx > 1_000_000) return;
         if (cellGz < -1_000_000 || cellGz > 1_000_000) return;
 
-        long cellKey = (((long) cellGx) << 32) ^ (cellGz & 0xffffffffL);
+        long cellKey = packCellKey(cellGx, cellGz);
         Set<Long> planned = PLANNED_CELLS.computeIfAbsent(level, l -> ConcurrentHashMap.newKeySet());
         if (planned.contains(cellKey)) return;
 
+        if (tryPlanTerrainAwareCell(level, cfg, cellGx, cellGz, cellKey, planned)) return;
+        maybePlanLegacyCell(level, cfg, cellGx, cellGz, cellKey, planned);
+    }
+
+    private static boolean tryPlanTerrainAwareCell(ServerLevel level,
+                                                   ModConfig cfg,
+                                                   int cellGx,
+                                                   int cellGz,
+                                                   long cellKey,
+                                                   Set<Long> planned) {
+        if (!cfg.highway().terrainAwarePlanning()) return false;
+
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        Map<Long, Long> intersections = provider.getHighwayIntersections(level);
+        if (intersections == null || intersections.isEmpty()) return false;
+
+        Long hubEncoded = intersections.get(cellKey);
+        if (hubEncoded == null) return false;
+        if (IntersectionSelector.isOceanSkip(hubEncoded)) return true;
+
+        BlockPos hub = normalize2d(IntersectionSelector.decodePos(hubEncoded));
+        HighwayCompletionGraph graph = buildCompletedHighwayGraph(provider.getHighwayConnections(level));
+        List<BlockPos> completedNeighbors = collectCompletedNeighbors(graph, hub);
+        if (completedNeighbors.size() < 2) return true;
+        if (!hasCompletedRing(graph, hub, completedNeighbors)) return true;
+
+        planned.add(cellKey);
+        planCell(level, cfg, cellGx, cellGz, buildHubFallbackAnchors(hub, completedNeighbors));
+        return true;
+    }
+
+    private static void maybePlanLegacyCell(ServerLevel level,
+                                            ModConfig cfg,
+                                            int cellGx,
+                                            int cellGz,
+                                            long cellKey,
+                                            Set<Long> planned) {
         int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
 
         BlockPos a = new BlockPos(cellGx * gridBlocks, 0, cellGz * gridBlocks);
@@ -152,7 +217,12 @@ public final class HighwayCellPathPlanningService {
         }
 
         planned.add(cellKey);
-        planCell(level, cfg, cellGx, cellGz, a, b, c, d, ab, ac, bd, cd);
+        ArrayList<BlockPos> fallbackAnchors = new ArrayList<>(4);
+        if (ab == ConnectionStatus.COMPLETED) fallbackAnchors.add(midpoint(a, b));
+        if (ac == ConnectionStatus.COMPLETED) fallbackAnchors.add(midpoint(a, c));
+        if (bd == ConnectionStatus.COMPLETED) fallbackAnchors.add(midpoint(b, d));
+        if (cd == ConnectionStatus.COMPLETED) fallbackAnchors.add(midpoint(c, d));
+        planCell(level, cfg, cellGx, cellGz, fallbackAnchors);
     }
 
     private static Map<Long, ConnectionStatus> buildHighwayStatusMap(ServerLevel level) {
@@ -171,12 +241,9 @@ public final class HighwayCellPathPlanningService {
 
     private static void planCell(ServerLevel level,
                                  ModConfig cfg,
-                                 int cellGx, int cellGz,
-                                 BlockPos a, BlockPos b, BlockPos c, BlockPos d,
-                                 ConnectionStatus ab,
-                                 ConnectionStatus ac,
-                                 ConnectionStatus bd,
-                                 ConnectionStatus cd) {
+                                 int cellGx,
+                                 int cellGz,
+                                 List<BlockPos> fallbackAnchors) {
         int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
 
         int minX = cellGx * gridBlocks;
@@ -194,15 +261,13 @@ public final class HighwayCellPathPlanningService {
 
         List<StructureConnection> borderEntries = buildBorderEntryEdges(level, cfg, points,
                 minX, minZ, maxXExcl, maxZExcl,
-                a, b, c, d,
-                ab, ac, bd, cd);
+                fallbackAnchors);
         if (borderEntries != null && !borderEntries.isEmpty()) {
             incoming.addAll(borderEntries);
         } else {
             StructureConnection entry = buildSingleEntryEdge(level, cfg, points,
                     minX, minZ, maxXExcl, maxZExcl,
-                    a, b, c, d,
-                    ab, ac, bd, cd);
+                    fallbackAnchors);
             if (entry != null) {
                 incoming.add(entry);
             }
@@ -223,11 +288,7 @@ public final class HighwayCellPathPlanningService {
                                                                    List<BlockPos> points,
                                                                    int minX, int minZ,
                                                                    int maxXExcl, int maxZExcl,
-                                                                   BlockPos a, BlockPos b, BlockPos c, BlockPos d,
-                                                                   ConnectionStatus ab,
-                                                                   ConnectionStatus ac,
-                                                                   ConnectionStatus bd,
-                                                                   ConnectionStatus cd) {
+                                                                   List<BlockPos> fallbackAnchors) {
         if (points == null || points.isEmpty()) return List.of();
 
         int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
@@ -240,12 +301,6 @@ public final class HighwayCellPathPlanningService {
 
         int band = Math.max(64, Math.min(512, Math.max(1, cfg.highway().roadWidth()) * 16));
         List<BlockPos> highwayPoints = collectHighwayPointsNearCellBorder(level, minX, minZ, maxXExcl, maxZExcl, band);
-
-        ArrayList<BlockPos> mids = new ArrayList<>();
-        if (ab == ConnectionStatus.COMPLETED) mids.add(midpoint(a, b));
-        if (ac == ConnectionStatus.COMPLETED) mids.add(midpoint(a, c));
-        if (bd == ConnectionStatus.COMPLETED) mids.add(midpoint(b, d));
-        if (cd == ConnectionStatus.COMPLETED) mids.add(midpoint(c, d));
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> existing = provider.getStructureConnections(level);
@@ -275,8 +330,8 @@ public final class HighwayCellPathPlanningService {
             if (highwayPoints != null && !highwayPoints.isEmpty()) {
                 anchor = findNearestLinear(p, highwayPoints);
             }
-            if (anchor == null && !mids.isEmpty()) {
-                anchor = findNearestLinear(p, mids);
+            if (anchor == null && fallbackAnchors != null && !fallbackAnchors.isEmpty()) {
+                anchor = findNearestLinear(p, fallbackAnchors);
             }
             if (anchor == null) continue;
             if (PlanningUtils.pos2dKey(p) == PlanningUtils.pos2dKey(anchor)) continue;
@@ -396,11 +451,7 @@ public final class HighwayCellPathPlanningService {
                                                             List<BlockPos> points,
                                                             int minX, int minZ,
                                                             int maxXExcl, int maxZExcl,
-                                                            BlockPos a, BlockPos b, BlockPos c, BlockPos d,
-                                                            ConnectionStatus ab,
-                                                            ConnectionStatus ac,
-                                                            ConnectionStatus bd,
-                                                            ConnectionStatus cd) {
+                                                            List<BlockPos> fallbackAnchors) {
         if (points == null || points.isEmpty()) return null;
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
@@ -439,15 +490,8 @@ public final class HighwayCellPathPlanningService {
             anchor = findNearestLinear(root, highwayPoints);
         }
 
-        if (anchor == null) {
-            ArrayList<BlockPos> mids = new ArrayList<>();
-            if (ab == ConnectionStatus.COMPLETED) mids.add(midpoint(a, b));
-            if (ac == ConnectionStatus.COMPLETED) mids.add(midpoint(a, c));
-            if (bd == ConnectionStatus.COMPLETED) mids.add(midpoint(b, d));
-            if (cd == ConnectionStatus.COMPLETED) mids.add(midpoint(c, d));
-            if (!mids.isEmpty()) {
-                anchor = findNearestLinear(root, mids);
-            }
+        if (anchor == null && fallbackAnchors != null && !fallbackAnchors.isEmpty()) {
+            anchor = findNearestLinear(root, fallbackAnchors);
         }
 
         if (anchor == null) return null;
@@ -517,6 +561,139 @@ public final class HighwayCellPathPlanningService {
         return new BlockPos((a.getX() + b.getX()) / 2, 0, (a.getZ() + b.getZ()) / 2);
     }
 
+    private static List<BlockPos> buildHubFallbackAnchors(BlockPos hub, List<BlockPos> completedNeighbors) {
+        LinkedHashSet<BlockPos> anchors = new LinkedHashSet<>();
+        for (BlockPos neighbor : completedNeighbors) {
+            if (neighbor == null) continue;
+            anchors.add(midpoint(hub, neighbor));
+        }
+        return new ArrayList<>(anchors);
+    }
+
+    private static List<BlockPos> collectCompletedNeighbors(HighwayCompletionGraph graph, BlockPos hub) {
+        if (graph == null || hub == null) return List.of();
+        long hubKey = PlanningUtils.pos2dKey(hub);
+        Set<Long> neighbors = graph.adjacency().get(hubKey);
+        if (neighbors == null || neighbors.isEmpty()) return List.of();
+
+        ArrayList<BlockPos> out = new ArrayList<>(neighbors.size());
+        for (long neighborKey : neighbors) {
+            BlockPos neighbor = graph.nodes().get(neighborKey);
+            if (neighbor != null) out.add(neighbor);
+        }
+        return out;
+    }
+
+    private static boolean hasCompletedRing(HighwayCompletionGraph graph, BlockPos hub, List<BlockPos> completedNeighbors) {
+        if (graph == null || hub == null || completedNeighbors == null || completedNeighbors.size() < 2) {
+            return false;
+        }
+
+        long hubKey = PlanningUtils.pos2dKey(hub);
+        for (int i = 0; i < completedNeighbors.size(); i++) {
+            BlockPos a = completedNeighbors.get(i);
+            long aKey = PlanningUtils.pos2dKey(a);
+            for (int j = i + 1; j < completedNeighbors.size(); j++) {
+                BlockPos b = completedNeighbors.get(j);
+                long bKey = PlanningUtils.pos2dKey(b);
+                if (graph.hasCompletedEdge(aKey, bKey)) return true;
+                if (hasCompletedPath(graph, aKey, bKey, hubKey, MAX_RING_SEARCH_DEPTH)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasCompletedPath(HighwayCompletionGraph graph,
+                                            long startKey,
+                                            long targetKey,
+                                            long blockedKey,
+                                            int maxDepth) {
+        ArrayDeque<SearchState> queue = new ArrayDeque<>();
+        HashSet<Long> visited = new HashSet<>();
+        queue.addLast(new SearchState(startKey, 0));
+        visited.add(startKey);
+        visited.add(blockedKey);
+
+        while (!queue.isEmpty()) {
+            SearchState state = queue.removeFirst();
+            if (state.depth >= maxDepth) continue;
+
+            Set<Long> neighbors = graph.adjacency().get(state.nodeKey);
+            if (neighbors == null || neighbors.isEmpty()) continue;
+            for (long nextKey : neighbors) {
+                if (nextKey == blockedKey) continue;
+                if (nextKey == targetKey) return true;
+                if (visited.add(nextKey)) {
+                    queue.addLast(new SearchState(nextKey, state.depth + 1));
+                }
+            }
+        }
+        return false;
+    }
+
+    private static HighwayCompletionGraph buildCompletedHighwayGraph(List<StructureConnection> highways) {
+        HashMap<Long, BlockPos> nodes = new HashMap<>();
+        HashMap<Long, Set<Long>> adjacency = new HashMap<>();
+        if (highways == null || highways.isEmpty()) return new HighwayCompletionGraph(nodes, adjacency);
+
+        for (StructureConnection connection : highways) {
+            if (connection == null || connection.status() != ConnectionStatus.COMPLETED) continue;
+
+            BlockPos from = normalize2d(connection.from());
+            BlockPos to = normalize2d(connection.to());
+            long fromKey = PlanningUtils.pos2dKey(from);
+            long toKey = PlanningUtils.pos2dKey(to);
+
+            nodes.putIfAbsent(fromKey, from);
+            nodes.putIfAbsent(toKey, to);
+            adjacency.computeIfAbsent(fromKey, ignored -> new HashSet<>()).add(toKey);
+            adjacency.computeIfAbsent(toKey, ignored -> new HashSet<>()).add(fromKey);
+        }
+
+        return new HighwayCompletionGraph(nodes, adjacency);
+    }
+
+    private static void addHubCellKey(Set<Long> out, Map<Long, Long> intersections, BlockPos pos, int gridBlocks) {
+        Long cellKey = findHubCellKey(intersections, pos, gridBlocks);
+        if (cellKey != null) out.add(cellKey);
+    }
+
+    private static Long findHubCellKey(Map<Long, Long> intersections, BlockPos hubPos, int gridBlocks) {
+        if (intersections == null || intersections.isEmpty() || hubPos == null) return null;
+
+        BlockPos flatHub = normalize2d(hubPos);
+        long hubPosKey = PlanningUtils.pos2dKey(flatHub);
+        long expectedCellKey = packCellKey(floorDiv(flatHub.getX(), gridBlocks), floorDiv(flatHub.getZ(), gridBlocks));
+        Long encoded = intersections.get(expectedCellKey);
+        if (encoded != null && !IntersectionSelector.isOceanSkip(encoded) && encoded == hubPosKey) {
+            return expectedCellKey;
+        }
+
+        for (Map.Entry<Long, Long> entry : intersections.entrySet()) {
+            Long value = entry.getValue();
+            if (value == null || IntersectionSelector.isOceanSkip(value)) continue;
+            if (value == hubPosKey) return entry.getKey();
+        }
+        return null;
+    }
+
+    private static BlockPos normalize2d(BlockPos pos) {
+        if (pos == null) return null;
+        return new BlockPos(pos.getX(), 0, pos.getZ());
+    }
+
+    private static long packCellKey(int cellGx, int cellGz) {
+        return (((long) cellGx) << 32) ^ (cellGz & 0xffffffffL);
+    }
+
+    private static int cellKeyGx(long cellKey) {
+        return (int) (cellKey >> 32);
+    }
+
+    private static int cellKeyGz(long cellKey) {
+        return (int) cellKey;
+    }
+
     private static boolean isInCell(BlockPos p, int minX, int minZ, int maxXExcl, int maxZExcl) {
         if (p == null) return false;
         int x = p.getX();
@@ -539,6 +716,15 @@ public final class HighwayCellPathPlanningService {
         int r = a / b;
         if ((a ^ b) < 0 && (r * b != a)) r--;
         return r;
+    }
+
+    private record SearchState(long nodeKey, int depth) {}
+
+    private record HighwayCompletionGraph(Map<Long, BlockPos> nodes, Map<Long, Set<Long>> adjacency) {
+        private boolean hasCompletedEdge(long fromKey, long toKey) {
+            Set<Long> neighbors = adjacency.get(fromKey);
+            return neighbors != null && neighbors.contains(toKey);
+        }
     }
 
     private static List<StructureConnection> mergeConnections(List<StructureConnection> existing,

@@ -31,12 +31,14 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
         private List<StructureConnection> highwayConnections = new ArrayList<>();
         private Set<Long> plannedTileKeys = new HashSet<>();
         private Map<Long, Long> plannedTileCenters = new HashMap<>();
+        private Map<Long, Long> highwayIntersections = new HashMap<>();
 
         private static final String KEY_LOCATIONS = "structure_locations";
         private static final String KEY_CONNECTIONS = "connections";
         private static final String KEY_HIGHWAY_CONNECTIONS = "highway_connections";
         private static final String KEY_PLANNED_TILES = "planned_tiles";
         private static final String KEY_PLANNED_TILE_CENTERS = "planned_tile_centers";
+        private static final String KEY_HIGHWAY_INTERSECTIONS = "highway_intersections";
 
         public Data() {}
 
@@ -74,6 +76,12 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
                 res.result().ifPresent(map -> data.plannedTileCenters = map);
             }
 
+            if (tag.contains(KEY_HIGHWAY_INTERSECTIONS)) {
+                Tag t = tag.get(KEY_HIGHWAY_INTERSECTIONS);
+                DataResult<Map<Long, Long>> res = Codec.unboundedMap(Codec.LONG, Codec.LONG).parse(new Dynamic<>(ops, t));
+                res.result().ifPresent(map -> data.highwayIntersections = map);
+            }
+
             return data;
         }
 
@@ -101,6 +109,10 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
             Codec.unboundedMap(Codec.LONG, Codec.LONG).encodeStart(ops, plannedTileCenters)
                     .result()
                     .ifPresent(nbt -> tag.put(KEY_PLANNED_TILE_CENTERS, Objects.requireNonNull(nbt)));
+
+            Codec.unboundedMap(Codec.LONG, Codec.LONG).encodeStart(ops, highwayIntersections)
+                    .result()
+                    .ifPresent(nbt -> tag.put(KEY_HIGHWAY_INTERSECTIONS, Objects.requireNonNull(nbt)));
 
             return tag;
         }
@@ -147,6 +159,15 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
 
         public void setPlannedTileCenters(Map<Long, Long> centers) {
             this.plannedTileCenters = Objects.requireNonNullElseGet(centers, HashMap::new);
+            setDirty();
+        }
+
+        public Map<Long, Long> getHighwayIntersections() {
+            return highwayIntersections;
+        }
+
+        public void setHighwayIntersections(Map<Long, Long> intersections) {
+            this.highwayIntersections = Objects.requireNonNullElseGet(intersections, HashMap::new);
             setDirty();
         }
     }
@@ -203,5 +224,15 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
     @Override
     public void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers) {
         getOrCreate(level).setPlannedTileCenters(centers);
+    }
+
+    @Override
+    public Map<Long, Long> getHighwayIntersections(ServerLevel level) {
+        return getOrCreate(level).getHighwayIntersections();
+    }
+
+    @Override
+    public void setHighwayIntersections(ServerLevel level, Map<Long, Long> intersections) {
+        getOrCreate(level).setHighwayIntersections(intersections);
     }
 }
