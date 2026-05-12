@@ -34,7 +34,7 @@ public final class HighwayBidirectionalAStarPathfinder {
                                                           TerrainSamplingCache cache,
                                                           HighwayGenerationConfig cfg,
                                                           PathTerrainField terrain) {
-        if (startGround == null || endGround == null || level == null || cache == null || cfg == null) {
+        if (startGround == null || endGround == null || level == null || cache == null || cfg == null || terrain == null) {
             return PathCalculationResult.failure();
         }
         if (startGround.equals(endGround)) {
@@ -128,7 +128,7 @@ public final class HighwayBidirectionalAStarPathfinder {
                 return null;
             }
             BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
-            if (terrain != null && !terrain.contains(nxz.getX(), nxz.getZ())) {
+            if (!terrain.contains(nxz.getX(), nxz.getZ())) {
                 continue;
             }
             int y = heightSampler(cache, terrain, nxz.getX(), nxz.getZ(), level);
@@ -144,7 +144,7 @@ public final class HighwayBidirectionalAStarPathfinder {
             double stepCost = (offsetSum == 2 * d) ? pathCfg.diagStepCost() : pathCfg.orthoStepCost();
             int stabilityCost = calculateTerrainStability(cache, terrain, np, y, level, d);
 
-            int sea = terrain != null ? terrain.seaLevel() : level.getSeaLevel();
+            int sea = terrain.seaLevel();
             boolean waterColumn = isColumnWater(cache, terrain, nxz.getX(), nxz.getZ(), level);
             boolean nearWater = isNearWaterLike(cache, terrain, nxz.getX(), nxz.getZ(), level, d);
             int oceanFloor = oceanFloorSampler(cache, terrain, nxz.getX(), nxz.getZ(), level);
@@ -257,21 +257,21 @@ public final class HighwayBidirectionalAStarPathfinder {
     }
 
     private static int heightSampler(TerrainSamplingCache cache, PathTerrainField terrain, int x, int z, ServerLevel level) {
-        if (terrain != null && terrain.contains(x, z)) {
+        if (terrain.contains(x, z)) {
             return terrain.height(x, z);
         }
         return cache.height(level, x, z);
     }
 
     private static int oceanFloorSampler(TerrainSamplingCache cache, PathTerrainField terrain, int x, int z, ServerLevel level) {
-        if (terrain != null && terrain.contains(x, z)) {
+        if (terrain.contains(x, z)) {
             return terrain.oceanFloor(x, z);
         }
         return cache.oceanFloor(level, x, z);
     }
 
     private static boolean isColumnWater(TerrainSamplingCache cache, PathTerrainField terrain, int x, int z, ServerLevel level) {
-        if (terrain != null && terrain.contains(x, z)) {
+        if (terrain.contains(x, z)) {
             return terrain.isColumnWater(x, z);
         }
         return cache.isColumnWater(level, x, z);
@@ -283,7 +283,7 @@ public final class HighwayBidirectionalAStarPathfinder {
                                            int z,
                                            ServerLevel level,
                                            int step) {
-        if (terrain != null && terrain.contains(x, z)) {
+        if (terrain.contains(x, z)) {
             return terrain.isNearWater(x, z, step);
         }
         return cache.isNearWaterLike(level, x, z, 16);
@@ -294,7 +294,7 @@ public final class HighwayBidirectionalAStarPathfinder {
                                        ServerLevel level,
                                        int x,
                                        int z) {
-        if (terrain != null && terrain.contains(x, z)) {
+        if (terrain.contains(x, z)) {
             return terrain.biome(x, z);
         }
         return cache.getBiome(level, x, z);
