@@ -1,12 +1,10 @@
+/* 文件职责：集中定义道路、寻路、生成与存储相关的全局常量。 */
 package net.shiroha233.roadweaver.core.constants;
 
 /**
- * 全局命名常量，消除代码中的魔法数字
+ * 全局命名常量，消除代码中的魔法数。
  */
 public final class RoadConstants {
-
-    private RoadConstants() {}
-
     public static final int DEFAULT_ASTAR_STEP = 8;
     public static final int DEFAULT_ASTAR_MAX_STEPS = 200_000;
     public static final int ASTAR_MAX_STEPS_MIN = 3_000;
@@ -165,11 +163,13 @@ public final class RoadConstants {
 
     public static final int CHUNK_SIZE_BLOCKS = 16;
 
-    // 道路吸附后处理
     public static final int ROAD_SNAP_THRESHOLD = 12;
     public static final int ROAD_SNAP_SPLIT_THRESHOLD = 24;
     public static final int ROAD_SNAP_MIN_RUN_LENGTH = 3;
     public static final int ROAD_SNAP_GRID_SIZE = 8;
     public static final int ROAD_SNAP_GRID_SHIFT = 3;
     public static final int ROAD_SNAP_TRANSITION_SEGMENTS = 3;
+
+    private RoadConstants() {
+    }
 }

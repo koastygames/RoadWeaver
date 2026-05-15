@@ -7,15 +7,13 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
-import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 
 import java.util.function.Consumer;
 
 /**
- * 简单文本输入界面
+ * 简单文本输入界面。
  */
-public class SimpleTextInputScreen extends RoadWeaverScreen {
+public class SimpleTextInputScreen extends Screen {
     private final Component titleText;
     private final String initial;
     private final Consumer<String> onSubmit;
@@ -37,33 +35,36 @@ public class SimpleTextInputScreen extends RoadWeaverScreen {
 
     @Override
     protected void init() {
-        int w = 240;
-        int x = (this.width - w) / 2;
+        int width = 240;
+        int x = (this.width - width) / 2;
         int y = this.height / 2 - 20;
-        box = new EditBox(this.font, x, y, w, 20, titleText);
-        box.setMaxLength(512);
-        box.setValue(initial);
+        this.box = new EditBox(this.font, x, y, width, 20, titleText);
+        this.box.setMaxLength(512);
+        this.box.setValue(initial);
         this.addRenderableWidget(box);
 
-        int bw = 80;
-        int by = y + 28;
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.roadweaver.common.ok"), b -> submit())
-                .bounds(x, by, bw, 20).build());
-        this.addRenderableWidget(Button.builder(Component.translatable("gui.roadweaver.common.cancel"), b -> cancel())
-                .bounds(x + w - bw, by, bw, 20).build());
+        int buttonWidth = 80;
+        int buttonY = y + 28;
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.roadweaver.common.ok"), button -> submit())
+                .bounds(x, buttonY, buttonWidth, 20)
+                .build());
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.roadweaver.common.cancel"), button -> cancel())
+                .bounds(x + width - buttonWidth, buttonY, buttonWidth, 20)
+                .build());
 
         this.setInitialFocus(box);
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        ScreenBackgrounds.render(graphics, this.width, this.height);
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(this.font, this.titleText, this.width / 2, this.height / 2 - 34, 0xFFFFFF);
+        graphics.drawCenteredString(this.font, this.titleText, this.width / 2, this.height / 2 - 34, 0xFFFFFFFF);
     }
 
     private void submit() {
-        if (onSubmit != null) onSubmit.accept(box.getValue());
+        if (onSubmit != null) {
+            onSubmit.accept(box.getValue());
+        }
         Minecraft.getInstance().setScreen(parent);
     }
 

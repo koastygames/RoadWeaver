@@ -11,19 +11,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
-import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
-import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 地图笔记编辑界面 - 采用类似原版书与笔的风格
+ * 地图笔记编辑界面。
  */
-public class NoteEditScreen extends RoadWeaverScreen {
+public class NoteEditScreen extends Screen {
     private static final Identifier BOOK_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/gui/book.png");
-    
-    // 书本尺寸（原版书本纹理参数）
     private static final int BOOK_WIDTH = 192;
     private static final int BOOK_HEIGHT = 192;
     private static final int TEXT_WIDTH = 114;
@@ -31,78 +27,67 @@ public class NoteEditScreen extends RoadWeaverScreen {
     private static final int TEXT_Y_OFFSET = 32;
     private static final int MAX_LINES = 14;
     private static final int LINE_HEIGHT = 9;
-    
+
     private final BlockPos targetPos;
     private final Screen parent;
     private final List<String> lines = new ArrayList<>();
-    
+
     private int cursorLine = 0;
     private int cursorPos = 0;
-    private int bookX, bookY;
-    private long lastBlink = 0;
+    private int bookX;
+    private int bookY;
+    private long lastBlink;
     private boolean cursorVisible = true;
 
     public NoteEditScreen(BlockPos targetPos, Screen parent) {
         super(Component.translatable("gui.roadweaver.map.note.title"));
         this.targetPos = targetPos;
         this.parent = parent;
-        
-        // 加载已有笔记
+
         List<String> existing = ClientMapNotes.getNotes(targetPos);
         if (!existing.isEmpty()) {
-            lines.addAll(existing);
+            this.lines.addAll(existing);
         } else {
-            lines.add("");
+            this.lines.add("");
         }
     }
 
     @Override
     protected void init() {
-        bookX = (this.width - BOOK_WIDTH) / 2;
-        bookY = (this.height - BOOK_HEIGHT) / 2;
-        
-        // 完成按钮
-        this.addRenderableWidget(Button.builder(
-                Component.translatable("gui.roadweaver.common.save"),
-                b -> save()
-        ).bounds(bookX + BOOK_WIDTH / 2 - 50, bookY + BOOK_HEIGHT + 4, 100, 20).build());
+        this.bookX = (this.width - BOOK_WIDTH) / 2;
+        this.bookY = (this.height - BOOK_HEIGHT) / 2;
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.roadweaver.common.save"), button -> save())
+                .bounds(bookX + BOOK_WIDTH / 2 - 50, bookY + BOOK_HEIGHT + 4, 100, 20)
+                .build());
     }
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        ScreenBackgrounds.render(g, this.width, this.height);
-        
-        // 绘制书本背景
-        g.blit(RenderPipelines.GUI_TEXTURED, BOOK_TEXTURE, bookX, bookY, 0.0F, 0.0F, BOOK_WIDTH, BOOK_HEIGHT, BOOK_WIDTH, BOOK_HEIGHT);
-        
-        // 标题（优先显示别名，否则显示坐标�?
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, BOOK_TEXTURE, bookX, bookY, 0.0F, 0.0F, BOOK_WIDTH, BOOK_HEIGHT, BOOK_WIDTH, BOOK_HEIGHT);
+
         String alias = ClientMapNotes.getAlias(targetPos);
-        String titleStr = (alias != null && !alias.isEmpty()) 
-                ? alias 
+        String title = alias != null && !alias.isEmpty()
+                ? alias
                 : String.format("(%d, %d)", targetPos.getX(), targetPos.getZ());
-        g.drawString(this.font, titleStr, bookX + TEXT_X_OFFSET, bookY + 18, 0x000000, false);
-        
-        // 绘制文本内容
+        graphics.drawString(this.font, title, bookX + TEXT_X_OFFSET, bookY + 18, 0xFF000000, false);
+
         int textX = bookX + TEXT_X_OFFSET;
         int textY = bookY + TEXT_Y_OFFSET;
-        
         for (int i = 0; i < Math.min(lines.size(), MAX_LINES); i++) {
-            String line = lines.get(i);
-            g.drawString(this.font, line, textX, textY + i * LINE_HEIGHT, 0x000000, false);
+            graphics.drawString(this.font, lines.get(i), textX, textY + i * LINE_HEIGHT, 0xFF000000, false);
         }
-        
-        // 绘制光标
+
         updateCursorBlink();
         if (cursorVisible && cursorLine < lines.size()) {
             String currentLine = lines.get(cursorLine);
             int cursorX = textX + this.font.width(currentLine.substring(0, Math.min(cursorPos, currentLine.length())));
             int cursorY = textY + cursorLine * LINE_HEIGHT;
-            g.fill(cursorX, cursorY, cursorX + 1, cursorY + LINE_HEIGHT, 0xFF000000);
+            graphics.fill(cursorX, cursorY, cursorX + 1, cursorY + LINE_HEIGHT, 0xFF000000);
         }
-        
-        super.render(g, mouseX, mouseY, partialTick);
+
+        super.render(graphics, mouseX, mouseY, partialTick);
     }
-    
+
     private void updateCursorBlink() {
         long now = System.currentTimeMillis();
         if (now - lastBlink > 500) {
@@ -114,13 +99,10 @@ public class NoteEditScreen extends RoadWeaverScreen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         int keyCode = event.key();
-        // ESC 取消
         if (keyCode == 256) {
             this.minecraft.setScreen(parent);
             return true;
         }
-        
-        // Enter 换行
         if (keyCode == 257 || keyCode == 335) {
             if (lines.size() < MAX_LINES) {
                 String current = lines.get(cursorLine);
@@ -133,93 +115,82 @@ public class NoteEditScreen extends RoadWeaverScreen {
             }
             return true;
         }
-        
-        // Backspace 删除
         if (keyCode == 259) {
             if (cursorPos > 0) {
                 String current = lines.get(cursorLine);
-                String newLine = current.substring(0, cursorPos - 1) + current.substring(cursorPos);
-                lines.set(cursorLine, newLine);
+                lines.set(cursorLine, current.substring(0, cursorPos - 1) + current.substring(cursorPos));
                 cursorPos--;
             } else if (cursorLine > 0) {
-                // 合并到上一�?
                 String current = lines.remove(cursorLine);
                 cursorLine--;
-                String prev = lines.get(cursorLine);
-                cursorPos = prev.length();
-                lines.set(cursorLine, prev + current);
+                String previous = lines.get(cursorLine);
+                cursorPos = previous.length();
+                lines.set(cursorLine, previous + current);
             }
             return true;
         }
-        
-        // Delete 删除光标后字�?
         if (keyCode == 261) {
             String current = lines.get(cursorLine);
             if (cursorPos < current.length()) {
-                String newLine = current.substring(0, cursorPos) + current.substring(cursorPos + 1);
-                lines.set(cursorLine, newLine);
+                lines.set(cursorLine, current.substring(0, cursorPos) + current.substring(cursorPos + 1));
             } else if (cursorLine < lines.size() - 1) {
-                // 合并下一�?
                 String next = lines.remove(cursorLine + 1);
                 lines.set(cursorLine, current + next);
             }
             return true;
         }
-        
-        // 方向�?
-        if (keyCode == 263) { // Left
-            if (cursorPos > 0) cursorPos--;
-            else if (cursorLine > 0) {
+        if (keyCode == 263) {
+            if (cursorPos > 0) {
+                cursorPos--;
+            } else if (cursorLine > 0) {
                 cursorLine--;
                 cursorPos = lines.get(cursorLine).length();
             }
             return true;
         }
-        if (keyCode == 262) { // Right
+        if (keyCode == 262) {
             String current = lines.get(cursorLine);
-            if (cursorPos < current.length()) cursorPos++;
-            else if (cursorLine < lines.size() - 1) {
+            if (cursorPos < current.length()) {
+                cursorPos++;
+            } else if (cursorLine < lines.size() - 1) {
                 cursorLine++;
                 cursorPos = 0;
             }
             return true;
         }
-        if (keyCode == 265) { // Up
+        if (keyCode == 265) {
             if (cursorLine > 0) {
                 cursorLine--;
                 cursorPos = Math.min(cursorPos, lines.get(cursorLine).length());
             }
             return true;
         }
-        if (keyCode == 264) { // Down
+        if (keyCode == 264) {
             if (cursorLine < lines.size() - 1) {
                 cursorLine++;
                 cursorPos = Math.min(cursorPos, lines.get(cursorLine).length());
             }
             return true;
         }
-        
-        // Home / End
-        if (keyCode == 268) { // Home
+        if (keyCode == 268) {
             cursorPos = 0;
             return true;
         }
-        if (keyCode == 269) { // End
+        if (keyCode == 269) {
             cursorPos = lines.get(cursorLine).length();
             return true;
         }
-        
         return super.keyPressed(event);
     }
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        char c = (char) event.codepoint();
-        if (Character.isISOControl(c)) return false;
-        
+        char value = (char) event.codepoint();
+        if (Character.isISOControl(value)) {
+            return false;
+        }
         String current = lines.get(cursorLine);
-        // 检查行宽度限制
-        String newLine = current.substring(0, cursorPos) + c + current.substring(cursorPos);
+        String newLine = current.substring(0, cursorPos) + value + current.substring(cursorPos);
         if (this.font.width(newLine) <= TEXT_WIDTH) {
             lines.set(cursorLine, newLine);
             cursorPos++;
@@ -231,22 +202,18 @@ public class NoteEditScreen extends RoadWeaverScreen {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x();
         double mouseY = event.y();
-        // 点击文本区域定位光标
         int textX = bookX + TEXT_X_OFFSET;
         int textY = bookY + TEXT_Y_OFFSET;
-        
-        if (mouseX >= textX && mouseX < textX + TEXT_WIDTH 
-            && mouseY >= textY && mouseY < textY + MAX_LINES * LINE_HEIGHT) {
-            
+        if (mouseX >= textX && mouseX < textX + TEXT_WIDTH
+                && mouseY >= textY && mouseY < textY + MAX_LINES * LINE_HEIGHT) {
             int clickedLine = (int) ((mouseY - textY) / LINE_HEIGHT);
             if (clickedLine < lines.size()) {
                 cursorLine = clickedLine;
                 String line = lines.get(cursorLine);
-                // 计算点击位置对应的字符位�?
-                int relX = (int) (mouseX - textX);
+                int relativeX = (int) (mouseX - textX);
                 cursorPos = 0;
                 for (int i = 0; i <= line.length(); i++) {
-                    if (this.font.width(line.substring(0, i)) >= relX) {
+                    if (this.font.width(line.substring(0, i)) >= relativeX) {
                         cursorPos = Math.max(0, i - 1);
                         break;
                     }
@@ -255,12 +222,10 @@ public class NoteEditScreen extends RoadWeaverScreen {
             }
             return true;
         }
-        
         return super.mouseClicked(event, doubleClick);
     }
 
     private void save() {
-        // 清除旧笔记，保存新笔�?
         ClientMapNotes.clearNotes(targetPos);
         for (String line : lines) {
             if (!line.isEmpty()) {

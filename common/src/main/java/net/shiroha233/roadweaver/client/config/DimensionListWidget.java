@@ -4,8 +4,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
@@ -14,20 +14,22 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * 维度列表组件
+ * 维度列表组件。
  */
 public class DimensionListWidget extends ContainerObjectSelectionList<DimensionListWidget.Entry> {
     private static final int ROW_HEIGHT = 22;
     private static final int BG_COLOR = 0xAA0A0A0A;
     private static final int ACTIVE_BG = 0xFF3A3A3A;
     private static final int HOVER_BG = 0xAA2A2A2A;
-    
+    private static final String TRUNCATION_SUFFIX = "...";
+
     private final Consumer<Identifier> onSelect;
     private boolean renderBackground = true;
     private boolean renderTopAndBottom = true;
 
     public DimensionListWidget(Minecraft minecraft, int width, int height, int top, Consumer<Identifier> onSelect) {
-        super(minecraft, width, height, top, top + height);
+        super(minecraft, width, height, top, ROW_HEIGHT);
+        this.centerListVertically = false;
         this.onSelect = onSelect;
     }
 
@@ -98,33 +100,26 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
+            top = this.getY();
+            left = this.getX();
             int bg = active ? ACTIVE_BG : (hovering ? HOVER_BG : 0);
             int width = owner.getRowWidth();
-            int height = ROW_HEIGHT;
             if (bg != 0) {
-                graphics.fill(left, top, left + width, top + height, bg);
+                graphics.fill(left, top, left + width, top + ROW_HEIGHT, bg);
             }
 
             Minecraft mc = Minecraft.getInstance();
             int maxTextWidth = Math.max(width - 24, 10);
 
             if (active) {
-                graphics.drawString(mc.font, "✓", left + 6, top + 3, 0x55FF55, false);
+                graphics.drawString(mc.font, "*", left + 6, top + 3, 0xFF55FF55, false);
             }
 
             int textX = left + 16;
-            String titleStr = row.title().getString();
-            int titleMax = Math.max(maxTextWidth - mc.font.width("…"), 0);
-            String titleCut = mc.font.plainSubstrByWidth(titleStr, titleMax);
-            String titleFinal = mc.font.width(titleStr) > maxTextWidth ? (titleCut + "…") : titleStr;
-            graphics.drawString(mc.font, titleFinal, textX, top + 3, 0xFFFFFF, false);
+            graphics.drawString(mc.font, truncate(mc, row.title().getString(), maxTextWidth), textX, top + 3, 0xFFFFFFFF, false);
 
             if (row.subtitle() != null) {
-                String subStr = row.subtitle().getString();
-                int subMax = Math.max(maxTextWidth - mc.font.width("…"), 0);
-                String subCut = mc.font.plainSubstrByWidth(subStr, subMax);
-                String subFinal = mc.font.width(subStr) > maxTextWidth ? (subCut + "…") : subStr;
-                graphics.drawString(mc.font, subFinal, textX, top + 12, 0x888888, false);
+                graphics.drawString(mc.font, truncate(mc, row.subtitle().getString(), maxTextWidth), textX, top + 12, 0xFF888888, false);
             }
         }
 
@@ -145,6 +140,15 @@ public class DimensionListWidget extends ContainerObjectSelectionList<DimensionL
         @Override
         public List<? extends NarratableEntry> narratables() {
             return List.of();
+        }
+
+        private static String truncate(Minecraft minecraft, String text, int maxWidth) {
+            if (minecraft.font.width(text) <= maxWidth) {
+                return text;
+            }
+            int suffixWidth = minecraft.font.width(TRUNCATION_SUFFIX);
+            String prefix = minecraft.font.plainSubstrByWidth(text, Math.max(0, maxWidth - suffixWidth));
+            return prefix + TRUNCATION_SUFFIX;
         }
     }
 }

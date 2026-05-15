@@ -10,39 +10,46 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
-import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.config.structure.StructureEntry;
 import net.shiroha233.roadweaver.config.structure.StructureSelectionConfig;
 import net.shiroha233.roadweaver.config.structure.StructureTagEntry;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
- * 结构选择界面 - 最复杂的配置界面
+ * 结构选择界面。
  */
-public class StructureSelectionScreen extends RoadWeaverScreen {
+public class StructureSelectionScreen extends Screen {
     private static final int BASE_INDENT_TAG = 30;
     private static final int BASE_INDENT_ORPHAN = 10;
     private static final int INDENT_STEP = 15;
     private static final int HEADER_HEIGHT = 72;
     private static final int FOOTER_HEIGHT = 40;
-    
+
     private final Screen parent;
-    private StructureListWidget listWidget;
-    private EditBox searchBox;
-    private String searchFilter = "";
-    
-    private Identifier currentDimension = null;
-    private Button dimensionButton;
-    private DimensionListWidget dimensionListWidget;
-    private boolean pendingCloseDimensionDropdown = false;
-    
     private final Set<String> expandedTags = new HashSet<>();
     private final Set<String> expandedMods = new HashSet<>();
     private final Set<String> expandedPaths = new HashSet<>();
+
+    private StructureListWidget listWidget;
+    private EditBox searchBox;
+    private String searchFilter = "";
+
+    private Identifier currentDimension;
+    private Button dimensionButton;
+    private DimensionListWidget dimensionListWidget;
+    private boolean pendingCloseDimensionDropdown;
 
     public StructureSelectionScreen(Screen parent) {
         super(Component.translatable("config.roadweaver.structure_selection.title"));
@@ -51,27 +58,26 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
 
     @Override
     protected void init() {
-        searchBox = new EditBox(font, width / 2 - 100, 22, 200, 18,
-                Component.translatable("config.roadweaver.structure_selection.search"));
-        searchBox.setHint(Component.translatable("config.roadweaver.structure_selection.search.hint"));
-        searchBox.setResponder(text -> {
+        this.searchBox = new EditBox(font, width / 2 - 100, 22, 200, 18, Component.translatable("config.roadweaver.structure_selection.search"));
+        this.searchBox.setHint(Component.translatable("config.roadweaver.structure_selection.search.hint"));
+        this.searchBox.setResponder(text -> {
             searchFilter = text.toLowerCase(Locale.ROOT);
             rebuildList();
         });
-        addRenderableWidget(searchBox);
+        this.addRenderableWidget(searchBox);
 
-        int dimBtnY = 45;
-        int dimBtnW = 220;
-        int dimBtnH = 18;
-        int dimBtnX = width / 2 - dimBtnW / 2;
-        dimensionButton = Button.builder(getDimensionButtonText(), btn -> toggleDimensionDropdown())
-                .pos(dimBtnX, dimBtnY).size(dimBtnW, dimBtnH).build();
-        addRenderableWidget(dimensionButton);
+        int dimensionButtonWidth = 220;
+        int dimensionButtonX = width / 2 - dimensionButtonWidth / 2;
+        this.dimensionButton = Button.builder(getDimensionButtonText(), button -> toggleDimensionDropdown())
+                .pos(dimensionButtonX, 45)
+                .size(dimensionButtonWidth, 18)
+                .build();
+        this.addRenderableWidget(dimensionButton);
 
         int listTop = HEADER_HEIGHT;
         int listBottom = height - FOOTER_HEIGHT;
-        listWidget = new StructureListWidget(minecraft, width, listBottom - listTop, listTop);
-        addRenderableWidget(listWidget);
+        this.listWidget = new StructureListWidget(minecraft, width, listBottom - listTop, listTop);
+        this.addRenderableWidget(listWidget);
         rebuildList();
 
         int buttonY = height - 28;
@@ -79,40 +85,29 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         int spacing = 5;
         int totalWidth = buttonWidth * 4 + spacing * 3;
         int startX = (width - totalWidth) / 2;
-
-        addRenderableWidget(Button.builder(
-                Component.translatable("config.roadweaver.structure_selection.select_all"),
-                btn -> {
+        this.addRenderableWidget(Button.builder(Component.translatable("config.roadweaver.structure_selection.select_all"), button -> {
                     StructureSelectionConfig.get().enableAll();
                     rebuildList();
-                })
-                .pos(startX, buttonY).size(buttonWidth, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.translatable("config.roadweaver.structure_selection.deselect_all"),
-                btn -> {
+                }).pos(startX, buttonY).size(buttonWidth, 20).build());
+        this.addRenderableWidget(Button.builder(Component.translatable("config.roadweaver.structure_selection.deselect_all"), button -> {
                     StructureSelectionConfig.get().clearAll();
                     rebuildList();
-                })
-                .pos(startX + buttonWidth + spacing, buttonY).size(buttonWidth, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.translatable("config.roadweaver.structure_selection.default"),
-                btn -> {
+                }).pos(startX + buttonWidth + spacing, buttonY).size(buttonWidth, 20).build());
+        this.addRenderableWidget(Button.builder(Component.translatable("config.roadweaver.structure_selection.default"), button -> {
                     StructureSelectionConfig.get().clearAll();
                     StructureSelectionConfig.get().enableDefaultVillages();
                     rebuildList();
-                })
-                .pos(startX + (buttonWidth + spacing) * 2, buttonY).size(buttonWidth, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.translatable("gui.done"),
-                btn -> onClose())
-                .pos(startX + (buttonWidth + spacing) * 3, buttonY).size(buttonWidth, 20).build());
+                }).pos(startX + (buttonWidth + spacing) * 2, buttonY).size(buttonWidth, 20).build());
+        this.addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
+                .pos(startX + (buttonWidth + spacing) * 3, buttonY)
+                .size(buttonWidth, 20)
+                .build());
     }
 
     private void rebuildList() {
-        if (listWidget == null) return;
+        if (listWidget == null) {
+            return;
+        }
         listWidget.clearEntries();
 
         StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
@@ -122,16 +117,12 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         }
         if (result == null) {
             closeDimensionDropdown();
-            listWidget.doAddEntry(new StructureListWidget.MessageEntry(
-                    listWidget,
-                    Component.translatable("config.roadweaver.structure_selection.no_data")
-            ));
+            listWidget.doAddEntry(new StructureListWidget.MessageEntry(listWidget, Component.translatable("config.roadweaver.structure_selection.no_data")));
             return;
         }
 
         StructureSelectionConfig config = StructureSelectionConfig.get();
         Set<String> addedStructures = new HashSet<>();
-
         Set<String> modIds = new HashSet<>();
         for (StructureTagEntry tag : result.tags()) {
             modIds.add(tag.namespace());
@@ -142,40 +133,46 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
 
         Map<String, List<StructureTagEntry>> tagsByMod = new HashMap<>();
         for (StructureTagEntry tag : result.tags()) {
-            tagsByMod.computeIfAbsent(tag.namespace(), k -> new ArrayList<>()).add(tag);
+            tagsByMod.computeIfAbsent(tag.namespace(), ignored -> new ArrayList<>()).add(tag);
         }
-        for (List<StructureTagEntry> list : tagsByMod.values()) {
-            list.sort(Comparator.comparing(t -> t.displayName().toLowerCase(Locale.ROOT)));
+        for (List<StructureTagEntry> entries : tagsByMod.values()) {
+            entries.sort(Comparator.comparing(tag -> tag.displayName().toLowerCase(Locale.ROOT)));
         }
 
         List<String> sortedModIds = new ArrayList<>(modIds);
-        sortedModIds.sort((a, b) -> {
-            if (Objects.equals(a, b)) return 0;
-            if ("minecraft".equals(a)) return -1;
-            if ("minecraft".equals(b)) return 1;
-            if ("roadweaver".equals(a)) return -1;
-            if ("roadweaver".equals(b)) return 1;
-            String na = getModDisplayName(a).toLowerCase(Locale.ROOT);
-            String nb = getModDisplayName(b).toLowerCase(Locale.ROOT);
-            int cmp = na.compareTo(nb);
-            if (cmp != 0) return cmp;
-            return a.compareTo(b);
+        sortedModIds.sort((left, right) -> {
+            if (Objects.equals(left, right)) {
+                return 0;
+            }
+            if ("minecraft".equals(left)) {
+                return -1;
+            }
+            if ("minecraft".equals(right)) {
+                return 1;
+            }
+            if ("roadweaver".equals(left)) {
+                return -1;
+            }
+            if ("roadweaver".equals(right)) {
+                return 1;
+            }
+            int compare = getModDisplayName(left).toLowerCase(Locale.ROOT).compareTo(getModDisplayName(right).toLowerCase(Locale.ROOT));
+            return compare != 0 ? compare : left.compareTo(right);
         });
 
         boolean hasSearch = !searchFilter.isEmpty();
-
         for (String modId : sortedModIds) {
             List<StructureListWidget.Entry> modEntries = new ArrayList<>();
-            boolean isModExpanded = hasSearch || expandedMods.contains(modId);
+            boolean modExpanded = hasSearch || expandedMods.contains(modId);
             boolean modMatchesFilter = hasSearch && (matchesFilter(getModDisplayName(modId)) || matchesFilter(modId));
             boolean hasAnyForMod = false;
 
             List<StructureTagEntry> modTags = tagsByMod.getOrDefault(modId, Collections.emptyList());
             for (StructureTagEntry tag : modTags) {
                 List<StructureEntry> visibleStructures = new ArrayList<>();
-                for (StructureEntry s : tag.structures()) {
-                    if (matchesDimension(s)) {
-                        visibleStructures.add(s);
+                for (StructureEntry structure : tag.structures()) {
+                    if (matchesDimension(structure)) {
+                        visibleStructures.add(structure);
                     }
                 }
                 if (visibleStructures.isEmpty()) {
@@ -183,7 +180,6 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
                 }
 
                 boolean tagMatchesFilter = matchesFilter(tag.displayName()) || matchesFilter(tag.tagId().toString());
-
                 List<StructureEntry> matchingStructures = new ArrayList<>();
                 for (StructureEntry structure : visibleStructures) {
                     if (matchesFilter(structure.displayName()) || matchesFilter(structure.id().toString())) {
@@ -196,65 +192,40 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
                     continue;
                 }
                 hasAnyForMod = true;
+                boolean tagEnabled = config.isTagEnabled(tag.tagId().toString());
+                boolean tagExpanded = expandedTags.contains(tag.tagId().toString());
 
-                boolean isTagEnabled = config.isTagEnabled(tag.tagId().toString());
-                boolean isExpanded = expandedTags.contains(tag.tagId().toString());
-
-                if (isModExpanded) {
-                    modEntries.add(new StructureListWidget.TagEntry(
-                            listWidget, tag, isTagEnabled, isExpanded,
-                            this::onTagToggle, this::onTagExpandToggle
-                    ));
-
-                    if (isExpanded) {
-                        List<StructureEntry> baseList;
-                        if (!hasSearch || modMatchesFilter || tagMatchesFilter) {
-                            baseList = new ArrayList<>(visibleStructures);
-                        } else {
-                            baseList = new ArrayList<>(matchingStructures);
-                        }
-
+                if (modExpanded) {
+                    modEntries.add(new StructureListWidget.TagEntry(listWidget, tag, tagEnabled, tagExpanded, this::onTagToggle, this::onTagExpandToggle));
+                    if (tagExpanded) {
+                        List<StructureEntry> baseList = !hasSearch || modMatchesFilter || tagMatchesFilter
+                                ? new ArrayList<>(visibleStructures)
+                                : new ArrayList<>(matchingStructures);
                         StructurePathNode pathTree = StructurePathNode.buildTree(baseList, tag.namespace());
                         addPathNodeEntries(modEntries, pathTree, config, BASE_INDENT_TAG);
-
-                        for (StructureEntry structure : visibleStructures) {
-                            addedStructures.add(structure.id().toString());
-                        }
-                    } else {
-                        for (StructureEntry structure : visibleStructures) {
-                            addedStructures.add(structure.id().toString());
-                        }
                     }
-                } else {
-                    for (StructureEntry structure : visibleStructures) {
-                        addedStructures.add(structure.id().toString());
-                    }
+                }
+                for (StructureEntry structure : visibleStructures) {
+                    addedStructures.add(structure.id().toString());
                 }
             }
 
             List<StructureEntry> orphanStructures = new ArrayList<>();
             for (StructureEntry structure : result.allStructures()) {
-                if (!modId.equals(structure.namespace())) continue;
-                if (!matchesDimension(structure)) continue;
-                if (addedStructures.contains(structure.id().toString())) continue;
-
-                if (!modMatchesFilter
-                        && !matchesFilter(structure.displayName())
-                        && !matchesFilter(structure.id().toString())) {
-                    if (!searchFilter.isEmpty()) continue;
+                if (!modId.equals(structure.namespace()) || !matchesDimension(structure) || addedStructures.contains(structure.id().toString())) {
+                    continue;
+                }
+                if (!modMatchesFilter && !matchesFilter(structure.displayName()) && !matchesFilter(structure.id().toString()) && !searchFilter.isEmpty()) {
+                    continue;
                 }
                 orphanStructures.add(structure);
             }
+
             if (!orphanStructures.isEmpty()) {
                 hasAnyForMod = true;
-                if (isModExpanded) {
-                    modEntries.add(new StructureListWidget.HeaderEntry(
-                            listWidget,
-                            Component.translatable("config.roadweaver.structure_selection.other_structures")
-                    ));
-
-                    StructurePathNode pathTree = StructurePathNode.buildTree(orphanStructures, modId);
-                    addPathNodeEntries(modEntries, pathTree, config, BASE_INDENT_ORPHAN);
+                if (modExpanded) {
+                    modEntries.add(new StructureListWidget.HeaderEntry(listWidget, Component.translatable("config.roadweaver.structure_selection.other_structures")));
+                    addPathNodeEntries(modEntries, StructurePathNode.buildTree(orphanStructures, modId), config, BASE_INDENT_ORPHAN);
                 }
             }
 
@@ -271,17 +242,11 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
                         enabledCount++;
                     }
                 }
-                boolean modAllEnabled = !structuresInMod.isEmpty() && enabledCount == structuresInMod.size();
-                boolean modPartialEnabled = enabledCount > 0 && enabledCount < structuresInMod.size();
-
-                Component modHeaderText = Component.literal(getModDisplayName(modId) + " [" + modId + "]");
-                listWidget.doAddEntry(new StructureListWidget.ModHeaderEntry(
-                        listWidget, modId, modHeaderText, isModExpanded,
-                        modAllEnabled, modPartialEnabled,
-                        this::onModHeaderToggle,
-                        m -> onModSelectAll(m, structuresInMod)
-                ));
-                if (isModExpanded) {
+                boolean allEnabled = !structuresInMod.isEmpty() && enabledCount == structuresInMod.size();
+                boolean partialEnabled = enabledCount > 0 && enabledCount < structuresInMod.size();
+                Component headerText = Component.literal(getModDisplayName(modId) + " [" + modId + "]");
+                listWidget.doAddEntry(new StructureListWidget.ModHeaderEntry(listWidget, modId, headerText, modExpanded, allEnabled, partialEnabled, this::onModHeaderToggle, ignored -> onModSelectAll(structuresInMod)));
+                if (modExpanded) {
                     for (StructureListWidget.Entry entry : modEntries) {
                         listWidget.doAddEntry(entry);
                     }
@@ -290,18 +255,45 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         }
     }
 
+    private void addPathNodeEntries(List<StructureListWidget.Entry> entries, StructurePathNode node, StructureSelectionConfig config, int currentIndent) {
+        boolean hasSearch = !searchFilter.isEmpty();
+        for (StructurePathNode child : node.children()) {
+            if (child.shouldShowAsFolder()) {
+                boolean expanded = hasSearch || expandedPaths.contains(child.fullPath());
+                Set<String> allIds = child.getAllStructureIds();
+                int enabledCount = 0;
+                for (String id : allIds) {
+                    if (config.isStructureEnabled(id)) {
+                        enabledCount++;
+                    }
+                }
+                boolean allEnabled = enabledCount == allIds.size() && !allIds.isEmpty();
+                boolean partialEnabled = enabledCount > 0 && enabledCount < allIds.size();
+                entries.add(new StructureListWidget.PathFolderEntry(listWidget, child, expanded, allEnabled, partialEnabled, currentIndent, this::onPathExpandToggle, this::onPathSelectAllToggle));
+                if (expanded) {
+                    addPathNodeEntries(entries, child, config, currentIndent + INDENT_STEP);
+                }
+            } else {
+                addPathNodeEntries(entries, child, config, currentIndent);
+            }
+        }
+
+        for (StructureEntry structure : node.structures()) {
+            if (hasSearch && !matchesFilter(structure.displayName()) && !matchesFilter(structure.id().toString())) {
+                continue;
+            }
+            entries.add(new StructureListWidget.PathStructureEntry(listWidget, structure, config.isStructureEnabled(structure.id().toString()), currentIndent, node.depth(), this::onStructureToggle));
+        }
+    }
+
     private boolean matchesDimension(StructureEntry entry) {
-        if (currentDimension == null) return true;
-        return entry.dimensions().contains(currentDimension);
+        return currentDimension == null || entry.dimensions().contains(currentDimension);
     }
 
     private Component getDimensionButtonText() {
-        Component name;
-        if (currentDimension == null) {
-            name = Component.translatable("config.roadweaver.structure_selection.dimension.all");
-        } else {
-            name = getDimensionDisplayName(currentDimension);
-        }
+        Component name = currentDimension == null
+                ? Component.translatable("config.roadweaver.structure_selection.dimension.all")
+                : getDimensionDisplayName(currentDimension);
         return Component.translatable("config.roadweaver.structure_selection.dimension", name);
     }
 
@@ -311,13 +303,10 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         }
     }
 
-    private Component getDimensionDisplayName(Identifier dimId) {
-        String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
+    private Component getDimensionDisplayName(Identifier dimensionId) {
+        String key = "dimension." + dimensionId.getNamespace() + "." + dimensionId.getPath();
         Component translated = Component.translatable(key);
-        if (!Objects.equals(translated.getString(), key)) {
-            return translated;
-        }
-        return Component.literal(dimId.toString());
+        return !Objects.equals(translated.getString(), key) ? translated : Component.literal(dimensionId.toString());
     }
 
     private void toggleDimensionDropdown() {
@@ -330,26 +319,23 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
 
     private void openDimensionDropdown() {
         StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        if (result == null || dimensionButton == null) return;
-
+        if (result == null || dimensionButton == null) {
+            return;
+        }
         List<DimensionListWidget.Row> rows = new ArrayList<>();
-        rows.add(new DimensionListWidget.Row(null,
-                Component.translatable("config.roadweaver.structure_selection.dimension.all"),
-                null));
-
-        for (Identifier dimId : result.dimensions()) {
-            Component title = getDimensionDisplayName(dimId);
-            Component subtitle = Component.literal(dimId.toString());
-            rows.add(new DimensionListWidget.Row(dimId, title,
-                    !Objects.equals(title.getString(), subtitle.getString()) ? subtitle : null));
+        rows.add(new DimensionListWidget.Row(null, Component.translatable("config.roadweaver.structure_selection.dimension.all"), null));
+        for (Identifier dimension : result.dimensions()) {
+            Component title = getDimensionDisplayName(dimension);
+            Component subtitle = Component.literal(dimension.toString());
+            rows.add(new DimensionListWidget.Row(dimension, title, !Objects.equals(title.getString(), subtitle.getString()) ? subtitle : null));
         }
 
         int top = dimensionButton.getY() + dimensionButton.getHeight() + 2;
-        int maxH = Math.max(height - FOOTER_HEIGHT - top - 4, 44);
+        int maxHeight = Math.max(height - FOOTER_HEIGHT - top - 4, 44);
         int desiredRows = Math.max(2, Math.min(8, rows.size()));
-        int listH = Math.min(desiredRows * 22, maxH);
+        int listHeight = Math.min(desiredRows * 22, maxHeight);
 
-        DimensionListWidget list = new DimensionListWidget(minecraft, dimensionButton.getWidth(), listH, top, selected -> {
+        DimensionListWidget list = new DimensionListWidget(minecraft, dimensionButton.getWidth(), listHeight, top, selected -> {
             currentDimension = selected;
             updateDimensionButtonText();
             pendingCloseDimensionDropdown = true;
@@ -364,40 +350,13 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     }
 
     private void closeDimensionDropdown() {
-        if (dimensionListWidget == null) return;
-        removeWidget(dimensionListWidget);
-        dimensionListWidget = null;
+        if (dimensionListWidget != null) {
+            removeWidget(dimensionListWidget);
+            dimensionListWidget = null;
+        }
     }
 
-    @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        double mouseX = event.x();
-        double mouseY = event.y();
-        DimensionListWidget dd = dimensionListWidget;
-        Button btn = dimensionButton;
-
-        if (dd != null && dd.isMouseOver(mouseX, mouseY)) {
-            dd.mouseClicked(event, doubleClick);
-            return true;
-        }
-
-        if (dd != null && btn != null) {
-            boolean clickedButton = btn.isMouseOver(mouseX, mouseY);
-            boolean clickedDropdown = dd.isMouseOver(mouseX, mouseY);
-            if (!clickedButton && !clickedDropdown) {
-                closeDimensionDropdown();
-            }
-        }
-
-        boolean handled = super.mouseClicked(event, doubleClick);
-        if (pendingCloseDimensionDropdown) {
-            pendingCloseDimensionDropdown = false;
-            closeDimensionDropdown();
-        }
-        return handled;
-    }
-
-    private void onModSelectAll(String modId, List<String> structures) {
+    private void onModSelectAll(List<String> structures) {
         StructureSelectionConfig config = StructureSelectionConfig.get();
         boolean allEnabled = true;
         for (String id : structures) {
@@ -406,64 +365,14 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
                 break;
             }
         }
-
-        if (allEnabled) {
-            for (String id : structures) {
+        for (String id : structures) {
+            if (allEnabled) {
                 config.disableStructure(id);
-            }
-        } else {
-            for (String id : structures) {
+            } else {
                 config.enableStructure(id);
             }
         }
         rebuildList();
-    }
-
-    private void addPathNodeEntries(List<StructureListWidget.Entry> entries,
-                                    StructurePathNode node,
-                                    StructureSelectionConfig config,
-                                    int currentIndent) {
-        boolean hasSearch = !searchFilter.isEmpty();
-
-        for (StructurePathNode child : node.children()) {
-            if (child.shouldShowAsFolder()) {
-                boolean isExpanded = hasSearch || expandedPaths.contains(child.fullPath());
-
-                Set<String> allIds = child.getAllStructureIds();
-                int enabledCount = 0;
-                for (String id : allIds) {
-                    if (config.isStructureEnabled(id)) {
-                        enabledCount++;
-                    }
-                }
-                boolean allEnabled = enabledCount == allIds.size() && !allIds.isEmpty();
-                boolean partialEnabled = enabledCount > 0 && enabledCount < allIds.size();
-
-                entries.add(new StructureListWidget.PathFolderEntry(
-                        listWidget, child, isExpanded, allEnabled, partialEnabled,
-                        currentIndent, this::onPathExpandToggle, this::onPathSelectAllToggle
-                ));
-
-                if (isExpanded) {
-                    addPathNodeEntries(entries, child, config, currentIndent + INDENT_STEP);
-                }
-            } else {
-                addPathNodeEntries(entries, child, config, currentIndent);
-            }
-        }
-
-        for (StructureEntry structure : node.structures()) {
-            if (hasSearch && !matchesFilter(structure.displayName())
-                    && !matchesFilter(structure.id().toString())) {
-                continue;
-            }
-
-            boolean isEnabled = config.isStructureEnabled(structure.id().toString());
-            entries.add(new StructureListWidget.PathStructureEntry(
-                    listWidget, structure, isEnabled, currentIndent, node.depth(),
-                    this::onStructureToggle
-            ));
-        }
     }
 
     private void onPathExpandToggle(StructurePathNode pathNode) {
@@ -475,11 +384,10 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         }
         rebuildList();
     }
-    
+
     private void onPathSelectAllToggle(StructurePathNode pathNode) {
         StructureSelectionConfig config = StructureSelectionConfig.get();
         Set<String> allIds = pathNode.getAllStructureIds();
-        
         boolean allEnabled = true;
         for (String id : allIds) {
             if (!config.isStructureEnabled(id)) {
@@ -487,26 +395,21 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
                 break;
             }
         }
-        
-        if (allEnabled) {
-            for (String id : allIds) {
+        for (String id : allIds) {
+            if (allEnabled) {
                 config.disableStructure(id);
-            }
-        } else {
-            for (String id : allIds) {
+            } else {
                 config.enableStructure(id);
             }
         }
         rebuildList();
     }
-    
+
     private boolean matchesFilter(String text) {
-        if (searchFilter.isEmpty()) return true;
-        return text.toLowerCase(Locale.ROOT).contains(searchFilter);
+        return searchFilter.isEmpty() || text.toLowerCase(Locale.ROOT).contains(searchFilter);
     }
-    
+
     private void onModHeaderToggle(String modId) {
-        if (modId == null) return;
         if (expandedMods.contains(modId)) {
             expandedMods.remove(modId);
         } else {
@@ -514,7 +417,7 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         }
         rebuildList();
     }
-    
+
     private String getModDisplayName(String modId) {
         if (modId == null || modId.isEmpty()) {
             return "unknown";
@@ -525,14 +428,11 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
         if ("roadweaver".equals(modId)) {
             return "RoadWeaver";
         }
-        return Platform.getOptionalMod(modId)
-                .map(mod -> mod.getName())
-                .orElse(modId);
+        return Platform.getOptionalMod(modId).map(mod -> mod.getName()).orElse(modId);
     }
 
     private void onTagToggle(StructureTagEntry tag) {
-        StructureSelectionConfig config = StructureSelectionConfig.get();
-        config.toggleTag(tag.tagId().toString());
+        StructureSelectionConfig.get().toggleTag(tag.tagId().toString());
         rebuildList();
     }
 
@@ -547,23 +447,41 @@ public class StructureSelectionScreen extends RoadWeaverScreen {
     }
 
     private void onStructureToggle(StructureEntry structure) {
-        StructureSelectionConfig config = StructureSelectionConfig.get();
-        config.toggleStructure(structure.id().toString());
+        StructureSelectionConfig.get().toggleStructure(structure.id().toString());
         rebuildList();
     }
 
     @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        DimensionListWidget dropdown = dimensionListWidget;
+        Button button = dimensionButton;
+        if (dropdown != null && dropdown.isMouseOver(mouseX, mouseY)) {
+            dropdown.mouseClicked(event, doubleClick);
+            return true;
+        }
+        if (dropdown != null && button != null && !button.isMouseOver(mouseX, mouseY) && !dropdown.isMouseOver(mouseX, mouseY)) {
+            closeDimensionDropdown();
+        }
+        boolean handled = super.mouseClicked(event, doubleClick);
+        if (pendingCloseDimensionDropdown) {
+            pendingCloseDimensionDropdown = false;
+            closeDimensionDropdown();
+        }
+        return handled;
+    }
+
+    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        ScreenBackgrounds.render(graphics, this.width, this.height);
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.drawCenteredString(font, title, width / 2, 8, 0xFFFFFF);
+        graphics.drawCenteredString(font, title, width / 2, 8, 0xFFFFFFFF);
     }
 
     @Override
     public void onClose() {
         StructureSelectionConfig selection = StructureSelectionConfig.get();
         selection.save();
-
         List<String> whitelist = selection.toWhitelist();
         if (whitelist == null || whitelist.isEmpty()) {
             whitelist = List.of("#minecraft:village");

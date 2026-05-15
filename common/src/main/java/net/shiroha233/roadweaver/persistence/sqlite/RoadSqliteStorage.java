@@ -1,3 +1,4 @@
+/* 文件职责：负责道路数据的序列化、落库、查询与索引失效。 */
 package net.shiroha233.roadweaver.persistence.sqlite;
 
 import com.mojang.serialization.DataResult;
@@ -16,46 +17,36 @@ import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * 基于 H2 的道路数据存储，支持空间索引查询和 LRU 反序列化缓存
+ * 基于 H2 的道路数据存储，所有同维度访问都通过连接锁串行化。
  */
 public final class RoadSqliteStorage {
-    private RoadSqliteStorage() {}
-
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final DynamicOps<Tag> OPS = NbtOps.INSTANCE;
     private static final int ROAD_CACHE_MAX = 4096;
 
-    private static final class CacheKey {
-        private final Identifier dimensionId;
-        private final long fingerprint;
-
-        private CacheKey(Identifier dimensionId, long fingerprint) {
-            this.dimensionId = dimensionId;
-            this.fingerprint = fingerprint;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof CacheKey other)) return false;
-            return fingerprint == other.fingerprint && dimensionId.equals(other.dimensionId);
-        }
-
-        @Override
-        public int hashCode() {
-            int h = dimensionId.hashCode();
-            h = 31 * h + (int) (fingerprint ^ (fingerprint >>> 32));
-            return h;
-        }
-    }
+    private static final String SQL_INSERT =
+            "MERGE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) "
+                    + "KEY (fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String SQL_QUERY_RECT =
+            "SELECT fingerprint, data FROM roads WHERE max_x >= ? AND min_x <= ? AND max_z >= ? AND min_z <= ?";
+    private static final String SQL_EXISTS = "SELECT 1 FROM roads WHERE fingerprint = ? LIMIT 1";
+    private static final String SQL_DELETE = "DELETE FROM roads WHERE fingerprint = ?";
 
     private static final Map<CacheKey, RoadData> ROAD_CACHE = Collections.synchronizedMap(
             new LinkedHashMap<>(256, 0.75f, true) {
@@ -65,245 +56,269 @@ public final class RoadSqliteStorage {
                 }
             });
 
-    private static final String SQL_INSERT =
-            "MERGE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) "
-            + "KEY (fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    private RoadSqliteStorage() {
+    }
 
-    private static final String SQL_QUERY_RECT =
-            "SELECT fingerprint, data FROM roads "
-            + "WHERE max_x >= ? AND min_x <= ? AND max_z >= ? AND min_z <= ?";
+    private record Bounds(int minX, int minZ, int maxX, int maxZ) {
+    }
 
-    private static final String SQL_EXISTS = "SELECT 1 FROM roads WHERE fingerprint = ? LIMIT 1";
-    private static final String SQL_DELETE = "DELETE FROM roads WHERE fingerprint = ?";
+    private record CacheKey(Identifier dimensionId, long fingerprint) {
+    }
 
-    public static void addRoad(ServerLevel level, RoadData rd) {
-        if (rd == null || rd.roadSegmentList() == null || rd.roadSegmentList().isEmpty()) return;
-
-        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        for (RoadSegmentPlacement seg : rd.roadSegmentList()) {
-            BlockPos p = seg.middlePos();
-            int x = p.getX(), z = p.getZ();
-            if (x < minX) minX = x;
-            if (z < minZ) minZ = z;
-            if (x > maxX) maxX = x;
-            if (z > maxZ) maxZ = z;
+    public static void addRoad(ServerLevel level, RoadData road) {
+        if (level == null || road == null || road.roadSegmentList() == null || road.roadSegmentList().isEmpty()) {
+            return;
         }
 
-        long fingerprint = fingerprint(rd);
+        Bounds bounds = computeBounds(road);
+        long fingerprint = fingerprint(road);
+        byte[] data = serializeRoadData(road);
+        if (data == null) {
+            LOGGER.warn("Failed to serialize road data before insert");
+            return;
+        }
 
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
+            synchronized (RoadDatabaseManager.connectionMutex(level)) {
+                Connection conn = RoadDatabaseManager.getConnection(level);
+                try (PreparedStatement exists = conn.prepareStatement(SQL_EXISTS)) {
+                    exists.setLong(1, fingerprint);
+                    try (ResultSet rs = exists.executeQuery()) {
+                        if (rs.next()) {
+                            return;
+                        }
+                    }
+                }
 
-            try (PreparedStatement checkStmt = conn.prepareStatement(SQL_EXISTS)) {
-                checkStmt.setLong(1, fingerprint);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (rs.next()) return;
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
+                    bindInsert(stmt, fingerprint, road, bounds, data);
+                    stmt.executeUpdate();
                 }
             }
-
-            byte[] data = serializeRoadData(rd);
-            if (data == null) {
-                LOGGER.warn("序列化道路数据失败");
-                return;
-            }
-
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
-                stmt.setLong(1, fingerprint);
-                stmt.setInt(2, rd.width());
-                stmt.setInt(3, rd.roadType());
-                stmt.setInt(4, minX);
-                stmt.setInt(5, minZ);
-                stmt.setInt(6, maxX);
-                stmt.setInt(7, maxZ);
-                stmt.setBytes(8, data);
-                stmt.executeUpdate();
-            }
-
-            int minCX = minX >> 4, minCZ = minZ >> 4;
-            int maxCX = maxX >> 4, maxCZ = maxZ >> 4;
-            for (int cx = minCX; cx <= maxCX; cx++) {
-                for (int cz = minCZ; cz <= maxCZ; cz++) {
-                    RoadSpatialIndex.invalidateChunk(level, cx, cz);
-                }
-            }
+            invalidateCoveredChunks(level, bounds);
         } catch (SQLException e) {
-            LOGGER.error("添加道路数据失败", e);
+            LOGGER.error("Failed to insert road data", e);
         }
     }
 
     public static List<RoadData> queryRect(ServerLevel level,
-                                           int minBlockX, int minBlockZ,
-                                           int maxBlockX, int maxBlockZ) {
-        List<RoadData> result = new ArrayList<>();
+                                           int minBlockX,
+                                           int minBlockZ,
+                                           int maxBlockX,
+                                           int maxBlockZ) {
+        if (level == null) {
+            return List.of();
+        }
+
+        ArrayList<RoadData> result = new ArrayList<>();
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_QUERY_RECT)) {
-                stmt.setInt(1, minBlockX);
-                stmt.setInt(2, maxBlockX);
-                stmt.setInt(3, minBlockZ);
-                stmt.setInt(4, maxBlockZ);
+            synchronized (RoadDatabaseManager.connectionMutex(level)) {
+                Connection conn = RoadDatabaseManager.getConnection(level);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_QUERY_RECT)) {
+                    stmt.setInt(1, minBlockX);
+                    stmt.setInt(2, maxBlockX);
+                    stmt.setInt(3, minBlockZ);
+                    stmt.setInt(4, maxBlockZ);
 
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        long fp = rs.getLong("fingerprint");
-                        CacheKey key = new CacheKey(level.dimension().identifier(), fp);
-                        RoadData cached = ROAD_CACHE.get(key);
-                        if (cached != null) {
-                            result.add(cached);
-                            continue;
-                        }
-
-                        InputStream in = rs.getBinaryStream("data");
-                        if (in == null) continue;
-                        try {
-                            RoadData rd = deserializeRoadData(in);
-                            if (rd != null) {
-                                ROAD_CACHE.put(key, rd);
-                                result.add(rd);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            long fp = rs.getLong("fingerprint");
+                            CacheKey key = new CacheKey(level.dimension().identifier(), fp);
+                            RoadData cached = ROAD_CACHE.get(key);
+                            if (cached != null) {
+                                result.add(cached);
+                                continue;
                             }
-                        } finally {
-                            try { in.close(); } catch (IOException ignored) {}
+
+                            byte[] bytes = rs.getBytes("data");
+                            if (bytes == null || bytes.length == 0) {
+                                continue;
+                            }
+                            RoadData decoded = deserializeRoadData(bytes);
+                            if (decoded != null) {
+                                ROAD_CACHE.put(key, decoded);
+                                result.add(decoded);
+                            }
                         }
                     }
                 }
             }
         } catch (SQLException e) {
-            LOGGER.error("查询道路数据失败", e);
+            LOGGER.error("Failed to query road data", e);
         }
         return result;
     }
 
-    private static long fingerprint(RoadData rd) {
-        if (rd == null || rd.roadSegmentList() == null || rd.roadSegmentList().isEmpty()) return 0L;
-        BlockPos a = rd.roadSegmentList().get(0).middlePos();
-        BlockPos b = rd.roadSegmentList().get(rd.roadSegmentList().size() - 1).middlePos();
-        long ka = (((long) a.getX()) << 32) ^ (a.getZ() & 0xffffffffL);
-        long kb = (((long) b.getX()) << 32) ^ (b.getZ() & 0xffffffffL);
-        long lo = Math.min(ka, kb), hi = Math.max(ka, kb);
-        long f = (hi << 1) ^ lo;
-        f ^= ((long) rd.width() & 0xffffffffL);
-        f ^= ((long) rd.roadType() & 0xffffffffL) << 33;
-        return f;
+    public static long computeFingerprint(RoadData road) {
+        return fingerprint(road);
     }
 
-    private static byte[] serializeRoadData(RoadData rd) {
-        try {
-            DataResult<Tag> result = RoadData.CODEC.encodeStart(OPS, rd);
-            Tag tag = result.result().orElse(null);
-            if (tag == null) return null;
-
-            CompoundTag compound = new CompoundTag();
-            compound.put("road", tag);
-
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            NbtIo.write(compound, new DataOutputStream(baos));
-            return baos.toByteArray();
-        } catch (Exception e) {
-            LOGGER.error("序列化失败", e);
-            return null;
+    public static void deleteRoad(ServerLevel level, long fingerprint) {
+        if (level == null) {
+            return;
         }
-    }
-
-    private static RoadData deserializeRoadData(InputStream in) {
         try {
-            CompoundTag compound = NbtIo.read(new DataInputStream(in));
-            if (compound == null || !compound.contains("road")) return null;
-
-            Tag tag = compound.get("road");
-            DataResult<RoadData> result = RoadData.CODEC.parse(new Dynamic<>(OPS, tag));
-            return result.result().orElse(null);
-        } catch (Exception e) {
-            LOGGER.error("反序列化失败", e);
-            return null;
-        }
-    }
-
-    public static long computeFingerprint(RoadData rd) {
-        return fingerprint(rd);
-    }
-
-    public static void deleteRoad(ServerLevel level, long fp) {
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE)) {
-                stmt.setLong(1, fp);
-                stmt.executeUpdate();
-            }
-            ROAD_CACHE.remove(new CacheKey(level.dimension().identifier(), fp));
-        } catch (SQLException e) {
-            LOGGER.error("删除道路数据失败", e);
-        }
-    }
-
-    public static void replaceRoad(ServerLevel level, long oldFp, RoadData newRd) {
-        if (newRd == null || newRd.roadSegmentList() == null || newRd.roadSegmentList().isEmpty()) return;
-        deleteRoad(level, oldFp);
-        addRoadForce(level, newRd);
-    }
-
-    private static void addRoadForce(ServerLevel level, RoadData rd) {
-        if (rd == null || rd.roadSegmentList() == null || rd.roadSegmentList().isEmpty()) return;
-
-        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        for (RoadSegmentPlacement seg : rd.roadSegmentList()) {
-            BlockPos p = seg.middlePos();
-            int x = p.getX(), z = p.getZ();
-            if (x < minX) minX = x;
-            if (z < minZ) minZ = z;
-            if (x > maxX) maxX = x;
-            if (z > maxZ) maxZ = z;
-        }
-
-        long fp = fingerprint(rd);
-        byte[] data = serializeRoadData(rd);
-        if (data == null) return;
-
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
-                stmt.setLong(1, fp);
-                stmt.setInt(2, rd.width());
-                stmt.setInt(3, rd.roadType());
-                stmt.setInt(4, minX);
-                stmt.setInt(5, minZ);
-                stmt.setInt(6, maxX);
-                stmt.setInt(7, maxZ);
-                stmt.setBytes(8, data);
-                stmt.executeUpdate();
-            }
-            ROAD_CACHE.put(new CacheKey(level.dimension().identifier(), fp), rd);
-
-            int minCX = minX >> 4, minCZ = minZ >> 4;
-            int maxCX = maxX >> 4, maxCZ = maxZ >> 4;
-            for (int cx = minCX; cx <= maxCX; cx++) {
-                for (int cz = minCZ; cz <= maxCZ; cz++) {
-                    RoadSpatialIndex.invalidateChunk(level, cx, cz);
+            synchronized (RoadDatabaseManager.connectionMutex(level)) {
+                Connection conn = RoadDatabaseManager.getConnection(level);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE)) {
+                    stmt.setLong(1, fingerprint);
+                    stmt.executeUpdate();
                 }
+                ROAD_CACHE.remove(new CacheKey(level.dimension().identifier(), fingerprint));
             }
         } catch (SQLException e) {
-            LOGGER.error("强制写入道路数据失败", e);
+            LOGGER.error("Failed to delete road data", e);
         }
+    }
+
+    public static void replaceRoad(ServerLevel level, long oldFingerprint, RoadData newRoad) {
+        if (level == null || newRoad == null || newRoad.roadSegmentList() == null || newRoad.roadSegmentList().isEmpty()) {
+            return;
+        }
+        deleteRoad(level, oldFingerprint);
+        addRoadForce(level, newRoad);
     }
 
     public static void flushAll(ServerLevel level) {
-        RoadDatabaseManager.checkpoint(level);
+        if (level != null) {
+            RoadDatabaseManager.checkpoint(level);
+        }
     }
 
     public static void clearAll(ServerLevel level) {
+        if (level == null) {
+            return;
+        }
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (var stmt = conn.createStatement()) {
-                stmt.execute("DELETE FROM roads");
+            synchronized (RoadDatabaseManager.connectionMutex(level)) {
+                Connection conn = RoadDatabaseManager.getConnection(level);
+                try (var stmt = conn.createStatement()) {
+                    stmt.execute("DELETE FROM roads");
+                }
             }
         } catch (SQLException e) {
-            LOGGER.error("清除道路数据失败", e);
+            LOGGER.error("Failed to clear road data", e);
         }
     }
 
     public static void shutdown() {
         RoadDatabaseManager.checkpointAll();
         RoadDatabaseManager.closeAll();
+    }
+
+    private static void addRoadForce(ServerLevel level, RoadData road) {
+        Bounds bounds = computeBounds(road);
+        long fingerprint = fingerprint(road);
+        byte[] data = serializeRoadData(road);
+        if (data == null) {
+            return;
+        }
+
+        try {
+            synchronized (RoadDatabaseManager.connectionMutex(level)) {
+                Connection conn = RoadDatabaseManager.getConnection(level);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
+                    bindInsert(stmt, fingerprint, road, bounds, data);
+                    stmt.executeUpdate();
+                }
+                ROAD_CACHE.put(new CacheKey(level.dimension().identifier(), fingerprint), road);
+            }
+            invalidateCoveredChunks(level, bounds);
+        } catch (SQLException e) {
+            LOGGER.error("Failed to force insert road data", e);
+        }
+    }
+
+    private static void bindInsert(PreparedStatement stmt,
+                                   long fingerprint,
+                                   RoadData road,
+                                   Bounds bounds,
+                                   byte[] data) throws SQLException {
+        stmt.setLong(1, fingerprint);
+        stmt.setInt(2, road.width());
+        stmt.setInt(3, road.roadType());
+        stmt.setInt(4, bounds.minX());
+        stmt.setInt(5, bounds.minZ());
+        stmt.setInt(6, bounds.maxX());
+        stmt.setInt(7, bounds.maxZ());
+        stmt.setBytes(8, data);
+    }
+
+    private static Bounds computeBounds(RoadData road) {
+        int minX = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (RoadSegmentPlacement segment : road.roadSegmentList()) {
+            BlockPos pos = segment.middlePos();
+            minX = Math.min(minX, pos.getX());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+        return new Bounds(minX, minZ, maxX, maxZ);
+    }
+
+    private static void invalidateCoveredChunks(ServerLevel level, Bounds bounds) {
+        int minChunkX = bounds.minX() >> 4;
+        int minChunkZ = bounds.minZ() >> 4;
+        int maxChunkX = bounds.maxX() >> 4;
+        int maxChunkZ = bounds.maxZ() >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                RoadSpatialIndex.invalidateChunk(level, chunkX, chunkZ);
+            }
+        }
+    }
+
+    private static long fingerprint(RoadData road) {
+        if (road == null || road.roadSegmentList() == null || road.roadSegmentList().isEmpty()) {
+            return 0L;
+        }
+        BlockPos start = road.roadSegmentList().get(0).middlePos();
+        BlockPos end = road.roadSegmentList().get(road.roadSegmentList().size() - 1).middlePos();
+        long keyA = (((long) start.getX()) << 32) ^ (start.getZ() & 0xffffffffL);
+        long keyB = (((long) end.getX()) << 32) ^ (end.getZ() & 0xffffffffL);
+        long low = Math.min(keyA, keyB);
+        long high = Math.max(keyA, keyB);
+        long result = (high << 1) ^ low;
+        result ^= ((long) road.width() & 0xffffffffL);
+        result ^= ((long) road.roadType() & 0xffffffffL) << 33;
+        return result;
+    }
+
+    private static byte[] serializeRoadData(RoadData road) {
+        try {
+            DataResult<Tag> encoded = RoadData.CODEC.encodeStart(OPS, road);
+            Tag tag = encoded.result().orElse(null);
+            if (tag == null) {
+                return null;
+            }
+
+            CompoundTag root = new CompoundTag();
+            root.put("road", tag);
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            NbtIo.write(root, new DataOutputStream(output));
+            return output.toByteArray();
+        } catch (Exception e) {
+            LOGGER.error("Failed to serialize road data", e);
+            return null;
+        }
+    }
+
+    private static RoadData deserializeRoadData(byte[] bytes) {
+        try (ByteArrayInputStream input = new ByteArrayInputStream(bytes);
+             DataInputStream dataInput = new DataInputStream(input)) {
+            CompoundTag root = NbtIo.read(dataInput);
+            if (root == null || !root.contains("road")) {
+                return null;
+            }
+            Tag tag = root.get("road");
+            DataResult<RoadData> parsed = RoadData.CODEC.parse(new Dynamic<>(OPS, tag));
+            return parsed.result().orElse(null);
+        } catch (IOException e) {
+            LOGGER.error("Failed to deserialize road data", e);
+            return null;
+        }
     }
 }

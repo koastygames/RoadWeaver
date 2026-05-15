@@ -58,7 +58,7 @@ public class MaterialGridWidget extends AbstractWidget {
 
     @Override
     public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.drawString(Minecraft.getInstance().font, this.label, this.getX(), this.getY(), isTarget ? 0xFFFF00 : 0xFFFFFF, false);
+        g.drawString(Minecraft.getInstance().font, this.label, this.getX(), this.getY(), isTarget ? 0xFFFFFF00 : 0xFFFFFFFF, false);
 
         int gridY = this.getY() + LABEL_HEIGHT;
         int index = 0;

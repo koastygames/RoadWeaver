@@ -11,19 +11,20 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * 预设列表组件
+ * 预设列表组件。
  */
 public class PresetListWidget extends ContainerObjectSelectionList<PresetListWidget.Entry> {
     private static final int ROW_HEIGHT = 28;
-    private static final float TITLE_SCALE = 1.15f;
-    private static final float SUBTITLE_SCALE = 0.85f;
-    
+    private static final float TITLE_SCALE = 1.15F;
+    private static final float SUBTITLE_SCALE = 0.85F;
+
     private final Consumer<PresetEntry> onSelect;
     private boolean renderBackground = true;
     private boolean renderTopAndBottom = true;
 
     public PresetListWidget(Minecraft minecraft, int width, int height, int top, int bottom, Consumer<PresetEntry> onSelect) {
-        super(minecraft, width, height, top, bottom);
+        super(minecraft, width, height, top, ROW_HEIGHT);
+        this.centerListVertically = false;
         this.onSelect = onSelect;
         this.setRenderBackground(false);
         this.setRenderTopAndBottom(false);
@@ -93,49 +94,54 @@ public class PresetListWidget extends ContainerObjectSelectionList<PresetListWid
         public String getId() {
             return id;
         }
-        
+
         public String getName() {
             return title;
         }
 
         @Override
-        public void renderContent(GuiGraphics g, int top, int left, boolean isHovered, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
+            top = this.getY();
+            left = this.getX();
             int width = PresetListWidget.this.getRowWidth();
-            int height = ROW_HEIGHT;
             if (active) {
-                g.fill(left, top, left + width, top + height, 0xFF333333);
-                g.renderOutline(left, top, width, height, 0xFFFFFFFF);
-            } else if (isHovered) {
-                g.fill(left, top, left + width, top + height, 0xFF222222);
+                graphics.fill(left, top, left + width, top + ROW_HEIGHT, 0xFF333333);
+                graphics.renderOutline(left, top, width, ROW_HEIGHT, 0xFFFFFFFF);
+            } else if (hovering) {
+                graphics.fill(left, top, left + width, top + ROW_HEIGHT, 0xFF222222);
             }
 
-            Minecraft mc = Minecraft.getInstance();
-            int color = active ? 0xFFFFFF : 0xAAAAAA;
+            Minecraft minecraft = Minecraft.getInstance();
+            int color = active ? 0xFFFFFFFF : 0xFFAAAAAA;
             int textX = left + 4;
             int maxTextWidth = Math.max(10, width - 10);
 
             String safeTitle = title == null ? "" : title;
             String safeSubtitle = subtitle;
-            if (safeSubtitle != null && safeSubtitle.isBlank()) safeSubtitle = null;
-            if (safeSubtitle != null && safeTitle.equals(safeSubtitle)) safeSubtitle = null;
+            if (safeSubtitle != null && safeSubtitle.isBlank()) {
+                safeSubtitle = null;
+            }
+            if (safeSubtitle != null && safeTitle.equals(safeSubtitle)) {
+                safeSubtitle = null;
+            }
 
             if (safeSubtitle != null) {
-                g.pose().pushMatrix();
-                g.pose().translate(textX, top + 4);
-                g.pose().scale(TITLE_SCALE, TITLE_SCALE);
-                String titleCut = mc.font.plainSubstrByWidth(safeTitle, (int) (maxTextWidth / TITLE_SCALE));
-                g.drawString(mc.font, titleCut, 0, 0, color, false);
-                g.pose().popMatrix();
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(textX, top + 4);
+                graphics.pose().scale(TITLE_SCALE, TITLE_SCALE);
+                String titleCut = minecraft.font.plainSubstrByWidth(safeTitle, (int) (maxTextWidth / TITLE_SCALE));
+                graphics.drawString(minecraft.font, titleCut, 0, 0, color, false);
+                graphics.pose().popMatrix();
 
-                g.pose().pushMatrix();
-                g.pose().translate(textX, top + 18);
-                g.pose().scale(SUBTITLE_SCALE, SUBTITLE_SCALE);
-                String subCut = mc.font.plainSubstrByWidth(safeSubtitle, (int) (maxTextWidth / SUBTITLE_SCALE));
-                g.drawString(mc.font, subCut, 0, 0, 0xBBBBBB, false);
-                g.pose().popMatrix();
+                graphics.pose().pushMatrix();
+                graphics.pose().translate(textX, top + 18);
+                graphics.pose().scale(SUBTITLE_SCALE, SUBTITLE_SCALE);
+                String subtitleCut = minecraft.font.plainSubstrByWidth(safeSubtitle, (int) (maxTextWidth / SUBTITLE_SCALE));
+                graphics.drawString(minecraft.font, subtitleCut, 0, 0, 0xFFBBBBBB, false);
+                graphics.pose().popMatrix();
             } else {
-                String titleCut = mc.font.plainSubstrByWidth(safeTitle, maxTextWidth);
-                g.drawString(mc.font, titleCut, textX, top + 10, color, false);
+                String titleCut = minecraft.font.plainSubstrByWidth(safeTitle, maxTextWidth);
+                graphics.drawString(minecraft.font, titleCut, textX, top + 10, color, false);
             }
         }
 

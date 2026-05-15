@@ -41,6 +41,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
     private static final int SLOT_SIZE = 18;
     private static final int SCROLLBAR_WIDTH = 6;
     private static final int MIN_THUMB_HEIGHT = 10;
+    private static final int GRID_RIGHT_PADDING = 2;
     
     private final int x;
     private final int y;
@@ -48,6 +49,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
     private final int height;
     private final int visibleRows;
     private final int visibleCols;
+    private final int gridWidth;
     
     private final List<Block> allBlocks = new ArrayList<>();
     private final List<Block> filteredBlocks = new ArrayList<>();
@@ -68,8 +70,9 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         this.searchBox = new EditBox(font, x, y, width, 16, Component.translatable("gui.roadweaver.preset_editor.search"));
         this.searchBox.setResponder(this::onSearchChanged);
 
-        this.visibleCols = Math.max(1, width / SLOT_SIZE);
+        this.visibleCols = Math.max(1, (width - SCROLLBAR_WIDTH - GRID_RIGHT_PADDING) / SLOT_SIZE);
         this.visibleRows = Math.max(1, (height - 20) / SLOT_SIZE);
+        this.gridWidth = this.visibleCols * SLOT_SIZE;
         
         buildCandidateBlocks();
         rebuildFilteredList();
@@ -235,7 +238,7 @@ public class BlockCandidateWidget extends AbstractContainerEventHandler implemen
         }
         
         int startY = y + 20;
-        if (mouseY >= startY && mouseY < startY + visibleRows * SLOT_SIZE && mouseX >= x && mouseX < x + visibleCols * SLOT_SIZE) {
+        if (mouseY >= startY && mouseY < startY + visibleRows * SLOT_SIZE && mouseX >= x && mouseX < x + gridWidth) {
             int c = (int)(mouseX - x) / SLOT_SIZE;
             int r = (int)(mouseY - startY) / SLOT_SIZE;
             int index = (scrollOffset + r) * visibleCols + c;

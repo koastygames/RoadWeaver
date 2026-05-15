@@ -13,11 +13,16 @@ import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.config.structure.StructureEntry;
 import net.shiroha233.roadweaver.config.structure.StructureTagEntry;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * 缁撴瀯鍒楄〃缁勪欢 - 鏀寔鏍戝舰灞曠ず銆佹ā缁勫浘锟?
+ * 结构列表组件。
  */
 public class StructureListWidget extends ContainerObjectSelectionList<StructureListWidget.Entry> {
     private static final Map<String, Optional<Identifier>> MOD_ICON_CACHE = new HashMap<>();
@@ -25,7 +30,8 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     private static final int CHECKBOX_SIZE = 10;
 
     public StructureListWidget(Minecraft minecraft, int width, int height, int top) {
-        super(minecraft, width, height, top, top + height);
+        super(minecraft, width, height, top, ROW_HEIGHT);
+        this.centerListVertically = false;
     }
 
     public void clearEntries() {
@@ -38,52 +44,58 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
     @Override
     public int getRowWidth() {
-        return width - 40;
+        return this.width - 40;
     }
 
     @Override
     protected int scrollBarX() {
-        return getRowLeft() + getRowWidth() + 6;
+        return this.getRowLeft() + this.getRowWidth() + 6;
     }
 
     static String getLocalizedStructureName(StructureEntry structure) {
-        if (structure == null) return "";
-
+        if (structure == null) {
+            return "";
+        }
         if (structure.isVanilla()) {
-            var id = structure.id();
+            Identifier id = structure.id();
             String key = "structure." + id.getNamespace() + "." + id.getPath();
             String translated = Component.translatable(key).getString();
-            if (!translated.equals(key)) return translated;
+            if (!translated.equals(key)) {
+                return translated;
+            }
         }
         return structure.displayName();
     }
 
     static Identifier getModIconTexture(String modId) {
-        if (modId == null || modId.isEmpty()) return null;
+        if (modId == null || modId.isEmpty()) {
+            return null;
+        }
         Optional<Identifier> cached = MOD_ICON_CACHE.get(modId);
-        if (cached != null) return cached.orElse(null);
+        if (cached != null) {
+            return cached.orElse(null);
+        }
 
         Identifier resolved = null;
         try {
-            var optMod = Platform.getOptionalMod(modId);
-            if (optMod.isPresent()) {
-                var mod = optMod.get();
-                var logoOpt = mod.getLogoFile(32);
-                if (logoOpt.isPresent()) {
-                    String logoPath = logoOpt.get();
+            var optionalMod = Platform.getOptionalMod(modId);
+            if (optionalMod.isPresent()) {
+                var mod = optionalMod.get();
+                var logoOptional = mod.getLogoFile(32);
+                if (logoOptional.isPresent()) {
+                    String logoPath = logoOptional.get();
                     List<Identifier> candidates = new ArrayList<>();
-
                     if (logoPath.startsWith("assets/")) {
-                        String rel = logoPath.substring("assets/".length());
-                        int slash = rel.indexOf('/');
+                        String relative = logoPath.substring("assets/".length());
+                        int slash = relative.indexOf('/');
                         if (slash >= 0) {
-                            String ns = rel.substring(0, slash);
-                            String path = rel.substring(slash + 1);
-                            candidates.add(Identifier.fromNamespaceAndPath(ns, path));
+                            candidates.add(Identifier.fromNamespaceAndPath(relative.substring(0, slash), relative.substring(slash + 1)));
                         }
                     } else if (logoPath.indexOf(':') >= 0) {
-                        Identifier rl = Identifier.tryParse(logoPath);
-                        if (rl != null) candidates.add(rl);
+                        Identifier identifier = Identifier.tryParse(logoPath);
+                        if (identifier != null) {
+                            candidates.add(identifier);
+                        }
                     } else {
                         candidates.add(Identifier.fromNamespaceAndPath(modId, logoPath));
                         if (!logoPath.startsWith("textures/")) {
@@ -92,19 +104,17 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                         }
                     }
 
-                    var rm = Minecraft.getInstance().getResourceManager();
-                    for (Identifier rl : candidates) {
-                        if (rl == null) continue;
-                        try {
-                            if (rm.getResource(rl).isPresent()) {
-                                resolved = rl;
-                                break;
-                            }
-                        } catch (Exception ignored) {}
+                    var resourceManager = Minecraft.getInstance().getResourceManager();
+                    for (Identifier candidate : candidates) {
+                        if (candidate != null && resourceManager.getResource(candidate).isPresent()) {
+                            resolved = candidate;
+                            break;
+                        }
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         MOD_ICON_CACHE.put(modId, Optional.ofNullable(resolved));
         return resolved;
@@ -127,14 +137,21 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         private final Consumer<String> onExpandToggle;
         private final Consumer<String> onSelectAll;
 
-        public ModHeaderEntry(StructureListWidget list, String modId, Component title,
-                              boolean expanded, Consumer<String> onToggle) {
-            this(list, modId, title, expanded, false, false, onToggle, m -> {});
+        public ModHeaderEntry(StructureListWidget list, String modId, Component title, boolean expanded, Consumer<String> onToggle) {
+            this(list, modId, title, expanded, false, false, onToggle, ignored -> {
+            });
         }
 
-        public ModHeaderEntry(StructureListWidget list, String modId, Component title,
-                              boolean expanded, boolean allEnabled, boolean partialEnabled,
-                              Consumer<String> onExpandToggle, Consumer<String> onSelectAll) {
+        public ModHeaderEntry(
+                StructureListWidget list,
+                String modId,
+                Component title,
+                boolean expanded,
+                boolean allEnabled,
+                boolean partialEnabled,
+                Consumer<String> onExpandToggle,
+                Consumer<String> onSelectAll
+        ) {
             super(list);
             this.modId = modId;
             this.title = title;
@@ -147,9 +164,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
-            String expandIcon = expanded ? "v" : ">";
-            graphics.drawString(mc.font, expandIcon, left + 2, top + 7, 0xFFFFFF, false);
+            top = this.getY();
+            left = this.getX();
+            Minecraft minecraft = Minecraft.getInstance();
+            graphics.drawString(minecraft.font, expanded ? "v" : ">", left + 2, top + 7, 0xFFFFFFFF, false);
 
             int boxX = left + 14;
             int boxY = top + 6;
@@ -168,14 +186,14 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                 textX += 18;
             }
 
-            graphics.drawString(mc.font, title, textX, top + 7, 0xFFFFFF, false);
+            graphics.drawString(minecraft.font, title, textX, top + 7, 0xFFFFFFFF, false);
         }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            double mouseX = event.x();
             if (event.button() == 0) {
-                int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
+                double mouseX = event.x();
+                int rowLeft = this.list.getRowLeft();
                 if (mouseX >= rowLeft && mouseX <= rowLeft + 14) {
                     onExpandToggle.accept(modId);
                     return true;
@@ -213,9 +231,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
+            top = this.getY();
+            left = this.getX();
             int width = list.getRowWidth();
-            graphics.drawCenteredString(Minecraft.getInstance().font, message,
-                    left + width / 2, top + 5, 0xAAAAAA);
+            graphics.drawCenteredString(Minecraft.getInstance().font, message, left + width / 2, top + 5, 0xFFAAAAAA);
         }
 
         @Override
@@ -239,7 +258,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            graphics.drawString(Minecraft.getInstance().font, title, left + 5, top + 5, 0xFFFF00);
+            top = this.getY();
+            left = this.getX();
+            graphics.drawString(Minecraft.getInstance().font, title, left + 5, top + 5, 0xFFFFFF00, false);
         }
 
         @Override
@@ -260,8 +281,14 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         private final Consumer<StructureTagEntry> onToggle;
         private final Consumer<StructureTagEntry> onExpandToggle;
 
-        public TagEntry(StructureListWidget list, StructureTagEntry tag, boolean enabled, boolean expanded,
-                       Consumer<StructureTagEntry> onToggle, Consumer<StructureTagEntry> onExpandToggle) {
+        public TagEntry(
+                StructureListWidget list,
+                StructureTagEntry tag,
+                boolean enabled,
+                boolean expanded,
+                Consumer<StructureTagEntry> onToggle,
+                Consumer<StructureTagEntry> onExpandToggle
+        ) {
             super(list);
             this.tag = tag;
             this.enabled = enabled;
@@ -272,11 +299,11 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
-
+            top = this.getY();
+            left = this.getX();
+            Minecraft minecraft = Minecraft.getInstance();
             int indent = 10;
-            String expandIcon = expanded ? "v" : ">";
-            graphics.drawString(mc.font, expandIcon, left + indent, top + 7, 0xAAAAAA, false);
+            graphics.drawString(minecraft.font, expanded ? "v" : ">", left + indent, top + 7, 0xFFAAAAAA, false);
 
             int boxX = left + indent + 12;
             int boxY = top + 6;
@@ -286,14 +313,14 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                 graphics.fill(boxX + 2, boxY + 2, boxX + CHECKBOX_SIZE - 2, boxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
             }
 
-            graphics.drawString(mc.font, tag.displayName(), boxX + 14, top + 7, 0xDDDDDD, false);
+            graphics.drawString(minecraft.font, tag.displayName(), boxX + 14, top + 7, 0xFFDDDDDD, false);
         }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            double mouseX = event.x();
             if (event.button() == 0) {
-                int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
+                double mouseX = event.x();
+                int rowLeft = this.list.getRowLeft();
                 int indent = 10;
                 if (mouseX >= rowLeft + indent && mouseX <= rowLeft + indent + 10) {
                     onExpandToggle.accept(tag);
@@ -318,65 +345,9 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         }
     }
 
-    public static class StructureChildEntry extends Entry {
-        private final StructureEntry structure;
-        private final boolean enabled;
-        private final Consumer<StructureEntry> onToggle;
-        private static final int INDENT = 30;
-
-        public StructureChildEntry(StructureListWidget list,
-                                   StructureEntry structure,
-                                   boolean enabled,
-                                   Consumer<StructureEntry> onToggle) {
-            super(list);
-            this.structure = structure;
-            this.enabled = enabled;
-            this.onToggle = onToggle;
-        }
-
-        @Override
-        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
-
-            int checkboxX = left + INDENT;
-            int checkboxY = top + 6;
-            graphics.fill(checkboxX, checkboxY, checkboxX + CHECKBOX_SIZE, checkboxY + CHECKBOX_SIZE, 0xFF000000);
-            graphics.fill(checkboxX + 1, checkboxY + 1, checkboxX + CHECKBOX_SIZE - 1, checkboxY + CHECKBOX_SIZE - 1, 0xFF888888);
-            if (enabled) {
-                graphics.fill(checkboxX + 2, checkboxY + 2, checkboxX + CHECKBOX_SIZE - 2, checkboxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
-            }
-
-            int textColor = structure.isVanilla() ? 0xAAAAAA : 0xFFAAAA;
-            String name = getLocalizedStructureName(structure);
-            graphics.drawString(mc.font, "  " + name, left + INDENT + 20, top + 7, textColor);
-            graphics.drawString(mc.font, structure.id().toString(), left + INDENT + 20, top + 15, 0x666666);
-        }
-
-        @Override
-        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            double mouseX = event.x();
-            if (event.button() == 0) {
-                int left = list.getRowLeft();
-                if (mouseX >= left && mouseX <= left + this.list.getRowWidth()) {
-                    onToggle.accept(structure);
-                    return true;
-                }
-            }
-            return super.mouseClicked(event, doubleClick);
-        }
-
-        @Override
-        public List<? extends GuiEventListener> children() {
-            return List.of();
-        }
-
-        @Override
-        public List<? extends NarratableEntry> narratables() {
-            return List.of();
-        }
-    }
-
     public static class PathFolderEntry extends Entry {
+        private static final int INDENT_PER_LEVEL = 15;
+
         private final StructurePathNode pathNode;
         private final boolean expanded;
         private final boolean allEnabled;
@@ -384,16 +355,17 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
         private final Consumer<StructurePathNode> onExpandToggle;
         private final Consumer<StructurePathNode> onSelectAllToggle;
         private final int baseIndent;
-        private static final int INDENT_PER_LEVEL = 15;
 
-        public PathFolderEntry(StructureListWidget list,
-                               StructurePathNode pathNode,
-                               boolean expanded,
-                               boolean allEnabled,
-                               boolean partialEnabled,
-                               int baseIndent,
-                               Consumer<StructurePathNode> onExpandToggle,
-                               Consumer<StructurePathNode> onSelectAllToggle) {
+        public PathFolderEntry(
+                StructureListWidget list,
+                StructurePathNode pathNode,
+                boolean expanded,
+                boolean allEnabled,
+                boolean partialEnabled,
+                int baseIndent,
+                Consumer<StructurePathNode> onExpandToggle,
+                Consumer<StructurePathNode> onSelectAllToggle
+        ) {
             super(list);
             this.pathNode = pathNode;
             this.expanded = expanded;
@@ -406,12 +378,12 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
+            top = this.getY();
+            left = this.getX();
+            Minecraft minecraft = Minecraft.getInstance();
             int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
 
-            String expandIcon = expanded ? "v" : ">";
-            int expandX = left + indent + 5;
-            graphics.drawString(mc.font, expandIcon, expandX, top + 7, 0xAAAAAA, false);
+            graphics.drawString(minecraft.font, expanded ? "v" : ">", left + indent + 5, top + 7, 0xFFAAAAAA, false);
 
             int boxX = left + indent + 17;
             int boxY = top + 6;
@@ -423,15 +395,21 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                 graphics.fill(boxX + 3, boxY + 3, boxX + CHECKBOX_SIZE - 3, boxY + CHECKBOX_SIZE - 3, 0xFFFFFF55);
             }
 
-            String displayText = pathNode.name() + " (" + pathNode.getTotalStructureCount() + ")";
-            graphics.drawString(mc.font, displayText, boxX + 14, top + 7, 0xDDDDDD, false);
+            graphics.drawString(
+                    minecraft.font,
+                    pathNode.name() + " (" + pathNode.getTotalStructureCount() + ")",
+                    boxX + 14,
+                    top + 7,
+                    0xFFDDDDDD,
+                    false
+            );
         }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            double mouseX = event.x();
             if (event.button() == 0) {
-                int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
+                double mouseX = event.x();
+                int rowLeft = this.list.getRowLeft();
                 int indent = baseIndent + (pathNode.depth() - 1) * INDENT_PER_LEVEL;
                 if (mouseX >= rowLeft + indent && mouseX <= rowLeft + indent + 10) {
                     onExpandToggle.accept(pathNode);
@@ -457,19 +435,22 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
     }
 
     public static class PathStructureEntry extends Entry {
+        private static final int INDENT_PER_LEVEL = 15;
+
         private final StructureEntry structure;
         private final boolean enabled;
         private final Consumer<StructureEntry> onToggle;
         private final int baseIndent;
         private final int depth;
-        private static final int INDENT_PER_LEVEL = 15;
 
-        public PathStructureEntry(StructureListWidget list,
-                                  StructureEntry structure,
-                                  boolean enabled,
-                                  int baseIndent,
-                                  int depth,
-                                  Consumer<StructureEntry> onToggle) {
+        public PathStructureEntry(
+                StructureListWidget list,
+                StructureEntry structure,
+                boolean enabled,
+                int baseIndent,
+                int depth,
+                Consumer<StructureEntry> onToggle
+        ) {
             super(list);
             this.structure = structure;
             this.enabled = enabled;
@@ -480,9 +461,10 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
 
         @Override
         public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
+            top = this.getY();
+            left = this.getX();
+            Minecraft minecraft = Minecraft.getInstance();
             int indent = baseIndent + depth * INDENT_PER_LEVEL;
-
             int boxX = left + indent + 12;
             int boxY = top + 6;
             graphics.fill(boxX, boxY, boxX + CHECKBOX_SIZE, boxY + CHECKBOX_SIZE, 0xFF000000);
@@ -491,84 +473,25 @@ public class StructureListWidget extends ContainerObjectSelectionList<StructureL
                 graphics.fill(boxX + 2, boxY + 2, boxX + CHECKBOX_SIZE - 2, boxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
             }
 
-            String leafName = StructurePathNode.getLeafName(structure);
-            int textColor = structure.isVanilla() ? 0xFFFFFF : 0xFFAAAA;
-            graphics.drawString(mc.font, leafName, boxX + 14, top + 7, textColor, false);
+            graphics.drawString(
+                    minecraft.font,
+                    StructurePathNode.getLeafName(structure),
+                    boxX + 14,
+                    top + 7,
+                    structure.isVanilla() ? 0xFFFFFFFF : 0xFFFFAAAA,
+                    false
+            );
 
             if (hovering) {
-                int mouseX = (int) Math.round(mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / mc.getWindow().getScreenWidth());
-                int mouseY = (int) Math.round(mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / mc.getWindow().getScreenHeight());
-                graphics.setTooltipForNextFrame(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
+                graphics.setTooltipForNextFrame(minecraft.font, Component.literal(structure.id().toString()), (int) Math.round(minecraft.mouseHandler.xpos()), (int) Math.round(minecraft.mouseHandler.ypos()));
             }
         }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            double mouseX = event.x();
             if (event.button() == 0) {
-                int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
-                if (mouseX >= rowLeft && mouseX <= rowLeft + this.list.getRowWidth()) {
-                    onToggle.accept(structure);
-                    return true;
-                }
-            }
-            return super.mouseClicked(event, doubleClick);
-        }
-
-        @Override
-        public List<? extends GuiEventListener> children() {
-            return List.of();
-        }
-
-        @Override
-        public List<? extends NarratableEntry> narratables() {
-            return List.of();
-        }
-    }
-
-    public static class SingleStructureEntry extends Entry {
-        private final StructureEntry structure;
-        private final boolean enabled;
-        private final Consumer<StructureEntry> onToggle;
-
-        public SingleStructureEntry(StructureListWidget list,
-                                    StructureEntry structure,
-                                    boolean enabled,
-                                    Consumer<StructureEntry> onToggle) {
-            super(list);
-            this.structure = structure;
-            this.enabled = enabled;
-            this.onToggle = onToggle;
-        }
-
-        @Override
-        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
-            Minecraft mc = Minecraft.getInstance();
-
-            int boxX = left + 12;
-            int boxY = top + 6;
-            graphics.fill(boxX, boxY, boxX + CHECKBOX_SIZE, boxY + CHECKBOX_SIZE, 0xFF000000);
-            graphics.fill(boxX + 1, boxY + 1, boxX + CHECKBOX_SIZE - 1, boxY + CHECKBOX_SIZE - 1, 0xFF888888);
-            if (enabled) {
-                graphics.fill(boxX + 2, boxY + 2, boxX + CHECKBOX_SIZE - 2, boxY + CHECKBOX_SIZE - 2, 0xFF55FF55);
-            }
-
-            int textColor = structure.isVanilla() ? 0xFFFFFF : 0xFFAAAA;
-            String name = getLocalizedStructureName(structure);
-            graphics.drawString(mc.font, name, boxX + 14, top + 7, textColor, false);
-
-            if (hovering) {
-                int mouseX = (int) Math.round(mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / mc.getWindow().getScreenWidth());
-                int mouseY = (int) Math.round(mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / mc.getWindow().getScreenHeight());
-                graphics.setTooltipForNextFrame(mc.font, Component.literal(structure.id().toString()), mouseX, mouseY);
-            }
-        }
-
-        @Override
-        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            double mouseX = event.x();
-            if (event.button() == 0) {
-                int rowLeft = (this.list.width - this.list.getRowWidth()) / 2;
+                double mouseX = event.x();
+                int rowLeft = this.list.getRowLeft();
                 if (mouseX >= rowLeft && mouseX <= rowLeft + this.list.getRowWidth()) {
                     onToggle.accept(structure);
                     return true;

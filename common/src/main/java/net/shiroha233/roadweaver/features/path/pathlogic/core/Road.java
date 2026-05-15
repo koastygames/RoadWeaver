@@ -53,6 +53,9 @@ public final class Road {
     }
 
     public RoadData generateRoad(int maxSteps) {
+        if (Thread.currentThread().isInterrupted()) {
+            return null;
+        }
         RandomSource random = RandomSource.create();
         int width = generationConfig.effectiveRoadWidth(getRandomWidth(random, featureConfig));
         boolean allowArtificial = generationConfig.allowArtificial();
@@ -90,6 +93,9 @@ public final class Road {
                     maxSteps,
                     cache,
                     generationConfig);
+            if (Thread.currentThread().isInterrupted()) {
+                return null;
+            }
             List<RoadSegmentPlacement> rawSegments = pathResult.segments();
             if (rawSegments == null || rawSegments.size() < 5) {
                 return null;
@@ -100,6 +106,9 @@ public final class Road {
                     rawSegments,
                     rawStart,
                     rawEnd);
+            if (Thread.currentThread().isInterrupted()) {
+                return null;
+            }
             if (segments == null || segments.size() < 5) {
                 return null;
             }
@@ -112,6 +121,9 @@ public final class Road {
                     terrain,
                     generationConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(segments, spans);
+            if (Thread.currentThread().isInterrupted()) {
+                return null;
+            }
             long ownerA2d = PlanningUtils.pos2dKey(rawStart);
             long ownerB2d = PlanningUtils.pos2dKey(rawEnd);
 
@@ -125,6 +137,9 @@ public final class Road {
                     targetY,
                     ownerA2d,
                     ownerB2d);
+            if (Thread.currentThread().isInterrupted()) {
+                return null;
+            }
             RoadShardStorage.addRoad(level, roadData);
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
             return roadData;

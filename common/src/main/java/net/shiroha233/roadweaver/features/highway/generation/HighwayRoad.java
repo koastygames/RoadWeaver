@@ -43,6 +43,9 @@ public final class HighwayRoad {
         if (level == null || connection == null || generationConfig == null) {
             return false;
         }
+        if (Thread.currentThread().isInterrupted()) {
+            return false;
+        }
         if (!Level.OVERWORLD.equals(level.dimension())) {
             return false;
         }
@@ -64,6 +67,9 @@ public final class HighwayRoad {
                     Math.max(1, maxSteps),
                     cache,
                     generationConfig);
+            if (Thread.currentThread().isInterrupted()) {
+                return false;
+            }
             List<RoadSegmentPlacement> rawSegments = pathResult.segments();
             if (rawSegments == null || rawSegments.size() < 3) {
                 return false;
@@ -74,6 +80,9 @@ public final class HighwayRoad {
                     rawSegments,
                     rawStart,
                     rawEnd);
+            if (Thread.currentThread().isInterrupted()) {
+                return false;
+            }
             if (segments == null || segments.size() < 3) {
                 return false;
             }
@@ -86,6 +95,9 @@ public final class HighwayRoad {
                     terrain,
                     adaptedConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, generationConfig);
+            if (Thread.currentThread().isInterrupted()) {
+                return false;
+            }
 
             RoadData roadData = new RoadData(
                     width,
@@ -97,6 +109,9 @@ public final class HighwayRoad {
                     targetY,
                     RoadData.NO_OWNER_2D,
                     RoadData.NO_OWNER_2D);
+            if (Thread.currentThread().isInterrupted()) {
+                return false;
+            }
             RoadShardStorage.addRoad(level, roadData);
             return true;
         } finally {

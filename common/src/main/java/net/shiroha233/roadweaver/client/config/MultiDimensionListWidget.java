@@ -14,18 +14,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 多维度选择列表组件
+ * 多维度选择列表组件。
  */
 public class MultiDimensionListWidget extends ContainerObjectSelectionList<MultiDimensionListWidget.Entry> {
     private static final int ROW_HEIGHT = 20;
-    
+
     private final Set<Identifier> selectedDimensions;
     private boolean active = true;
     private boolean renderBackground = true;
     private boolean renderTopAndBottom = true;
 
     public MultiDimensionListWidget(Minecraft minecraft, int width, int height, int top, int bottom, Set<Identifier> selectedDimensions) {
-        super(minecraft, width, height, top, bottom);
+        super(minecraft, width, height, top, ROW_HEIGHT);
+        this.centerListVertically = false;
         this.selectedDimensions = selectedDimensions;
         this.setRenderBackground(false);
         this.setRenderTopAndBottom(false);
@@ -41,8 +42,8 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
 
     public void setDimensions(List<Identifier> allDimensions) {
         this.clearEntries();
-        for (Identifier dim : allDimensions) {
-            this.addEntry(new Entry(dim));
+        for (Identifier dimension : allDimensions) {
+            this.addEntry(new Entry(dimension));
         }
     }
 
@@ -90,22 +91,25 @@ public class MultiDimensionListWidget extends ContainerObjectSelectionList<Multi
         }
 
         @Override
-        public void renderContent(GuiGraphics g, int top, int left, boolean isHovered, float partialTick) {
+        public void renderContent(GuiGraphics graphics, int top, int left, boolean hovering, float partialTick) {
+            top = this.getY();
+            left = this.getX();
             boolean selected = selectedDimensions.contains(dimensionId);
-            
-            g.fill(left + 2, top + 2, left + 14, top + 14, 0xFF000000);
-            g.renderOutline(left + 2, top + 2, 12, 12, 0xFFAAAAAA);
-            
+
+            graphics.fill(left + 2, top + 2, left + 14, top + 14, 0xFF000000);
+            graphics.renderOutline(left + 2, top + 2, 12, 12, 0xFFAAAAAA);
             if (selected) {
-                g.drawCenteredString(Minecraft.getInstance().font, "x", left + 8, top + 2, 0xFF55FF55);
+                graphics.drawCenteredString(Minecraft.getInstance().font, "x", left + 8, top + 2, 0xFF55FF55);
             }
 
-            g.drawString(Minecraft.getInstance().font, dimensionId.toString(), left + 20, top + 4, 0xFFFFFF, false);
+            graphics.drawString(Minecraft.getInstance().font, dimensionId.toString(), left + 20, top + 4, 0xFFFFFFFF, false);
         }
 
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (!MultiDimensionListWidget.this.isActive()) return false;
+            if (!MultiDimensionListWidget.this.isActive()) {
+                return false;
+            }
             if (event.button() == 0) {
                 if (selectedDimensions.contains(dimensionId)) {
                     selectedDimensions.remove(dimensionId);
