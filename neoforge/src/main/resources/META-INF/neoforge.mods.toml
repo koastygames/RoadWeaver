@@ -4,10 +4,10 @@ license = "MIT"
 
 [[mods]]
     modId = "roadweaver"
-    version = "2.0.9-1.21.1"
-    displayName = "RoadWeaver"
-    authors = "shiroha233"
-    description = "Automatically generates roads between structures"
+    version = "${mod_version}"
+    displayName = "${mod_name}"
+    authors = "${mod_authors}"
+    description = "${mod_description}"
 
 [[mixins]]
     config = "roadweaver.mixins.json"

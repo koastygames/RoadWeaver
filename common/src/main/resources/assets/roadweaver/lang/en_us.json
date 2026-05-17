@@ -1,4 +1,4 @@
-﻿{
+{
   "category.roadweaver": "RoadWeaver",
   "gui.roadweaver.config": "Config",
   "gui.roadweaver.config_button": "RoadWeaver Config",
@@ -293,18 +293,5 @@
   "config.roadweaver.loading_tips_enabled": "Enable Loading Tips",
   "config.roadweaver.loading_tips_enabled.tooltip": "Show RoadWeaver related tips and tricks in the bottom right corner of the world loading screen.",
   "config.roadweaver.loading_progress_enabled": "Enable Loading Progress",
-  "config.roadweaver.loading_progress_enabled.tooltip": "Show RoadWeaver generation progress information on the world loading screen.",
-  "config.roadweaver.category.long_drive": "Long Drive",
-  "config.roadweaver.long_drive_enabled": "Enable Long Drive Mode",
-  "config.roadweaver.long_drive_enabled.tooltip": "Enable the Long Drive mode: a single main trunk road extending infinitely in one direction from spawn, inspired by The Long Drive game.",
-  "config.roadweaver.long_drive_road_width": "Long Drive Road Width (blocks)",
-  "config.roadweaver.long_drive_road_width.tooltip": "Paved width of the Long Drive trunk road.",
-  "config.roadweaver.long_drive_a_star_step": "Long Drive Sampling Step (blocks)",
-  "config.roadweaver.long_drive_a_star_step.tooltip": "Grid sampling step for the greedy forward pathfinder.",
-  "config.roadweaver.long_drive_segment_length": "Long Drive Segment Length (steps)",
-  "config.roadweaver.long_drive_segment_length.tooltip": "Number of greedy steps per road extension segment.",
-  "config.roadweaver.long_drive_lead_distance": "Long Drive Lead Distance (blocks)",
-  "config.roadweaver.long_drive_lead_distance.tooltip": "The road head will stay at least this far ahead of the nearest player.",
-  "config.roadweaver.long_drive_direction_bias": "Long Drive Direction Bias",
-  "config.roadweaver.long_drive_direction_bias.tooltip": "How strongly the road prefers to go in its general direction. Higher values make the road straighter."
+  "config.roadweaver.loading_progress_enabled.tooltip": "Show RoadWeaver generation progress information on the world loading screen."
 }

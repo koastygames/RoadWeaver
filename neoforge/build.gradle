@@ -189,12 +189,11 @@ components.java {
 }
 
 sourceSets {
-    main {
-        java {
-            // Avoid JPMS split-package: keep top-level network package only in common
-        }
-        resources {
-            exclude 'assets/roadweaver/lang/*.json'
-        }
-    }
+	main {
+		java {
+			// Avoid JPMS split-package: keep top-level network package only in common
+		}
+		resources {
+		}
+	}
 }

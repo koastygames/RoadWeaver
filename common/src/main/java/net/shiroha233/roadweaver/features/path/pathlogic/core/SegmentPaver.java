@@ -1,3 +1,4 @@
+/* 文件职责：铺设道路段的基础路面。 */
 package net.shiroha233.roadweaver.features.path.pathlogic.core;
 
 import net.minecraft.core.BlockPos;
@@ -65,7 +66,7 @@ public final class SegmentPaver {
             SurfacePlacementUtil.placeOnSurface(world, pos, baseMats, 0, random, cfg);
 
             List<BlockState> slabs;
-            if (roadType == 0 || roadType == 3) {
+            if (roadType == 0) {
                 slabs = slabMaterials;
             } else if (roadType == 1) {
                 PresetService.PresetDef biomePreset = PresetService.findNaturalPresetForBiome(

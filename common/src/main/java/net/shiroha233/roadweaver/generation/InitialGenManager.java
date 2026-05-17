@@ -1,3 +1,4 @@
+/* 文件职责：管理启动阶段的初始道路生成。 */
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
@@ -64,10 +65,6 @@ public final class InitialGenManager {
             HighwayPlanningService.initialPlan(level);
         } else {
             RoadPlanningService.initialPlan(level);
-        }
-
-        if (cfg.longDrive().enabled()) {
-            net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService.initialPlan(level);
         }
 
         WorldDataProvider provider = WorldDataProvider.getInstance();

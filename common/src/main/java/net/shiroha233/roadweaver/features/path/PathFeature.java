@@ -1,3 +1,4 @@
+/* 文件职责：实现普通道路的世界生成入口。 */
 package net.shiroha233.roadweaver.features.path;
 
 import com.mojang.serialization.Codec;
@@ -97,7 +98,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
 
         boolean bridgeEnabled = cfg.bridgeEnabledForDimension(dimId);
         int roadType = data.roadType();
-        if (roadType != 0 && roadType != 1 && roadType != 3) {
+        if (roadType != 0 && roadType != 1) {
             return;
         }
         

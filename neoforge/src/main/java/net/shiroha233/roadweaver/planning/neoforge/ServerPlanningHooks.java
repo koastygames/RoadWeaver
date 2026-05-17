@@ -1,10 +1,10 @@
+/* 文件职责：注册 NeoForge 服务端生命周期与 Tick 钩子。 */
 package net.shiroha233.roadweaver.planning.neoforge;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
-import net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
@@ -77,9 +77,6 @@ public final class ServerPlanningHooks {
         if (ConfigService.get().highwayEnabled()) {
             HighwayPlanningService.initialPlanAsync(level);
         }
-        if (ConfigService.get().longDrive().enabled()) {
-            LongDrivePlanningService.initialPlan(level);
-        }
     }
 
     @SubscribeEvent
@@ -98,7 +95,6 @@ public final class ServerPlanningHooks {
                     RoadPlanningService.planAroundPlayer(p);
                 }
                 IdleRoadGenerationService.tickPlayer(p);
-                LongDrivePlanningService.tickPlayer(p);
             }
         }
 
@@ -124,7 +120,6 @@ public final class ServerPlanningHooks {
         RoadGenerationService.onServerStopping();
         HighwayPlanningService.resetAll();
         HighwayCellPathPlanningService.resetAll();
-        LongDrivePlanningService.resetAll();
         IdleRoadGenerationService.onServerStopping();
         SignTextService.clearPending();
         CacheManager.onServerStopping(event.getServer().getAllLevels()); // 统一清理所有缓存

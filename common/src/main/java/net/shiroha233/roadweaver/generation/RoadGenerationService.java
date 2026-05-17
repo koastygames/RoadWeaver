@@ -1,3 +1,4 @@
+/* 文件职责：调度道路生成任务与异步队列。 */
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
@@ -61,7 +62,6 @@ public final class RoadGenerationService {
         RUNNING_COUNT.clear();
         RoadPlanningService.resetAll();
         HighwayCellPathPlanningService.resetAll();
-        net.shiroha233.roadweaver.features.longdrive.planning.LongDrivePlanningService.resetAll();
         IdleRoadGenerationService.onServerStopping();
     }
 

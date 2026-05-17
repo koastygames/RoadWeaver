@@ -8,6 +8,17 @@ architectury {
 	minecraft = '1.21.1'
 }
 
+def legacyIdeOutputDirs = [
+	file('common/bin'),
+	file('fabric/bin'),
+	file('neoforge/bin')
+]
+
+tasks.register('cleanLegacyIdeOutputs', Delete) {
+	description = 'Deletes stale IDE output directories that can shadow Gradle build outputs at dev runtime.'
+	delete legacyIdeOutputDirs
+}
+
 allprojects {
 	apply plugin: 'java'
 	apply plugin: 'architectury-plugin'
@@ -72,6 +83,14 @@ allprojects {
 
 subprojects {
 	apply plugin: 'dev.architectury.loom'
+
+	tasks.named('clean').configure {
+		dependsOn rootProject.tasks.named('cleanLegacyIdeOutputs')
+	}
+
+	tasks.withType(JavaExec).configureEach {
+		dependsOn rootProject.tasks.named('cleanLegacyIdeOutputs')
+	}
 	
 	base {
 		archivesName = "${rootProject.name}-${project.name}"

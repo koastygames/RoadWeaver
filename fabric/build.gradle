@@ -127,7 +127,6 @@ sourceSets {
 			// Avoid JPMS split-package with shaded common (network package) in dev runtime
 		}
 		resources {
-			exclude 'assets/roadweaver/lang/*.json'
 			exclude 'pack.mcmeta'
 		}
 	}

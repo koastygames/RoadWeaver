@@ -1,8 +1,6 @@
+/* 文件职责：集中定义全局常量。 */
 package net.shiroha233.roadweaver.core.constants;
 
-/**
- * 全局命名常量，消除代码中的魔法数字
- */
 public final class RoadConstants {
 
     private RoadConstants() {}
@@ -103,17 +101,6 @@ public final class RoadConstants {
     public static final int DEFAULT_VILLAGE_ROAD_OFFSET = 60;
     public static final int DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET = 15;
     public static final int ROAD_OFFSET_MAX = 256;
-
-    public static final int DEFAULT_LONG_DRIVE_ROAD_WIDTH = 5;
-    public static final int DEFAULT_LONG_DRIVE_ASTAR_STEP = 16;
-    public static final int DEFAULT_LONG_DRIVE_SEGMENT_LENGTH = 500;
-    public static final int LONG_DRIVE_SEGMENT_LENGTH_MIN = 50;
-    public static final int LONG_DRIVE_SEGMENT_LENGTH_MAX = 5000;
-    public static final int DEFAULT_LONG_DRIVE_LEAD_DISTANCE = 1000;
-    public static final int LONG_DRIVE_LEAD_DISTANCE_MIN = 200;
-    public static final int LONG_DRIVE_LEAD_DISTANCE_MAX = 10_000;
-    public static final double DEFAULT_LONG_DRIVE_DIRECTION_BIAS = 150.0;
-    public static final double LONG_DRIVE_DIRECTION_BIAS_MAX = 1000.0;
 
     public static final int DEFAULT_PREDICT_RADIUS_CHUNKS = 1024;
 
