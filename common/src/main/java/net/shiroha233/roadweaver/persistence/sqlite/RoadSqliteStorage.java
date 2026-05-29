@@ -22,6 +22,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /**
  * 基于 H2 的道路数据存储，支持空间索引查询和 LRU 反序列化缓存
@@ -57,13 +61,12 @@ public final class RoadSqliteStorage {
         }
     }
 
-    private static final Map<CacheKey, RoadData> ROAD_CACHE = Collections.synchronizedMap(
-            new LinkedHashMap<>(256, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<CacheKey, RoadData> eldest) {
-                    return size() > ROAD_CACHE_MAX;
-                }
-            });
+    private static final ConcurrentHashMap<CacheKey, RoadData> ROAD_CACHE = new ConcurrentHashMap<>(ROAD_CACHE_MAX);
+    private static final java.util.concurrent.atomic.AtomicInteger CACHE_SIZE = new java.util.concurrent.atomic.AtomicInteger(0);
+    private static final Executor DESERIALIZE_EXECUTOR = Executors.newFixedThreadPool(
+            Math.max(1, Runtime.getRuntime().availableProcessors() / 4),
+            r -> new Thread(r, "RW-Deserialize")
+    );
 
     private static final String SQL_INSERT =
             "MERGE INTO roads (fingerprint, width, road_type, min_x, min_z, max_x, max_z, data) "
@@ -159,7 +162,9 @@ public final class RoadSqliteStorage {
                         try {
                             RoadData rd = deserializeRoadData(in);
                             if (rd != null) {
+                                evictIfNeeded();
                                 ROAD_CACHE.put(key, rd);
+                                CACHE_SIZE.incrementAndGet();
                                 result.add(rd);
                             }
                         } finally {
@@ -172,6 +177,81 @@ public final class RoadSqliteStorage {
             LOGGER.error("查询道路数据失败", e);
         }
         return result;
+    }
+
+    public static CompletableFuture<List<RoadData>> queryRectAsync(ServerLevel level,
+                                                                   int minBlockX, int minBlockZ,
+                                                                   int maxBlockX, int maxBlockZ) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<RoadData> cachedResults = new ArrayList<>();
+            List<byte[]> rawDataToDeserialize = new ArrayList<>();
+            List<CacheKey> cacheKeys = new ArrayList<>();
+
+            try {
+                Connection conn = RoadDatabaseManager.getConnection(level);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_QUERY_RECT)) {
+                    stmt.setInt(1, minBlockX);
+                    stmt.setInt(2, maxBlockX);
+                    stmt.setInt(3, minBlockZ);
+                    stmt.setInt(4, maxBlockZ);
+
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            long fp = rs.getLong("fingerprint");
+                            CacheKey key = new CacheKey(level.dimension().location(), fp);
+                            RoadData cached = ROAD_CACHE.get(key);
+                            if (cached != null) {
+                                cachedResults.add(cached);
+                                continue;
+                            }
+
+                            InputStream in = rs.getBinaryStream("data");
+                            if (in == null) continue;
+                            try {
+                                byte[] data = in.readAllBytes();
+                                rawDataToDeserialize.add(data);
+                                cacheKeys.add(key);
+                            } catch (IOException ignored) {
+                            } finally {
+                                try { in.close(); } catch (IOException ignored) {}
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                LOGGER.error("查询道路数据失败", e);
+            }
+
+            for (int i = 0; i < rawDataToDeserialize.size(); i++) {
+                try {
+                    ByteArrayInputStream bais = new ByteArrayInputStream(rawDataToDeserialize.get(i));
+                    RoadData rd = deserializeRoadData(bais);
+                    if (rd != null) {
+                        evictIfNeeded();
+                        ROAD_CACHE.put(cacheKeys.get(i), rd);
+                        CACHE_SIZE.incrementAndGet();
+                        cachedResults.add(rd);
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("反序列化道路数据失败", e);
+                }
+            }
+
+            return cachedResults;
+        }, DESERIALIZE_EXECUTOR);
+    }
+
+    private static void evictIfNeeded() {
+        if (CACHE_SIZE.get() < ROAD_CACHE_MAX) return;
+        int toEvict = ROAD_CACHE_MAX / 4;
+        int evicted = 0;
+        for (CacheKey k : ROAD_CACHE.keySet()) {
+            if (evicted >= toEvict) break;
+            if (ROAD_CACHE.remove(k) != null) {
+                CACHE_SIZE.decrementAndGet();
+                evicted++;
+            }
+        }
     }
 
     private static long fingerprint(RoadData rd) {

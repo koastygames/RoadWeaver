@@ -40,6 +40,11 @@ public final class CacheManager {
     public static void onServerStopping(Iterable<ServerLevel> levels) {
         for (ServerLevel level : levels) {
             try {
+                SignTextService.flushPersistentFallback(level);
+            } catch (Exception e) {
+                LOGGER.warn("刷写 SignTextService 失败: {}", e.getMessage());
+            }
+            try {
                 RoadShardStorage.flushAll(level);
             } catch (Exception e) {
                 LOGGER.warn("刷写 RoadShardStorage 失败: {}", e.getMessage());
@@ -67,6 +72,13 @@ public final class CacheManager {
      */
     public static void onDimensionUnload(ServerLevel level) {
         if (level == null) return;
+
+        try {
+            SignTextService.flushPersistentFallback(level);
+        } catch (Exception e) {
+            LOGGER.warn("刷写维度 {} 路牌文本失败: {}",
+                    level.dimension().location(), e.getMessage());
+        }
 
         try {
             RoadShardStorage.closeConnection(level);

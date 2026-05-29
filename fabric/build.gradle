@@ -65,6 +65,14 @@ dependencies {
 	modLocalRuntime("maven.modrinth:c2me-fabric:0.2.0+alpha.11.13+1.20.1")
 	modRuntimeOnly("maven.modrinth:c2me-fabric:0.2.0+alpha.11.13+1.20.1")
 	
+	// Distant Horizons - LOD 渲染模组，用于测试兼容性
+	modLocalRuntime("maven.modrinth:distanthorizons:2.4.5-b-1.20.1")
+	modRuntimeOnly("maven.modrinth:distanthorizons:2.4.5-b-1.20.1")
+	
+	// Spark - 性能分析模组，用于测试性能
+	modLocalRuntime("maven.modrinth:spark:1.10.53-fabric")
+	modRuntimeOnly("maven.modrinth:spark:1.10.53-fabric")
+	
 	// Mod Menu - 游戏内模组菜单
 	modLocalRuntime("maven.modrinth:modmenu:7.2.2")
 	modRuntimeOnly("maven.modrinth:modmenu:7.2.2")

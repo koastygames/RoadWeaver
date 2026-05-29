@@ -157,6 +157,10 @@ dependencies {
     modRuntimeOnly("maven.modrinth:distanthorizons:2.4.5-b-1.20.1") { transitive = false }
     modCompileOnly("curse.maven:the-lost-cities-269024:6174986") { transitive = false } // The Lost Cities 1.20-7.3.6
     modRuntimeOnly("curse.maven:the-lost-cities-269024:6174986") { transitive = false }
+    
+    // Spark - 性能分析模组，用于测试性能
+    modLocalRuntime("maven.modrinth:spark:1.10.53-forge") { transitive = false }
+    modRuntimeOnly("maven.modrinth:spark:1.10.53-forge") { transitive = false }
 
     // Architectury API - 使用 Jar-in-Jar 内嵌
     modApi("dev.architectury:architectury-forge:9.2.14")

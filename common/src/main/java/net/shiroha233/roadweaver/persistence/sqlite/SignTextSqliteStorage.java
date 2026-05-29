@@ -10,6 +10,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -33,32 +34,35 @@ public final class SignTextSqliteStorage {
 
     public record PendingSignText(long id, BlockPos pos, int signType, String payload) {}
 
-    public static synchronized void upsert(ServerLevel level, BlockPos pos, int signType, String payload) {
-        if (level == null || pos == null) return;
-        String safePayload = payload == null ? "" : payload;
-        int chunkX = pos.getX() >> 4;
-        int chunkZ = pos.getZ() >> 4;
-        long now = System.currentTimeMillis() / 1000L;
+    public record PendingSignWrite(BlockPos pos, int signType, String payload) {}
 
+    public static void upsert(ServerLevel level, BlockPos pos, int signType, String payload) {
+        if (pos == null) return;
+        upsertBatch(level, List.of(new PendingSignWrite(pos, signType, payload)));
+    }
+
+    public static void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
+        if (level == null || writes == null || writes.isEmpty()) return;
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
             try (PreparedStatement stmt = conn.prepareStatement(SQL_UPSERT)) {
-                stmt.setInt(1, chunkX);
-                stmt.setInt(2, chunkZ);
-                stmt.setInt(3, pos.getX());
-                stmt.setInt(4, pos.getY());
-                stmt.setInt(5, pos.getZ());
-                stmt.setInt(6, signType);
-                stmt.setString(7, safePayload);
-                stmt.setLong(8, now);
-                stmt.executeUpdate();
+                boolean hasBatch = false;
+                for (PendingSignWrite write : writes) {
+                    if (write == null || write.pos() == null) continue;
+                    bindUpsert(stmt, write.pos(), write.signType(), write.payload());
+                    stmt.addBatch();
+                    hasBatch = true;
+                }
+                if (hasBatch) {
+                    stmt.executeBatch();
+                }
             }
         } catch (SQLException e) {
             LOGGER.error("upsert pending_sign_texts failed", e);
         }
     }
 
-    public static synchronized List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
+    public static List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
         if (level == null || limit <= 0) return List.of();
         ArrayList<PendingSignText> out = new ArrayList<>();
         try {
@@ -85,7 +89,7 @@ public final class SignTextSqliteStorage {
         return out;
     }
 
-    public static synchronized void deleteByIds(ServerLevel level, List<Long> ids) {
+    public static void deleteByIds(ServerLevel level, List<Long> ids) {
         if (level == null || ids == null || ids.isEmpty()) return;
         try {
             Connection conn = RoadDatabaseManager.getConnection(level);
@@ -100,5 +104,20 @@ public final class SignTextSqliteStorage {
         } catch (SQLException e) {
             LOGGER.error("deleteByIds pending_sign_texts failed", e);
         }
+    }
+
+    private static void bindUpsert(PreparedStatement stmt, BlockPos pos, int signType, String payload) throws SQLException {
+        String safePayload = payload == null ? "" : payload;
+        int chunkX = pos.getX() >> 4;
+        int chunkZ = pos.getZ() >> 4;
+        long now = System.currentTimeMillis() / 1000L;
+        stmt.setInt(1, chunkX);
+        stmt.setInt(2, chunkZ);
+        stmt.setInt(3, pos.getX());
+        stmt.setInt(4, pos.getY());
+        stmt.setInt(5, pos.getZ());
+        stmt.setInt(6, signType);
+        stmt.setString(7, safePayload);
+        stmt.setLong(8, now);
     }
 }

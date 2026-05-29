@@ -229,7 +229,7 @@ public final class IdleRoadGenerationService {
                 updateStatus(level, task, st, ConnectionStatus.GENERATING, ConnectionStatus.PLANNED);
                 removeOwnership(level, key);
                 if (st == ConnectionStatus.COMPLETED) {
-                    RoadSnapService.snapAroundConnection(level, task.from(), task.to());
+                    RoadSnapService.snapAroundConnectionAsync(level, task.from(), task.to());
                 }
             });
         } catch (Throwable t) {

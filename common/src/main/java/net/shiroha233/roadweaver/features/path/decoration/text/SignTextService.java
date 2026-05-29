@@ -31,6 +31,7 @@ public final class SignTextService {
     private static final int CHUNK_BUDGET_PER_TICK = 8;
     private static final int WRITE_BUDGET_PER_CHUNK = 32;
     private static final int MAX_DISTANCE_TEXT_LEN = 32;
+    private static final int MAX_MEMORY_RETRIES = 2;
 
     private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<Long>> DIRTY_CHUNKS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> DIRTY_MARKS = new ConcurrentHashMap<>();
@@ -57,6 +58,7 @@ public final class SignTextService {
     public static void clearPending() {
         DIRTY_CHUNKS.clear();
         DIRTY_MARKS.clear();
+        SignTextShardStorage.clearAllMemory();
     }
 
     public static void onChunkReady(ServerLevel level, ChunkPos chunkPos) {
@@ -68,6 +70,7 @@ public final class SignTextService {
         if (level == null) return;
         DIRTY_CHUNKS.remove(level);
         DIRTY_MARKS.remove(level);
+        SignTextShardStorage.clearLevel(level);
     }
 
     public static void writeDistanceSign(WorldGenLevel level, BlockPos pos, String text) {
@@ -145,20 +148,44 @@ public final class SignTextService {
 
     private static void processChunk(ServerLevel level, int chunkX, int chunkZ) {
         if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) return;
-
-        List<SignTextSqliteStorage.PendingSignText> pending = SignTextShardStorage.queryByChunk(level, chunkX, chunkZ,
-                WRITE_BUDGET_PER_CHUNK);
-        if (pending.isEmpty()) return;
-
-        ArrayList<Long> doneIds = new ArrayList<>(pending.size());
         boolean needRetry = false;
 
+        List<SignTextShardStorage.PendingSignWrite> memoryPending =
+                SignTextShardStorage.takeMemoryByChunk(level, chunkX, chunkZ, WRITE_BUDGET_PER_CHUNK);
+        for (SignTextShardStorage.PendingSignWrite row : memoryPending) {
+            if (row == null || row.pos() == null) continue;
+            boolean ok = tryWrite(level, row.pos(), row.signType(), row.payload());
+            if (!ok && !shouldDrop(level, row.pos())) {
+                if (row.retryCount() >= MAX_MEMORY_RETRIES) {
+                    SignTextShardStorage.upsertBatch(level, List.of(row));
+                } else {
+                    SignTextShardStorage.requeue(level, row);
+                }
+                needRetry = true;
+            }
+        }
+
+        int remainingBudget = Math.max(0, WRITE_BUDGET_PER_CHUNK - memoryPending.size());
+        if (remainingBudget == 0) {
+            if (needRetry || SignTextShardStorage.hasMemoryPending(level, chunkX, chunkZ)) {
+                markChunkDirty(level, chunkX, chunkZ);
+            }
+            return;
+        }
+
+        List<SignTextSqliteStorage.PendingSignText> pending = SignTextShardStorage.queryByChunk(level, chunkX, chunkZ,
+                remainingBudget);
+        if (pending.isEmpty()) {
+            if (needRetry || SignTextShardStorage.hasMemoryPending(level, chunkX, chunkZ)) {
+                markChunkDirty(level, chunkX, chunkZ);
+            }
+            return;
+        }
+
+        ArrayList<Long> doneIds = new ArrayList<>(pending.size());
+
         for (SignTextSqliteStorage.PendingSignText row : pending) {
-            boolean ok = switch (row.signType()) {
-                case SignTextShardStorage.TYPE_DISTANCE -> tryWriteDistanceSign(level, row.pos(), row.payload());
-                case SignTextShardStorage.TYPE_SEA_QUESTION -> tryWriteSeaQuestionSign(level, row.pos());
-                default -> true;
-            };
+            boolean ok = tryWrite(level, row.pos(), row.signType(), row.payload());
 
             if (ok || shouldDrop(level, row.pos())) {
                 doneIds.add(row.id());
@@ -170,7 +197,7 @@ public final class SignTextService {
         if (!doneIds.isEmpty()) {
             SignTextShardStorage.deleteByIds(level, doneIds);
         }
-        if (needRetry) {
+        if (needRetry || SignTextShardStorage.hasMemoryPending(level, chunkX, chunkZ)) {
             markChunkDirty(level, chunkX, chunkZ);
         }
     }
@@ -186,9 +213,22 @@ public final class SignTextService {
         return !level.getBlockState(pos).is(BlockTags.ALL_HANGING_SIGNS);
     }
 
+    public static void flushPersistentFallback(ServerLevel level) {
+        if (level == null) return;
+        SignTextShardStorage.flushPending(level);
+    }
+
     private static String sanitizeDistanceText(String text) {
         if (text == null || text.isEmpty()) return "0";
         if (text.length() <= MAX_DISTANCE_TEXT_LEN) return text;
         return text.substring(0, MAX_DISTANCE_TEXT_LEN);
+    }
+
+    private static boolean tryWrite(ServerLevel level, BlockPos pos, int signType, String payload) {
+        return switch (signType) {
+            case SignTextShardStorage.TYPE_DISTANCE -> tryWriteDistanceSign(level, pos, payload);
+            case SignTextShardStorage.TYPE_SEA_QUESTION -> tryWriteSeaQuestionSign(level, pos);
+            default -> true;
+        };
     }
 }

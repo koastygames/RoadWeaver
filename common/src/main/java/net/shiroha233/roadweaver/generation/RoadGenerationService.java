@@ -175,7 +175,7 @@ public final class RoadGenerationService {
                 updateConnectionStatus(level, conn, st);
                 removeProcessed(level, conn);
                 if (st == ConnectionStatus.COMPLETED) {
-                    RoadSnapService.snapAroundConnection(level, conn.from(), conn.to());
+                    RoadSnapService.snapAroundConnectionAsync(level, conn.from(), conn.to());
                 }
             });
         } catch (Throwable t) {
