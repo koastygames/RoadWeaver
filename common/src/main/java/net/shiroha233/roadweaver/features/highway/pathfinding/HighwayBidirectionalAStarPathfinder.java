@@ -135,9 +135,10 @@ public final class HighwayBidirectionalAStarPathfinder {
             BlockPos np = new BlockPos(nxz.getX(), y, nxz.getZ());
             if (closedThis.contains(np)) continue;
 
-            Holder<Biome> biome = biome(cache, terrain, level, np.getX(), np.getZ());
-            int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
-                    || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
+            boolean inTerrain = terrain.contains(np.getX(), np.getZ());
+            Holder<Biome> biome = inTerrain ? terrain.biome(np.getX(), np.getZ()) : cache.getBiome(level, np.getX(), np.getZ());
+            boolean waterBiome = biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN);
+            int biomeCost = waterBiome ? BIOME_BASE_COST : 0;
             int elevation = Math.abs(y - current.pos.getY());
 
             int offsetSum = Math.abs(Math.abs(off[0])) + Math.abs(off[1]);

@@ -2,10 +2,7 @@
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BiomeTags;
-import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
@@ -114,19 +111,15 @@ public final class BasicAStarPathfinder implements Pathfinder {
     private double computeMoveCost(BlockPos current, BlockPos np, BlockPos nxz, int[] off, int d,
                                    BlockPos start, BlockPos end, PathTerrainField terrain,
                                    PathfindingCostConfig cfg) {
-        Holder<Biome> biome = biome(terrain, np.getX(), np.getZ());
-        int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
-                || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? BIOME_BASE_COST : 0;
+        PathTerrainField.SampleBundle b = terrain.sampleBundle(np.getX(), np.getZ());
+        int waterDepth = b.waterDepth();
+        int biomeCost = b.waterBiome() ? BIOME_BASE_COST : 0;
         int elevation = Math.abs(np.getY() - current.getY());
         int offsetSum = Math.abs(off[0]) + Math.abs(off[1]);
         double stepCost = (offsetSum == 2 * d) ? cfg.diagStepCost() : cfg.orthoStepCost();
         int stabilityCost = calculateTerrainStability(terrain, np, np.getY(), d);
-        int sea = terrain.seaLevel();
-        boolean waterColumn = isColumnWater(terrain, nxz.getX(), nxz.getZ());
         boolean nearWater = isNearWaterLike(terrain, nxz.getX(), nxz.getZ(), d);
-        int oceanFloor = oceanFloorSampler(terrain, nxz.getX(), nxz.getZ());
-        int waterDepth = Math.max(0, sea - oceanFloor);
-        int waterDepthCost = waterColumn ? (int) (waterDepth * cfg.waterDepthWeight()) : 0;
+        int waterDepthCost = b.columnWater() ? (int) (waterDepth * cfg.waterDepthWeight()) : 0;
         int nearWaterCost = nearWater ? cfg.nearWaterCost() : 0;
         double deviation = deviation2d(np, start, end);
         double deviationCost = deviation * cfg.deviationWeight() / Math.max(1.0, d);

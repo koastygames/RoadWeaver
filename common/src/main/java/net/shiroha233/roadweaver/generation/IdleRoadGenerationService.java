@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -275,21 +276,37 @@ public final class IdleRoadGenerationService {
         if (owned == null || owned.isEmpty()) return null;
         ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
 
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
+        if (perLevel == null || perLevel.isEmpty()) return null;
+
         StructureConnection best = null;
         long bestDist = Long.MAX_VALUE;
-        for (StructureConnection c : conns) {
-            if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
-            long key = PlanningUtils.edgeKey(c.from(), c.to());
-            if (!owned.containsKey(key)) continue;
-            if (!isInsideAnyWindow(level, c)) {
-                owned.remove(key);
-                continue;
-            }
-            if (inFlight.containsKey(key)) continue;
-            long d = playerDistance2(c, players);
-            if (d < bestDist) {
-                best = c;
-                bestDist = d;
+
+        for (Map.Entry<UUID, IdleWindow> windowEntry : perLevel.entrySet()) {
+            IdleWindow w = windowEntry.getValue();
+            if (w == null) continue;
+            int wcCx = w.centerChunkX;
+            int wcCz = w.centerChunkZ;
+            int wRadius = w.radiusChunks;
+
+            for (StructureConnection c : conns) {
+                if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
+                long key = PlanningUtils.edgeKey(c.from(), c.to());
+                if (!owned.containsKey(key)) continue;
+                int mx = (c.from().getX() + c.to().getX()) >> 1;
+                int mz = (c.from().getZ() + c.to().getZ()) >> 1;
+                int mcx = mx >> 4;
+                int mcz = mz >> 4;
+                if (Math.abs(mcx - wcCx) > wRadius || Math.abs(mcz - wcCz) > wRadius) {
+                    owned.remove(key);
+                    continue;
+                }
+                if (inFlight.containsKey(key)) continue;
+                long d = playerDistance2(c, players);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = c;
+                }
             }
         }
         return best;

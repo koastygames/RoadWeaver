@@ -37,8 +37,10 @@ public final class HighwayCellPathPlanningService {
     private static final ConcurrentHashMap<Level, Set<Long>> PLANNED_CELLS = new ConcurrentHashMap<>();
     private static final int BORDER_ENTRY_MIN_BLOCKS = 48;
     private static final int BORDER_ENTRY_MAX_BLOCKS = 256;
-    private static final int BACKFILL_BUDGET_PER_TICK = 2;
+    private static final int BACKFILL_BUDGET_PER_TICK = 4;
     private static final int MAX_RING_SEARCH_DEPTH = 3;
+    private static final long RECENTLY_PROCESSED_TTL_TICKS = 60L;
+    private static final ConcurrentHashMap<Level, java.util.Map<Long, Long>> LAST_PROCESSED_TICK = new ConcurrentHashMap<>();
 
     public static void resetAll() {
         PLANNED_CELLS.clear();
@@ -69,12 +71,18 @@ public final class HighwayCellPathPlanningService {
         List<StructureConnection> highways = provider.getHighwayConnections(level);
         if (highways == null || highways.isEmpty()) return;
 
+        long currentTick = net.shiroha233.roadweaver.generation.RoadGenerationService.currentTick();
+        java.util.Map<Long, Long> lastProcessed = LAST_PROCESSED_TICK.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+
         int budget = BACKFILL_BUDGET_PER_TICK;
         for (StructureConnection c : highways) {
             if (budget <= 0) break;
             if (c == null) continue;
             if (!isTerminal(c.status())) continue;
-
+            long edgeKey = PlanningUtils.edgeKey(c.from(), c.to());
+            Long last = lastProcessed.get(edgeKey);
+            if (last != null && currentTick - last < RECENTLY_PROCESSED_TTL_TICKS) continue;
+            lastProcessed.put(edgeKey, currentTick);
             onHighwayEdgeFinalized(level, c);
             budget--;
         }

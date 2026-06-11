@@ -64,7 +64,7 @@ public final class RoadSqliteStorage {
     private static final ConcurrentHashMap<CacheKey, RoadData> ROAD_CACHE = new ConcurrentHashMap<>(ROAD_CACHE_MAX);
     private static final java.util.concurrent.atomic.AtomicInteger CACHE_SIZE = new java.util.concurrent.atomic.AtomicInteger(0);
     private static final Executor DESERIALIZE_EXECUTOR = Executors.newFixedThreadPool(
-            Math.max(1, Runtime.getRuntime().availableProcessors() / 4),
+            Math.max(2, Runtime.getRuntime().availableProcessors() / 2),
             r -> new Thread(r, "RW-Deserialize")
     );
 

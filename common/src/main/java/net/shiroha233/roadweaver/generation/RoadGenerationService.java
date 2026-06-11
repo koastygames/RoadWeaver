@@ -39,6 +39,13 @@ public final class RoadGenerationService {
     private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> HIGHWAY_PROCESSED = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING_COUNT = new ConcurrentHashMap<>();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentHashMap<ServerLevel, CachedPlayerList> PLAYER_LIST_CACHE = new ConcurrentHashMap<>();
+    private static final int PLAYER_LIST_REFRESH_TICKS = 5;
+    private static long CURRENT_TICK = 0L;
+
+    public static long currentTick() {
+        return CURRENT_TICK;
+    }
 
     private static final ResourceLocation ROAD_CF_ID = new ResourceLocation("roadweaver", "road_feature");
 
@@ -67,6 +74,7 @@ public final class RoadGenerationService {
     // ==================== tick 调度 ====================
 
     public static void tick(ServerLevel level) {
+        CURRENT_TICK++;
         refreshQueue(level);
         refreshHighwayQueue(level);
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
@@ -78,10 +86,8 @@ public final class RoadGenerationService {
         int limit = Math.max(1, ConfigService.get().performance().maxConcurrentGenerations());
         AtomicInteger cnt = RUNNING_COUNT.computeIfAbsent(level, l -> new AtomicInteger(0));
 
-        List<ServerPlayer> players = new ArrayList<>();
-        for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
-            if (p != null && p.serverLevel() == level) players.add(p);
-        }
+        List<ServerPlayer> players = getCachedPlayers(level);
+        if (players == null) return;
 
         boolean pickHighway = false;
         while (cnt.get() < limit) {
@@ -350,5 +356,25 @@ public final class RoadGenerationService {
         long dx = (long) a.getX() - b.getX();
         long dz = (long) a.getZ() - b.getZ();
         return dx * dx + dz * dz;
+    }
+
+    private static List<ServerPlayer> getCachedPlayers(ServerLevel level) {
+        CachedPlayerList cache = PLAYER_LIST_CACHE.computeIfAbsent(level, l -> new CachedPlayerList());
+        if (CURRENT_TICK - cache.lastTick >= PLAYER_LIST_REFRESH_TICKS || cache.players == null) {
+            List<ServerPlayer> fresh = new ArrayList<>();
+            var server = level.getServer();
+            if (server == null) return null;
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                if (p != null && p.serverLevel() == level) fresh.add(p);
+            }
+            cache.players = fresh;
+            cache.lastTick = CURRENT_TICK;
+        }
+        return cache.players;
+    }
+
+    private static final class CachedPlayerList {
+        long lastTick = Long.MIN_VALUE;
+        List<ServerPlayer> players = null;
     }
 }

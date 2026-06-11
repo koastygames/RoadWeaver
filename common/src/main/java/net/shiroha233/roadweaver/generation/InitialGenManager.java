@@ -182,9 +182,9 @@ public final class InitialGenManager {
             }
         });
 
-        List<Future<GenResult>> futures = new ArrayList<>();
+        List<CompletableFuture<GenResult>> futures = new ArrayList<>();
         for (StructureConnection task : tasks) {
-            futures.add(executor.submit(() -> {
+            futures.add(CompletableFuture.supplyAsync(() -> {
                 generating.incrementAndGet();
                 boolean success = highway
                         ? RoadGenerationService.generateHighwayTask(level, task)
@@ -192,16 +192,21 @@ public final class InitialGenManager {
                 generating.decrementAndGet();
                 if (success) done.incrementAndGet(); else failed.incrementAndGet();
                 return new GenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
-            }));
+            }, executor));
         }
 
         Map<Long, Boolean> results = new HashMap<>();
-        for (Future<GenResult> f : futures) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+        while (!futures.isEmpty()) {
+            pollPendingResults(futures, results);
+            futures.removeIf(f -> f.isDone());
+            if (futures.isEmpty()) break;
+            if (System.nanoTime() > deadline) break;
             try {
-                GenResult r = f.get();
-                if (r != null) results.put(r.key(), r.success());
-            } catch (Exception e) {
-                e.printStackTrace();
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
             }
         }
 
@@ -213,6 +218,16 @@ public final class InitialGenManager {
             Thread.currentThread().interrupt();
         }
         return results;
+    }
+
+    private static void pollPendingResults(List<CompletableFuture<GenResult>> futures,
+                                           Map<Long, Boolean> results) {
+        for (CompletableFuture<GenResult> f : futures) {
+            if (f.isDone() && !f.isCompletedExceptionally()) {
+                GenResult r = f.getNow(null);
+                if (r != null) results.put(r.key(), r.success());
+            }
+        }
     }
 
     private static void batchUpdateConnectionStatus(WorldDataProvider provider,

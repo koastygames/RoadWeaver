@@ -81,13 +81,14 @@ public final class RoadDatabaseManager {
                         + ";MODE=LEGACY"
                         + ";FILE_LOCK=NO"
                         + ";AUTO_SERVER=FALSE"
-                        + ";CACHE_SIZE=8192";
+                        + ";CACHE_SIZE=8192"
+                        + ";LOCK_MODE=0";
 
                 conn = DriverManager.getConnection(url, "sa", "");
 
                 try (Statement stmt = conn.createStatement()) {
-                    stmt.execute("SET WRITE_DELAY 1000");
-                    stmt.execute("SET LOCK_TIMEOUT 10000");
+                    stmt.execute("SET WRITE_DELAY 0");
+                    stmt.execute("SET LOCK_TIMEOUT 2000");
                 }
 
                 initTables(conn);
