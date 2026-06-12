@@ -13,11 +13,10 @@ import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
-import net.shiroha233.roadweaver.config.ConfigService;
-import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
+import net.shiroha233.roadweaver.network.MapRequestBounds;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -55,28 +54,12 @@ public class MapNetworkFabric {
             int cx = (int) Math.round(sp.getX());
             int cz = (int) Math.round(sp.getZ());
             
-            int computedRadiusBlocks;
-            try {
-                ModConfig cfg = ConfigService.get();
-                if (cfg.highway().enabled()) {
-                    computedRadiusBlocks = Math.max(16, cfg.highway().planningRadiusBlocks());
-                } else {
-                    int radiusChunks = cfg.planning().dynamicPlanEnabled()
-                            ? cfg.planning().dynamicPlanRadiusChunks()
-                            : cfg.planning().initialPlanRadiusChunks();
-                    computedRadiusBlocks = Math.max(1, radiusChunks) * 16;
-                }
-            } catch (Throwable t) {
-                computedRadiusBlocks = 256 * 16;
-            }
-            
-            final int radiusBlocksFinal = Math.max(16, computedRadiusBlocks);
-            
             CompletableFuture
                 .supplyAsync(() -> {
                     var level = sp.serverLevel();
                     ResourceLocation actualDimensionId = level.dimension().location();
-                    MapSnapshot snapshot = MapDataCollector.build(level, minX, minZ, maxX, maxZ, cx, cz, radiusBlocksFinal);
+                    MapRequestBounds.Rect rect = MapRequestBounds.clampToPlayer(sp, minX, minZ, maxX, maxZ);
+                    MapSnapshot snapshot = MapDataCollector.build(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ(), cx, cz, rect.radiusBlocks());
                     FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
                     out.writeVarInt(requestSeq);
                     out.writeResourceLocation(actualDimensionId);

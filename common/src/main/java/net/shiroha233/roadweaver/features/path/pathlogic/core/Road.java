@@ -19,6 +19,8 @@ import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCal
 import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
@@ -73,9 +75,10 @@ public final class Road {
         BlockPos rawEnd = connection.to();
         
         TerrainSamplingCache cache = new TerrainSamplingCache();
+        CoarseTerrainRegion coarseRegion = CoarseTerrainRegionRegistry.acquire(level, connection);
         try {
             PathCalculationResult pathResult = RoadPathCalculator.calculateAStarRoadPathDetailed(
-                    rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
+                    rawStart, rawEnd, width, level, maxSteps, cache, genConfig, coarseRegion);
             List<RoadSegmentPlacement> rawSegments = pathResult.segments();
             if (rawSegments == null || rawSegments.size() < 5) return null;
             
@@ -96,6 +99,7 @@ public final class Road {
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
             return rd;
         } finally {
+            CoarseTerrainRegionRegistry.release(level, connection);
             cache.clear();
         }
     }

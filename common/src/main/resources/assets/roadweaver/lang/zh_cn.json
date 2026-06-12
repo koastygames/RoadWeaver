@@ -158,6 +158,7 @@
   "gui.roadweaver.map.teleport.success": "传送成功",
   "gui.roadweaver.map.teleport.success_pos": "已传送到（%s，%s，%s）",
   "gui.roadweaver.map.teleport.denied": "没有权限进行传送",
+  "gui.roadweaver.map.placeholder.unavailable": "该区域暂无地图数据，请先等待规划与道路粗采样完成。",
   "gui.roadweaver.sign.next_location": "下一个地点：",
   "gui.roadweaver.sign.welcome": "欢迎",
   "gui.roadweaver.sign.traveller": "旅行者",

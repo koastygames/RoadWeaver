@@ -14,6 +14,7 @@ import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig
 import net.shiroha233.roadweaver.features.highway.generation.HighwayRoad;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
@@ -68,6 +69,7 @@ public final class RoadGenerationService {
         RUNNING_COUNT.clear();
         RoadPlanningService.resetAll();
         HighwayCellPathPlanningService.resetAll();
+        CoarseTerrainRegionRegistry.clearAll();
         IdleRoadGenerationService.onServerStopping();
     }
 

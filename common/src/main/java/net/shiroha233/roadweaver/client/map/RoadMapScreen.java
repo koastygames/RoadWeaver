@@ -18,12 +18,16 @@ import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
 import net.shiroha233.roadweaver.client.map.render.GridRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapRenderers;
 import net.shiroha233.roadweaver.client.map.render.RenderUtils;
+import net.shiroha233.roadweaver.client.map.tile.SingleplayerOverlayTileManager;
+import net.shiroha233.roadweaver.client.map.tile.SingleplayerTerrainTileManager;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
 import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
+import net.shiroha233.roadweaver.map.tile.core.MapTileAoi;
+import net.shiroha233.roadweaver.map.tile.core.MapTileAoiLocator;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 import net.shiroha233.roadweaver.util.ComputeService;
 
@@ -44,6 +48,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private static final Component MENU_SET_ALIAS = Component.translatable("gui.roadweaver.map.menu.set_alias");
     private static final Component MENU_EDIT_NOTE = Component.translatable("gui.roadweaver.map.menu.edit_note");
     private static final Component DIALOG_ALIAS_TITLE = Component.translatable("gui.roadweaver.map.dialog.alias_title");
+    private static final Component MAP_PLACEHOLDER = Component.translatable("gui.roadweaver.map.placeholder.unavailable");
 
     // 数据
     private MapSnapshot snapshot = MapSnapshot.empty();
@@ -54,6 +59,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private final MapView view = new MapView();
     private final MapInputHandler inputHandler;
     private final ContextMenu contextMenu = new ContextMenu();
+    private final SingleplayerTerrainTileManager terrainTiles = new SingleplayerTerrainTileManager();
+    private final SingleplayerOverlayTileManager overlayTiles = new SingleplayerOverlayTileManager();
     
     // 布局
     private int mapX, mapY, mapW, mapH;
@@ -97,6 +104,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     @Override
     public void removed() {
         super.removed();
+        terrainTiles.clear();
+        overlayTiles.clear();
         MapSnapshotCache.scheduleClear(1000);
     }
 
@@ -110,14 +119,9 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(g);
-        
-        // 地图纹理
-        g.blit(MAP_TEXTURE, mapX, mapY, mapW, mapH, 0, 0, 
-               MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT, MapTheme.TEX_WIDTH, MapTheme.TEX_HEIGHT);
 
-        // 标题
-        int titleY = mapY - 8;
-        g.drawCenteredString(this.font, this.getTitle(), this.width / 2, Math.max(6, titleY), MapTheme.COLOR_TEXT);
+        int titleY = 6;
+        g.drawCenteredString(this.font, this.getTitle(), this.width / 2, titleY, MapTheme.COLOR_TEXT);
 
         int contentW = mapW - MapTheme.INNER_PADDING * 2;
         int contentH = mapH - MapTheme.INNER_PADDING * 2;
@@ -127,93 +131,94 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         int top = mapY + MapTheme.INNER_PADDING;
         int right = mapX + mapW - MapTheme.INNER_PADDING;
         int bottom = mapY + mapH - MapTheme.INNER_PADDING;
-        
+
+        Minecraft mc = this.minecraft;
+        if (mc != null) {
+            MinecraftServer server = mc.getSingleplayerServer();
+            if (server != null && mc.level != null) {
+                ServerLevel level = server.getLevel(mc.level.dimension());
+                if (level != null) {
+                    int cx = mc.player != null ? (int) Math.round(mc.player.getX()) : 0;
+                    int cz = mc.player != null ? (int) Math.round(mc.player.getZ()) : 0;
+                    int radiusBlocks = MapTileAoiLocator.dynamicPlanningRadiusBlocks();
+                    MapTileAoi aoi = new MapTileAoi(level.dimension().location(), cx, cz, radiusBlocks);
+                    terrainTiles.request(level, aoi, view, contentW, contentH);
+                }
+            }
+        }
+
+        g.fill(mapX, mapY, mapX + mapW, mapY + mapH, 0xFFDDD4BF);
         g.enableScissor(left, top, right, bottom);
-        
-        // 网格
+
+        terrainTiles.render(g, this.minecraft, view, left, top, contentW, contentH);
+        if (!terrainTiles.hasRenderableTiles()) {
+            int textX = left + 8;
+            int textY = top + 8;
+            g.drawString(this.font, MAP_PLACEHOLDER, textX, textY, MapTheme.COLOR_TEXT, false);
+        }
         MapRenderers.renderGrid(g, this.font, mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
-                view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(), 
+                view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(),
                 MapTheme.COLOR_GRID, MapTheme.GRID_TARGET_PX, MapTheme.COLOR_TEXT);
 
         int thickness = computeThickness();
-
-        // 道路折线的 LOD：缩放较远时不绘制折线，改用连接直线（避免"只剩细节线段"导致层级渲染失效）。
-        int lodStep = GridRenderer.computeGridStep(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
-                view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(), MapTheme.GRID_TARGET_PX);
-        boolean renderRoadPolylines = !snapshot.roadPolylines().isEmpty() && lodStep <= 256;
-        
-        // 连接线（排除已完成的，因为会用道路折线表示）
-        List<StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
-        if (renderRoadPolylines) {
-            connForLines.removeIf(c -> c.status() == ConnectionStatus.COMPLETED);
-        }
-        MapRenderers.renderConnections(g, connForLines,
+        MapRenderers.renderRoadPolylines(g, snapshot.roadPolylines(),
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
                 v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
                 v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
-                thickness,
-                MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING, 
-                MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
-                left, top, right, bottom);
-
-        // 道路折线
-        if (renderRoadPolylines) {
-            MapRenderers.renderRoadPolylines(g, snapshot.roadPolylines(),
-                    (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
-                    v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
-                    v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
-                    thickness, MapTheme.COLOR_COMPLETED,
-                    left, top, right, bottom, lodStep);
-        }
-
-        // 结构点
+                Math.max(1, thickness),
+                MapTheme.COLOR_COMPLETED,
+                left, top, right, bottom,
+                Math.max(1, Math.round(16 / Math.max(0.1f, (float) view.pxPerBlockX(contentW)))));
         MapRenderers.renderStructures(g, snapshot.structures(),
                 v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
                 v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
                 (x, z) -> view.isInViewWorld(x, z),
-                computePointSize(), MapTheme.COLOR_STRUCTURE,
+                computePointSize(),
+                MapTheme.COLOR_STRUCTURE,
+                left, top, right, bottom);
+        List<StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
+        connForLines.removeIf(c -> c.status() == ConnectionStatus.COMPLETED);
+        MapRenderers.renderConnections(g, connForLines,
+                (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
+                v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
+                v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
+                Math.max(1, thickness - 1),
+                MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
+                MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
                 left, top, right, bottom);
 
-        // 手动连接模式的预览
         renderManualModePreview(g, mouseX, mouseY, contentW, contentH, left, top, right, bottom);
 
-        // 悬停高亮
         if (!contextMenu.isOpen()) {
-            MapInteraction.renderHoverHighlight(g, snapshot, view, mapX, mapY, mapW, mapH, 
+            MapInteraction.renderHoverHighlight(g, snapshot, view, mapX, mapY, mapW, mapH,
                     MapTheme.INNER_PADDING, mouseX, mouseY);
         }
 
-        // 玩家箭头
         renderPlayer(g, contentW, contentH, left, top, right, bottom);
-        
+
         g.disableScissor();
 
-        // 图例
         int legendRight = mapX + mapW - MapTheme.INNER_PADDING;
         int legendStartY = mapY + MapTheme.INNER_PADDING + 8;
         MapRenderers.renderLegend(g, this.font, legendRight, legendStartY, 8,
-                MapTheme.COLOR_TEXT, MapTheme.COLOR_STRUCTURE, 
-                MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING, 
+                MapTheme.COLOR_TEXT, MapTheme.COLOR_STRUCTURE,
+                MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
                 MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
-                snapshot.structuresCount(), snapshot.plannedCount(), 
+                snapshot.structuresCount(), snapshot.plannedCount(),
                 snapshot.generatingCount(), snapshot.completedCount(), snapshot.failedCount());
 
-        // 工具栏按钮
         renderToolbarButtons(g, mouseX, mouseY);
 
-        // 悬停提示
         if (!contextMenu.isOpen()) {
             MapInteraction.renderHoverTooltip(g, this.font, snapshot, view, mapX, mapY, mapW, mapH,
                     MapTheme.INNER_PADDING, mouseX, mouseY);
         }
 
-        // 缩放防抖检查
         if (state.isZoomDebounceReady()) {
             state.clearZoomDebounce();
             onRequestView();
         }
 
-        // 右键菜单
         contextMenu.render(g, this.font, mouseX, mouseY, this.width, this.height);
 
         super.render(g, mouseX, mouseY, partialTick);
@@ -402,6 +407,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         Minecraft mc = this.minecraft;
         if (mc == null) return;
 
+        int contentW = mapW - MapTheme.INNER_PADDING * 2;
+        int contentH = mapH - MapTheme.INNER_PADDING * 2;
         ResourceLocation dimensionId = (mc.level != null) ? mc.level.dimension().location() : null;
         if (dimensionId != null && (currentDimensionId == null || !dimensionId.equals(currentDimensionId))) {
             currentDimensionId = dimensionId;
@@ -410,10 +417,9 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 this.snapshot = cached;
             }
         }
-        
+
         MinecraftServer server = mc.getSingleplayerServer();
         if (server != null) {
-            // 单人模式：本地构造快照
             ServerLevel level = null;
             if (mc.level != null) {
                 level = server.getLevel(mc.level.dimension());
@@ -425,13 +431,18 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                     cx = (int) Math.round(mc.player.getX());
                     cz = (int) Math.round(mc.player.getZ());
                 }
-                int radiusBlocks = getRadiusBlocks();
+                int radiusBlocks = MapTileAoiLocator.dynamicPlanningRadiusBlocks();
+                MapTileAoi aoi = new MapTileAoi(levelFinal.dimension().location(), cx, cz, radiusBlocks);
+                terrainTiles.request(levelFinal, aoi, view, contentW, contentH);
                 final int fcx = cx, fcz = cz;
-                final int fMinX = minX, fMaxX = maxX, fMinZ = minZ, fMaxZ = maxZ;
+                final int clippedMinX = Math.max(minX, aoi.minBlockX());
+                final int clippedMaxX = Math.min(maxX, aoi.maxBlockX());
+                final int clippedMinZ = Math.max(minZ, aoi.minBlockZ());
+                final int clippedMaxZ = Math.min(maxZ, aoi.maxBlockZ());
                 final int currentSeq = state.incrementAndGetRequestSeq();
-                
+
                 CompletableFuture
-                    .supplyAsync(() -> MapDataCollector.build(levelFinal, fMinX, fMinZ, fMaxX, fMaxZ, fcx, fcz, radiusBlocks), 
+                    .supplyAsync(() -> MapDataCollector.build(levelFinal, clippedMinX, clippedMinZ, clippedMaxX, clippedMaxZ, fcx, fcz, radiusBlocks),
                                  ComputeService.executor())
                     .thenAccept(snap -> mc.execute(() -> {
                         if (state.getCurrentRequestSeq() == currentSeq) {
@@ -440,7 +451,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                     }));
             }
         } else {
-            // 多人模式：发送网络请求
             int requestSeq = state.incrementAndGetRequestSeq();
             ResourceLocation did = (mc.level != null) ? mc.level.dimension().location() : new ResourceLocation("minecraft", "overworld");
             ClientNetBridge.requestSnapshot(requestSeq, did, minX, minZ, maxX, maxZ);
@@ -515,19 +525,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     // ========== 辅助方法 ==========
     
     private void computeMapRect() {
-        int availW = this.width - MapTheme.OUTER_PADDING * 2;
-        int availH = this.height - MapTheme.OUTER_PADDING * 2;
-        float ratio = (float) MapTheme.TEX_WIDTH / MapTheme.TEX_HEIGHT;
-        int w = availW;
-        int h = Math.round(w / ratio);
-        if (h > availH) {
-            h = availH;
-            w = Math.round(h * ratio);
-        }
-        mapW = w;
-        mapH = h;
-        mapX = (this.width - w) / 2;
-        mapY = (this.height - h) / 2;
+        mapX = 0;
+        mapY = 0;
+        mapW = this.width;
+        mapH = this.height;
     }
 
     private int computeThickness() {
@@ -543,19 +544,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     }
 
     private int getRadiusBlocks() {
-        try {
-            var cfg = net.shiroha233.roadweaver.config.ConfigService.get();
-            if (cfg.highway().enabled()) {
-                return Math.max(16, cfg.highway().planningRadiusBlocks());
-            } else {
-                int radiusChunks = cfg.planning().dynamicPlanEnabled()
-                        ? cfg.planning().dynamicPlanRadiusChunks()
-                        : cfg.planning().initialPlanRadiusChunks();
-                return Math.max(1, radiusChunks) * 16;
-            }
-        } catch (Throwable t) {
-            return 256 * 16;
-        }
+        return MapTileAoiLocator.dynamicPlanningRadiusBlocks();
     }
 
     private void openContextMenuFor(BlockPos target, int x, int y) {

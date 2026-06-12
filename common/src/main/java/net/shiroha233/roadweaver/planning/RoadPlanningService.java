@@ -10,6 +10,10 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainPngWriter;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionSampler;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.planning.impl.KNNPlanner;
@@ -129,9 +133,10 @@ public final class RoadPlanningService {
         ArrayList<StructureConnection> incoming = new ArrayList<>(primaryEdges);
         incoming.addAll(bridges);
         List<StructureConnection> merged = mergeConnections(existing, incoming);
-        if (merged.size() != existing.size()) {
+        if (merged.size() != (existing == null ? 0 : existing.size())) {
             provider.setStructureConnections(level, merged);
         }
+        prepareCoarseRegionForConnections(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
     }
 
     private static void collectStructurePointsInto(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ, List<BlockPos> out, Set<Long> seenPos) {
@@ -163,6 +168,8 @@ public final class RoadPlanningService {
         return planRectAsync(level, minX, minZ, maxX, maxZ);
     }
 
+    private record PlannedRegionResult(List<StructureConnection> incoming, CoarseTerrainRegion region) {}
+
     public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         final long epoch = ThreadPoolManager.currentEpoch();
         final List<StructureConnection> existingSnapshot;
@@ -172,8 +179,8 @@ public final class RoadPlanningService {
             existingSnapshot = ex != null ? new ArrayList<>(ex) : new ArrayList<>();
         }
         return ComputeService.supplyAsync(() -> {
-            if (Thread.currentThread().isInterrupted()) return new ArrayList<StructureConnection>();
-            if (!ThreadPoolManager.isEpoch(epoch)) return new ArrayList<StructureConnection>();
+            if (Thread.currentThread().isInterrupted()) return new PlannedRegionResult(List.of(), null);
+            if (!ThreadPoolManager.isEpoch(epoch)) return new PlannedRegionResult(List.of(), null);
             ArrayList<BlockPos> points = new ArrayList<>();
             HashSet<Long> seenPos = new HashSet<>();
             collectStructurePointsInto(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, points, seenPos);
@@ -185,7 +192,7 @@ public final class RoadPlanningService {
                 if (seenPos.add(kf)) points.add(f);
                 if (seenPos.add(kt)) points.add(t);
             }
-            if (points.size() < 2) return new ArrayList<StructureConnection>();
+            if (points.size() < 2) return new PlannedRegionResult(List.of(), null);
 
             ArrayList<StructureConnection> existingInRect = new ArrayList<>();
             HashSet<Long> existingEdgeKeys = new HashSet<>();
@@ -200,7 +207,7 @@ public final class RoadPlanningService {
             ModConfig cfg0 = ConfigService.get();
             NetworkPlanner planner = NetworkPlannerFactory.create(cfg0.planning().planningAlgorithm());
             List<StructureConnection> primaryEdges = planner.plan(points, RoadConstants.DEFAULT_PLAN_MAX_EDGE_LEN_BLOCKS);
-            if (primaryEdges.isEmpty() && existingInRect.isEmpty()) return new ArrayList<StructureConnection>();
+            if (primaryEdges.isEmpty() && existingInRect.isEmpty()) return new PlannedRegionResult(List.of(), null);
 
             ArrayList<StructureConnection> filteredPrimary = new ArrayList<>();
             for (StructureConnection c : primaryEdges) {
@@ -220,19 +227,24 @@ public final class RoadPlanningService {
 
             ArrayList<StructureConnection> incoming = new ArrayList<>(filteredPrimary);
             incoming.addAll(bridges);
-            return incoming;
-        }).thenAccept(incoming -> {
-            if (incoming == null || incoming.isEmpty()) return;
+            CoarseTerrainRegion region = prepareCoarseRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
+            return new PlannedRegionResult(incoming, region);
+        }).thenAccept(result -> {
+            if (result == null || result.incoming().isEmpty()) return;
             if (!ThreadPoolManager.isEpoch(epoch)) return;
             var server = level.getServer();
             if (server == null) return;
             server.execute(() -> {
                 if (!ThreadPoolManager.isEpoch(epoch)) return;
                 WorldDataProvider provider = WorldDataProvider.getInstance();
+                List<StructureConnection> incoming = result.incoming();
                 List<StructureConnection> existing = provider.getStructureConnections(level);
                 List<StructureConnection> merged = mergeConnections(existing, incoming);
                 if (merged.size() != (existing == null ? 0 : existing.size())) {
                     provider.setStructureConnections(level, merged);
+                }
+                if (result.region() != null) {
+                    CoarseTerrainRegionRegistry.register(level, incoming, result.region());
                 }
             });
         });
@@ -252,6 +264,36 @@ public final class RoadPlanningService {
             if (seen.add(k)) out.add(new StructureConnection(c.from(), c.to(), ConnectionStatus.PLANNED));
         }
         return out;
+    }
+
+    private static void prepareCoarseRegionForConnections(ServerLevel level,
+                                                          int minBlockX,
+                                                          int minBlockZ,
+                                                          int maxBlockX,
+                                                          int maxBlockZ,
+                                                          List<StructureConnection> incoming) {
+        CoarseTerrainRegion region = prepareCoarseRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
+        if (region != null) {
+            CoarseTerrainRegionRegistry.register(level, incoming, region);
+        }
+    }
+
+    private static CoarseTerrainRegion prepareCoarseRegion(ServerLevel level,
+                                                           int minBlockX,
+                                                           int minBlockZ,
+                                                           int maxBlockX,
+                                                           int maxBlockZ,
+                                                           List<StructureConnection> incoming) {
+        if (level == null || incoming == null || incoming.isEmpty()) return null;
+        ModConfig cfg = ConfigService.get();
+        int step = cfg.pathfindingCost().effectiveAStarStep();
+        try {
+            CoarseTerrainRegion region = CoarseTerrainRegionSampler.sample(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
+            CoarseTerrainPngWriter.writeTerrainTiles(level, region);
+            return region;
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private static ArrayList<BlockPos> collectComponentPoints(List<BlockPos> seed,

@@ -1,4 +1,4 @@
-﻿{
+{
   "category.roadweaver": "RoadWeaver",
   "gui.roadweaver.config": "Config",
   "gui.roadweaver.config_button": "RoadWeaver Config",
@@ -158,6 +158,7 @@
   "gui.roadweaver.map.teleport.success": "Teleported",
   "gui.roadweaver.map.teleport.success_pos": "Teleported to (%s, %s, %s)",
   "gui.roadweaver.map.teleport.denied": "No permission to teleport",
+  "gui.roadweaver.map.placeholder.unavailable": "No map data for this area yet. Wait for planning and coarse sampling to finish.",
   "gui.roadweaver.sign.next_location": "Next Location",
   "gui.roadweaver.sign.welcome": "Welcome",
   "gui.roadweaver.sign.traveller": "Traveler",

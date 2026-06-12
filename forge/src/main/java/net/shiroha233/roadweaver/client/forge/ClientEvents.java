@@ -11,6 +11,7 @@ import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
+import net.shiroha233.roadweaver.client.map.tile.ClientMapTileTextureCache;
 
 /**
  * Forge client events.
@@ -23,6 +24,7 @@ public final class ClientEvents {
     public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn e) {
         ClientMapAccessGuard.reset();
         MapSnapshotCache.clearNow();
+        ClientMapTileTextureCache.clear(Minecraft.getInstance());
         ClientMapNotes.onWorldJoin();
     }
 
@@ -30,6 +32,7 @@ public final class ClientEvents {
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut e) {
         ClientMapAccessGuard.reset();
         MapSnapshotCache.clearNow();
+        ClientMapTileTextureCache.clear(Minecraft.getInstance());
         ClientMapNotes.onWorldLeave();
     }
 

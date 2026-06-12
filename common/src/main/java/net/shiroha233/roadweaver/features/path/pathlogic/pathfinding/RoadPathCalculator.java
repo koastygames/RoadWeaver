@@ -42,6 +42,17 @@ public final class RoadPathCalculator {
                                                                        int maxSteps,
                                                                        TerrainSamplingCache cache,
                                                                        RoadGenerationConfig cfg) {
+        return calculateAStarRoadPathDetailed(startIn, endIn, width, level, maxSteps, cache, cfg, null);
+    }
+
+    public static PathCalculationResult calculateAStarRoadPathDetailed(BlockPos startIn,
+                                                                       BlockPos endIn,
+                                                                       int width,
+                                                                       ServerLevel level,
+                                                                       int maxSteps,
+                                                                       TerrainSamplingCache cache,
+                                                                       RoadGenerationConfig cfg,
+                                                                       PathTerrainField coarseOverride) {
         PathfindingCostConfig pathCfg = cfg.pathfinding();
         int dGrid = pathCfg.effectiveAStarStep();
         int sx = snapToGrid(startIn.getX(), dGrid);
@@ -55,7 +66,12 @@ public final class RoadPathCalculator {
         BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
         BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
 
-        PathTerrainField coarseTerrain = PathTerrainFieldFactory.cached(level, cache, dGrid);
+        PathTerrainField coarseTerrain = coarseOverride != null
+                && coarseOverride.step() == dGrid
+                && coarseOverride.contains(startGround.getX(), startGround.getZ())
+                && coarseOverride.contains(endGround.getX(), endGround.getZ())
+                ? coarseOverride
+                : PathTerrainFieldFactory.cached(level, cache, dGrid);
         List<BlockPos> coarsePath = calculateRawPath(startGround, endGround, level, maxSteps, cache, coarseTerrain, pathCfg);
         if (coarsePath == null || coarsePath.isEmpty()) {
             return PathCalculationResult.failure();

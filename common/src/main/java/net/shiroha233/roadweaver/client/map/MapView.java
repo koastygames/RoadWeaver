@@ -162,8 +162,8 @@ public final class MapView {
         lockAspect(contentW, contentH);
     }
 
-    double getMinX() { return minX; }
-    double getMaxX() { return maxX; }
-    double getMinZ() { return minZ; }
-    double getMaxZ() { return maxZ; }
+    public double getMinX() { return minX; }
+    public double getMaxX() { return maxX; }
+    public double getMinZ() { return minZ; }
+    public double getMaxZ() { return maxZ; }
 }

@@ -15,7 +15,6 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
-import net.shiroha233.roadweaver.search.StructureIndexService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +32,11 @@ public final class MapDataCollector {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final boolean PERF_DEBUG = Boolean.getBoolean("roadweaver.mapPerfDebug");
 
-    public static final int MAX_DETAILED_ROAD_SPAN_BLOCKS = 7680;
+    public static final int MAX_DETAILED_ROAD_SPAN_BLOCKS = 2048;
+    public static final int MAX_SNAPSHOT_STRUCTURES = 2048;
+    public static final int MAX_SNAPSHOT_CONNECTIONS = 4096;
+    public static final int MAX_SNAPSHOT_ROAD_POLYLINES = 512;
+    public static final int MAX_SNAPSHOT_ROAD_POINTS = 32768;
 
     public static MapSnapshot build(ServerLevel level) {
         final long tAll0 = PERF_DEBUG ? System.nanoTime() : 0L;
@@ -94,9 +97,8 @@ public final class MapDataCollector {
             }
         }
 
-        final long tPred0 = PERF_DEBUG ? System.nanoTime() : 0L;
-        List<StructureInfo> verified = StructureIndexService.predictAndVerifyAroundSpawn(level);
-        final long predMs = PERF_DEBUG ? (System.nanoTime() - tPred0) / 1_000_000L : 0L;
+        List<StructureInfo> verified = List.of();
+        final long predMs = 0L;
         if (!verified.isEmpty()) {
             Set<BlockPos> existing = new HashSet<>(structures);
             for (StructureInfo info : verified) {
@@ -129,15 +131,16 @@ public final class MapDataCollector {
                     totalMs, predMs);
         }
 
-        return new MapSnapshot(structures, conns, infos, roads);
+        return new MapSnapshot(limitList(structures, MAX_SNAPSHOT_STRUCTURES),
+                limitList(conns, MAX_SNAPSHOT_CONNECTIONS),
+                infos,
+                limitRoadPolylines(roads));
     }
 
     public static MapSnapshot build(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> connections = provider.getStructureConnections(level);
         List<StructureConnection> highwayConnections = provider.getHighwayConnections(level);
-
-        StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
 
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
@@ -200,7 +203,10 @@ public final class MapDataCollector {
             if (poly.size() >= 2) roads.add(poly);
         }
 
-        return new MapSnapshot(structures, conns, infos, roads);
+        return new MapSnapshot(limitList(structures, MAX_SNAPSHOT_STRUCTURES),
+                limitList(conns, MAX_SNAPSHOT_CONNECTIONS),
+                infos,
+                limitRoadPolylines(roads));
     }
 
     public static MapSnapshot build(ServerLevel level,
@@ -346,15 +352,8 @@ public final class MapDataCollector {
 
         List<StructureInfo> infos = new ArrayList<>(bestInfoByPos.values());
 
-        int predMinX = Math.max(minBlockX, centerX - radiusBlocks);
-        int predMaxX = Math.min(maxBlockX, centerX + radiusBlocks);
-        int predMinZ = Math.max(minBlockZ, centerZ - radiusBlocks);
-        int predMaxZ = Math.min(maxBlockZ, centerZ + radiusBlocks);
-        final long tPred0 = PERF_DEBUG ? System.nanoTime() : 0L;
-        List<StructureInfo> predictedInfos = (predMinX <= predMaxX && predMinZ <= predMaxZ)
-                ? StructureIndexService.predictAndVerifyInRect(level, predMinX, predMinZ, predMaxX, predMaxZ)
-                : List.of();
-        final long predMs = PERF_DEBUG ? (System.nanoTime() - tPred0) / 1_000_000L : 0L;
+        List<StructureInfo> predictedInfos = List.of();
+        final long predMs = 0L;
         if (!predictedInfos.isEmpty()) {
             java.util.HashSet<BlockPos> existingStructures = new java.util.HashSet<>(structures);
             for (StructureInfo info : predictedInfos) {
@@ -413,7 +412,33 @@ public final class MapDataCollector {
                     totalMs, predMs);
         }
 
-        return new MapSnapshot(structures, conns, infos, roads);
+        return new MapSnapshot(limitList(structures, MAX_SNAPSHOT_STRUCTURES),
+                limitList(conns, MAX_SNAPSHOT_CONNECTIONS),
+                infos,
+                limitRoadPolylines(roads));
+    }
+
+    private static <T> List<T> limitList(List<T> input, int maxSize) {
+        if (input == null || input.isEmpty()) return List.of();
+        int limit = Math.max(0, maxSize);
+        if (input.size() <= limit) return input;
+        return new ArrayList<>(input.subList(0, limit));
+    }
+
+    private static List<List<BlockPos>> limitRoadPolylines(List<List<BlockPos>> roads) {
+        if (roads == null || roads.isEmpty()) return List.of();
+        ArrayList<List<BlockPos>> out = new ArrayList<>();
+        int remainingPoints = MAX_SNAPSHOT_ROAD_POINTS;
+        for (List<BlockPos> road : roads) {
+            if (out.size() >= MAX_SNAPSHOT_ROAD_POLYLINES || remainingPoints <= 1) break;
+            if (road == null || road.size() < 2) continue;
+            int take = Math.min(road.size(), remainingPoints);
+            if (take >= 2) {
+                out.add(take == road.size() ? road : new ArrayList<>(road.subList(0, take)));
+                remainingPoints -= take;
+            }
+        }
+        return out;
     }
 
     private static void mergeBestStructureInfo(java.util.Map<Long, StructureInfo> out, StructureInfo info) {
