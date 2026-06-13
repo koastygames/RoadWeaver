@@ -4,6 +4,8 @@ import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
+import java.util.Map;
+
 /**
  * 区域级粗采样结果。
  */
@@ -18,6 +20,22 @@ public final class CoarseTerrainRegion implements PathTerrainField {
     private final short[] oceanFloors;
     private final byte[] flags;
     private final int[] terrainArgb;
+    private final Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles;
+
+    public CoarseTerrainRegion(CoarseRegionBounds bounds,
+                               int seaLevel,
+                               Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles) {
+        if (bounds == null || tiles == null || tiles.isEmpty()) {
+            throw new IllegalArgumentException("coarse region tiles must not be empty");
+        }
+        this.bounds = bounds;
+        this.seaLevel = seaLevel;
+        this.heights = null;
+        this.oceanFloors = null;
+        this.flags = null;
+        this.terrainArgb = null;
+        this.tiles = Map.copyOf(tiles);
+    }
 
     public CoarseTerrainRegion(CoarseRegionBounds bounds,
                                int seaLevel,
@@ -31,6 +49,7 @@ public final class CoarseTerrainRegion implements PathTerrainField {
         this.oceanFloors = oceanFloors;
         this.flags = flags;
         this.terrainArgb = terrainArgb;
+        this.tiles = null;
         int expected = Math.toIntExact(bounds.sampleCount());
         if (heights.length != expected || oceanFloors.length != expected
                 || flags.length != expected || terrainArgb.length != expected) {
@@ -43,7 +62,13 @@ public final class CoarseTerrainRegion implements PathTerrainField {
     }
 
     public int terrainArgbAtIndex(int index) {
-        return terrainArgb[index];
+        if (tiles == null) return terrainArgb[index];
+        int ix = index % bounds.width();
+        int iz = index / bounds.width();
+        int x = bounds.blockXAt(ix);
+        int z = bounds.blockZAt(iz);
+        CoarseTerrainTile tile = tileAt(x, z);
+        return tile != null ? tile.terrainArgb(x, z) : 0x00000000;
     }
 
     @Override
@@ -54,31 +79,49 @@ public final class CoarseTerrainRegion implements PathTerrainField {
     @Override
     public int height(int x, int z) {
         if (!contains(x, z)) return seaLevel;
+        if (tiles != null) {
+            CoarseTerrainTile tile = tileAt(x, z);
+            return tile != null ? tile.height(x, z) : seaLevel;
+        }
         return heights[bounds.indexOfNearest(x, z)];
     }
 
     @Override
     public int oceanFloor(int x, int z) {
         if (!contains(x, z)) return seaLevel;
+        if (tiles != null) {
+            CoarseTerrainTile tile = tileAt(x, z);
+            return tile != null ? tile.oceanFloor(x, z) : seaLevel;
+        }
         return oceanFloors[bounds.indexOfNearest(x, z)];
     }
 
     @Override
     public boolean isColumnWater(int x, int z) {
-        return contains(x, z) && hasFlag(bounds.indexOfNearest(x, z), FLAG_COLUMN_WATER);
+        if (!contains(x, z)) return false;
+        if (tiles != null) {
+            CoarseTerrainTile tile = tileAt(x, z);
+            return tile != null && tile.isColumnWater(x, z);
+        }
+        return hasFlag(bounds.indexOfNearest(x, z), FLAG_COLUMN_WATER);
     }
 
     @Override
     public boolean isNearWater(int x, int z, int neighborDistance) {
         if (!contains(x, z)) return false;
-        if (hasFlag(bounds.indexOfNearest(x, z), FLAG_NEAR_WATER)) return true;
+        if (tiles != null) {
+            CoarseTerrainTile tile = tileAt(x, z);
+            if (tile != null && tile.isNearWater(x, z)) return true;
+        } else if (hasFlag(bounds.indexOfNearest(x, z), FLAG_NEAR_WATER)) {
+            return true;
+        }
         int steps = Math.max(1, ceilDiv(Math.max(0, neighborDistance), bounds.step()));
         for (int dz = -steps; dz <= steps; dz++) {
             for (int dx = -steps; dx <= steps; dx++) {
                 if (dx == 0 && dz == 0) continue;
                 int wx = x + dx * bounds.step();
                 int wz = z + dz * bounds.step();
-                if (contains(wx, wz) && hasFlag(bounds.indexOfNearest(wx, wz), FLAG_COLUMN_WATER)) {
+                if (contains(wx, wz) && isColumnWater(wx, wz)) {
                     return true;
                 }
             }
@@ -103,13 +146,22 @@ public final class CoarseTerrainRegion implements PathTerrainField {
 
     @Override
     public boolean isWaterBiome(int x, int z) {
-        return contains(x, z) && hasFlag(bounds.indexOfNearest(x, z), FLAG_WATER_BIOME);
+        if (!contains(x, z)) return false;
+        if (tiles != null) {
+            CoarseTerrainTile tile = tileAt(x, z);
+            return tile != null && tile.isWaterBiome(x, z);
+        }
+        return hasFlag(bounds.indexOfNearest(x, z), FLAG_WATER_BIOME);
     }
 
     @Override
     public SampleBundle sampleBundle(int x, int z) {
         if (!contains(x, z)) {
             return new SampleBundle(seaLevel, seaLevel, false, false, 0);
+        }
+        if (tiles != null) {
+            CoarseTerrainTile tile = tileAt(x, z);
+            return tile != null ? tile.sampleBundle(x, z) : new SampleBundle(seaLevel, seaLevel, false, false, 0);
         }
         int index = bounds.indexOfNearest(x, z);
         int ocean = oceanFloors[index];
@@ -125,6 +177,12 @@ public final class CoarseTerrainRegion implements PathTerrainField {
         if (waterBiome) value |= FLAG_WATER_BIOME;
         if (nearWater) value |= FLAG_NEAR_WATER;
         return (byte) value;
+    }
+
+    private CoarseTerrainTile tileAt(int x, int z) {
+        if (tiles == null) return null;
+        CoarseTerrainTileKey key = CoarseTerrainTileKey.forBlock(bounds.dimensionId(), x, z, bounds.step());
+        return tiles.get(key);
     }
 
     private boolean hasFlag(int index, byte flag) {

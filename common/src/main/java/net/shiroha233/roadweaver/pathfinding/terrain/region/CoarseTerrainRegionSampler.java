@@ -1,20 +1,32 @@
 package net.shiroha233.roadweaver.pathfinding.terrain.region;
 
-import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BiomeTags;
-import net.minecraft.world.level.biome.Biome;
+import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
-import net.shiroha233.roadweaver.map.tile.render.TerrainTilePalette;
-import net.shiroha233.roadweaver.pathfinding.cache.FastHeightSampler;
-import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 /**
- * 构建规划区域级粗采样数组。
+ * 构建规划区域级粗采样视图。
  */
 public final class CoarseTerrainRegionSampler {
     private CoarseTerrainRegionSampler() {}
+
+    private static final AtomicReference<ThreadPoolExecutor> TILE_EXECUTOR = new AtomicReference<>();
+    private static final AtomicLong TILE_THREAD_SEQ = new AtomicLong(1L);
 
     public static CoarseTerrainRegion sample(ServerLevel level,
                                              int minBlockX,
@@ -32,120 +44,139 @@ public final class CoarseTerrainRegionSampler {
             throw new IllegalArgumentException("coarse region sample count too large: " + bounds.sampleCount());
         }
 
-        int size = Math.toIntExact(bounds.sampleCount());
-        short[] heights = new short[size];
-        short[] oceanFloors = new short[size];
-        byte[] flags = new byte[size];
-        int[] terrainArgb = new int[size];
-
-        int seaLevel = level.getSeaLevel();
-        sampleTerrain(level, bounds, seaLevel, heights, oceanFloors, flags, terrainArgb);
-        markNearWater(bounds, flags);
-        return new CoarseTerrainRegion(bounds, seaLevel, heights, oceanFloors, flags, terrainArgb);
+        Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles = loadTiles(level, bounds);
+        if (tiles.isEmpty()) {
+            throw new IllegalArgumentException("coarse region has no terrain tiles");
+        }
+        return new CoarseTerrainRegion(bounds, level.getSeaLevel(), tiles);
     }
 
-    private static void markNearWater(CoarseRegionBounds bounds, byte[] flags) {
-        int radiusSamples = Math.max(1, RoadConstants.CHUNK_SIZE_BLOCKS / Math.max(1, bounds.step()));
-        byte[] next = flags.clone();
-        markNearWaterRows(bounds, flags, next, radiusSamples, 0, bounds.height());
-        System.arraycopy(next, 0, flags, 0, flags.length);
+    private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTiles(ServerLevel level, CoarseRegionBounds bounds) {
+        List<CoarseTerrainTileKey> keys = collectTileKeys(bounds);
+        int parallelism = resolveTileLoadParallelism(keys.size());
+        if (parallelism <= 1) {
+            return loadTilesSequentially(level, keys);
+        }
+        return loadTilesInParallel(level, keys, parallelism);
     }
 
-    private static void markNearWaterRows(CoarseRegionBounds bounds,
-                                          byte[] flags,
-                                          byte[] next,
-                                          int radiusSamples,
-                                          int fromZ,
-                                          int toZ) {
-        for (int iz = fromZ; iz < toZ; iz++) {
-            if (Thread.currentThread().isInterrupted()) return;
-            for (int ix = 0; ix < bounds.width(); ix++) {
-                int index = iz * bounds.width() + ix;
-                if ((flags[index] & 1) != 0) {
-                    next[index] = (byte) (next[index] | 4);
-                    continue;
+    private static List<CoarseTerrainTileKey> collectTileKeys(CoarseRegionBounds bounds) {
+        ArrayList<CoarseTerrainTileKey> keys = new ArrayList<>();
+        CoarseTerrainTileKey min = CoarseTerrainTileKey.forBlock(bounds.dimensionId(), bounds.minX(), bounds.minZ(), bounds.step());
+        CoarseTerrainTileKey max = CoarseTerrainTileKey.forBlock(bounds.dimensionId(), bounds.maxX(), bounds.maxZ(), bounds.step());
+        for (int tileZ = min.tileZ(); tileZ <= max.tileZ(); tileZ++) {
+            for (int tileX = min.tileX(); tileX <= max.tileX(); tileX++) {
+                keys.add(new CoarseTerrainTileKey(
+                        bounds.dimensionId(),
+                        tileX,
+                        tileZ,
+                        RoadConstants.COARSE_TERRAIN_TILE_SIZE_CHUNKS,
+                        bounds.step(),
+                        RoadConstants.COARSE_TERRAIN_TILE_SCHEMA_VERSION));
+            }
+        }
+        return keys;
+    }
+
+    private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTilesSequentially(ServerLevel level,
+                                                                                     List<CoarseTerrainTileKey> keys) {
+        HashMap<CoarseTerrainTileKey, CoarseTerrainTile> out = new HashMap<>();
+        for (CoarseTerrainTileKey key : keys) {
+            if (Thread.currentThread().isInterrupted()) return out;
+            CoarseTerrainTile tile = CoarseTerrainTileCache.getOrLoad(level, key);
+            if (tile != null) out.put(key, tile);
+        }
+        return out;
+    }
+
+    private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTilesInParallel(ServerLevel level,
+                                                                                   List<CoarseTerrainTileKey> keys,
+                                                                                   int parallelism) {
+        HashMap<CoarseTerrainTileKey, CoarseTerrainTile> out = new HashMap<>();
+        ExecutorCompletionService<TileLoadResult> completion = new ExecutorCompletionService<>(tileExecutor(parallelism));
+
+        int submitted = 0;
+        int completed = 0;
+        int window = Math.min(parallelism, keys.size());
+        while (submitted < window) {
+            submitLoad(completion, level, keys.get(submitted++));
+        }
+
+        while (completed < keys.size()) {
+            if (Thread.currentThread().isInterrupted()) return out;
+            try {
+                Future<TileLoadResult> future = completion.take();
+                TileLoadResult result = future.get();
+                if (result != null && result.tile() != null) {
+                    out.put(result.key(), result.tile());
                 }
-                boolean nearWater = false;
-                for (int dz = -radiusSamples; dz <= radiusSamples && !nearWater; dz++) {
-                    int nz = iz + dz;
-                    if (nz < 0 || nz >= bounds.height()) continue;
-                    for (int dx = -radiusSamples; dx <= radiusSamples; dx++) {
-                        int nx = ix + dx;
-                        if (nx < 0 || nx >= bounds.width()) continue;
-                        int ni = nz * bounds.width() + nx;
-                        if ((flags[ni] & 1) != 0) {
-                            nearWater = true;
-                            break;
-                        }
-                    }
-                }
-                if (nearWater) {
-                    next[index] = (byte) (next[index] | 4);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return out;
+            } catch (ExecutionException ignored) {
+            } finally {
+                completed++;
+                if (submitted < keys.size()) {
+                    submitLoad(completion, level, keys.get(submitted++));
                 }
             }
         }
+        return out;
     }
 
-    private static void sampleTerrain(ServerLevel level,
-                                      CoarseRegionBounds bounds,
-                                      int seaLevel,
-                                      short[] heights,
-                                      short[] oceanFloors,
-                                      byte[] flags,
-                                      int[] terrainArgb) {
-        sampleRows(level, bounds, seaLevel, heights, oceanFloors, flags, terrainArgb, 0, bounds.height());
+    private static void submitLoad(ExecutorCompletionService<TileLoadResult> completion,
+                                   ServerLevel level,
+                                   CoarseTerrainTileKey key) {
+        completion.submit(() -> new TileLoadResult(key, CoarseTerrainTileCache.getOrLoad(level, key)));
     }
 
-    private static void sampleRows(ServerLevel level,
-                                   CoarseRegionBounds bounds,
-                                   int seaLevel,
-                                   short[] heights,
-                                   short[] oceanFloors,
-                                   byte[] flags,
-                                   int[] terrainArgb,
-                                   int fromZ,
-                                   int toZ) {
-        FastHeightSampler fastSampler = FastHeightSampler.create(level);
-        TerrainSamplingCache terrainCache = new TerrainSamplingCache();
+    private static int resolveTileLoadParallelism(int tileCount) {
+        if (tileCount <= 1) return tileCount;
+        int configured;
         try {
-            for (int iz = fromZ; iz < toZ; iz++) {
-                if (Thread.currentThread().isInterrupted()) return;
-                int z = bounds.blockZAt(iz);
-                for (int ix = 0; ix < bounds.width(); ix++) {
-                    int x = bounds.blockXAt(ix);
-                    int index = iz * bounds.width() + ix;
-                    int height = fastSampler.sampleHeight(x, z);
-                    int oceanFloor = height;
-                    Holder<Biome> biome = terrainCache.getBiome(level, x, z);
-                    boolean waterBiome = isWaterBiome(biome);
-                    boolean columnWater = waterBiome && oceanFloor < seaLevel;
-                    boolean nearWater = columnWater;
-                    heights[index] = toShort(height);
-                    oceanFloors[index] = toShort(oceanFloor);
-                    flags[index] = CoarseTerrainRegion.flags(columnWater, waterBiome, nearWater);
-                    terrainArgb[index] = TerrainTilePalette.colorFor(
-                            biome,
-                            height,
-                            seaLevel,
-                            oceanFloor,
-                            columnWater,
-                            nearWater);
-                }
+            configured = ConfigService.get().performance().sharedWorkerThreads();
+        } catch (Throwable ignored) {
+            configured = Runtime.getRuntime().availableProcessors();
+        }
+        int workers = Math.max(1, configured);
+        int capped = Math.min(workers, RoadConstants.COARSE_REGION_PARALLEL_MAX_THREADS);
+        return Math.max(1, Math.min(tileCount, capped));
+    }
+
+    private static ThreadPoolExecutor tileExecutor(int parallelism) {
+        int threads = Math.max(1, Math.min(RoadConstants.COARSE_REGION_PARALLEL_MAX_THREADS, parallelism));
+        ThreadPoolExecutor current = TILE_EXECUTOR.get();
+        if (current != null && !current.isShutdown() && current.getCorePoolSize() == threads) {
+            return current;
+        }
+        synchronized (CoarseTerrainRegionSampler.class) {
+            current = TILE_EXECUTOR.get();
+            if (current != null && !current.isShutdown() && current.getCorePoolSize() == threads) {
+                return current;
             }
-        } finally {
-            fastSampler.clearCache();
-            terrainCache.clear();
+            if (current != null && !current.isShutdown()) {
+                current.shutdownNow();
+            }
+            ThreadPoolExecutor next = new ThreadPoolExecutor(
+                    threads,
+                    threads,
+                    30L,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue<>(),
+                    tileThreadFactory());
+            next.allowCoreThreadTimeOut(true);
+            TILE_EXECUTOR.set(next);
+            return next;
         }
     }
 
-    private static boolean isWaterBiome(Holder<Biome> biome) {
-        return biome != null
-                && (biome.is(BiomeTags.IS_RIVER)
-                || biome.is(BiomeTags.IS_OCEAN)
-                || biome.is(BiomeTags.IS_DEEP_OCEAN));
+    private static ThreadFactory tileThreadFactory() {
+        return runnable -> {
+            Thread thread = new Thread(runnable, "RW-CoarseTile-" + TILE_THREAD_SEQ.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
+        };
     }
 
-    private static short toShort(int value) {
-        return (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, value));
-    }
+    private record TileLoadResult(CoarseTerrainTileKey key, CoarseTerrainTile tile) {}
 }

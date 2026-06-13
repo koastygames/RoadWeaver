@@ -49,6 +49,10 @@ public final class RoadConstants {
     public static final int COARSE_REGION_PARALLEL_MIN_ROWS_PER_WORKER = 64;
     public static final int COARSE_REGION_PARALLEL_MAX_THREADS = 8;
     public static final int COARSE_REGION_TILE_MAX_PIXELS = 256;
+    public static final int COARSE_TERRAIN_TILE_SIZE_CHUNKS = 16;
+    public static final int COARSE_TERRAIN_TILE_SCHEMA_VERSION = 2;
+    public static final int COARSE_TERRAIN_TILE_CACHE_MAX_ENTRIES = 256;
+    public static final int COARSE_TERRAIN_TILE_HALO_BLOCKS = 16;
     public static final int MAX_PLANNED_KEYS = 200_000;
     public static final int PLAN_TILE_MIN = 8;
     public static final int PLAN_TILE_MAX = 256;

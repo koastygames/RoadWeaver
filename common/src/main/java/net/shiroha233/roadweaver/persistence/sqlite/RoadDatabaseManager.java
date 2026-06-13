@@ -146,6 +146,22 @@ public final class RoadDatabaseManager {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_structure_scan_tiles_range ON structure_scan_tiles (tile_size_chunks, tile_x, tile_z)");
 
             stmt.execute(
+                    "CREATE TABLE IF NOT EXISTS terrain_tiles ("
+                    + "tile_x INT NOT NULL,"
+                    + "tile_z INT NOT NULL,"
+                    + "tile_size_chunks INT NOT NULL,"
+                    + "step INT NOT NULL,"
+                    + "schema_version INT NOT NULL,"
+                    + "sample_width INT NOT NULL,"
+                    + "sample_height INT NOT NULL,"
+                    + "sea_level INT NOT NULL,"
+                    + "data BLOB NOT NULL,"
+                    + "updated_at BIGINT DEFAULT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP),"
+                    + "PRIMARY KEY (tile_x, tile_z, tile_size_chunks, step, schema_version)"
+                    + ")");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_terrain_tiles_version ON terrain_tiles (schema_version, tile_size_chunks, step)");
+
+            stmt.execute(
                     "CREATE TABLE IF NOT EXISTS structure_cache_meta ("
                     + "k VARCHAR(255) PRIMARY KEY,"
                     + "v VARCHAR(4096) NOT NULL"
