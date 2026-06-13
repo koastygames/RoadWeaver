@@ -6,7 +6,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.client.map.MapView;
 import net.shiroha233.roadweaver.client.map.localoverride.ClientMapOverrideResolver;
-import net.shiroha233.roadweaver.map.tile.core.MapTileAoi;
 import net.shiroha233.roadweaver.map.tile.core.MapTileCoord;
 import net.shiroha233.roadweaver.map.tile.core.MapTileLayer;
 import net.shiroha233.roadweaver.map.tile.core.MapTileRect;
@@ -24,24 +23,19 @@ public abstract class AbstractSingleplayerTileManager {
     private boolean lastRenderHadTexture;
 
     public synchronized void request(ServerLevel level, MapTileAoi aoi, MapView view, int contentW, int contentH) {
-        if (level == null || aoi == null || view == null || contentW <= 0 || contentH <= 0) {
+        if (level == null || view == null || contentW <= 0 || contentH <= 0) {
             return;
         }
         int nextZoom = chooseZoom(view, contentW, contentH);
-        MapTileRect aoiRect = aoi.tileRect(nextZoom);
         MapTileRect viewRect = MapTileScheme.tileRectForBlockRect(
                 nextZoom,
                 (int) Math.floor(view.getMinX()),
                 (int) Math.floor(view.getMinZ()),
                 (int) Math.ceil(view.getMaxX()),
                 (int) Math.ceil(view.getMaxZ()));
-        MapTileRect nextVisibleRect = intersect(aoiRect, viewRect);
         this.level = level;
-        this.visibleRect = nextVisibleRect;
+        this.visibleRect = viewRect;
         this.zoom = nextZoom;
-        if (nextVisibleRect == null) {
-            return;
-        }
     }
 
     public void render(GuiGraphics g,
@@ -117,16 +111,5 @@ public abstract class AbstractSingleplayerTileManager {
 
     private static int chooseZoom(MapView view, int contentW, int contentH) {
         return MapTileScheme.MIN_ZOOM;
-    }
-
-    private static MapTileRect intersect(MapTileRect a, MapTileRect b) {
-        int minTileX = Math.max(a.minTileX(), b.minTileX());
-        int minTileZ = Math.max(a.minTileZ(), b.minTileZ());
-        int maxTileX = Math.min(a.maxTileX(), b.maxTileX());
-        int maxTileZ = Math.min(a.maxTileZ(), b.maxTileZ());
-        if (maxTileX < minTileX || maxTileZ < minTileZ) {
-            return null;
-        }
-        return new MapTileRect(a.zoom(), minTileX, minTileZ, maxTileX, maxTileZ);
     }
 }

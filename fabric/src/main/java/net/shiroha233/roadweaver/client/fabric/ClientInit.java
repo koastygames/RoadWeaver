@@ -8,6 +8,7 @@ import net.minecraft.client.KeyMapping;
 import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
+import net.shiroha233.roadweaver.client.map.data.MapDataStorage;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.tile.ClientMapTileTextureCache;
 import net.shiroha233.roadweaver.network.fabric.MapNetworkFabric;
@@ -25,6 +26,7 @@ public class ClientInit implements ClientModInitializer {
         
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             ClientMapAccessGuard.reset();
+            MapSnapshotCache.setCurrentWorldId(MapDataStorage.getWorldId());
             MapSnapshotCache.clearNow();
             ClientMapTileTextureCache.clear(client);
             ClientMapNotes.onWorldJoin();
@@ -33,6 +35,7 @@ public class ClientInit implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             ClientMapAccessGuard.reset();
             MapSnapshotCache.clearNow();
+            MapSnapshotCache.setCurrentWorldId(null);
             ClientMapTileTextureCache.clear(client);
             ClientMapNotes.onWorldLeave();
         });
