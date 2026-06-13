@@ -443,7 +443,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
                 CompletableFuture
                     .supplyAsync(() -> MapDataCollector.build(levelFinal, clippedMinX, clippedMinZ, clippedMaxX, clippedMaxZ, fcx, fcz, radiusBlocks),
-                                 ComputeService.executor())
+                                 ComputeService.mapExecutor())
                     .thenAccept(snap -> mc.execute(() -> {
                         if (state.getCurrentRequestSeq() == currentSeq) {
                             acceptSnapshot(currentSeq, levelFinal.dimension().location(), snap);

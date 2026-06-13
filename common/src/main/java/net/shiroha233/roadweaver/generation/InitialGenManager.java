@@ -14,13 +14,15 @@ import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.postprocess.RoadSnapService;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -92,7 +94,7 @@ public final class InitialGenManager {
             total.set(roadTasks.size());
 
             if (!roadTasks.isEmpty()) {
-                Map<Long, Boolean> results = submitAndCollect(level, roadTasks, false, "Path");
+                Map<Long, Boolean> results = submitAndCollect(level, roadTasks, false);
                 batchUpdateConnectionStatus(provider, level, results, false);
             }
             snapInitialRoads(level, list);
@@ -110,7 +112,7 @@ public final class InitialGenManager {
             total.set(plannedHighwayCount);
 
             if (!highwayTasks.isEmpty()) {
-                Map<Long, Boolean> hwResults = submitAndCollect(level, highwayTasks, true, "Highway");
+                Map<Long, Boolean> hwResults = submitAndCollect(level, highwayTasks, true);
                 batchUpdateConnectionStatus(provider, level, hwResults, true);
             }
         }
@@ -125,7 +127,7 @@ public final class InitialGenManager {
             total.set(plannedHighwayCount + roadTasks.size());
 
             if (!roadTasks.isEmpty()) {
-                Map<Long, Boolean> pathResults = submitAndCollect(level, roadTasks, false, "Path");
+                Map<Long, Boolean> pathResults = submitAndCollect(level, roadTasks, false);
                 batchUpdateConnectionStatus(provider, level, pathResults, false);
             }
         }
@@ -169,37 +171,28 @@ public final class InitialGenManager {
 
     private static Map<Long, Boolean> submitAndCollect(ServerLevel level,
                                                        List<StructureConnection> tasks,
-                                                       boolean highway,
-                                                       String threadPrefix) {
-        int nThreads = ConfigService.get().performance().initialGenerationThreads();
-        ExecutorService executor = Executors.newFixedThreadPool(nThreads, new ThreadFactory() {
-            private final AtomicInteger count = new AtomicInteger(1);
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, "RoadWeaver-InitialGen-" + threadPrefix + "-" + count.getAndIncrement());
-                t.setDaemon(true);
-                return t;
-            }
-        });
-
-        List<CompletableFuture<GenResult>> futures = new ArrayList<>();
+                                                       boolean highway) {
+        List<Future<GenResult>> futures = new ArrayList<>();
         for (StructureConnection task : tasks) {
-            futures.add(CompletableFuture.supplyAsync(() -> {
+            futures.add(ThreadPoolManager.submit(ThreadPoolManager.TaskRole.INITIAL, () -> {
                 generating.incrementAndGet();
-                boolean success = highway
-                        ? RoadGenerationService.generateHighwayTask(level, task)
-                        : RoadGenerationService.generateTask(level, task);
-                generating.decrementAndGet();
-                if (success) done.incrementAndGet(); else failed.incrementAndGet();
-                return new GenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
-            }, executor));
+                try {
+                    boolean success = highway
+                            ? RoadGenerationService.generateHighwayTask(level, task)
+                            : RoadGenerationService.generateTask(level, task);
+                    if (success) done.incrementAndGet(); else failed.incrementAndGet();
+                    return new GenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
+                } finally {
+                    generating.decrementAndGet();
+                }
+            }));
         }
 
         Map<Long, Boolean> results = new HashMap<>();
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
         while (!futures.isEmpty()) {
             pollPendingResults(futures, results);
-            futures.removeIf(f -> f.isDone());
+            futures.removeIf(Future::isDone);
             if (futures.isEmpty()) break;
             if (System.nanoTime() > deadline) break;
             try {
@@ -209,24 +202,20 @@ public final class InitialGenManager {
                 break;
             }
         }
-
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) executor.shutdownNow();
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-            Thread.currentThread().interrupt();
+        for (Future<GenResult> future : futures) {
+            future.cancel(true);
         }
         return results;
     }
 
-    private static void pollPendingResults(List<CompletableFuture<GenResult>> futures,
+    private static void pollPendingResults(List<Future<GenResult>> futures,
                                            Map<Long, Boolean> results) {
-        for (CompletableFuture<GenResult> f : futures) {
-            if (f.isDone() && !f.isCompletedExceptionally()) {
-                GenResult r = f.getNow(null);
+        for (Future<GenResult> f : futures) {
+            if (!f.isDone() || f.isCancelled()) continue;
+            try {
+                GenResult r = f.get();
                 if (r != null) results.put(r.key(), r.success());
-            }
+            } catch (Exception ignored) {}
         }
     }
 

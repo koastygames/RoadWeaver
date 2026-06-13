@@ -65,7 +65,7 @@ public class MapNetworkFabric {
                     out.writeResourceLocation(actualDimensionId);
                     MapSnapshotCodec.write(out, snapshot);
                     return out;
-                }, ThreadPoolManager.computeExecutor())
+                }, ThreadPoolManager.roleExecutor(ThreadPoolManager.TaskRole.MAP))
                 .thenAccept(out -> server.execute(() -> ServerPlayNetworking.send(sp, SNAP, out)));
         });
 

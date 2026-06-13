@@ -23,13 +23,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 闲时道路生成服务：
@@ -51,9 +47,6 @@ public final class IdleRoadGenerationService {
     private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING = new ConcurrentHashMap<>();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
 
-    private static final AtomicReference<ExecutorService> IDLE_EXEC = new AtomicReference<>();
-    private static final AtomicInteger IDLE_EXEC_THREADS = new AtomicInteger(-1);
-
     private static final class IdleWindow {
         volatile int centerChunkX;
         volatile int centerChunkZ;
@@ -73,7 +66,6 @@ public final class IdleRoadGenerationService {
         IN_FLIGHT.clear();
         RUNNING.clear();
         ALL_RUNNING.clear();
-        ensureExecutor(Math.max(0, ConfigService.get().performance().idleGenerationThreads()));
     }
 
     public static void onServerStopping() {
@@ -87,7 +79,6 @@ public final class IdleRoadGenerationService {
         IDLE_OWNED.clear();
         IN_FLIGHT.clear();
         RUNNING.clear();
-        shutdownExecutor();
     }
 
     public static void tickPlayer(ServerPlayer player) {
@@ -98,10 +89,7 @@ public final class IdleRoadGenerationService {
         String dimId = level.dimension().location().toString();
         if (!cfg.roadsEnabledForDimension(dimId)) return;
 
-        int threads = Math.max(0, cfg.performance().idleGenerationThreads());
-        if (threads <= 0) return;
-
-        ensureExecutor(threads);
+        if (!cfg.performance().idleGenerationEnabled()) return;
 
         int baseRadius = resolveBaseRadiusChunks(cfg);
         int expandStep = resolveExpandStepChunks(cfg);
@@ -155,14 +143,11 @@ public final class IdleRoadGenerationService {
         if (level == null) return;
 
         ModConfig cfg = ConfigService.get();
-        int threads = Math.max(0, cfg.performance().idleGenerationThreads());
-        if (threads <= 0) {
-            ensureExecutor(0);
+        if (!cfg.performance().idleGenerationEnabled()) {
             clearLevel(level);
             return;
         }
 
-        ensureExecutor(threads);
         cleanupWindows(level);
 
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
@@ -172,7 +157,9 @@ public final class IdleRoadGenerationService {
         List<ServerPlayer> players = collectPlayers(level);
         int duty = cfg.performance().idleThreadDutyCycle();
 
-        while (running.get() < threads) {
+        int limit = Math.min(1, Math.max(1, cfg.performance().maxConcurrentGenerations()));
+
+        while (running.get() < limit) {
             StructureConnection conn = pollNearestOwnedPlanned(level, players);
             if (conn == null) break;
 
@@ -187,14 +174,14 @@ public final class IdleRoadGenerationService {
             running.incrementAndGet();
             long epoch = ThreadPoolManager.currentEpoch();
             final StructureConnection task = conn;
-            Future<?> future = executor().submit(() -> runIdleTask(level, task, key, duty, epoch));
+            Future<?> future = ThreadPoolManager.submit(ThreadPoolManager.TaskRole.IDLE, () -> runIdleTask(level, task, key, duty, epoch));
             ALL_RUNNING.add(future);
         }
     }
 
     public static boolean shouldReserveForIdle(ServerLevel level, StructureConnection conn) {
         if (level == null || conn == null) return false;
-        if (ConfigService.get().performance().idleGenerationThreads() <= 0) return false;
+        if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
 
         ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
         if (owned == null || owned.isEmpty()) return false;
@@ -209,7 +196,7 @@ public final class IdleRoadGenerationService {
 
     public static boolean isManagedByIdle(ServerLevel level, StructureConnection conn) {
         if (level == null || conn == null) return false;
-        if (ConfigService.get().performance().idleGenerationThreads() <= 0) return false;
+        if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
         long key = PlanningUtils.edgeKey(conn.from(), conn.to());
         ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.get(level);
         if (inFlight != null && inFlight.containsKey(key)) return true;
@@ -491,60 +478,5 @@ public final class IdleRoadGenerationService {
             if (!ThreadPoolManager.isEpoch(epoch)) return;
             action.run();
         });
-    }
-
-    private static ExecutorService executor() {
-        ExecutorService e = IDLE_EXEC.get();
-        if (e != null && !e.isShutdown()) return e;
-        synchronized (IdleRoadGenerationService.class) {
-            e = IDLE_EXEC.get();
-            if (e == null || e.isShutdown()) {
-                int threads = Math.max(0, ConfigService.get().performance().idleGenerationThreads());
-                ensureExecutor(threads);
-                e = IDLE_EXEC.get();
-            }
-        }
-        return e;
-    }
-
-    private static synchronized void ensureExecutor(int threads) {
-        int resolved = Math.max(0, threads);
-        ExecutorService old = IDLE_EXEC.get();
-        if (resolved <= 0) {
-            if (old != null && !old.isShutdown()) old.shutdownNow();
-            IDLE_EXEC.set(null);
-            IDLE_EXEC_THREADS.set(0);
-            return;
-        }
-        if (old != null && !old.isShutdown() && IDLE_EXEC_THREADS.get() == resolved) return;
-        if (old != null && !old.isShutdown()) old.shutdownNow();
-        IDLE_EXEC.set(Executors.newFixedThreadPool(resolved, new NamedFactory("RW-Idle")));
-        IDLE_EXEC_THREADS.set(resolved);
-    }
-
-    private static synchronized void shutdownExecutor() {
-        ExecutorService exec = IDLE_EXEC.getAndSet(null);
-        if (exec != null && !exec.isShutdown()) {
-            try {
-                exec.shutdownNow();
-            } catch (Throwable ignored) {}
-        }
-        IDLE_EXEC_THREADS.set(-1);
-    }
-
-    private static final class NamedFactory implements ThreadFactory {
-        private final String prefix;
-        private final AtomicInteger next = new AtomicInteger(1);
-
-        private NamedFactory(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, prefix + "-" + next.getAndIncrement());
-            t.setDaemon(true);
-            return t;
-        }
     }
 }

@@ -112,7 +112,7 @@ public final class RoadGenerationService {
             cnt.incrementAndGet();
             long epoch = ThreadPoolManager.currentEpoch();
 
-            Future<?> fut = ThreadPoolManager.generationExecutor().submit(() -> {
+            Future<?> fut = ThreadPoolManager.submit(ThreadPoolManager.TaskRole.GENERATION, () -> {
                 try {
                     if (Thread.currentThread().isInterrupted()) return;
                     if (!ThreadPoolManager.isEpoch(epoch)) return;

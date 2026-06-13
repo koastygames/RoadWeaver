@@ -555,35 +555,18 @@ public class ConfigScreenFactoryImpl {
         PerformanceConfig def = defaultConf.performance();
 
         category.addEntry(eb
-                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.computeThreads"), cfg.computeThreads())
-                .setDefaultValue(def.computeThreads())
-                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.computeThreads.@Tooltip"))
-                .setMin(0).setMax(128)
-                .setSaveConsumer(cfg::setComputeThreads)
+                .startIntField(Component.translatable("config.roadweaver.shared_worker_threads"), cfg.sharedWorkerThreads())
+                .setDefaultValue(def.sharedWorkerThreads())
+                .setTooltip(Component.translatable("config.roadweaver.shared_worker_threads.tooltip"))
+                .setMin(1).setMax(128)
+                .setSaveConsumer(cfg::setSharedWorkerThreads)
                 .build());
 
         category.addEntry(eb
-                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.generationThreads"), cfg.generationThreads())
-                .setDefaultValue(def.generationThreads())
-                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.generationThreads.@Tooltip"))
-                .setMin(1).setMax(64)
-                .setSaveConsumer(cfg::setGenerationThreads)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("text.autoconfig.roadweaver.option.initialGenerationThreads"), cfg.initialGenerationThreads())
-                .setDefaultValue(def.initialGenerationThreads())
-                .setTooltip(Component.translatable("text.autoconfig.roadweaver.option.initialGenerationThreads.@Tooltip"))
-                .setMin(1).setMax(64)
-                .setSaveConsumer(cfg::setInitialGenerationThreads)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.idle_generation_threads"), cfg.idleGenerationThreads())
-                .setDefaultValue(def.idleGenerationThreads())
-                .setTooltip(Component.translatable("config.roadweaver.idle_generation_threads.tooltip"))
-                .setMin(0).setMax(64)
-                .setSaveConsumer(cfg::setIdleGenerationThreads)
+                .startBooleanToggle(Component.translatable("config.roadweaver.idle_generation_enabled"), cfg.idleGenerationEnabled())
+                .setDefaultValue(def.idleGenerationEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.idle_generation_enabled.tooltip"))
+                .setSaveConsumer(cfg::setIdleGenerationEnabled)
                 .build());
 
         category.addEntry(eb

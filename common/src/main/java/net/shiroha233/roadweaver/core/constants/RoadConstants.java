@@ -45,6 +45,9 @@ public final class RoadConstants {
     public static final int DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS = 64;
     public static final int COARSE_REGION_MAX_RADIUS_CHUNKS = 128;
     public static final int COARSE_REGION_MAX_SAMPLES = 1_100_000;
+    public static final int COARSE_REGION_PARALLEL_MIN_SAMPLES = 16_384;
+    public static final int COARSE_REGION_PARALLEL_MIN_ROWS_PER_WORKER = 64;
+    public static final int COARSE_REGION_PARALLEL_MAX_THREADS = 8;
     public static final int COARSE_REGION_TILE_MAX_PIXELS = 256;
     public static final int MAX_PLANNED_KEYS = 200_000;
     public static final int PLAN_TILE_MIN = 8;

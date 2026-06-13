@@ -30,7 +30,7 @@ public final class LoadedChunkTerrainOverrideService {
         if (clientLevel == null || serverLevel == null || rect == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return ComputeService.runAsync(() -> refreshRect(clientLevel, serverLevel, rect));
+        return ComputeService.runMapAsync(() -> refreshRect(clientLevel, serverLevel, rect));
     }
 
     public static void refreshRect(ClientLevel clientLevel, ServerLevel serverLevel, MapTileRect rect) {

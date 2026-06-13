@@ -104,7 +104,7 @@ public class MapNetworkForge {
                         MapRequestBounds.Rect rect = MapRequestBounds.clampToPlayer(player, msg.minX, msg.minZ, msg.maxX, msg.maxZ);
                         MapSnapshot snap = MapDataCollector.build(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ(), cx, cz, rect.radiusBlocks());
                         return new MapSnapshotS2C(msg.requestSeq, actualDimensionId, snap);
-                    }, ComputeService.executor())
+                    }, ComputeService.mapExecutor())
                     .thenAccept(packet -> c.enqueueWork(() -> CHANNEL.sendTo(packet, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT)));
             }
             c.setPacketHandled(true);

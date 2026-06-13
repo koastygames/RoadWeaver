@@ -9,6 +9,7 @@ import net.shiroha233.roadweaver.map.tile.render.TerrainTilePalette;
 import net.shiroha233.roadweaver.pathfinding.cache.FastHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 
+
 /**
  * 构建规划区域级粗采样数组。
  */
@@ -38,10 +39,77 @@ public final class CoarseTerrainRegionSampler {
         int[] terrainArgb = new int[size];
 
         int seaLevel = level.getSeaLevel();
+        sampleTerrain(level, bounds, seaLevel, heights, oceanFloors, flags, terrainArgb);
+        markNearWater(bounds, flags);
+        return new CoarseTerrainRegion(bounds, seaLevel, heights, oceanFloors, flags, terrainArgb);
+    }
+
+    private static void markNearWater(CoarseRegionBounds bounds, byte[] flags) {
+        int radiusSamples = Math.max(1, RoadConstants.CHUNK_SIZE_BLOCKS / Math.max(1, bounds.step()));
+        byte[] next = flags.clone();
+        markNearWaterRows(bounds, flags, next, radiusSamples, 0, bounds.height());
+        System.arraycopy(next, 0, flags, 0, flags.length);
+    }
+
+    private static void markNearWaterRows(CoarseRegionBounds bounds,
+                                          byte[] flags,
+                                          byte[] next,
+                                          int radiusSamples,
+                                          int fromZ,
+                                          int toZ) {
+        for (int iz = fromZ; iz < toZ; iz++) {
+            if (Thread.currentThread().isInterrupted()) return;
+            for (int ix = 0; ix < bounds.width(); ix++) {
+                int index = iz * bounds.width() + ix;
+                if ((flags[index] & 1) != 0) {
+                    next[index] = (byte) (next[index] | 4);
+                    continue;
+                }
+                boolean nearWater = false;
+                for (int dz = -radiusSamples; dz <= radiusSamples && !nearWater; dz++) {
+                    int nz = iz + dz;
+                    if (nz < 0 || nz >= bounds.height()) continue;
+                    for (int dx = -radiusSamples; dx <= radiusSamples; dx++) {
+                        int nx = ix + dx;
+                        if (nx < 0 || nx >= bounds.width()) continue;
+                        int ni = nz * bounds.width() + nx;
+                        if ((flags[ni] & 1) != 0) {
+                            nearWater = true;
+                            break;
+                        }
+                    }
+                }
+                if (nearWater) {
+                    next[index] = (byte) (next[index] | 4);
+                }
+            }
+        }
+    }
+
+    private static void sampleTerrain(ServerLevel level,
+                                      CoarseRegionBounds bounds,
+                                      int seaLevel,
+                                      short[] heights,
+                                      short[] oceanFloors,
+                                      byte[] flags,
+                                      int[] terrainArgb) {
+        sampleRows(level, bounds, seaLevel, heights, oceanFloors, flags, terrainArgb, 0, bounds.height());
+    }
+
+    private static void sampleRows(ServerLevel level,
+                                   CoarseRegionBounds bounds,
+                                   int seaLevel,
+                                   short[] heights,
+                                   short[] oceanFloors,
+                                   byte[] flags,
+                                   int[] terrainArgb,
+                                   int fromZ,
+                                   int toZ) {
         FastHeightSampler fastSampler = FastHeightSampler.create(level);
         TerrainSamplingCache terrainCache = new TerrainSamplingCache();
         try {
-            for (int iz = 0; iz < bounds.height(); iz++) {
+            for (int iz = fromZ; iz < toZ; iz++) {
+                if (Thread.currentThread().isInterrupted()) return;
                 int z = bounds.blockZAt(iz);
                 for (int ix = 0; ix < bounds.width(); ix++) {
                     int x = bounds.blockXAt(ix);
@@ -64,34 +132,10 @@ public final class CoarseTerrainRegionSampler {
                             nearWater);
                 }
             }
-            markNearWater(bounds, flags);
-            return new CoarseTerrainRegion(bounds, seaLevel, heights, oceanFloors, flags, terrainArgb);
         } finally {
             fastSampler.clearCache();
             terrainCache.clear();
         }
-    }
-
-    private static void markNearWater(CoarseRegionBounds bounds, byte[] flags) {
-        int radiusSamples = Math.max(1, RoadConstants.CHUNK_SIZE_BLOCKS / Math.max(1, bounds.step()));
-        byte[] next = flags.clone();
-        for (int iz = 0; iz < bounds.height(); iz++) {
-            for (int ix = 0; ix < bounds.width(); ix++) {
-                int index = iz * bounds.width() + ix;
-                if ((flags[index] & 1) == 0) continue;
-                for (int dz = -radiusSamples; dz <= radiusSamples; dz++) {
-                    int nz = iz + dz;
-                    if (nz < 0 || nz >= bounds.height()) continue;
-                    for (int dx = -radiusSamples; dx <= radiusSamples; dx++) {
-                        int nx = ix + dx;
-                        if (nx < 0 || nx >= bounds.width()) continue;
-                        int ni = nz * bounds.width() + nx;
-                        next[ni] = (byte) (next[ni] | 4);
-                    }
-                }
-            }
-        }
-        System.arraycopy(next, 0, flags, 0, flags.length);
     }
 
     private static boolean isWaterBiome(Holder<Biome> biome) {
