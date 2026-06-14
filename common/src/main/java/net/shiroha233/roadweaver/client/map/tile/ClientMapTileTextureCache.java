@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
  * 性能优化：
  * 1. 增大缓存容量以支持全精度渲染（数百个 chunk 纹片）
  * 2. 异步预加载纹理，避免主线程阻塞
- * 3. 减少 lastModified 检查频率（缓存命中时不检查）
+ * 3. 视口缓存命中时检查 lastModified（规划可能更新PNG）
  */
 public final class ClientMapTileTextureCache {
     private ClientMapTileTextureCache() {}
@@ -55,27 +55,33 @@ public final class ClientMapTileTextureCache {
             return null;
         }
         String key = path.toAbsolutePath().normalize().toString();
+        long currentLastMod = lastModified(path);
 
-        // 1. 检查视口缓存（缓存命中时不检查 lastModified，避免每帧磁盘 I/O）
+        // 1. 检查视口缓存（命中时检查 lastModified，规划可能更新PNG）
         TextureEntry vpEntry = VIEWPORT_CACHE.get(key);
         if (vpEntry != null) {
-            if (inViewport) return vpEntry.location;
-            // 从视口移到后台
+            if (inViewport && vpEntry.lastModified == currentLastMod) {
+                return vpEntry.location;
+            }
+            // 文件已更新或不在视口，移除旧缓存重新加载
             VIEWPORT_CACHE.remove(key);
-            BACKGROUND_CACHE.put(key, vpEntry);
-            trimBackgroundCache(mc);
-            return vpEntry.location;
+            release(mc, vpEntry.location);
         }
 
-        // 2. 检查后台缓存
+        // 2. 检查后台缓存（命中时也检查 lastModified）
         TextureEntry bgEntry = BACKGROUND_CACHE.get(key);
         if (bgEntry != null) {
-            if (inViewport) {
-                BACKGROUND_CACHE.remove(key);
-                VIEWPORT_CACHE.put(key, bgEntry);
-                trimViewportCache(mc);
+            if (bgEntry.lastModified == currentLastMod) {
+                if (inViewport) {
+                    BACKGROUND_CACHE.remove(key);
+                    VIEWPORT_CACHE.put(key, bgEntry);
+                    trimViewportCache(mc);
+                }
+                return bgEntry.location;
             }
-            return bgEntry.location;
+            // 文件已更新，移除旧缓存重新加载
+            BACKGROUND_CACHE.remove(key);
+            release(mc, bgEntry.location);
         }
 
         // 3. 检查是否有正在异步加载的
@@ -92,9 +98,8 @@ public final class ClientMapTileTextureCache {
             return null;
         }
 
-        // 4. 同步加载（首次必须同步，否则该帧无纹理可渲染）
-        long lastMod = lastModified(path);
-        return loadTexture(mc, path, key, lastMod, inViewport);
+        // 4. 同步加载
+        return loadTexture(mc, path, key, currentLastMod, inViewport);
     }
 
     public static synchronized ResourceLocation getOrLoad(Minecraft mc, Path path) {
