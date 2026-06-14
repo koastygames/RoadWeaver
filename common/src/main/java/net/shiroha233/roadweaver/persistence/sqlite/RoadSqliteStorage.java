@@ -93,46 +93,48 @@ public final class RoadSqliteStorage {
             if (z > maxZ) maxZ = z;
         }
 
-        long fingerprint = fingerprint(rd);
-
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-
-            try (PreparedStatement checkStmt = conn.prepareStatement(SQL_EXISTS)) {
-                checkStmt.setLong(1, fingerprint);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (rs.next()) return;
-                }
-            }
-
-            byte[] data = serializeRoadData(rd);
-            if (data == null) {
-                LOGGER.warn("序列化道路数据失败");
-                return;
-            }
-
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
-                stmt.setLong(1, fingerprint);
-                stmt.setInt(2, rd.width());
-                stmt.setInt(3, rd.roadType());
-                stmt.setInt(4, minX);
-                stmt.setInt(5, minZ);
-                stmt.setInt(6, maxX);
-                stmt.setInt(7, maxZ);
-                stmt.setBytes(8, data);
-                stmt.executeUpdate();
-            }
-
-            int minCX = minX >> 4, minCZ = minZ >> 4;
-            int maxCX = maxX >> 4, maxCZ = maxZ >> 4;
-            for (int cx = minCX; cx <= maxCX; cx++) {
-                for (int cz = minCZ; cz <= maxCZ; cz++) {
-                    RoadSpatialIndex.invalidateChunk(level, cx, cz);
-                }
-            }
-        } catch (SQLException e) {
-            LOGGER.error("添加道路数据失败", e);
+        long fp = fingerprint(rd);
+        byte[] data = serializeRoadData(rd);
+        if (data == null) {
+            LOGGER.warn("序列化道路数据失败");
+            return;
         }
+
+        final int fMinX = minX, fMinZ = minZ, fMaxX = maxX, fMaxZ = maxZ;
+        RoadDatabaseManager.writeExecutor().execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level);
+
+                try (PreparedStatement checkStmt = conn.prepareStatement(SQL_EXISTS)) {
+                    checkStmt.setLong(1, fp);
+                    try (ResultSet rs = checkStmt.executeQuery()) {
+                        if (rs.next()) return;
+                    }
+                }
+
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
+                    stmt.setLong(1, fp);
+                    stmt.setInt(2, rd.width());
+                    stmt.setInt(3, rd.roadType());
+                    stmt.setInt(4, fMinX);
+                    stmt.setInt(5, fMinZ);
+                    stmt.setInt(6, fMaxX);
+                    stmt.setInt(7, fMaxZ);
+                    stmt.setBytes(8, data);
+                    stmt.executeUpdate();
+                }
+
+                int minCX = fMinX >> 4, minCZ = fMinZ >> 4;
+                int maxCX = fMaxX >> 4, maxCZ = fMaxZ >> 4;
+                for (int cx = minCX; cx <= maxCX; cx++) {
+                    for (int cz = minCZ; cz <= maxCZ; cz++) {
+                        RoadSpatialIndex.invalidateChunk(level, cx, cz);
+                    }
+                }
+            } catch (SQLException e) {
+                LOGGER.error("添加道路数据失败", e);
+            }
+        });
     }
 
     public static List<RoadData> queryRect(ServerLevel level,
@@ -304,16 +306,18 @@ public final class RoadSqliteStorage {
     }
 
     public static void deleteRoad(ServerLevel level, long fp) {
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE)) {
-                stmt.setLong(1, fp);
-                stmt.executeUpdate();
+        RoadDatabaseManager.writeExecutor().execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE)) {
+                    stmt.setLong(1, fp);
+                    stmt.executeUpdate();
+                }
+                ROAD_CACHE.remove(new CacheKey(level.dimension().location(), fp));
+            } catch (SQLException e) {
+                LOGGER.error("删除道路数据失败", e);
             }
-            ROAD_CACHE.remove(new CacheKey(level.dimension().location(), fp));
-        } catch (SQLException e) {
-            LOGGER.error("删除道路数据失败", e);
-        }
+        });
     }
 
     public static void replaceRoad(ServerLevel level, long oldFp, RoadData newRd) {
@@ -340,31 +344,34 @@ public final class RoadSqliteStorage {
         byte[] data = serializeRoadData(rd);
         if (data == null) return;
 
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
-                stmt.setLong(1, fp);
-                stmt.setInt(2, rd.width());
-                stmt.setInt(3, rd.roadType());
-                stmt.setInt(4, minX);
-                stmt.setInt(5, minZ);
-                stmt.setInt(6, maxX);
-                stmt.setInt(7, maxZ);
-                stmt.setBytes(8, data);
-                stmt.executeUpdate();
-            }
-            ROAD_CACHE.put(new CacheKey(level.dimension().location(), fp), rd);
-
-            int minCX = minX >> 4, minCZ = minZ >> 4;
-            int maxCX = maxX >> 4, maxCZ = maxZ >> 4;
-            for (int cx = minCX; cx <= maxCX; cx++) {
-                for (int cz = minCZ; cz <= maxCZ; cz++) {
-                    RoadSpatialIndex.invalidateChunk(level, cx, cz);
+        final int fMinX = minX, fMinZ = minZ, fMaxX = maxX, fMaxZ = maxZ;
+        RoadDatabaseManager.writeExecutor().execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_INSERT)) {
+                    stmt.setLong(1, fp);
+                    stmt.setInt(2, rd.width());
+                    stmt.setInt(3, rd.roadType());
+                    stmt.setInt(4, fMinX);
+                    stmt.setInt(5, fMinZ);
+                    stmt.setInt(6, fMaxX);
+                    stmt.setInt(7, fMaxZ);
+                    stmt.setBytes(8, data);
+                    stmt.executeUpdate();
                 }
+                ROAD_CACHE.put(new CacheKey(level.dimension().location(), fp), rd);
+
+                int minCX = fMinX >> 4, minCZ = fMinZ >> 4;
+                int maxCX = fMaxX >> 4, maxCZ = fMaxZ >> 4;
+                for (int cx = minCX; cx <= maxCX; cx++) {
+                    for (int cz = minCZ; cz <= maxCZ; cz++) {
+                        RoadSpatialIndex.invalidateChunk(level, cx, cz);
+                    }
+                }
+            } catch (SQLException e) {
+                LOGGER.error("强制写入道路数据失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("强制写入道路数据失败", e);
-        }
+        });
     }
 
     public static void flushAll(ServerLevel level) {
@@ -372,18 +379,19 @@ public final class RoadSqliteStorage {
     }
 
     public static void clearAll(ServerLevel level) {
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (var stmt = conn.createStatement()) {
-                stmt.execute("DELETE FROM roads");
+        RoadDatabaseManager.writeExecutor().execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level);
+                try (var stmt = conn.createStatement()) {
+                    stmt.execute("DELETE FROM roads");
+                }
+            } catch (SQLException e) {
+                LOGGER.error("清除道路数据失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("清除道路数据失败", e);
-        }
+        });
     }
 
     public static void shutdown() {
-        RoadDatabaseManager.checkpointAll();
-        RoadDatabaseManager.closeAll();
+        RoadDatabaseManager.shutdown();
     }
 }

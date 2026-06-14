@@ -15,38 +15,61 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 瓦片纹理双层缓存。
+ *
+ * 性能优化：
+ * 1. 增大缓存容量以支持全精度渲染（数百个 chunk 纹片）
+ * 2. 异步预加载纹理，避免主线程阻塞
+ * 3. 减少 lastModified 检查频率（缓存命中时不检查）
  */
 public final class ClientMapTileTextureCache {
     private ClientMapTileTextureCache() {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-    private static final int MAX_VIEWPORT_TEXTURES = 32;
-    private static final int MAX_BACKGROUND_TEXTURES = 64;
 
-    private static final LinkedHashMap<String, TextureEntry> VIEWPORT_CACHE = new LinkedHashMap<>(64, 0.75f, true);
-    private static final LinkedHashMap<String, TextureEntry> BACKGROUND_CACHE = new LinkedHashMap<>(128, 0.75f, true);
+    // 全精度模式下视口内可能需要几百个 chunk 纹理，增大容量
+    private static final int MAX_VIEWPORT_TEXTURES = 256;
+    private static final int MAX_BACKGROUND_TEXTURES = 512;
+
+    private static final LinkedHashMap<String, TextureEntry> VIEWPORT_CACHE = new LinkedHashMap<>(512, 0.75f, true);
+    private static final LinkedHashMap<String, TextureEntry> BACKGROUND_CACHE = new LinkedHashMap<>(1024, 0.75f, true);
+
+    // 异步加载线程池
+    private static final ExecutorService LOAD_EXECUTOR = Executors.newFixedThreadPool(2, r -> {
+        Thread t = new Thread(r, "RW-TileLoader");
+        t.setDaemon(true);
+        return t;
+    });
+
+    // 正在加载的纹理（防止重复加载）
+    private static final ConcurrentHashMap<String, CompletableFuture<ResourceLocation>> PENDING_LOADS = new ConcurrentHashMap<>();
 
     public static synchronized ResourceLocation getOrLoad(Minecraft mc, Path path, boolean inViewport) {
         if (mc == null || path == null || !Files.exists(path)) {
             return null;
         }
         String key = path.toAbsolutePath().normalize().toString();
-        long lastMod = lastModified(path);
 
+        // 1. 检查视口缓存（缓存命中时不检查 lastModified，避免每帧磁盘 I/O）
         TextureEntry vpEntry = VIEWPORT_CACHE.get(key);
-        if (vpEntry != null && vpEntry.lastModified == lastMod) {
+        if (vpEntry != null) {
+            if (inViewport) return vpEntry.location;
+            // 从视口移到后台
+            VIEWPORT_CACHE.remove(key);
+            BACKGROUND_CACHE.put(key, vpEntry);
+            trimBackgroundCache(mc);
             return vpEntry.location;
         }
-        if (vpEntry != null) {
-            release(mc, vpEntry.location);
-            VIEWPORT_CACHE.remove(key);
-        }
 
+        // 2. 检查后台缓存
         TextureEntry bgEntry = BACKGROUND_CACHE.get(key);
-        if (bgEntry != null && bgEntry.lastModified == lastMod) {
+        if (bgEntry != null) {
             if (inViewport) {
                 BACKGROUND_CACHE.remove(key);
                 VIEWPORT_CACHE.put(key, bgEntry);
@@ -54,16 +77,65 @@ public final class ClientMapTileTextureCache {
             }
             return bgEntry.location;
         }
-        if (bgEntry != null) {
-            release(mc, bgEntry.location);
-            BACKGROUND_CACHE.remove(key);
+
+        // 3. 检查是否有正在异步加载的
+        CompletableFuture<ResourceLocation> pending = PENDING_LOADS.get(key);
+        if (pending != null) {
+            if (pending.isDone()) {
+                PENDING_LOADS.remove(key);
+                try {
+                    ResourceLocation loc = pending.getNow(null);
+                    if (loc != null) return loc;
+                } catch (Exception ignored) {}
+            }
+            // 还在加载中，本帧跳过
+            return null;
         }
 
+        // 4. 同步加载（首次必须同步，否则该帧无纹理可渲染）
+        long lastMod = lastModified(path);
         return loadTexture(mc, path, key, lastMod, inViewport);
     }
 
     public static synchronized ResourceLocation getOrLoad(Minecraft mc, Path path) {
         return getOrLoad(mc, path, false);
+    }
+
+    /**
+     * 异步预加载纹理到后台缓存。不阻塞渲染线程。
+     * 下次 getOrLoad 时可直接命中缓存。
+     */
+    public static void preloadAsync(Minecraft mc, Path path) {
+        if (mc == null || path == null || !Files.exists(path)) return;
+        String key = path.toAbsolutePath().normalize().toString();
+
+        synchronized (ClientMapTileTextureCache.class) {
+            if (VIEWPORT_CACHE.containsKey(key) || BACKGROUND_CACHE.containsKey(key) || PENDING_LOADS.containsKey(key)) {
+                return; // 已缓存或正在加载
+            }
+        }
+
+        CompletableFuture<ResourceLocation> future = CompletableFuture.supplyAsync(() -> {
+            try (InputStream input = Files.newInputStream(path)) {
+                NativeImage image = NativeImage.read(input);
+                DynamicTexture texture = new DynamicTexture(image);
+                ResourceLocation location = mc.getTextureManager().register(
+                        "roadweaver_map_tile/" + Integer.toHexString(key.hashCode()), texture);
+                TextureEntry entry = new TextureEntry(location, lastModified(path));
+
+                synchronized (ClientMapTileTextureCache.class) {
+                    BACKGROUND_CACHE.put(key, entry);
+                    trimBackgroundCache(mc);
+                }
+                return location;
+            } catch (IOException e) {
+                LOGGER.warn("异步加载地图瓦片失败: {}", path, e);
+                return null;
+            }
+        }, LOAD_EXECUTOR);
+
+        PENDING_LOADS.put(key, future);
+        future.whenComplete((loc, ex) -> PENDING_LOADS.remove(key));
     }
 
     public static synchronized void trimToViewport(Minecraft mc, Set<String> viewportKeys) {

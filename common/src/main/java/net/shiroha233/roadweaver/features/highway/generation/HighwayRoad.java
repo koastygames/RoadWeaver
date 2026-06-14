@@ -51,6 +51,7 @@ public final class HighwayRoad {
         BlockPos rawEnd = connection.to();
 
         TerrainSamplingCache cache = new TerrainSamplingCache();
+        PathTerrainField terrain = null;
         try {
             RoadGenerationConfig adapted = genConfig.toRoadGenerationConfig();
             PathCalculationResult pathResult = HighwayPathCalculator.calculateHighwayPathDetailed(
@@ -62,7 +63,7 @@ public final class HighwayRoad {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 3) return false;
 
-            PathTerrainField terrain = pathResult.terrain();
+            terrain = pathResult.terrain();
             List<RoadSpan> spans = PathSpanExtractor.extractSpans(
                     segments, level, cache, terrain, adapted.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
@@ -81,6 +82,7 @@ public final class HighwayRoad {
             RoadShardStorage.addRoad(level, rd);
             return true;
         } finally {
+            if (terrain != null) terrain.dispose();
             cache.clear();
         }
     }

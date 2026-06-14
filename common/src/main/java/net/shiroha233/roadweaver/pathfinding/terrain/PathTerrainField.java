@@ -26,6 +26,12 @@ public interface PathTerrainField {
 
     int step();
 
+    /**
+     * 释放内部大数组，协助 GC 回收。默认空操作。
+     * 持有紧凑数组的实现（QuantizedChunkTerrainField、HighwayCellTerrainField）应覆写。
+     */
+    default void dispose() {}
+
     default boolean isWaterBiome(int x, int z) {
         if (!contains(x, z)) {
             return false;

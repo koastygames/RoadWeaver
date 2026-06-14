@@ -43,30 +43,32 @@ public final class SignTextSqliteStorage {
 
     public static void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
         if (level == null || writes == null || writes.isEmpty()) return;
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_UPSERT)) {
-                boolean hasBatch = false;
-                for (PendingSignWrite write : writes) {
-                    if (write == null || write.pos() == null) continue;
-                    bindUpsert(stmt, write.pos(), write.signType(), write.payload());
-                    stmt.addBatch();
-                    hasBatch = true;
+        RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_ROAD).execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_ROAD);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_UPSERT)) {
+                    boolean hasBatch = false;
+                    for (PendingSignWrite write : writes) {
+                        if (write == null || write.pos() == null) continue;
+                        bindUpsert(stmt, write.pos(), write.signType(), write.payload());
+                        stmt.addBatch();
+                        hasBatch = true;
+                    }
+                    if (hasBatch) {
+                        stmt.executeBatch();
+                    }
                 }
-                if (hasBatch) {
-                    stmt.executeBatch();
-                }
+            } catch (SQLException e) {
+                LOGGER.error("upsert pending_sign_texts failed", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("upsert pending_sign_texts failed", e);
-        }
+        });
     }
 
     public static List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
         if (level == null || limit <= 0) return List.of();
         ArrayList<PendingSignText> out = new ArrayList<>();
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
+            Connection conn = RoadDatabaseManager.getConnection(level, RoadDatabaseManager.DB_ROAD);
             try (PreparedStatement stmt = conn.prepareStatement(SQL_QUERY_BY_CHUNK)) {
                 stmt.setInt(1, chunkX);
                 stmt.setInt(2, chunkZ);
@@ -91,19 +93,21 @@ public final class SignTextSqliteStorage {
 
     public static void deleteByIds(ServerLevel level, List<Long> ids) {
         if (level == null || ids == null || ids.isEmpty()) return;
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE_BY_ID)) {
-                for (Long id : ids) {
-                    if (id == null) continue;
-                    stmt.setLong(1, id);
-                    stmt.addBatch();
+        RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_ROAD).execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_ROAD);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE_BY_ID)) {
+                    for (Long id : ids) {
+                        if (id == null) continue;
+                        stmt.setLong(1, id);
+                        stmt.addBatch();
+                    }
+                    stmt.executeBatch();
                 }
-                stmt.executeBatch();
+            } catch (SQLException e) {
+                LOGGER.error("deleteByIds pending_sign_texts failed", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("deleteByIds pending_sign_texts failed", e);
-        }
+        });
     }
 
     private static void bindUpsert(PreparedStatement stmt, BlockPos pos, int signType, String payload) throws SQLException {

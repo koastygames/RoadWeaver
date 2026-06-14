@@ -20,10 +20,10 @@ public final class HighwayCellTerrainField implements PathTerrainField {
     private final int minZ;
     private final int sizeX;
     private final int sizeZ;
-    private final short[] heights;
-    private final short[] oceanFloors;
-    private final byte[] waterColumns;
-    private final byte[] biomeFlags;
+    private short[] heights;
+    private short[] oceanFloors;
+    private byte[] waterColumns;
+    private byte[] biomeFlags;
 
     private static final byte BIOME_NORMAL = 0;
     private static final byte BIOME_WATER = 1;
@@ -129,6 +129,17 @@ public final class HighwayCellTerrainField implements PathTerrainField {
     @Override
     public int step() {
         return step;
+    }
+
+    /**
+     * 释放内部紧凑数组，协助 GC 回收。调用后此对象不可再用。
+     */
+    @Override
+    public void dispose() {
+        heights = null;
+        oceanFloors = null;
+        waterColumns = null;
+        biomeFlags = null;
     }
 
     public int sizeX() { return sizeX; }

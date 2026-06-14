@@ -19,6 +19,7 @@ import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCal
 import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
@@ -75,18 +76,33 @@ public final class Road {
         BlockPos rawEnd = connection.to();
         
         TerrainSamplingCache cache = new TerrainSamplingCache();
-        CoarseTerrainRegion coarseRegion = CoarseTerrainRegionRegistry.acquire(level, connection);
+        PathTerrainField terrain = null;
         try {
-            PathCalculationResult pathResult = RoadPathCalculator.calculateAStarRoadPathDetailed(
-                    rawStart, rawEnd, width, level, maxSteps, cache, genConfig, coarseRegion);
+            // 优先使用规划阶段已计算好的粗路径（粗采样数据已在规划阶段释放）
+            List<BlockPos> coarsePath = CoarsePathCache.get(level, connection);
+
+            PathCalculationResult pathResult;
+            if (coarsePath != null) {
+                // 粗路径已就绪，直接进入精采样
+                pathResult = RoadPathCalculator.calculateFromCoarsePath(
+                        coarsePath, rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
+            } else {
+                // 无缓存粗路径（如旧版兼容），退回完整两阶段寻路
+                CoarseTerrainRegion coarseRegion = CoarseTerrainRegionRegistry.acquire(level, connection);
+                pathResult = RoadPathCalculator.calculateAStarRoadPathDetailed(
+                        rawStart, rawEnd, width, level, maxSteps, cache, genConfig, coarseRegion);
+                if (coarseRegion != null) coarseRegion.dispose();
+                CoarseTerrainRegionRegistry.release(level, connection);
+            }
+
             List<RoadSegmentPlacement> rawSegments = pathResult.segments();
             if (rawSegments == null || rawSegments.size() < 5) return null;
-            
+
             List<RoadSegmentPlacement> segments = StructureRoadOffsetService.trimPathNearStructure(
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return null;
-            
-            PathTerrainField terrain = pathResult.terrain();
+
+            terrain = pathResult.terrain();
             List<RoadSpan> spans = PathSpanExtractor.extractSpans(
                     segments, level, cache, terrain, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
@@ -95,11 +111,12 @@ public final class Road {
 
             RoadData rd = new RoadData(width, type, materials, slabMaterials, segments, spans, targetY, ownerA2d, ownerB2d);
             RoadShardStorage.addRoad(level, rd);
-            
+
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
             return rd;
         } finally {
-            CoarseTerrainRegionRegistry.release(level, connection);
+            if (terrain != null) terrain.dispose();
+            CoarsePathCache.remove(level, connection);
             cache.clear();
         }
     }

@@ -18,9 +18,9 @@ public final class AccurateHeightSampler {
     private final ChunkGenerator generator;
     private final NoiseChunkHeightSampler noiseChunkSampler;
 
-    private final ConcurrentHashMap<Long, Integer> motionBlockingCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Integer> worldSurfaceCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Integer> motionBlockingCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Integer> worldSurfaceCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
 
     private static long hashXZ(int x, int z) {
         return ((long) x << 32) | (z & 0xffffffffL);
@@ -92,10 +92,13 @@ public final class AccurateHeightSampler {
         return h;
     }
 
+    /**
+     * 释放缓存。用新实例替换而非 clear()，确保内部 table 数组被 GC 回收。
+     */
     public void clear() {
-        motionBlockingCache.clear();
-        worldSurfaceCache.clear();
-        oceanFloorCache.clear();
+        motionBlockingCache = new ConcurrentHashMap<>();
+        worldSurfaceCache = new ConcurrentHashMap<>();
+        oceanFloorCache = new ConcurrentHashMap<>();
         if (noiseChunkSampler != null) {
             noiseChunkSampler.clear();
         }

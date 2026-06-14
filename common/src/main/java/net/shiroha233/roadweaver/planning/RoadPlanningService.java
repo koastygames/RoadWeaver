@@ -6,13 +6,18 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
+import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.pathfinding.Pathfinder;
+import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
+import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainPngWriter;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionSampler;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
@@ -24,6 +29,8 @@ import net.shiroha233.roadweaver.util.ComputeService;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.snapToGrid;
 
 /**
  * 道路规划服务
@@ -168,7 +175,7 @@ public final class RoadPlanningService {
         return planRectAsync(level, minX, minZ, maxX, maxZ);
     }
 
-    private record PlannedRegionResult(List<StructureConnection> incoming, CoarseTerrainRegion region) {}
+    private record PlannedRegionResult(List<StructureConnection> incoming) {}
 
     public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         final long epoch = ThreadPoolManager.currentEpoch();
@@ -179,8 +186,8 @@ public final class RoadPlanningService {
             existingSnapshot = ex != null ? new ArrayList<>(ex) : new ArrayList<>();
         }
         return ComputeService.supplyAsync(() -> {
-            if (Thread.currentThread().isInterrupted()) return new PlannedRegionResult(List.of(), null);
-            if (!ThreadPoolManager.isEpoch(epoch)) return new PlannedRegionResult(List.of(), null);
+            if (Thread.currentThread().isInterrupted()) return new PlannedRegionResult(List.of());
+            if (!ThreadPoolManager.isEpoch(epoch)) return new PlannedRegionResult(List.of());
             ArrayList<BlockPos> points = new ArrayList<>();
             HashSet<Long> seenPos = new HashSet<>();
             collectStructurePointsInto(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, points, seenPos);
@@ -192,7 +199,7 @@ public final class RoadPlanningService {
                 if (seenPos.add(kf)) points.add(f);
                 if (seenPos.add(kt)) points.add(t);
             }
-            if (points.size() < 2) return new PlannedRegionResult(List.of(), null);
+            if (points.size() < 2) return new PlannedRegionResult(List.of());
 
             ArrayList<StructureConnection> existingInRect = new ArrayList<>();
             HashSet<Long> existingEdgeKeys = new HashSet<>();
@@ -207,7 +214,7 @@ public final class RoadPlanningService {
             ModConfig cfg0 = ConfigService.get();
             NetworkPlanner planner = NetworkPlannerFactory.create(cfg0.planning().planningAlgorithm());
             List<StructureConnection> primaryEdges = planner.plan(points, RoadConstants.DEFAULT_PLAN_MAX_EDGE_LEN_BLOCKS);
-            if (primaryEdges.isEmpty() && existingInRect.isEmpty()) return new PlannedRegionResult(List.of(), null);
+            if (primaryEdges.isEmpty() && existingInRect.isEmpty()) return new PlannedRegionResult(List.of());
 
             ArrayList<StructureConnection> filteredPrimary = new ArrayList<>();
             for (StructureConnection c : primaryEdges) {
@@ -228,8 +235,12 @@ public final class RoadPlanningService {
             ArrayList<StructureConnection> incoming = new ArrayList<>(filteredPrimary);
             incoming.addAll(bridges);
             CoarseTerrainRegion region = prepareCoarseRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
-            return new PlannedRegionResult(incoming, region);
-        }).thenAccept(result -> {
+            // 粗采样已完成 → PNG+SQLite持久化 → 对所有连接执行粗路径搜索 → 释放粗采样
+            if (region != null) {
+                computeCoarsePathsAndRelease(level, region, incoming);
+            }
+            return new PlannedRegionResult(incoming);
+        }).thenAccept((PlannedRegionResult result) -> {
             if (result == null || result.incoming().isEmpty()) return;
             if (!ThreadPoolManager.isEpoch(epoch)) return;
             var server = level.getServer();
@@ -242,9 +253,6 @@ public final class RoadPlanningService {
                 List<StructureConnection> merged = mergeConnections(existing, incoming);
                 if (merged.size() != (existing == null ? 0 : existing.size())) {
                     provider.setStructureConnections(level, merged);
-                }
-                if (result.region() != null) {
-                    CoarseTerrainRegionRegistry.register(level, incoming, result.region());
                 }
             });
         });
@@ -274,7 +282,8 @@ public final class RoadPlanningService {
                                                           List<StructureConnection> incoming) {
         CoarseTerrainRegion region = prepareCoarseRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
         if (region != null) {
-            CoarseTerrainRegionRegistry.register(level, incoming, region);
+            // 粗采样已完成 → PNG+SQLite持久化 → 对所有连接执行粗路径搜索 → 释放粗采样
+            computeCoarsePathsAndRelease(level, region, incoming);
         }
     }
 
@@ -294,6 +303,62 @@ public final class RoadPlanningService {
         } catch (IllegalArgumentException ignored) {
             return null;
         }
+    }
+
+    /**
+     * 对区域内所有连接执行粗路径搜索，将结果存入 CoarsePathCache，然后释放粗采样数据。
+     * 流程：粗采样(PNG+SQLite已持久化) → 所有粗路径 → CoarsePathCache → dispose region → GC
+     */
+    private static void computeCoarsePathsAndRelease(ServerLevel level,
+                                                     CoarseTerrainRegion region,
+                                                     List<StructureConnection> connections) {
+        ModConfig cfg = ConfigService.get();
+        int dGrid = cfg.pathfindingCost().effectiveAStarStep();
+        int maxSteps = cfg.pathfindingCost().aStarMaxSteps();
+        TerrainSamplingCache cache = new TerrainSamplingCache();
+        try {
+            for (StructureConnection conn : connections) {
+                if (conn == null) continue;
+                if (!region.contains(conn.from().getX(), conn.from().getZ())) continue;
+                if (!region.contains(conn.to().getX(), conn.to().getZ())) continue;
+                if (Thread.currentThread().isInterrupted()) break;
+
+                List<BlockPos> coarsePath = searchCoarsePath(level, conn, dGrid, maxSteps, cache, region);
+                if (coarsePath != null && !coarsePath.isEmpty()) {
+                    CoarsePathCache.put(level, conn, coarsePath);
+                }
+            }
+        } finally {
+            cache.clear();
+            // 粗采样数据已持久化到SQLite+PNG，所有粗路径已存入缓存，现在释放粗采样大数组
+            region.dispose();
+        }
+    }
+
+    private static List<BlockPos> searchCoarsePath(ServerLevel level,
+                                                    StructureConnection conn,
+                                                    int dGrid,
+                                                    int maxSteps,
+                                                    TerrainSamplingCache cache,
+                                                    CoarseTerrainRegion region) {
+        int sx = snapToGrid(conn.from().getX(), dGrid);
+        int sz = snapToGrid(conn.from().getZ(), dGrid);
+        int ex = snapToGrid(conn.to().getX(), dGrid);
+        int ez = snapToGrid(conn.to().getZ(), dGrid);
+        int startY = cache.height(level, sx, sz);
+        int endY = cache.height(level, ex, ez);
+        BlockPos startGround = new BlockPos(sx, startY, sz);
+        BlockPos endGround = new BlockPos(ex, endY, ez);
+
+        if (!region.contains(startGround.getX(), startGround.getZ())) return null;
+        if (!region.contains(endGround.getX(), endGround.getZ())) return null;
+
+        PathfindingCostConfig pathCfg = ConfigService.get().pathfindingCost();
+        var algo = pathCfg.pathfindingAlgorithm();
+        Pathfinder pathfinder = PathfinderFactory.create(algo);
+        var result = pathfinder.findRawPath(startGround, endGround, level, maxSteps, cache, region, pathCfg);
+        if (!result.success() || !result.hasRawPath()) return null;
+        return result.rawPath();
     }
 
     private static ArrayList<BlockPos> collectComponentPoints(List<BlockPos> seed,

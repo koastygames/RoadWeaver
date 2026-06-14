@@ -72,8 +72,12 @@ final class NoiseChunkHeightSampler {
         return chunkData(x, z).oceanFloorWg(localIndex(x, z));
     }
 
+    /**
+     * 释放缓存。用新实例替换而非 clear()，确保内部 table 数组被 GC 回收。
+     */
     void clear() {
         chunkCache.clear();
+        // LinkedHashMap LRU 容量固定256，不会过度膨胀，clear后table适中无需替换
     }
 
     private ChunkHeightData chunkData(int x, int z) {

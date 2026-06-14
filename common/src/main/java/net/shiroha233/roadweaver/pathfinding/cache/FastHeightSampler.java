@@ -19,7 +19,7 @@ public final class FastHeightSampler {
     private final int minY;
     private final int maxY;
     private final int cellHeight;
-    private final ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
 
     private FastHeightSampler(DensityFunction initialDensity, NoiseSettings settings) {
         this.initialDensity = initialDensity;
@@ -77,8 +77,11 @@ public final class FastHeightSampler {
         return NoiseSettings.create(-64, 384, 1, 2);
     }
 
+    /**
+     * 释放缓存。用新实例替换而非 clear()，确保内部 table 数组被 GC 回收。
+     */
     public void clearCache() {
-        heightCache.clear();
+        heightCache = new ConcurrentHashMap<>();
     }
 
     public int getCacheSize() {

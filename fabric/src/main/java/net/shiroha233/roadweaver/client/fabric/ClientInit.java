@@ -1,23 +1,17 @@
 package net.shiroha233.roadweaver.client.fabric;
 
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapDataStorage;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.tile.ClientMapTileTextureCache;
-import net.shiroha233.roadweaver.client.map.tile.LoadedChunkTileOverrideManager;
 import net.shiroha233.roadweaver.network.fabric.MapNetworkFabric;
 import org.lwjgl.glfw.GLFW;
 
@@ -30,17 +24,6 @@ public class ClientInit implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         MapNetworkFabric.registerClientReceivers();
-
-        ClientChunkEvents.CHUNK_LOAD.register((clientLevel, chunk) -> {
-            Minecraft mc = Minecraft.getInstance();
-            MinecraftServer server = mc.getSingleplayerServer();
-            if (server == null) return;
-
-            ServerLevel serverLevel = server.getLevel(clientLevel.dimension());
-            if (serverLevel == null) return;
-
-            LoadedChunkTileOverrideManager.onChunkGenerated(clientLevel, serverLevel, chunk.getPos().x, chunk.getPos().z);
-        });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             ClientMapAccessGuard.reset();
@@ -56,7 +39,6 @@ public class ClientInit implements ClientModInitializer {
             MapSnapshotCache.setCurrentWorldId(null);
             ClientMapTileTextureCache.clear(client);
             ClientMapNotes.onWorldLeave();
-            LoadedChunkTileOverrideManager.clear();
         });
 
         OPEN_MAP = KeyBindingHelper.registerKeyBinding(new KeyMapping(

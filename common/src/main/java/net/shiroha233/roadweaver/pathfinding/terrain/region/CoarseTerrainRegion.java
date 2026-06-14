@@ -16,11 +16,11 @@ public final class CoarseTerrainRegion implements PathTerrainField {
 
     private final CoarseRegionBounds bounds;
     private final int seaLevel;
-    private final short[] heights;
-    private final short[] oceanFloors;
-    private final byte[] flags;
-    private final int[] terrainArgb;
-    private final Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles;
+    private short[] heights;
+    private short[] oceanFloors;
+    private byte[] flags;
+    private int[] terrainArgb;
+    private Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles;
 
     public CoarseTerrainRegion(CoarseRegionBounds bounds,
                                int seaLevel,
@@ -142,6 +142,18 @@ public final class CoarseTerrainRegion implements PathTerrainField {
     @Override
     public int step() {
         return bounds.step();
+    }
+
+    /**
+     * 释放内部大数组与瓦片引用，协助 GC 回收。调用后此对象不可再用。
+     */
+    @Override
+    public void dispose() {
+        heights = null;
+        oceanFloors = null;
+        flags = null;
+        terrainArgb = null;
+        tiles = null;
     }
 
     @Override

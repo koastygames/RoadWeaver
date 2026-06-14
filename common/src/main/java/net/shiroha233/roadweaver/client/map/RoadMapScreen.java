@@ -18,8 +18,6 @@ import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
 import net.shiroha233.roadweaver.client.map.render.GridRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapRenderers;
 import net.shiroha233.roadweaver.client.map.render.RenderUtils;
-import net.shiroha233.roadweaver.client.map.tile.SingleplayerOverlayTileManager;
-import net.shiroha233.roadweaver.client.map.tile.SingleplayerTerrainTileManager;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
 import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
@@ -59,8 +57,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private final MapView view = new MapView();
     private final MapInputHandler inputHandler;
     private final ContextMenu contextMenu = new ContextMenu();
-    private final SingleplayerTerrainTileManager terrainTiles = new SingleplayerTerrainTileManager();
-    private final SingleplayerOverlayTileManager overlayTiles = new SingleplayerOverlayTileManager();
     
     // 布局
     private int mapX, mapY, mapW, mapH;
@@ -104,8 +100,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     @Override
     public void removed() {
         super.removed();
-        terrainTiles.clear();
-        overlayTiles.clear();
         MapSnapshotCache.scheduleClear(1000);
     }
 
@@ -128,24 +122,9 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         int bottom = this.height;
 
         Minecraft mc = this.minecraft;
-        if (mc != null) {
-            MinecraftServer server = mc.getSingleplayerServer();
-            if (server != null && mc.level != null) {
-                ServerLevel level = server.getLevel(mc.level.dimension());
-                if (level != null) {
-                    int cx = mc.player != null ? (int) Math.round(mc.player.getX()) : 0;
-                    int cz = mc.player != null ? (int) Math.round(mc.player.getZ()) : 0;
-                    int radiusBlocks = MapTileAoiLocator.dynamicPlanningRadiusBlocks();
-                    MapTileAoi aoi = new MapTileAoi(level.dimension().location(), cx, cz, radiusBlocks);
-                    terrainTiles.request(level, aoi, view, contentW, contentH);
-                }
-            }
-        }
 
         g.fill(0, 0, this.width, this.height, MapTheme.COLOR_BACKGROUND);
         g.enableScissor(left, top, right, bottom);
-
-        terrainTiles.render(g, this.minecraft, view, left, top, contentW, contentH);
         MapRenderers.renderGrid(g, this.font, 0, 0, mapW, mapH, 0,
                 view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(),
                 MapTheme.COLOR_GRID, MapTheme.GRID_TARGET_PX, MapTheme.COLOR_TEXT);
@@ -438,7 +417,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 }
                 int radiusBlocks = MapTileAoiLocator.dynamicPlanningRadiusBlocks();
                 MapTileAoi aoi = new MapTileAoi(levelFinal.dimension().location(), cx, cz, radiusBlocks);
-                terrainTiles.request(levelFinal, aoi, view, contentW, contentH);
                 final int fcx = cx, fcz = cz;
                 final int clippedMinX = Math.max(minX, aoi.minBlockX());
                 final int clippedMaxX = Math.min(maxX, aoi.maxBlockX());

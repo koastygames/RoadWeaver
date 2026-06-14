@@ -26,7 +26,6 @@ public final class CoarseTerrainTileSqliteStorage {
     private CoarseTerrainTileSqliteStorage() {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-    private static final Object DB_LOCK = new Object();
     private static final int PAYLOAD_MAGIC = 0x52575431;
 
     private static final String SQL_LOAD =
@@ -48,19 +47,17 @@ public final class CoarseTerrainTileSqliteStorage {
         if (level == null || key == null) return null;
         try {
             LoadedPayload payload;
-            synchronized (DB_LOCK) {
-                Connection conn = RoadDatabaseManager.getConnection(level);
-                try (PreparedStatement stmt = conn.prepareStatement(SQL_LOAD)) {
-                    bindKey(stmt, key);
-                    try (ResultSet rs = stmt.executeQuery()) {
-                        if (!rs.next()) return null;
-                        int sampleWidth = rs.getInt("sample_width");
-                        int sampleHeight = rs.getInt("sample_height");
-                        int seaLevel = rs.getInt("sea_level");
-                        byte[] data = rs.getBytes("data");
-                        if (data == null || data.length == 0) return null;
-                        payload = new LoadedPayload(seaLevel, sampleWidth, sampleHeight, data);
-                    }
+            Connection conn = RoadDatabaseManager.getConnection(level, RoadDatabaseManager.DB_TERRAIN);
+            try (PreparedStatement stmt = conn.prepareStatement(SQL_LOAD)) {
+                bindKey(stmt, key);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (!rs.next()) return null;
+                    int sampleWidth = rs.getInt("sample_width");
+                    int sampleHeight = rs.getInt("sample_height");
+                    int seaLevel = rs.getInt("sea_level");
+                    byte[] data = rs.getBytes("data");
+                    if (data == null || data.length == 0) return null;
+                    payload = new LoadedPayload(seaLevel, sampleWidth, sampleHeight, data);
                 }
             }
             return decode(key, payload.seaLevel(), payload.sampleWidth(), payload.sampleHeight(), payload.data());
@@ -75,50 +72,54 @@ public final class CoarseTerrainTileSqliteStorage {
         CoarseTerrainTileKey key = tile.key();
         try {
             byte[] data = encode(tile);
-            synchronized (DB_LOCK) {
-                Connection conn = RoadDatabaseManager.getConnection(level);
-                try (PreparedStatement stmt = conn.prepareStatement(SQL_SAVE)) {
-                    bindKey(stmt, key);
-                    stmt.setInt(6, tile.sampleWidth());
-                    stmt.setInt(7, tile.sampleHeight());
-                    stmt.setInt(8, tile.seaLevel());
-                    stmt.setBytes(9, data);
-                    stmt.executeUpdate();
+            RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_TERRAIN).execute(() -> {
+                try {
+                    Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_TERRAIN);
+                    try (PreparedStatement stmt = conn.prepareStatement(SQL_SAVE)) {
+                        bindKey(stmt, key);
+                        stmt.setInt(6, tile.sampleWidth());
+                        stmt.setInt(7, tile.sampleHeight());
+                        stmt.setInt(8, tile.seaLevel());
+                        stmt.setBytes(9, data);
+                        stmt.executeUpdate();
+                    }
+                } catch (SQLException e) {
+                    LOGGER.warn("写入粗采样地形瓦片失败 tile=[{},{}]", key.tileX(), key.tileZ(), e);
                 }
-            }
-        } catch (SQLException | IOException e) {
-            LOGGER.warn("写入粗采样地形瓦片失败 tile=[{},{}]", key.tileX(), key.tileZ(), e);
+            });
+        } catch (IOException e) {
+            LOGGER.warn("编码粗采样地形瓦片失败 tile=[{},{}]", key.tileX(), key.tileZ(), e);
         }
     }
 
     public static void deleteBySchemaVersion(ServerLevel level, int currentSchemaVersion) {
         if (level == null) return;
-        try {
-            synchronized (DB_LOCK) {
-                Connection conn = RoadDatabaseManager.getConnection(level);
+        RoadDatabaseManager.writeExecutor().execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_TERRAIN);
                 try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE_OLD_SCHEMA)) {
                     stmt.setInt(1, currentSchemaVersion);
                     stmt.executeUpdate();
                 }
+            } catch (SQLException e) {
+                LOGGER.warn("清理旧版粗采样地形瓦片失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.warn("清理旧版粗采样地形瓦片失败", e);
-        }
+        });
     }
 
     public static void pruneOldTiles(ServerLevel level, long olderThanEpochSeconds) {
         if (level == null) return;
-        try {
-            synchronized (DB_LOCK) {
-                Connection conn = RoadDatabaseManager.getConnection(level);
+        RoadDatabaseManager.writeExecutor().execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_TERRAIN);
                 try (PreparedStatement stmt = conn.prepareStatement(SQL_PRUNE_OLD)) {
                     stmt.setLong(1, olderThanEpochSeconds);
                     stmt.executeUpdate();
                 }
+            } catch (SQLException e) {
+                LOGGER.warn("清理过期粗采样地形瓦片失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.warn("清理过期粗采样地形瓦片失败", e);
-        }
+        });
     }
 
     private record LoadedPayload(int seaLevel, int sampleWidth, int sampleHeight, byte[] data) {}

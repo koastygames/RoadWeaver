@@ -17,7 +17,13 @@ loom {
             ideConfigGenerated = true
             name "Forge Client"
             runDir "run/client"
-            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
+            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver",
+                   "-Xmx2G",
+                   "-XX:+UseG1GC",
+                   "-XX:MaxGCPauseMillis=50",
+                   "-XX:+UnlockExperimentalVMOptions",
+                   "-XX:G1NewSizePercent=8",
+                   "-XX:G1MixedGCCountTarget=16"
             programArgs "--username", rootProject.properties.getOrDefault('minecraft_username', 'Player1')
         }
         client2 {
@@ -25,14 +31,18 @@ loom {
             ideConfigGenerated = true
             name "Forge Client 2"
             runDir "run/client_alt"
-            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
+            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver",
+                   "-Xmx2G",
+                   "-XX:+UseG1GC"
             programArgs "--username", rootProject.properties.getOrDefault('minecraft_second_username', 'Player2')
         }
         server {
             server()
             name "Forge Server"
             runDir "run/server"
-            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
+            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver",
+                   "-Xmx2G",
+                   "-XX:+UseG1GC"
         }
     }
 }

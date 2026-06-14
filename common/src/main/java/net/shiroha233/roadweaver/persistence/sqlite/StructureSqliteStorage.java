@@ -52,7 +52,10 @@ public final class StructureSqliteStorage {
     private static final String SQL_CLEAR_SCAN_TILES = "DELETE FROM structure_scan_tiles";
 
     private static String getMetaValue(ServerLevel level, String key) throws SQLException {
-        Connection conn = RoadDatabaseManager.getConnection(level);
+        return getMetaValueOn(RoadDatabaseManager.getConnection(level, RoadDatabaseManager.DB_MAP), key);
+    }
+
+    private static String getMetaValueOn(Connection conn, String key) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(SQL_GET_META)) {
             stmt.setString(1, key);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -62,7 +65,10 @@ public final class StructureSqliteStorage {
     }
 
     private static void setMetaValue(ServerLevel level, String key, String value) throws SQLException {
-        Connection conn = RoadDatabaseManager.getConnection(level);
+        setMetaValueOn(RoadDatabaseManager.getConnection(level, RoadDatabaseManager.DB_MAP), key, value);
+    }
+
+    private static void setMetaValueOn(Connection conn, String key, String value) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(SQL_SET_META)) {
             stmt.setString(1, key);
             stmt.setString(2, value);
@@ -88,28 +94,30 @@ public final class StructureSqliteStorage {
 
     public static void ensurePolicy(ServerLevel level, String policyHash) {
         if (level == null) return;
-        if (policyHash == null) policyHash = "";
+        final String hash = policyHash == null ? "" : policyHash;
 
-        try {
-            String current = getMetaValue(level, META_POLICY_HASH);
-            if (current != null && current.equals(policyHash)) return;
+        RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_MAP).execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_MAP);
+                String current = getMetaValueOn(conn, META_POLICY_HASH);
+                if (current != null && current.equals(hash)) return;
 
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (var stmt = conn.createStatement()) {
-                stmt.execute(SQL_CLEAR_PREDICTED);
-                stmt.execute(SQL_CLEAR_SCAN_TILES);
+                try (var stmt = conn.createStatement()) {
+                    stmt.execute(SQL_CLEAR_PREDICTED);
+                    stmt.execute(SQL_CLEAR_SCAN_TILES);
+                }
+                setMetaValueOn(conn, META_POLICY_HASH, hash);
+            } catch (SQLException e) {
+                LOGGER.error("ensurePolicy 失败", e);
             }
-            setMetaValue(level, META_POLICY_HASH, policyHash);
-        } catch (SQLException e) {
-            LOGGER.error("ensurePolicy 失败", e);
-        }
+        });
     }
 
     public static boolean claimScanTile(ServerLevel level, int tileX, int tileZ) {
         if (level == null) return false;
 
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
+            Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_MAP);
             long now = System.currentTimeMillis() / 1000L;
 
             try (PreparedStatement q = conn.prepareStatement(SQL_GET_SCAN_TILE)) {
@@ -152,67 +160,73 @@ public final class StructureSqliteStorage {
 
     public static void markScanTileDone(ServerLevel level, int tileX, int tileZ) {
         if (level == null) return;
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_MARK_SCAN_TILE_DONE)) {
-                stmt.setInt(1, tileX);
-                stmt.setInt(2, tileZ);
-                stmt.setInt(3, SCAN_TILE_SIZE_CHUNKS);
-                stmt.executeUpdate();
+        RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_MAP).execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_MAP);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_MARK_SCAN_TILE_DONE)) {
+                    stmt.setInt(1, tileX);
+                    stmt.setInt(2, tileZ);
+                    stmt.setInt(3, SCAN_TILE_SIZE_CHUNKS);
+                    stmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                LOGGER.error("markScanTileDone 失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("markScanTileDone 失败", e);
-        }
+        });
     }
 
     public static void releaseScanTile(ServerLevel level, int tileX, int tileZ) {
         if (level == null) return;
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE_SCAN_TILE)) {
-                stmt.setInt(1, tileX);
-                stmt.setInt(2, tileZ);
-                stmt.setInt(3, SCAN_TILE_SIZE_CHUNKS);
-                stmt.executeUpdate();
+        RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_MAP).execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_MAP);
+                try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE_SCAN_TILE)) {
+                    stmt.setInt(1, tileX);
+                    stmt.setInt(2, tileZ);
+                    stmt.setInt(3, SCAN_TILE_SIZE_CHUNKS);
+                    stmt.executeUpdate();
+                }
+            } catch (SQLException e) {
+                LOGGER.error("releaseScanTile 失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("releaseScanTile 失败", e);
-        }
+        });
     }
 
     public static void addStructures(ServerLevel level, List<StructureInfo> infos, int source) {
         if (level == null || infos == null || infos.isEmpty()) return;
 
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement del = conn.prepareStatement(SQL_DELETE_POS_SOURCE);
-                 PreparedStatement stmt = conn.prepareStatement(SQL_INSERT_STRUCTURE)) {
-                for (StructureInfo info : infos) {
-                    if (info == null || info.pos() == null) continue;
-                    BlockPos p = info.pos();
-                    int x = p.getX(), z = p.getZ();
-                    String id = info.structureId() == null ? "unknown" : info.structureId();
+        RoadDatabaseManager.writeExecutor(RoadDatabaseManager.DB_MAP).execute(() -> {
+            try {
+                Connection conn = RoadDatabaseManager.getWriteConnection(level, RoadDatabaseManager.DB_MAP);
+                try (PreparedStatement del = conn.prepareStatement(SQL_DELETE_POS_SOURCE);
+                     PreparedStatement stmt = conn.prepareStatement(SQL_INSERT_STRUCTURE)) {
+                    for (StructureInfo info : infos) {
+                        if (info == null || info.pos() == null) continue;
+                        BlockPos p = info.pos();
+                        int x = p.getX(), z = p.getZ();
+                        String id = info.structureId() == null ? "unknown" : info.structureId();
 
-                    if (source != SOURCE_PREDICTED) {
-                        del.setInt(1, x);
-                        del.setInt(2, z);
-                        del.setInt(3, source);
-                        del.addBatch();
+                        if (source != SOURCE_PREDICTED) {
+                            del.setInt(1, x);
+                            del.setInt(2, z);
+                            del.setInt(3, source);
+                            del.addBatch();
+                        }
+
+                        stmt.setInt(1, x);
+                        stmt.setInt(2, z);
+                        stmt.setString(3, id);
+                        stmt.setInt(4, source);
+                        stmt.addBatch();
                     }
 
-                    stmt.setInt(1, x);
-                    stmt.setInt(2, z);
-                    stmt.setString(3, id);
-                    stmt.setInt(4, source);
-                    stmt.addBatch();
+                    if (source != SOURCE_PREDICTED) del.executeBatch();
+                    stmt.executeBatch();
                 }
-
-                if (source != SOURCE_PREDICTED) del.executeBatch();
-                stmt.executeBatch();
+            } catch (SQLException e) {
+                LOGGER.error("addStructures 失败", e);
             }
-        } catch (SQLException e) {
-            LOGGER.error("addStructures 失败", e);
-        }
+        });
     }
 
     public static List<StructureInfo> queryRect(ServerLevel level,
@@ -225,7 +239,7 @@ public final class StructureSqliteStorage {
         String sql = String.format(SQL_QUERY_RECT, sourcesPlaceholders(src));
 
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
+            Connection conn = RoadDatabaseManager.getConnection(level, RoadDatabaseManager.DB_MAP);
             try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setInt(1, minBlockX);
                 stmt.setInt(2, maxBlockX);
@@ -255,7 +269,7 @@ public final class StructureSqliteStorage {
     public static boolean hasAnyStructure(ServerLevel level) {
         if (level == null) return false;
         try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
+            Connection conn = RoadDatabaseManager.getConnection(level, RoadDatabaseManager.DB_MAP);
             try (var stmt = conn.createStatement();
                  var rs = stmt.executeQuery("SELECT 1 FROM structures LIMIT 1")) {
                 return rs.next();

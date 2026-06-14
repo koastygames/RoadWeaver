@@ -18,13 +18,10 @@ public final class CoarseTerrainTileCache {
     private CoarseTerrainTileCache() {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-    private static final ConcurrentHashMap<CoarseTerrainTileKey, CompletableFuture<CoarseTerrainTile>> IN_FLIGHT = new ConcurrentHashMap<>();
-    private static final Map<CoarseTerrainTileKey, CoarseTerrainTile> MEMORY = new LinkedHashMap<>(64, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<CoarseTerrainTileKey, CoarseTerrainTile> eldest) {
-            return size() > RoadConstants.COARSE_TERRAIN_TILE_CACHE_MAX_ENTRIES;
-        }
-    };
+    private static final int MEMORY_CAPACITY = RoadConstants.COARSE_TERRAIN_TILE_CACHE_MAX_ENTRIES;
+    private static final Object MEMORY_LOCK = new Object();
+    private static ConcurrentHashMap<CoarseTerrainTileKey, CompletableFuture<CoarseTerrainTile>> IN_FLIGHT = new ConcurrentHashMap<>();
+    private static Map<CoarseTerrainTileKey, CoarseTerrainTile> MEMORY = createMemoryMap();
 
     public static CoarseTerrainTile getOrLoad(ServerLevel level, CoarseTerrainTileKey key) {
         if (level == null || key == null) return null;
@@ -55,11 +52,23 @@ public final class CoarseTerrainTileCache {
         }
     }
 
+    /**
+     * 释放所有缓存。用新实例替换而非 clear()，确保内部 table 数组被 GC 回收。
+     */
     public static void clearAll() {
-        synchronized (MEMORY) {
-            MEMORY.clear();
+        synchronized (MEMORY_LOCK) {
+            MEMORY = createMemoryMap();
         }
-        IN_FLIGHT.clear();
+        IN_FLIGHT = new ConcurrentHashMap<>();
+    }
+
+    private static LinkedHashMap<CoarseTerrainTileKey, CoarseTerrainTile> createMemoryMap() {
+        return new LinkedHashMap<>(64, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<CoarseTerrainTileKey, CoarseTerrainTile> eldest) {
+                return size() > MEMORY_CAPACITY;
+            }
+        };
     }
 
     private static CoarseTerrainTile loadOrSample(ServerLevel level, CoarseTerrainTileKey key) {
@@ -81,13 +90,13 @@ public final class CoarseTerrainTileCache {
     }
 
     private static CoarseTerrainTile getMemory(CoarseTerrainTileKey key) {
-        synchronized (MEMORY) {
+        synchronized (MEMORY_LOCK) {
             return MEMORY.get(key);
         }
     }
 
     private static void putMemory(CoarseTerrainTileKey key, CoarseTerrainTile tile) {
-        synchronized (MEMORY) {
+        synchronized (MEMORY_LOCK) {
             MEMORY.put(key, tile);
         }
     }

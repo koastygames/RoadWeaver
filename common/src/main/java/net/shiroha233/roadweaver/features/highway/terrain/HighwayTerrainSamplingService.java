@@ -16,10 +16,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class HighwayTerrainSamplingService {
     private HighwayTerrainSamplingService() {}
 
-    private static final ConcurrentHashMap<Long, HighwayCellTerrainField> CACHE = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_SIZE = 25;
+    private static ConcurrentHashMap<Long, HighwayCellTerrainField> CACHE = new ConcurrentHashMap<>();
 
     public static void resetAll() {
-        CACHE.clear();
+        // 用新实例替换而非 clear()，确保内部 table 数组被 GC 回收
+        ConcurrentHashMap<Long, HighwayCellTerrainField> old = CACHE;
+        CACHE = new ConcurrentHashMap<>();
+        old.values().forEach(HighwayCellTerrainField::dispose);
     }
 
     /**
@@ -86,8 +90,21 @@ public final class HighwayTerrainSamplingService {
             long key = entry.getKey();
             int gx = (int) (key >> 32);
             int gz = (int) key;
-            return Math.abs(gx - centerGx) > 1 || Math.abs(gz - centerGz) > 1;
+            boolean shouldEvict = Math.abs(gx - centerGx) > 1 || Math.abs(gz - centerGz) > 1;
+            if (shouldEvict) {
+                entry.getValue().dispose();
+            }
+            return shouldEvict;
         });
+        // 容量保护：超出上限时淘汰最旧的条目
+        while (CACHE.size() > MAX_CACHE_SIZE) {
+            var iterator = CACHE.entrySet().iterator();
+            if (iterator.hasNext()) {
+                var entry = iterator.next();
+                entry.getValue().dispose();
+                iterator.remove();
+            }
+        }
     }
 
     public static long packCellKey(int gx, int gz) {
