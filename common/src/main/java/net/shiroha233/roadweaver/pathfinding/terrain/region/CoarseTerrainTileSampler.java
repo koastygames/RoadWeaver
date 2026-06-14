@@ -5,6 +5,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
+import net.shiroha233.roadweaver.map.tile.render.HeightShader;
 import net.shiroha233.roadweaver.map.tile.render.TerrainTilePalette;
 import net.shiroha233.roadweaver.pathfinding.cache.FastHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
@@ -69,7 +70,7 @@ public final class CoarseTerrainTileSampler {
             }
 
             markNearWater(flags, sampleWidth, sampleHeight, expandedFlags, expandedWidth, haloSamples);
-            refreshTerrainColors(level, key, seaLevel, heights, oceanFloors, flags, terrainArgb, terrainCache);
+            refreshTerrainColors(level, key, seaLevel, heights, oceanFloors, flags, terrainArgb, terrainCache, sampleWidth, sampleHeight);
             return new CoarseTerrainTile(key, seaLevel, sampleWidth, sampleHeight, heights, oceanFloors, flags, terrainArgb);
         } finally {
             fastSampler.clearCache();
@@ -101,9 +102,10 @@ public final class CoarseTerrainTileSampler {
                                              short[] oceanFloors,
                                              byte[] flags,
                                              int[] terrainArgb,
-                                             TerrainSamplingCache terrainCache) {
-        int sampleWidth = key.sampleWidth();
-        int sampleHeight = key.sampleHeight();
+                                             TerrainSamplingCache terrainCache,
+                                             int sampleWidth,
+                                             int sampleHeight) {
+        int step = key.step();
         for (int z = 0; z < sampleHeight; z++) {
             if (Thread.currentThread().isInterrupted()) return;
             int sampleZ = key.blockZAt(z);
@@ -113,13 +115,21 @@ public final class CoarseTerrainTileSampler {
                 Holder<Biome> biome = terrainCache.getBiome(level, sampleX, sampleZ);
                 boolean columnWater = hasColumnWater(flags[index]);
                 boolean nearWater = (flags[index] & 4) != 0;
-                terrainArgb[index] = TerrainTilePalette.colorFor(
-                        biome,
-                        heights[index],
-                        seaLevel,
-                        oceanFloors[index],
-                        columnWater,
-                        nearWater);
+                int baseColor = TerrainTilePalette.colorFor(biome, heights[index], seaLevel, oceanFloors[index], columnWater, nearWater);
+
+                double shade = 1.0;
+                if (x > 0 && x < sampleWidth - 1 && z > 0 && z < sampleHeight - 1) {
+                    int[][] local = {
+                            {heights[(z - 1) * sampleWidth + x - 1], heights[(z - 1) * sampleWidth + x], heights[(z - 1) * sampleWidth + x + 1]},
+                            {heights[z * sampleWidth + x - 1], heights[index], heights[z * sampleWidth + x + 1]},
+                            {heights[(z + 1) * sampleWidth + x - 1], heights[(z + 1) * sampleWidth + x], heights[(z + 1) * sampleWidth + x + 1]}
+                    };
+                    shade = HeightShader.computeShade(local);
+                } else if (x > 0) {
+                    shade = HeightShader.simpleShade(heights[index], heights[z * sampleWidth + x - 1], step);
+                }
+
+                terrainArgb[index] = HeightShader.multiplyRgb(baseColor, shade);
             }
         }
     }

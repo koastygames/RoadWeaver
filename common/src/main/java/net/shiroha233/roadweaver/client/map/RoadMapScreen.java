@@ -89,10 +89,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             }
         }
         computeMapRect();
-        inputHandler.updateLayout(mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING);
+        inputHandler.updateLayout(mapX, mapY, mapW, mapH, 0);
         
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        int contentW = mapW;
+        int contentH = mapH;
         view.resetFromSnapshot(snapshot);
         
         if (mc != null && mc.player != null) {
@@ -118,19 +118,14 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(g);
-
-        int titleY = 6;
-        g.drawCenteredString(this.font, this.getTitle(), this.width / 2, titleY, MapTheme.COLOR_TEXT);
-
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        int contentW = mapW;
+        int contentH = mapH;
         view.lockAspect(contentW, contentH);
 
-        int left = mapX + MapTheme.INNER_PADDING;
-        int top = mapY + MapTheme.INNER_PADDING;
-        int right = mapX + mapW - MapTheme.INNER_PADDING;
-        int bottom = mapY + mapH - MapTheme.INNER_PADDING;
+        int left = 0;
+        int top = 0;
+        int right = this.width;
+        int bottom = this.height;
 
         Minecraft mc = this.minecraft;
         if (mc != null) {
@@ -147,31 +142,26 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             }
         }
 
-        g.fill(mapX, mapY, mapX + mapW, mapY + mapH, 0xFFDDD4BF);
+        g.fill(0, 0, this.width, this.height, MapTheme.COLOR_BACKGROUND);
         g.enableScissor(left, top, right, bottom);
 
         terrainTiles.render(g, this.minecraft, view, left, top, contentW, contentH);
-        if (!terrainTiles.hasRenderableTiles()) {
-            int textX = left + 8;
-            int textY = top + 8;
-            g.drawString(this.font, MAP_PLACEHOLDER, textX, textY, MapTheme.COLOR_TEXT, false);
-        }
-        MapRenderers.renderGrid(g, this.font, mapX, mapY, mapW, mapH, MapTheme.INNER_PADDING,
+        MapRenderers.renderGrid(g, this.font, 0, 0, mapW, mapH, 0,
                 view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(),
                 MapTheme.COLOR_GRID, MapTheme.GRID_TARGET_PX, MapTheme.COLOR_TEXT);
 
         int thickness = computeThickness();
         MapRenderers.renderRoadPolylines(g, snapshot.roadPolylines(),
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
-                v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
-                v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
+                v -> view.toScreenX(v, 0, 0, contentW),
+                v -> view.toScreenY(v, 0, 0, contentH),
                 Math.max(1, thickness),
                 MapTheme.COLOR_COMPLETED,
                 left, top, right, bottom,
                 Math.max(1, Math.round(16 / Math.max(0.1f, (float) view.pxPerBlockX(contentW)))));
         MapRenderers.renderStructures(g, snapshot.structures(),
-                v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
-                v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
+                v -> view.toScreenX(v, 0, 0, contentW),
+                v -> view.toScreenY(v, 0, 0, contentH),
                 (x, z) -> view.isInViewWorld(x, z),
                 computePointSize(),
                 MapTheme.COLOR_STRUCTURE,
@@ -180,8 +170,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         connForLines.removeIf(c -> c.status() == ConnectionStatus.COMPLETED);
         MapRenderers.renderConnections(g, connForLines,
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
-                v -> view.toScreenX(v, mapX, MapTheme.INNER_PADDING, contentW),
-                v -> view.toScreenY(v, mapY, MapTheme.INNER_PADDING, contentH),
+                v -> view.toScreenX(v, 0, 0, contentW),
+                v -> view.toScreenY(v, 0, 0, contentH),
                 Math.max(1, thickness - 1),
                 MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
                 MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
@@ -190,28 +180,25 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         renderManualModePreview(g, mouseX, mouseY, contentW, contentH, left, top, right, bottom);
 
         if (!contextMenu.isOpen()) {
-            MapInteraction.renderHoverHighlight(g, snapshot, view, mapX, mapY, mapW, mapH,
-                    MapTheme.INNER_PADDING, mouseX, mouseY);
+            MapInteraction.renderHoverHighlight(g, snapshot, view, 0, 0, mapW, mapH,
+                    0, mouseX, mouseY);
         }
 
         renderPlayer(g, contentW, contentH, left, top, right, bottom);
 
         g.disableScissor();
 
-        int legendRight = mapX + mapW - MapTheme.INNER_PADDING;
-        int legendStartY = mapY + MapTheme.INNER_PADDING + 8;
-        MapRenderers.renderLegend(g, this.font, legendRight, legendStartY, 8,
-                MapTheme.COLOR_TEXT, MapTheme.COLOR_STRUCTURE,
-                MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
-                MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
-                snapshot.structuresCount(), snapshot.plannedCount(),
-                snapshot.generatingCount(), snapshot.completedCount(), snapshot.failedCount());
+        // 浮动图例 - 半透明背景
+        int legendRight = mapW - 8;
+        int legendStartY = 8;
+        renderLegendWithBackground(g, legendRight, legendStartY);
 
+        // 浮动工具栏按钮
         renderToolbarButtons(g, mouseX, mouseY);
 
         if (!contextMenu.isOpen()) {
-            MapInteraction.renderHoverTooltip(g, this.font, snapshot, view, mapX, mapY, mapW, mapH,
-                    MapTheme.INNER_PADDING, mouseX, mouseY);
+            MapInteraction.renderHoverTooltip(g, this.font, snapshot, view, 0, 0, mapW, mapH,
+                    0, mouseX, mouseY);
         }
 
         if (state.isZoomDebounceReady()) {
@@ -220,8 +207,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         }
 
         contextMenu.render(g, this.font, mouseX, mouseY, this.width, this.height);
-
-        super.render(g, mouseX, mouseY, partialTick);
     }
 
     private void renderManualModePreview(GuiGraphics g, int mouseX, int mouseY,
@@ -232,8 +217,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         BlockPos selectedA = state.getSelectedA();
         if (!view.isInViewWorld(selectedA.getX(), selectedA.getZ())) return;
         
-        int sxA = view.toScreenX(selectedA.getX(), mapX, MapTheme.INNER_PADDING, contentW);
-        int syA = view.toScreenY(selectedA.getZ(), mapY, MapTheme.INNER_PADDING, contentH);
+        int sxA = view.toScreenX(selectedA.getX(), 0, 0, contentW);
+        int syA = view.toScreenY(selectedA.getZ(), 0, 0, contentH);
         int selSize = computePointSize() * 2 + 4;
         RenderUtils.drawPoint(g, sxA, syA, selSize, MapTheme.COLOR_SELECTED, left, top, right, bottom);
 
@@ -241,8 +226,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             int sxB, syB;
             BlockPos hover = inputHandler.findNearestStructure(snapshot, mouseX, mouseY);
             if (hover != null && view.isInViewWorld(hover.getX(), hover.getZ())) {
-                sxB = view.toScreenX(hover.getX(), mapX, MapTheme.INNER_PADDING, contentW);
-                syB = view.toScreenY(hover.getZ(), mapY, MapTheme.INNER_PADDING, contentH);
+                sxB = view.toScreenX(hover.getX(), 0, 0, contentW);
+                syB = view.toScreenY(hover.getZ(), 0, 0, contentH);
             } else {
                 sxB = mouseX;
                 syB = mouseY;
@@ -260,8 +245,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         
         double wx = this.minecraft.player.getX();
         double wz = this.minecraft.player.getZ();
-        int sx = view.toScreenX((int) Math.round(wx), mapX, MapTheme.INNER_PADDING, contentW);
-        int sy = view.toScreenY((int) Math.round(wz), mapY, MapTheme.INNER_PADDING, contentH);
+        int sx = view.toScreenX((int) Math.round(wx), 0, 0, contentW);
+        int sy = view.toScreenY((int) Math.round(wz), 0, 0, contentH);
         
         if (!inputHandler.insideMap(sx, sy)) return;
         
@@ -271,6 +256,25 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 MapTheme.PLAYER_ARROW_HALF_WIDTH, MapTheme.COLOR_PLAYER_ARROW,
                 left, top, right, bottom,
                 view.pxPerBlockX(contentW), view.pxPerBlockZ(contentH));
+    }
+
+    private void renderLegendWithBackground(GuiGraphics g, int rightBound, int startY) {
+        int gap = 8;
+        int lineHeight = 16;
+        int itemCount = 5;
+        int bgW = 140;
+        int bgH = lineHeight * itemCount + 12;
+        int bgX = rightBound - bgW;
+        int bgY = startY - 4;
+
+        g.fill(bgX, bgY, bgX + bgW, bgY + bgH, MapTheme.LEGEND_BG);
+
+        MapRenderers.renderLegend(g, this.font, rightBound, startY, gap,
+                MapTheme.COLOR_TEXT, MapTheme.COLOR_STRUCTURE,
+                MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
+                MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
+                snapshot.structuresCount(), snapshot.plannedCount(),
+                snapshot.generatingCount(), snapshot.completedCount(), snapshot.failedCount());
     }
 
     private void renderToolbarButtons(GuiGraphics g, int mouseX, int mouseY) {
@@ -289,13 +293,14 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
     private void renderTextButton(GuiGraphics g, Component label, int[] bounds, int mouseX, int mouseY) {
         int x = bounds[0], y = bounds[1], w = bounds[2], h = bounds[3];
+        g.fill(x, y, x + w, y + h, MapTheme.TOOLBAR_BUTTON_BG);
         int ty = y + (h - this.font.lineHeight) / 2;
         g.drawString(this.font, label, x + 3, ty, MapTheme.COLOR_TEXT, false);
         
         if (insideRect(mouseX, mouseY, x, y, w, h)) {
             int textW = this.font.width(label);
             int uy = ty + this.font.lineHeight + 1;
-            int underline = (MapTheme.COLOR_TEXT & 0x00FFFFFF) | 0x60000000;
+            int underline = (MapTheme.COLOR_TEXT & 0x00FFFFFF) | 0x80000000;
             g.fill(x + 2, uy, x + 2 + textW + 2, uy + 1, underline);
         }
     }
@@ -407,8 +412,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         Minecraft mc = this.minecraft;
         if (mc == null) return;
 
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        int contentW = mapW;
+        int contentH = mapH;
         ResourceLocation dimensionId = (mc.level != null) ? mc.level.dimension().location() : null;
         if (dimensionId != null && (currentDimensionId == null || !dimensionId.equals(currentDimensionId))) {
             currentDimensionId = dimensionId;
@@ -470,8 +475,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     @Override
     public void onCenterToPlayer() {
         if (this.minecraft == null || this.minecraft.player == null) return;
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        int contentW = mapW;
+        int contentH = mapH;
         view.calibrateInitialToPlayer(this.minecraft, contentW, contentH, MapTheme.GRID_TARGET_PX);
         onRequestView();
     }
@@ -494,8 +499,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         }
         if (spawn == null) return;
         
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        int contentW = mapW;
+        int contentH = mapH;
         view.centerOn(spawn.getX(), spawn.getZ(), contentW, contentH);
         onRequestView();
     }
@@ -532,8 +537,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     }
 
     private int computeThickness() {
-        int contentW = mapW - MapTheme.INNER_PADDING * 2;
-        int contentH = mapH - MapTheme.INNER_PADDING * 2;
+        int contentW = mapW;
+        int contentH = mapH;
         double ppb = Math.min(view.pxPerBlockX(contentW), view.pxPerBlockZ(contentH));
         int t = (int) Math.round(ppb);
         return Math.max(MapTheme.MIN_THICKNESS, Math.min(t, MapTheme.MAX_THICKNESS));
@@ -575,8 +580,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     }
 
     private int[] computeConfigBtnBounds() {
-        int x = mapX + MapTheme.INNER_PADDING + 4;
-        int y = mapY + MapTheme.INNER_PADDING + 4;
+        int x = 4;
+        int y = 4;
         int w = this.font.width(BTN_CONFIG) + 6;
         int h = this.font.lineHeight + 4;
         return new int[]{x, y, w, h};
@@ -587,8 +592,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 .append(Component.translatable("gui.roadweaver.common.on"));
         int w = this.font.width(lbl) + 6;
         int h = this.font.lineHeight + 4;
-        int x = mapX + MapTheme.INNER_PADDING + 4;
-        int y = mapY + mapH - MapTheme.INNER_PADDING - 4 - h;
+        int x = 4;
+        int y = mapH - 4 - h;
         return new int[]{x, y, w, h};
     }
 

@@ -4,7 +4,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.world.level.biome.Biome;
 
 /**
- * 低精度 terrain 瓦片调色板。
+ * 低精度瓦片调色板。
  */
 public final class TerrainTilePalette {
     private TerrainTilePalette() {}
@@ -14,15 +14,23 @@ public final class TerrainTilePalette {
                                int seaLevel,
                                int oceanFloor,
                                boolean columnWater,
-                               boolean nearWater) {
+                               boolean nearWater,
+                               double heightShade) {
         if (columnWater) {
             return waterColor(seaLevel, oceanFloor, nearWater);
         }
-
         String biomePath = biomePath(biome);
         int base = landBaseColor(biomePath, height, seaLevel, nearWater);
-        double shade = 0.92 + clamp((height - seaLevel) / 180.0, -0.16, 0.18);
-        return multiplyRgb(base, shade);
+        return HeightShader.multiplyRgb(base, heightShade);
+    }
+
+    public static int colorFor(Holder<Biome> biome,
+                               int height,
+                               int seaLevel,
+                               int oceanFloor,
+                               boolean columnWater,
+                               boolean nearWater) {
+        return colorFor(biome, height, seaLevel, oceanFloor, columnWater, nearWater, 1.0);
     }
 
     private static int waterColor(int seaLevel, int oceanFloor, boolean nearWater) {
@@ -67,17 +75,6 @@ public final class TerrainTilePalette {
         return biome.unwrapKey().map(key -> key.location().getPath()).orElse("");
     }
 
-    private static int multiplyRgb(int argb, double factor) {
-        int a = (argb >>> 24) & 0xFF;
-        int r = (argb >>> 16) & 0xFF;
-        int g = (argb >>> 8) & 0xFF;
-        int b = argb & 0xFF;
-        r = clampChannel((int) Math.round(r * factor));
-        g = clampChannel((int) Math.round(g * factor));
-        b = clampChannel((int) Math.round(b * factor));
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
     private static int mix(int from, int to, double t) {
         double clamped = clamp(t, 0.0, 1.0);
         int a0 = (from >>> 24) & 0xFF;
@@ -88,18 +85,14 @@ public final class TerrainTilePalette {
         int r1 = (to >>> 16) & 0xFF;
         int g1 = (to >>> 8) & 0xFF;
         int b1 = to & 0xFF;
-        int a = clampChannel((int) Math.round(a0 + (a1 - a0) * clamped));
-        int r = clampChannel((int) Math.round(r0 + (r1 - r0) * clamped));
-        int g = clampChannel((int) Math.round(g0 + (g1 - g0) * clamped));
-        int b = clampChannel((int) Math.round(b0 + (b1 - b0) * clamped));
+        int a = HeightShader.clampChannel((int) Math.round(a0 + (a1 - a0) * clamped));
+        int r = HeightShader.clampChannel((int) Math.round(r0 + (r1 - r0) * clamped));
+        int g = HeightShader.clampChannel((int) Math.round(g0 + (g1 - g0) * clamped));
+        int b = HeightShader.clampChannel((int) Math.round(b0 + (b1 - b0) * clamped));
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
     private static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
-    }
-
-    private static int clampChannel(int value) {
-        return Math.max(0, Math.min(255, value));
     }
 }

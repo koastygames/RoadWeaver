@@ -81,6 +81,23 @@ public final class MapTileScheme {
         return (double) coord.tileZ() * TILE_SIZE_PX;
     }
 
+    /**
+     * 根据当前视口的 blocksPerPixel 选择最合适的 zoom 级别。
+     * blocksPerPixel = 世界范围 / 屏幕像素数，即每像素对应的方块数。
+     * 选择使得 schemeBpp <= currentBpp * tolerance 的最大 zoom，
+     * 即不超过当前分辨率的最粗级别（避免加载过多精细瓦片）。
+     */
+    public static int zoomForBlocksPerPixel(double blocksPerPixel) {
+        double tolerance = 1.5;
+        for (int zoom = MAX_ZOOM; zoom >= MIN_ZOOM; zoom--) {
+            int schemeBpp = BASE_BLOCKS_PER_PIXEL << zoom;
+            if (schemeBpp <= blocksPerPixel * tolerance) {
+                return zoom;
+            }
+        }
+        return MIN_ZOOM;
+    }
+
     private static void validateZoom(int zoom) {
         if (zoom < MIN_ZOOM || zoom > MAX_ZOOM) {
             throw new IllegalArgumentException("zoom out of range: " + zoom);

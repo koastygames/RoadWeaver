@@ -78,11 +78,11 @@ public final class MapView {
         return true;
     }
 
-    double pxPerBlockX(int contentW) {
+    public double pxPerBlockX(int contentW) {
         return contentW / Math.max(1.0, (maxX - minX));
     }
 
-    double pxPerBlockZ(int contentH) {
+    public double pxPerBlockZ(int contentH) {
         return contentH / Math.max(1.0, (maxZ - minZ));
     }
 

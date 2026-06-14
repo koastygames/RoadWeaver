@@ -4,8 +4,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
@@ -13,6 +17,7 @@ import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapDataStorage;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.tile.ClientMapTileTextureCache;
+import net.shiroha233.roadweaver.client.map.tile.LoadedChunkTileOverrideManager;
 
 /**
  * Forge client events.
@@ -37,6 +42,7 @@ public final class ClientEvents {
         MapSnapshotCache.setCurrentWorldId(null);
         ClientMapTileTextureCache.clear(Minecraft.getInstance());
         ClientMapNotes.onWorldLeave();
+        LoadedChunkTileOverrideManager.clear();
     }
 
     @SubscribeEvent
@@ -54,5 +60,19 @@ public final class ClientEvents {
             }
             client.setScreen(new RoadMapScreen());
         }
+    }
+
+    @SubscribeEvent
+    public static void onChunkLoad(ChunkEvent.Load event) {
+        if (!(event.getLevel() instanceof ClientLevel clientLevel)) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        MinecraftServer server = mc.getSingleplayerServer();
+        if (server == null) return;
+
+        ServerLevel serverLevel = server.getLevel(clientLevel.dimension());
+        if (serverLevel == null) return;
+
+        LoadedChunkTileOverrideManager.onChunkGenerated(clientLevel, serverLevel, event.getChunk().getPos().x, event.getChunk().getPos().z);
     }
 }
