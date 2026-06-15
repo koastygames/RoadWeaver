@@ -51,11 +51,19 @@ public final class CoarseTerrainPngWriter {
             try {
                 BufferedImage image = ImageIO.read(path.toFile());
                 if (image != null) return image;
-            } catch (IOException ignored) {}
+            } catch (IOException e) {
+                deleteCorruptTile(path);
+            }
         }
         return new BufferedImage(
                 MapTileScheme.TILE_SIZE_PX,
                 MapTileScheme.TILE_SIZE_PX,
                 BufferedImage.TYPE_INT_ARGB);
+    }
+
+    private static void deleteCorruptTile(Path path) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException ignored) {}
     }
 }

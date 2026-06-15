@@ -7,7 +7,9 @@ import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.map.tile.render.HeightShader;
 import net.shiroha233.roadweaver.map.tile.render.TerrainTilePalette;
-import net.shiroha233.roadweaver.pathfinding.cache.FastHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.CoarseHeightBatchRequest;
+import net.shiroha233.roadweaver.pathfinding.cache.CoarseHeightBatchSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.CoarseHeightBatchSamplers;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 
 /**
@@ -35,15 +37,23 @@ public final class CoarseTerrainTileSampler {
         byte[] expandedFlags = new byte[Math.multiplyExact(expandedWidth, expandedHeight)];
 
         int seaLevel = level.getSeaLevel();
-        FastHeightSampler fastSampler = FastHeightSampler.create(level);
+        CoarseHeightBatchRequest heightRequest = new CoarseHeightBatchRequest(
+                key.minBlockX() - haloSamples * key.step(),
+                key.minBlockZ() - haloSamples * key.step(),
+                key.step(),
+                expandedWidth,
+                expandedHeight);
         TerrainSamplingCache terrainCache = new TerrainSamplingCache();
-        try {
+        try (CoarseHeightBatchSampler heightSampler = CoarseHeightBatchSamplers.create(level, heightRequest)) {
+            int[] expandedHeights = heightSampler.sampleHeights(heightRequest);
+            if (expandedHeights == null) return null;
+
             for (int ez = 0; ez < expandedHeight; ez++) {
                 if (Thread.currentThread().isInterrupted()) return null;
                 int sampleZ = key.minBlockZ() + (ez - haloSamples) * key.step();
                 for (int ex = 0; ex < expandedWidth; ex++) {
                     int sampleX = key.minBlockX() + (ex - haloSamples) * key.step();
-                    int height = fastSampler.sampleHeight(sampleX, sampleZ);
+                    int height = expandedHeights[ez * expandedWidth + ex];
                     int oceanFloor = height;
                     Holder<Biome> biome = terrainCache.getBiome(level, sampleX, sampleZ);
                     boolean waterBiome = isWaterBiome(biome);
@@ -73,7 +83,6 @@ public final class CoarseTerrainTileSampler {
             refreshTerrainColors(level, key, seaLevel, heights, oceanFloors, flags, terrainArgb, terrainCache, sampleWidth, sampleHeight);
             return new CoarseTerrainTile(key, seaLevel, sampleWidth, sampleHeight, heights, oceanFloors, flags, terrainArgb);
         } finally {
-            fastSampler.clearCache();
             terrainCache.clear();
         }
     }

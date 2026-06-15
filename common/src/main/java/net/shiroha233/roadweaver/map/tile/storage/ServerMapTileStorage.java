@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 
 /**
@@ -32,14 +33,27 @@ public final class ServerMapTileStorage {
 
     public static Path writePng(ServerLevel level, MapTileLayer layer, MapTileCoord coord, BufferedImage image) {
         Path path = path(level, layer, coord);
+        Path tempPath = path.resolveSibling(path.getFileName() + ".tmp");
         try {
             Files.createDirectories(path.getParent());
-            try (OutputStream out = Files.newOutputStream(path)) {
+            try (OutputStream out = Files.newOutputStream(tempPath)) {
                 ImageIO.write(image, "PNG", out);
             }
+            moveIntoPlace(tempPath, path);
             return path;
         } catch (IOException e) {
+            try {
+                Files.deleteIfExists(tempPath);
+            } catch (IOException ignored) {}
             throw new IllegalStateException("failed to write tile png: " + path, e);
+        }
+    }
+
+    private static void moveIntoPlace(Path tempPath, Path path) throws IOException {
+        try {
+            Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException atomicMoveFailed) {
+            Files.move(tempPath, path, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

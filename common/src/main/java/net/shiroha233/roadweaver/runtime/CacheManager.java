@@ -5,6 +5,7 @@ import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.features.highway.terrain.HighwayTerrainSamplingService;
 import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
+import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLWorldSupport;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
@@ -71,6 +72,7 @@ public final class CacheManager {
         CoarsePathCache.clearAll();
         CoarseTerrainTileCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();
+        OpenCLWorldSupport.clear();
 
         LOGGER.debug("CacheManager: 所有缓存已清理");
     }

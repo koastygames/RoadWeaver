@@ -134,7 +134,7 @@ public final class ClientMapTileTextureCache {
                 }
                 return location;
             } catch (IOException e) {
-                LOGGER.warn("异步加载地图瓦片失败: {}", path, e);
+                deleteCorruptTile(path, e);
                 return null;
             }
         }, LOAD_EXECUTOR);
@@ -198,7 +198,7 @@ public final class ClientMapTileTextureCache {
             }
             return location;
         } catch (IOException e) {
-            LOGGER.warn("加载地图瓦片失败: {}", path, e);
+            deleteCorruptTile(path, e);
             return null;
         }
     }
@@ -229,6 +229,15 @@ public final class ClientMapTileTextureCache {
     private static void release(Minecraft mc, ResourceLocation location) {
         if (mc == null || location == null) return;
         mc.getTextureManager().release(location);
+    }
+
+    private static void deleteCorruptTile(Path path, IOException cause) {
+        try {
+            Files.deleteIfExists(path);
+            LOGGER.warn("地图瓦片 PNG 损坏，已删除并等待重建: {} ({})", path, cause.getMessage());
+        } catch (IOException deleteFailed) {
+            LOGGER.warn("地图瓦片 PNG 损坏且删除失败: {}", path, deleteFailed);
+        }
     }
 
     private static long lastModified(Path path) {

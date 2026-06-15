@@ -125,6 +125,10 @@ repositories {
         url "https://cursemaven.com"
         name "CurseMaven"
     }
+    maven {
+        url "https://repo.lwjgl.org/"
+        name "LWJGL Maven"
+    }
 }
 
 tasks.named('processResources', ProcessResources).configure {
@@ -185,6 +189,13 @@ dependencies {
     compileOnly("com.h2database:h2:2.2.224") { transitive = false }
     forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
     shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
+
+    // LWJGL OpenCL - GPU 加速粗采样
+    // OpenCL ICD/native 由系统 GPU 驱动提供；这里提供 Java binding，缺少驱动时运行期自动回退 CPU
+    compileOnly("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+    forgeRuntimeLibrary("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+    runtimeOnly("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+    shadowSqlite("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
 
     // 联动兼容 动态的树 Dynamic Trees
     // 换成modCompileOnly可以临时关闭此mod的运行以测试非联动状态

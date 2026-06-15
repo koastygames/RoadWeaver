@@ -14,7 +14,7 @@ public final class PlanningConfig implements SubConfig {
     private int initialPlanRadiusChunks = RoadConstants.DEFAULT_INITIAL_PLAN_RADIUS_CHUNKS;
     private boolean dynamicPlanEnabled = true;
     private int dynamicPlanRadiusChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS;
-    private int dynamicPlanStrideChunks = 128;
+    private int dynamicPlanStrideChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_STRIDE_CHUNKS;
     private PlanningAlgorithm planningAlgorithm = PlanningAlgorithm.RNG;
 
     @Override

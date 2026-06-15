@@ -30,6 +30,7 @@ public final class MapTileAoiLocator {
         int radiusChunks = cfg != null && cfg.planning() != null
                 ? Math.max(1, cfg.planning().dynamicPlanRadiusChunks())
                 : RoadConstants.DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS;
+        radiusChunks = Math.min(RoadConstants.COARSE_REGION_MAX_RADIUS_CHUNKS, radiusChunks);
         return radiusChunks * RoadConstants.CHUNK_SIZE_BLOCKS;
     }
 }

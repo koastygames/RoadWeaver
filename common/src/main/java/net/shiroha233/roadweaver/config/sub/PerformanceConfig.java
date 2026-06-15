@@ -12,6 +12,10 @@ public final class PerformanceConfig implements SubConfig {
     private int threadDutyCycle = RoadConstants.DEFAULT_DUTY_CYCLE;
     private boolean idleGenerationEnabled = true;
     private int idleThreadDutyCycle = 20;
+    private boolean openclCoarseSamplingEnabled = true;
+    private String openclDevicePreference = "AUTO";
+    private int openclMinSamples = 1024;
+    private boolean openclValidateSamples = false;
 
     @Override
     public void sanitize() {
@@ -23,6 +27,8 @@ public final class PerformanceConfig implements SubConfig {
         if (idleThreadDutyCycle < RoadConstants.DUTY_CYCLE_MIN || idleThreadDutyCycle > RoadConstants.DUTY_CYCLE_MAX) {
             idleThreadDutyCycle = 20;
         }
+        openclDevicePreference = normalizeOpenCLDevicePreference(openclDevicePreference);
+        openclMinSamples = Math.max(0, Math.min(RoadConstants.COARSE_REGION_MAX_SAMPLES, openclMinSamples));
     }
 
     @Override
@@ -33,6 +39,10 @@ public final class PerformanceConfig implements SubConfig {
         copy.threadDutyCycle = this.threadDutyCycle;
         copy.idleGenerationEnabled = this.idleGenerationEnabled;
         copy.idleThreadDutyCycle = this.idleThreadDutyCycle;
+        copy.openclCoarseSamplingEnabled = this.openclCoarseSamplingEnabled;
+        copy.openclDevicePreference = this.openclDevicePreference;
+        copy.openclMinSamples = this.openclMinSamples;
+        copy.openclValidateSamples = this.openclValidateSamples;
         return copy;
     }
 
@@ -46,6 +56,25 @@ public final class PerformanceConfig implements SubConfig {
     public void setIdleGenerationEnabled(boolean v) { this.idleGenerationEnabled = v; }
     public int idleThreadDutyCycle() { return idleThreadDutyCycle; }
     public void setIdleThreadDutyCycle(int v) { this.idleThreadDutyCycle = Math.max(RoadConstants.DUTY_CYCLE_MIN, Math.min(RoadConstants.DUTY_CYCLE_MAX, v)); }
+    public boolean openclCoarseSamplingEnabled() { return openclCoarseSamplingEnabled; }
+    public void setOpenclCoarseSamplingEnabled(boolean v) { this.openclCoarseSamplingEnabled = v; }
+    public String openclDevicePreference() { return normalizeOpenCLDevicePreference(openclDevicePreference); }
+    public void setOpenclDevicePreference(String v) { this.openclDevicePreference = normalizeOpenCLDevicePreference(v); }
+    public int openclMinSamples() { return Math.max(0, openclMinSamples); }
+    public void setOpenclMinSamples(int v) { this.openclMinSamples = Math.max(0, Math.min(RoadConstants.COARSE_REGION_MAX_SAMPLES, v)); }
+    public boolean openclValidateSamples() { return openclValidateSamples; }
+    public void setOpenclValidateSamples(boolean v) { this.openclValidateSamples = v; }
 
     public boolean shouldThrottle() { return threadDutyCycle < RoadConstants.DUTY_CYCLE_MAX; }
+
+    private static String normalizeOpenCLDevicePreference(String value) {
+        if (value == null || value.isBlank()) {
+            return "AUTO";
+        }
+        String normalized = value.trim().toUpperCase(java.util.Locale.ROOT);
+        return switch (normalized) {
+            case "AUTO", "GPU", "CPU" -> normalized;
+            default -> "AUTO";
+        };
+    }
 }

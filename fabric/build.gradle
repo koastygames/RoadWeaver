@@ -42,6 +42,10 @@ repositories {
 		url "https://maven.shedaniel.me/"
 		name "Shedaniel Maven"
 	}
+	maven {
+		url "https://repo.lwjgl.org/"
+		name "LWJGL Maven"
+	}
 }
 
 dependencies {
@@ -94,6 +98,13 @@ dependencies {
 	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
 	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
 	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
+
+	// LWJGL OpenCL - GPU 加速粗采样
+	// OpenCL ICD/native 由系统 GPU 驱动提供；这里提供 Java binding，缺少驱动时运行期自动回退 CPU
+	compileOnly("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+	modLocalRuntime("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+	runtimeOnly("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+	shadowSqlite("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
 
 }
 
