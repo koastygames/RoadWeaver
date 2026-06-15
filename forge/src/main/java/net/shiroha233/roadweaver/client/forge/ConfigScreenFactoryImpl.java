@@ -10,6 +10,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.config.sub.*;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
+import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLDevicePreference;
 
 import java.util.Locale;
 
@@ -590,6 +591,37 @@ public class ConfigScreenFactoryImpl {
                 .setDefaultValue(def.idleThreadDutyCycle())
                 .setTooltip(Component.translatable("config.roadweaver.idle_thread_duty_cycle.tooltip"))
                 .setSaveConsumer(cfg::setIdleThreadDutyCycle)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.opencl_coarse_sampling_enabled"), cfg.openclCoarseSamplingEnabled())
+                .setDefaultValue(def.openclCoarseSamplingEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.opencl_coarse_sampling_enabled.tooltip"))
+                .setSaveConsumer(cfg::setOpenclCoarseSamplingEnabled)
+                .build());
+
+        category.addEntry(eb
+                .startEnumSelector(Component.translatable("config.roadweaver.opencl_device_preference"),
+                        OpenCLDevicePreference.class, OpenCLDevicePreference.valueOf(cfg.openclDevicePreference()))
+                .setDefaultValue(OpenCLDevicePreference.valueOf(def.openclDevicePreference()))
+                .setTooltip(Component.translatable("config.roadweaver.opencl_device_preference.tooltip"))
+                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.opencl_device_preference.option." + v.name().toLowerCase(Locale.ROOT)))
+                .setSaveConsumer(v -> cfg.setOpenclDevicePreference(v.name()))
+                .build());
+
+        category.addEntry(eb
+                .startIntField(Component.translatable("config.roadweaver.opencl_min_samples"), cfg.openclMinSamples())
+                .setDefaultValue(def.openclMinSamples())
+                .setTooltip(Component.translatable("config.roadweaver.opencl_min_samples.tooltip"))
+                .setMin(0).setMax(RoadConstants.COARSE_REGION_MAX_SAMPLES)
+                .setSaveConsumer(cfg::setOpenclMinSamples)
+                .build());
+
+        category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.opencl_validate_samples"), cfg.openclValidateSamples())
+                .setDefaultValue(def.openclValidateSamples())
+                .setTooltip(Component.translatable("config.roadweaver.opencl_validate_samples.tooltip"))
+                .setSaveConsumer(cfg::setOpenclValidateSamples)
                 .build());
     }
 
