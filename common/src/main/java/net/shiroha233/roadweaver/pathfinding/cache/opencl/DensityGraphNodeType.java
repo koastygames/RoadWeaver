@@ -16,6 +16,7 @@ public enum DensityGraphNodeType {
     HALF_NEGATIVE,
     QUARTER_NEGATIVE,
     SQUEEZE,
+    INVERT,
     Y_CLAMPED_GRADIENT,
     RANGE_CHOICE,
     NOISE,
@@ -24,5 +25,7 @@ public enum DensityGraphNodeType {
     SHIFT_B,
     SHIFT,
     SPLINE,
+    WEIRD_SCALED_SAMPLER,
+    CLAMP_TO_NEAREST_UNIT,
     MARKER
 }

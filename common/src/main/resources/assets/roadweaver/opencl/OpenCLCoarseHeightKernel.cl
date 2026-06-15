@@ -12,14 +12,18 @@
 #define NODE_HALF_NEGATIVE 9
 #define NODE_QUARTER_NEGATIVE 10
 #define NODE_SQUEEZE 11
-#define NODE_Y_CLAMPED_GRADIENT 12
-#define NODE_RANGE_CHOICE 13
-#define NODE_NOISE 14
-#define NODE_SHIFTED_NOISE 15
-#define NODE_SHIFT_A 16
-#define NODE_SHIFT_B 17
-#define NODE_SHIFT 18
-#define NODE_SPLINE 19
+#define NODE_INVERT 12
+#define NODE_Y_CLAMPED_GRADIENT 13
+#define NODE_RANGE_CHOICE 14
+#define NODE_NOISE 15
+#define NODE_SHIFTED_NOISE 16
+#define NODE_SHIFT_A 17
+#define NODE_SHIFT_B 18
+#define NODE_SHIFT 19
+#define NODE_SPLINE 20
+#define NODE_WEIRD_SCALED_SAMPLER 21
+#define NODE_CLAMP_TO_NEAREST_UNIT 22
+#define NODE_MARKER 23
 
 #define PARAM_SAMPLE_COUNT 0
 #define PARAM_MIN_Y 1
@@ -215,6 +219,39 @@ static double read_value(__global double* scratch, int base, int node) {
     return node < 0 ? 0.0 : scratch[base + node];
 }
 
+static double spaghetti_rarity_3d(double value) {
+    if (value < -0.5) {
+        return 0.75;
+    }
+    if (value < 0.0) {
+        return 1.0;
+    }
+    return value < 0.5 ? 1.5 : 2.0;
+}
+
+static double spaghetti_rarity_2d(double value) {
+    if (value < -0.75) {
+        return 0.5;
+    }
+    if (value < -0.5) {
+        return 0.75;
+    }
+    if (value < 0.5) {
+        return 1.0;
+    }
+    return value < 0.75 ? 2.0 : 3.0;
+}
+
+static double weird_scaled_rarity(int mapper_type, double value) {
+    return mapper_type == 2 ? spaghetti_rarity_2d(value) : spaghetti_rarity_3d(value);
+}
+
+static double clamp_to_nearest_unit(double value, int resolution) {
+    int scaled = (int)(value * (double)resolution);
+    float clamped = (float)(scaled + 1);
+    return (double)(clamped / (float)resolution);
+}
+
 static double spline_value(__global const int* spline_ints,
                            __global const double* spline_locations,
                            __global const int* spline_value_nodes,
@@ -340,6 +377,9 @@ static void evaluate_graph(__global const int* params,
                 result = clamped / 2.0 - clamped * clamped * clamped / 24.0;
                 break;
             }
+            case NODE_INVERT:
+                result = 1.0 / lhs;
+                break;
             case NODE_Y_CLAMPED_GRADIENT:
                 result = clamped_map((double)y, (double)extra_a, (double)extra_b, value_a, value_b);
                 break;
@@ -371,6 +411,15 @@ static void evaluate_graph(__global const int* params,
                 break;
             case NODE_SPLINE:
                 result = spline_value(spline_ints, spline_locations, spline_value_nodes, spline_derivatives, scratch, scratch_base, extra_a);
+                break;
+            case NODE_WEIRD_SCALED_SAMPLER: {
+                double rarity = weird_scaled_rarity(extra_b, lhs);
+                result = rarity * fabs(normal_noise(normal_ints, normal_values, perlin_ints, perlin_values, amplitudes, improved_indices,
+                        improved_values, permutations, extra_a, (double)x / rarity, (double)y / rarity, (double)z / rarity));
+                break;
+            }
+            case NODE_CLAMP_TO_NEAREST_UNIT:
+                result = clamp_to_nearest_unit(lhs, extra_a);
                 break;
             default:
                 result = 0.0;

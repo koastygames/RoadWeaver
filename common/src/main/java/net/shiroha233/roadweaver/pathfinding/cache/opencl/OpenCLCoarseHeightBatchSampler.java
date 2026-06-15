@@ -90,7 +90,8 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             }
             return sampler;
         } catch (Throwable t) {
-            OpenCLAvailability.disable("OpenCL 粗采样器创建失败", t);
+            OpenCLWorldSupport.markUnsupported(level.dimension().location(), "OpenCL 粗采样器创建失败: " + t.getClass().getSimpleName());
+            LOGGER.info("OpenCL 粗采样器创建失败，维度 {} 回退到 CPU", level.dimension().location(), t);
             return null;
         }
     }
@@ -110,6 +111,9 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         if (request == null) {
             return null;
         }
+        if (OpenCLWorldSupport.isUnsupported(level.dimension().location())) {
+            return fallback.sampleHeights(request);
+        }
         if (program.isEmpty()) {
             return fallback.sampleHeights(request);
         }
@@ -127,8 +131,8 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                     return null;
                 }
                 if (!Arrays.equals(expected, heights)) {
-                    OpenCLAvailability.disable("OpenCL 粗采样结果校验失败");
-                    LOGGER.info("OpenCL 粗采样结果校验失败，回退到 CPU: {}", firstMismatch(expected, heights));
+                    OpenCLWorldSupport.markUnsupported(level.dimension().location(), "OpenCL 粗采样结果校验失败: " + firstMismatch(expected, heights));
+                    LOGGER.info("OpenCL 粗采样结果校验失败，维度 {} 回退到 CPU: {}", level.dimension().location(), firstMismatch(expected, heights));
                     return expected;
                 }
             }
@@ -144,7 +148,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
 
     @Override
     public boolean isAccelerated() {
-        return OpenCLAvailability.isAvailable();
+        return OpenCLAvailability.isAvailable() && !OpenCLWorldSupport.isUnsupported(level.dimension().location());
     }
 
     @Override

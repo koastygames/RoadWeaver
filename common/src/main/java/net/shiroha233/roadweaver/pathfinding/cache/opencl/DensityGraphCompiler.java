@@ -59,6 +59,7 @@ public final class DensityGraphCompiler {
             case "BlendDensity" -> compileNode(input(function));
             case "Ap2", "MulOrAdd" -> twoArgument(function);
             case "Clamp" -> clamp(function);
+            case "ClampToNearestUnit" -> clampToNearestUnit(function);
             case "Mapped" -> mapped(function);
             case "YClampedGradient" -> yClampedGradient(function);
             case "RangeChoice" -> rangeChoice(function);
@@ -69,6 +70,7 @@ public final class DensityGraphCompiler {
             case "ShiftA" -> shift(function, DensityGraphNodeType.SHIFT_A);
             case "ShiftB" -> shift(function, DensityGraphNodeType.SHIFT_B);
             case "Shift" -> shift(function, DensityGraphNodeType.SHIFT);
+            case "WeirdScaledSampler" -> weirdScaledSampler(function);
             case "Spline" -> spline(function);
             default -> unsupported("unsupported density node: " + function.getClass().getName());
         };
@@ -124,6 +126,19 @@ public final class DensityGraphCompiler {
         return add(new DensityGraphNode(DensityGraphNodeType.CLAMP, child, -1, -1, -1, min, max, 0.0D, 0.0D));
     }
 
+    private int clampToNearestUnit(DensityFunction function) {
+        DensityFunction input = (DensityFunction) DensityGraphReflection.read(function, "function");
+        if (input == null) {
+            throw new UnsupportedDensityGraphException("clamp_to_nearest_unit node missing function");
+        }
+        int child = compileNode(input);
+        int resolution = DensityGraphReflection.readInt(function, "resolution", Integer.MIN_VALUE);
+        if (resolution == Integer.MIN_VALUE) {
+            throw new UnsupportedDensityGraphException("clamp_to_nearest_unit node missing resolution");
+        }
+        return add(new DensityGraphNode(DensityGraphNodeType.CLAMP_TO_NEAREST_UNIT, child, -1, resolution, -1, 0.0D, 0.0D, 0.0D, 0.0D));
+    }
+
     private int mapped(DensityFunction function) {
         DensityFunction input = input(function);
         int child = compileNode(input);
@@ -135,6 +150,7 @@ public final class DensityGraphCompiler {
             case "HALF_NEGATIVE" -> DensityGraphNodeType.HALF_NEGATIVE;
             case "QUARTER_NEGATIVE" -> DensityGraphNodeType.QUARTER_NEGATIVE;
             case "SQUEEZE" -> DensityGraphNodeType.SQUEEZE;
+            case "INVERT" -> DensityGraphNodeType.INVERT;
             default -> throw new UnsupportedDensityGraphException("unsupported mapped op: " + type);
         };
         return add(new DensityGraphNode(nodeType, child, -1, -1, -1, 0.0D, 0.0D, 0.0D, 0.0D));
@@ -223,6 +239,16 @@ public final class DensityGraphCompiler {
         return add(new DensityGraphNode(nodeType, -1, -1, noiseIndex, -1, 0.25D, 4.0D, 0.0D, 0.0D));
     }
 
+    private int weirdScaledSampler(DensityFunction function) {
+        DensityFunction input = input(function);
+        Object holder = DensityGraphReflection.read(function, "noise");
+        Object mapper = DensityGraphReflection.read(function, "rarityValueMapper");
+        int mapperType = rarityMapperType(mapper);
+        int child = compileNode(input);
+        int noiseIndex = normalNoiseIndex(holder);
+        return add(new DensityGraphNode(DensityGraphNodeType.WEIRD_SCALED_SAMPLER, child, -1, noiseIndex, mapperType, 0.0D, 0.0D, 0.0D, 0.0D));
+    }
+
     private int spline(DensityFunction function) {
         Object spline = DensityGraphReflection.read(function, "spline");
         return compileSplineValueNode(spline);
@@ -304,6 +330,22 @@ public final class DensityGraphCompiler {
         return input;
     }
 
+    private static int rarityMapperType(Object mapper) {
+        if (mapper == null) {
+            throw new UnsupportedDensityGraphException("weird_scaled_sampler missing rarity mapper");
+        }
+        String enumName = mapper instanceof Enum<?> ? ((Enum<?>) mapper).name() : null;
+        String serializedName = invokeString(mapper, "getSerializedName");
+        Object fieldName = DensityGraphReflection.read(mapper, "name");
+        if ("TYPE1".equals(enumName) || "type_1".equals(serializedName) || "type_1".equals(fieldName)) {
+            return 1;
+        }
+        if ("TYPE2".equals(enumName) || "type_2".equals(serializedName) || "type_2".equals(fieldName)) {
+            return 2;
+        }
+        throw new UnsupportedDensityGraphException("unsupported weird_scaled_sampler mapper: " + mapper);
+    }
+
     private int add(DensityGraphNode node) {
         nodes.add(node);
         return nodes.size() - 1;
@@ -321,6 +363,18 @@ public final class DensityGraphCompiler {
     private static Object invokeValue(Object holder) {
         try {
             return holder.getClass().getMethod("value").invoke(holder);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String invokeString(Object owner, String methodName) {
+        if (owner == null || methodName == null || methodName.isBlank()) {
+            return null;
+        }
+        try {
+            Object value = owner.getClass().getMethod(methodName).invoke(owner);
+            return value == null ? null : String.valueOf(value);
         } catch (Throwable ignored) {
             return null;
         }
