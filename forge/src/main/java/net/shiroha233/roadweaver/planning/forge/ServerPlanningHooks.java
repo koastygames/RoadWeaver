@@ -7,16 +7,13 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
-import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
-import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.runtime.CacheManager;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -51,12 +48,7 @@ public final class ServerPlanningHooks {
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
-            boolean highwayMode = ConfigService.get().highway().enabled();
-            if (highwayMode) {
-                HighwayPlanningService.initialPlanAsync(level);
-            } else {
-                RoadPlanningService.initialPlanAsync(level);
-            }
+            RoadPlanningService.initialPlanAsync(level);
             return;
         }
         
@@ -68,11 +60,6 @@ public final class ServerPlanningHooks {
         } else {
             RoadGenerationService.onServerStarted();
         }
-
-        if (ConfigService.get().highway().enabled()) {
-            HighwayPlanningService.initialPlanAsync(level);
-        }
-
     }
 
     private static void onServerTick(TickEvent.ServerTickEvent event) {
@@ -81,14 +68,9 @@ public final class ServerPlanningHooks {
         if (server == null) return;
         
         if ((tick++ % 20) == 0) {
-            boolean highwayMode = ConfigService.get().highway().enabled();
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                 SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
-                if (highwayMode) {
-                    HighwayPlanningService.planAroundPlayer(p);
-                } else {
-                    RoadPlanningService.planAroundPlayer(p);
-                }
+                RoadPlanningService.planAroundPlayer(p);
                 IdleRoadGenerationService.tickPlayer(p);
             }
         }
@@ -99,17 +81,11 @@ public final class ServerPlanningHooks {
             RoadGenerationService.tick(level);
             SignTextService.tick(level);
         }
-
-        ServerLevel overworld = server.getLevel(Level.OVERWORLD);
-        if (overworld != null && ConfigService.get().highway().enabled()) {
-            HighwayCellPathPlanningService.tick(overworld);
-        }
     }
 
     private static void onServerStopping(ServerStoppingEvent event) {
         RoadGenerationService.onServerStopping();
-        HighwayPlanningService.resetAll();
-        HighwayCellPathPlanningService.resetAll();
+        RoadPlanningService.resetAll();
         CacheManager.onServerStopping(event.getServer().getAllLevels());
         ThreadPoolManager.onServerStopping();
         SignTextService.clearPending();

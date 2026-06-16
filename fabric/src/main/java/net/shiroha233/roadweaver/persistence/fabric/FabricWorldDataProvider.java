@@ -41,16 +41,6 @@ public class FabricWorldDataProvider extends WorldDataProvider {
     }
 
     @Override
-    public List<StructureConnection> getHighwayConnections(ServerLevel level) {
-        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.HIGHWAY_CONNECTIONS, ArrayList::new);
-    }
-
-    @Override
-    public void setHighwayConnections(ServerLevel level, List<StructureConnection> connections) {
-        ((AttachmentTarget) level).setAttached(WorldDataAttachment.HIGHWAY_CONNECTIONS, connections);
-    }
-
-    @Override
     public Set<Long> getPlannedTileKeys(ServerLevel level) {
         return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.PLANNED_TILE_KEYS, HashSet::new);
     }
@@ -70,13 +60,4 @@ public class FabricWorldDataProvider extends WorldDataProvider {
         ((AttachmentTarget) level).setAttached(WorldDataAttachment.PLANNED_TILE_CENTERS, centers);
     }
 
-    @Override
-    public Map<Long, Long> getHighwayIntersections(ServerLevel level) {
-        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.HIGHWAY_INTERSECTIONS, HashMap::new);
     }
-
-    @Override
-    public void setHighwayIntersections(ServerLevel level, Map<Long, Long> intersections) {
-        ((AttachmentTarget) level).setAttached(WorldDataAttachment.HIGHWAY_INTERSECTIONS, intersections);
-    }
-}

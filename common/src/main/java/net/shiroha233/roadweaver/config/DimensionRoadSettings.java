@@ -11,7 +11,6 @@ public final class DimensionRoadSettings {
     private Boolean bridgeEnabled;
     private PathfindingCostConfig.PathfindingAlgorithm pathfindingAlgorithm;
     private Boolean slopeLimitEnabled;
-    private Boolean highwayEnabled;
     private Boolean roadsideStructuresEnabled;
     private Boolean roadSignsEnabled;
 
@@ -29,9 +28,6 @@ public final class DimensionRoadSettings {
     public Boolean slopeLimitEnabled() { return slopeLimitEnabled; }
     public void setSlopeLimitEnabled(Boolean v) { this.slopeLimitEnabled = v; }
 
-    public Boolean highwayEnabled() { return highwayEnabled; }
-    public void setHighwayEnabled(Boolean v) { this.highwayEnabled = v; }
-
     public Boolean roadsideStructuresEnabled() { return roadsideStructuresEnabled; }
     public void setRoadsideStructuresEnabled(Boolean v) { this.roadsideStructuresEnabled = v; }
 
@@ -44,7 +40,6 @@ public final class DimensionRoadSettings {
         out.bridgeEnabled = this.bridgeEnabled;
         out.pathfindingAlgorithm = this.pathfindingAlgorithm;
         out.slopeLimitEnabled = this.slopeLimitEnabled;
-        out.highwayEnabled = this.highwayEnabled;
         out.roadsideStructuresEnabled = this.roadsideStructuresEnabled;
         out.roadSignsEnabled = this.roadSignsEnabled;
         return out;
@@ -55,7 +50,6 @@ public final class DimensionRoadSettings {
                 && bridgeEnabled == null
                 && pathfindingAlgorithm == null
                 && slopeLimitEnabled == null
-                && highwayEnabled == null
                 && roadsideStructuresEnabled == null
                 && roadSignsEnabled == null
 ;

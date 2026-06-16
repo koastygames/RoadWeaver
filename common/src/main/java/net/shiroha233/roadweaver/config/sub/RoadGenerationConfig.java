@@ -3,7 +3,6 @@ package net.shiroha233.roadweaver.config.sub;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.SubConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
-import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
 
 /**
  * 道路生成配置，聚合道路生成所需的各项配置参数
@@ -18,30 +17,6 @@ public final class RoadGenerationConfig implements SubConfig {
     private int maxSlopeStepPerTwoSegments = RoadConstants.DEFAULT_MAX_SLOPE_STEP;
     private PathfindingCostConfig pathfinding = new PathfindingCostConfig();
     private int bridgeMinWaterDepth = RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH;
-
-    /**
-     * 从 HighwayGenerationConfig 创建 RoadGenerationConfig
-     */
-    public static RoadGenerationConfig fromHighwayConfig(HighwayGenerationConfig highwayConfig) {
-        RoadGenerationConfig cfg = new RoadGenerationConfig();
-        if (highwayConfig == null) {
-            cfg.sanitize();
-            return cfg;
-        }
-
-        cfg.effectiveRoadWidth = Math.max(1, highwayConfig.roadWidth());
-        cfg.averagingRadius = Math.max(0, highwayConfig.averagingRadius());
-        cfg.slopeLimitEnabled = highwayConfig.slopeLimitEnabled();
-        cfg.maxSlopeStepPerTwoSegments = Math.max(0, highwayConfig.slopeRiseBlocks());
-
-        if (highwayConfig.pathfindingCost() != null) {
-            cfg.pathfinding = highwayConfig.pathfindingCost().snapshot();
-        }
-        cfg.bridgeMinWaterDepth = highwayConfig.bridgeMinWaterDepth();
-
-        cfg.sanitize();
-        return cfg;
-    }
 
     public static RoadGenerationConfig from(ModConfig config) {
         RoadGenerationConfig cfg = new RoadGenerationConfig();

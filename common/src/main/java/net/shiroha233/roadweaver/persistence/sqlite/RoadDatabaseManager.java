@@ -48,9 +48,9 @@ public final class RoadDatabaseManager {
     private static final ConcurrentHashMap<String, Connection> READ_CONNECTIONS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, Connection> WRITE_CONNECTIONS = new ConcurrentHashMap<>();
 
-    private static final ExecutorService ROAD_WRITER = createWriter("RW-RoadWriter");
-    private static final ExecutorService TERRAIN_WRITER = createWriter("RW-TerrainWriter");
-    private static final ExecutorService MAP_WRITER = createWriter("RW-MapWriter");
+    private static volatile ExecutorService ROAD_WRITER = createWriter("RW-RoadWriter");
+    private static volatile ExecutorService TERRAIN_WRITER = createWriter("RW-TerrainWriter");
+    private static volatile ExecutorService MAP_WRITER = createWriter("RW-MapWriter");
 
     private static ExecutorService createWriter(String name) {
         return Executors.newSingleThreadExecutor(r -> {
@@ -121,15 +121,54 @@ public final class RoadDatabaseManager {
     /** 获取指定库的写执行器 */
     public static ExecutorService writeExecutor(String dbName) {
         return switch (dbName) {
-            case DB_TERRAIN -> TERRAIN_WRITER;
-            case DB_MAP -> MAP_WRITER;
-            default -> ROAD_WRITER;
+            case DB_TERRAIN -> ensureTerrainWriter();
+            case DB_MAP -> ensureMapWriter();
+            default -> ensureRoadWriter();
         };
     }
 
     /** 获取默认（道路）库的写执行器。保持向后兼容。 */
     public static ExecutorService writeExecutor() {
-        return ROAD_WRITER;
+        return ensureRoadWriter();
+    }
+
+    private static ExecutorService ensureRoadWriter() {
+        ExecutorService exec = ROAD_WRITER;
+        if (exec != null && !exec.isShutdown() && !exec.isTerminated()) return exec;
+        synchronized (RoadDatabaseManager.class) {
+            exec = ROAD_WRITER;
+            if (exec == null || exec.isShutdown() || exec.isTerminated()) {
+                ROAD_WRITER = createWriter("RW-RoadWriter");
+                exec = ROAD_WRITER;
+            }
+            return exec;
+        }
+    }
+
+    private static ExecutorService ensureTerrainWriter() {
+        ExecutorService exec = TERRAIN_WRITER;
+        if (exec != null && !exec.isShutdown() && !exec.isTerminated()) return exec;
+        synchronized (RoadDatabaseManager.class) {
+            exec = TERRAIN_WRITER;
+            if (exec == null || exec.isShutdown() || exec.isTerminated()) {
+                TERRAIN_WRITER = createWriter("RW-TerrainWriter");
+                exec = TERRAIN_WRITER;
+            }
+            return exec;
+        }
+    }
+
+    private static ExecutorService ensureMapWriter() {
+        ExecutorService exec = MAP_WRITER;
+        if (exec != null && !exec.isShutdown() && !exec.isTerminated()) return exec;
+        synchronized (RoadDatabaseManager.class) {
+            exec = MAP_WRITER;
+            if (exec == null || exec.isShutdown() || exec.isTerminated()) {
+                MAP_WRITER = createWriter("RW-MapWriter");
+                exec = MAP_WRITER;
+            }
+            return exec;
+        }
     }
 
     static String dimKey(ServerLevel level) {

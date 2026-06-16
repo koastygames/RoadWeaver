@@ -127,7 +127,7 @@ public final class TerrainSamplingCache {
         }
         boolean isWaterBiome = isWaterLike(level, x, z);
         boolean biomeWater = isWaterBiome && of < sea;
-        boolean heightWater = (surface <= sea + 1) && (of < surface - 1);
+        boolean heightWater = of < surface;
         boolean res = biomeWater || heightWater;
         columnWaterCache.put(key, res);
         return res;

@@ -69,8 +69,8 @@ public final class RoadsideVillageJigsawPlanner {
 
         List<StructurePoolElement> candidates = holder.get().value().getShuffledTemplates(random);
         for (StructurePoolElement element : candidates) {
-            if (element.getBoundingBox(templateManager, BlockPos.ZERO, Rotation.NONE).getXSpan() <= 1
-                && element.getBoundingBox(templateManager, BlockPos.ZERO, Rotation.NONE).getZSpan() <= 1) {
+            Optional<BoundingBox> templateBounds = safeBoundingBox(templateManager, element, BlockPos.ZERO, Rotation.NONE);
+            if (templateBounds.isEmpty() || isEmptyElementBounds(templateBounds.get())) {
                 continue;
             }
 
@@ -83,6 +83,34 @@ public final class RoadsideVillageJigsawPlanner {
         return Optional.empty();
     }
 
+    private static boolean isEmptyElementBounds(BoundingBox box) {
+        return box.getXSpan() <= 1 && box.getZSpan() <= 1;
+    }
+
+    private static Optional<BoundingBox> safeBoundingBox(StructureTemplateManager templateManager,
+                                                         StructurePoolElement element,
+                                                         BlockPos position,
+                                                         Rotation rotation) {
+        try {
+            return Optional.of(element.getBoundingBox(templateManager, position, rotation));
+        } catch (IllegalStateException ex) {
+            LOGGER.debug("Skipping non-placeable roadside village pool element: {}", ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private static List<StructureTemplate.StructureBlockInfo> safeJigsawBlocks(StructureTemplateManager templateManager,
+                                                                               StructurePoolElement element,
+                                                                               Rotation rotation,
+                                                                               RandomSource random) {
+        try {
+            return element.getShuffledJigsawBlocks(templateManager, BlockPos.ZERO, rotation, random);
+        } catch (IllegalStateException ex) {
+            LOGGER.debug("Skipping roadside village pool element without jigsaw data: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
     private static Optional<PoolElementStructurePiece> orientElement(StructureTemplateManager templateManager,
                                                                     PendingRoadsideVillageSlot slot,
                                                                     StructurePoolElement element,
@@ -93,7 +121,7 @@ public final class RoadsideVillageJigsawPlanner {
 
         for (int i = 0; i < ROTATION_ATTEMPTS; i++) {
             Rotation rotation = rotations[i % rotations.length];
-            List<StructureTemplate.StructureBlockInfo> jigsaws = element.getShuffledJigsawBlocks(templateManager, BlockPos.ZERO, rotation, random);
+            List<StructureTemplate.StructureBlockInfo> jigsaws = safeJigsawBlocks(templateManager, element, rotation, random);
             for (StructureTemplate.StructureBlockInfo jigsaw : jigsaws) {
                 Direction front = JigsawBlock.getFrontFacing(jigsaw.state());
                 if (front != slot.outward().getOpposite()) {
@@ -101,7 +129,11 @@ public final class RoadsideVillageJigsawPlanner {
                 }
 
                 BlockPos position = slot.anchor().subtract(jigsaw.pos());
-                BoundingBox box = element.getBoundingBox(templateManager, position, rotation);
+                Optional<BoundingBox> maybeBox = safeBoundingBox(templateManager, element, position, rotation);
+                if (maybeBox.isEmpty()) {
+                    continue;
+                }
+                BoundingBox box = maybeBox.get();
                 if (collides(box, occupied)) {
                     continue;
                 }
@@ -117,11 +149,42 @@ public final class RoadsideVillageJigsawPlanner {
             }
         }
 
+        for (Rotation rotation : rotations) {
+            Optional<BoundingBox> templateBounds = safeBoundingBox(templateManager, element, BlockPos.ZERO, rotation);
+            if (templateBounds.isEmpty()) {
+                continue;
+            }
+
+            BoundingBox zeroBox = templateBounds.get();
+            BlockPos position = new BlockPos(
+                slot.anchor().getX() - (zeroBox.minX() + zeroBox.maxX()) / 2,
+                slot.anchor().getY() - zeroBox.minY(),
+                slot.anchor().getZ() - (zeroBox.minZ() + zeroBox.maxZ()) / 2
+            );
+            Optional<BoundingBox> maybeBox = safeBoundingBox(templateManager, element, position, rotation);
+            if (maybeBox.isEmpty()) {
+                continue;
+            }
+            BoundingBox box = maybeBox.get();
+            if (collides(box, occupied)) {
+                continue;
+            }
+
+            return Optional.of(new PoolElementStructurePiece(
+                templateManager,
+                element,
+                position,
+                element.getGroundLevelDelta(),
+                rotation,
+                box
+            ));
+        }
+
         return Optional.empty();
     }
 
     private static boolean collides(BoundingBox box, List<BoundingBox> occupied) {
-        BoundingBox inflated = box.inflatedBy(2);
+        BoundingBox inflated = box.inflatedBy(1);
         for (BoundingBox other : occupied) {
             if (inflated.intersects(other)) {
                 return true;

@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver.runtime;
 
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
-import net.shiroha233.roadweaver.features.highway.terrain.HighwayTerrainSamplingService;
 import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLWorldSupport;
@@ -11,8 +10,6 @@ import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionR
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
 import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
-import net.shiroha233.roadweaver.planning.PathBranchPlanningService;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
@@ -63,12 +60,9 @@ public final class CacheManager {
         PendingStructureStorage.clearAll();
         RoadSpatialIndex.clearAllCache();
         RoadPlanningService.resetAll();
-        HighwayCellPathPlanningService.resetAll();
-        PathBranchPlanningService.resetAll();
         ChunkGenTracker.clearAll();
         SignTextService.clearPending();
         TerrainSamplingStats.reset();
-        HighwayTerrainSamplingService.resetAll();
         CoarsePathCache.clearAll();
         CoarseTerrainTileCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();

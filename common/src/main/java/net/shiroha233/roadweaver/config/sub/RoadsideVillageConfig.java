@@ -18,7 +18,8 @@ public final class RoadsideVillageConfig implements SubConfig {
     private double minCurveAngle = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_MIN_CURVE_ANGLE;
     private double maxCurveAngle = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_MAX_CURVE_ANGLE;
     private int roadBufferBlocks = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_ROAD_BUFFER_BLOCKS;
-    private int slotSpacingBlocks = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_SLOT_SPACING_BLOCKS;
+    private int buildingGapInterval = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL;
+    private int maxStepHeight = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_MAX_STEP_HEIGHT;
     private int maxDistanceFromCenter = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_MAX_DISTANCE_FROM_CENTER;
 
     @Override
@@ -33,7 +34,8 @@ public final class RoadsideVillageConfig implements SubConfig {
         minCurveAngle = Math.max(0.0, Math.min(180.0, minCurveAngle));
         maxCurveAngle = Math.max(minCurveAngle, Math.min(180.0, maxCurveAngle));
         roadBufferBlocks = Math.max(RoadConstants.ROADSIDE_VILLAGE_ROAD_BUFFER_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_ROAD_BUFFER_MAX, roadBufferBlocks));
-        slotSpacingBlocks = Math.max(RoadConstants.ROADSIDE_VILLAGE_SLOT_SPACING_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_SLOT_SPACING_MAX, slotSpacingBlocks));
+        buildingGapInterval = Math.max(RoadConstants.ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL_MAX, buildingGapInterval));
+        maxStepHeight = Math.max(RoadConstants.ROADSIDE_VILLAGE_MAX_STEP_HEIGHT_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_MAX_STEP_HEIGHT_MAX, maxStepHeight));
         maxDistanceFromCenter = Math.max(RoadConstants.ROADSIDE_VILLAGE_MAX_DISTANCE_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_MAX_DISTANCE_MAX, maxDistanceFromCenter));
     }
 
@@ -51,7 +53,8 @@ public final class RoadsideVillageConfig implements SubConfig {
         copy.minCurveAngle = this.minCurveAngle;
         copy.maxCurveAngle = this.maxCurveAngle;
         copy.roadBufferBlocks = this.roadBufferBlocks;
-        copy.slotSpacingBlocks = this.slotSpacingBlocks;
+        copy.buildingGapInterval = this.buildingGapInterval;
+        copy.maxStepHeight = this.maxStepHeight;
         copy.maxDistanceFromCenter = this.maxDistanceFromCenter;
         return copy;
     }
@@ -78,8 +81,10 @@ public final class RoadsideVillageConfig implements SubConfig {
     public void setMaxCurveAngle(double v) { this.maxCurveAngle = Math.max(0.0, v); }
     public int roadBufferBlocks() { return roadBufferBlocks; }
     public void setRoadBufferBlocks(int v) { this.roadBufferBlocks = Math.max(0, v); }
-    public int slotSpacingBlocks() { return slotSpacingBlocks; }
-    public void setSlotSpacingBlocks(int v) { this.slotSpacingBlocks = Math.max(1, v); }
+    public int buildingGapInterval() { return buildingGapInterval; }
+    public void setBuildingGapInterval(int v) { this.buildingGapInterval = Math.max(2, v); }
+    public int maxStepHeight() { return maxStepHeight; }
+    public void setMaxStepHeight(int v) { this.maxStepHeight = Math.max(1, v); }
     public int maxDistanceFromCenter() { return maxDistanceFromCenter; }
     public void setMaxDistanceFromCenter(int v) { this.maxDistanceFromCenter = Math.max(1, v); }
 }

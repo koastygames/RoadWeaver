@@ -61,8 +61,7 @@ public final class RoadSpatialIndex {
 
     private static int computeMaxPossibleMargin() {
         int wRoad = Math.max(0, ConfigService.get().roadAppearance().roadWidth());
-        int wHighway = Math.max(0, ConfigService.get().highway().roadWidth());
-        return Math.max(1, (Math.max(wRoad, wHighway) / 2) + 1);
+        return Math.max(1, (wRoad / 2) + 1);
     }
 
     private static boolean isNearRoadXZ(ServerLevel level, BlockPos pos, int margin) {

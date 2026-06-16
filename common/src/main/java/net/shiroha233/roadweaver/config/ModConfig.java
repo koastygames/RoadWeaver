@@ -16,7 +16,7 @@ public final class ModConfig {
     private PathfindingCostConfig pathfindingCost = new PathfindingCostConfig();
     private RoadAppearanceConfig roadAppearance = new RoadAppearanceConfig();
     private BridgeConfig bridge = new BridgeConfig();
-    private HighwayConfig highway = new HighwayConfig();
+
     private PerformanceConfig performance = new PerformanceConfig();
     private RoadsideStructureConfig roadsideStructure = new RoadsideStructureConfig();
     private RoadsideVillageConfig roadsideVillage = new RoadsideVillageConfig();
@@ -29,7 +29,6 @@ public final class ModConfig {
         if (pathfindingCost == null) pathfindingCost = new PathfindingCostConfig();
         if (roadAppearance == null) roadAppearance = new RoadAppearanceConfig();
         if (bridge == null) bridge = new BridgeConfig();
-        if (highway == null) highway = new HighwayConfig();
         if (performance == null) performance = new PerformanceConfig();
         if (roadsideStructure == null) roadsideStructure = new RoadsideStructureConfig();
         if (roadsideVillage == null) roadsideVillage = new RoadsideVillageConfig();
@@ -40,7 +39,6 @@ public final class ModConfig {
         pathfindingCost.sanitize();
         roadAppearance.sanitize();
         bridge.sanitize();
-        highway.sanitize();
         performance.sanitize();
         roadsideStructure.sanitize();
         roadsideVillage.sanitize();
@@ -61,7 +59,7 @@ public final class ModConfig {
     public PathfindingCostConfig pathfindingCost() { return pathfindingCost; }
     public RoadAppearanceConfig roadAppearance() { return roadAppearance; }
     public BridgeConfig bridge() { return bridge; }
-    public HighwayConfig highway() { return highway; }
+
     public PerformanceConfig performance() { return performance; }
     public RoadsideStructureConfig roadsideStructure() { return roadsideStructure; }
     public RoadsideVillageConfig roadsideVillage() { return roadsideVillage; }
@@ -139,11 +137,6 @@ public final class ModConfig {
         return chooseBool(s == null ? null : s.slopeLimitEnabled(), roadAppearance.slopeLimitEnabled());
     }
 
-    public boolean highwayEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.highwayEnabled(), highway.enabled());
-    }
-
     public boolean roadsideStructuresEnabledForDimension(String dimId) {
         DimensionRoadSettings s = getDimSettings(dimId);
         return chooseBool(s == null ? null : s.roadsideStructuresEnabled(), roadsideStructure.enabled());
@@ -154,64 +147,8 @@ public final class ModConfig {
         return chooseBool(s == null ? null : s.roadSignsEnabled(), roadAppearance.roadSignsEnabled());
     }
 
-    public int highwayRoadWidth() {
-        return highway.roadWidth();
-    }
-
     public int averagingRadius() {
         return roadAppearance.averagingRadius();
-    }
-
-    public boolean highwaySlopeLimitEnabled() {
-        return highway.slopeLimitEnabled();
-    }
-
-    public int highwaySlopeRunBlocks() {
-        return highway.slopeRunBlocks();
-    }
-
-    public int highwaySlopeRiseBlocks() {
-        return highway.slopeRiseBlocks();
-    }
-
-    public int highwayAStarStep() {
-        return highway.aStarStep();
-    }
-
-    public double highwayFloatingWeight() {
-        return highway.floatingWeight();
-    }
-
-    public double highwayPenetrationWeight() {
-        return highway.penetrationWeight();
-    }
-
-    public boolean highwayEnabled() {
-        return highway.enabled();
-    }
-
-    public boolean highwayAutoPlanEnabled() {
-        return highway.autoPlanEnabled();
-    }
-
-    public int highwayGridBlocks() {
-        return highway.gridBlocks();
-    }
-
-    public boolean highwayDynamicPlanEnabled() {
-        return highway.dynamicPlanEnabled();
-    }
-
-    public boolean highwayTerrainAwarePlanning() {
-        return highway.terrainAwarePlanning();
-    }
-
-    public int highwayIntersectionWindowSize() {
-        return highway.intersectionWindowSize();
-    }
-
-    public double highwayIntersectionEdgeMargin() {
-        return highway.intersectionEdgeMargin();
     }
 
     public List<String> structurePredictionDimensionWhitelist() {

@@ -114,7 +114,7 @@ public final class Road {
             RoadShardStorage.addRoad(level, rd);
 
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
-            RoadsideVillagePrecomputer.precomputeVillages(level, segments, spans, width, cache, random, targetY);
+            RoadsideVillagePrecomputer.precomputeVillages(level, segments, spans, width, cache, terrain, random, targetY);
             return rd;
         } finally {
             if (terrain != null) terrain.dispose();

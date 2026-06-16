@@ -19,7 +19,6 @@ public final class MapConnectionCollector {
     public static List<StructureConnection> collect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> connections = provider.getStructureConnections(level);
-        List<StructureConnection> highwayConnections = provider.getHighwayConnections(level);
 
         ArrayList<StructureConnection> out = new ArrayList<>();
         if (connections != null) {
@@ -27,18 +26,6 @@ public final class MapConnectionCollector {
                 BlockPos a = c.from();
                 BlockPos b = c.to();
                 if (intersectsRect(a, b, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) out.add(c);
-            }
-        }
-
-        if (highwayConnections != null && !highwayConnections.isEmpty()) {
-            HashSet<Long> seenEdges = new HashSet<>();
-            for (StructureConnection c : out) seenEdges.add(PlanningUtils.edgeKey(c.from(), c.to()));
-            for (StructureConnection hc : highwayConnections) {
-                BlockPos a = hc.from();
-                BlockPos b = hc.to();
-                if (!intersectsRect(a, b, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) continue;
-                long key = PlanningUtils.edgeKey(a, b);
-                if (seenEdges.add(key)) out.add(hc);
             }
         }
 

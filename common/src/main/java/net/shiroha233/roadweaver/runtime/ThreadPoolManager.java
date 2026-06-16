@@ -43,6 +43,7 @@ public final class ThreadPoolManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
 
+    private static final AtomicReference<ThreadPoolExecutor> INITIAL_WORKERS = new AtomicReference<>();
     private static final AtomicReference<ThreadPoolExecutor> SHARED_EXEC = new AtomicReference<>();
     private static final AtomicLong EPOCH = new AtomicLong(0L);
     private static final AtomicLong TASK_SEQ = new AtomicLong(0L);
@@ -61,18 +62,27 @@ public final class ThreadPoolManager {
 
     public static synchronized void onServerStarted(MinecraftServer server) {
         EPOCH.incrementAndGet();
+        rebuildInitialPool(resolveInitialGenerationThreads());
         rebuildSharedPool(resolveSharedWorkerThreads());
-        LOGGER.debug("ThreadPoolManager: 共享工作池已启动 (epoch={})", EPOCH.get());
+        LOGGER.debug("ThreadPoolManager: 工作池已启动 (epoch={}, initialThreads={}, sharedThreads={})",
+                EPOCH.get(), resolveInitialGenerationThreads(), resolveSharedWorkerThreads());
     }
 
     public static synchronized void onServerStopping() {
         EPOCH.incrementAndGet();
+        shutdownQuietly(INITIAL_WORKERS.get());
         shutdownQuietly(SHARED_EXEC.get());
+        INITIAL_WORKERS.set(null);
         SHARED_EXEC.set(null);
-        LOGGER.debug("ThreadPoolManager: 共享工作池已关闭 (epoch={})", EPOCH.get());
+        LOGGER.debug("ThreadPoolManager: 工作池已关闭 (epoch={})", EPOCH.get());
     }
 
     // ==================== 运行时重建 ====================
+
+    public static synchronized void resizeInitialPool(int threads) {
+        int resolved = threads <= 0 ? resolveInitialGenerationThreads() : Math.max(1, threads);
+        rebuildInitialPool(resolved);
+    }
 
     public static synchronized void resizeSharedPool(int threads) {
         int resolved = threads <= 0 ? resolveSharedWorkerThreads() : Math.max(1, threads);
@@ -175,6 +185,24 @@ public final class ThreadPoolManager {
 
     // ==================== 内部方法 ====================
 
+    private static ThreadPoolExecutor executorFor(TaskRole role) {
+        return role == TaskRole.INITIAL ? initialExecutor() : sharedExecutor();
+    }
+
+    private static ThreadPoolExecutor initialExecutor() {
+        ThreadPoolExecutor e = INITIAL_WORKERS.get();
+        if (e == null || e.isShutdown()) {
+            synchronized (ThreadPoolManager.class) {
+                e = INITIAL_WORKERS.get();
+                if (e == null || e.isShutdown()) {
+                    rebuildInitialPool(resolveInitialGenerationThreads());
+                    e = INITIAL_WORKERS.get();
+                }
+            }
+        }
+        return e;
+    }
+
     private static ThreadPoolExecutor sharedExecutor() {
         ThreadPoolExecutor e = SHARED_EXEC.get();
         if (e == null || e.isShutdown()) {
@@ -187,6 +215,18 @@ public final class ThreadPoolManager {
             }
         }
         return e;
+    }
+
+    private static void rebuildInitialPool(int threads) {
+        shutdownQuietly(INITIAL_WORKERS.get());
+        INITIAL_WORKERS.set(new ThreadPoolExecutor(
+                threads,
+                threads,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new PriorityBlockingQueue<>(),
+                namedFactory("RW-Initial")
+        ));
     }
 
     private static void rebuildSharedPool(int threads) {
@@ -214,6 +254,14 @@ public final class ThreadPoolManager {
             t.setDaemon(true);
             return t;
         };
+    }
+
+    private static int resolveInitialGenerationThreads() {
+        try {
+            int configured = ConfigService.get().performance().initialGenerationThreads();
+            if (configured > 0) return Math.max(1, configured);
+        } catch (Throwable ignored) {}
+        return Math.max(1, Math.min(RoadConstants.COMPUTE_THREADS_MAX, Runtime.getRuntime().availableProcessors()));
     }
 
     private static int resolveSharedWorkerThreads() {
@@ -245,26 +293,26 @@ public final class ThreadPoolManager {
 
         @Override
         public boolean isShutdown() {
-            ThreadPoolExecutor e = SHARED_EXEC.get();
+            ThreadPoolExecutor e = executorFor(role);
             return e == null || e.isShutdown();
         }
 
         @Override
         public boolean isTerminated() {
-            ThreadPoolExecutor e = SHARED_EXEC.get();
+            ThreadPoolExecutor e = executorFor(role);
             return e == null || e.isTerminated();
         }
 
         @Override
         public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-            ThreadPoolExecutor e = SHARED_EXEC.get();
+            ThreadPoolExecutor e = executorFor(role);
             return e == null || e.awaitTermination(timeout, unit);
         }
 
         @Override
         public void execute(Runnable command) {
             if (command == null) throw new NullPointerException("command");
-            sharedExecutor().execute(new PrioritizedRunnable(role, command));
+            executorFor(role).execute(new PrioritizedRunnable(role, command));
         }
     }
 

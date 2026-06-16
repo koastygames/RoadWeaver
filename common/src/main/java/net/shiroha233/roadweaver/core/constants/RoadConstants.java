@@ -14,24 +14,6 @@ public final class RoadConstants {
     public static final int ASTAR_STEP_MAX = 128;
     public static final int ASTAR_STEP_MIN = 4;
 
-    public static final int DEFAULT_HIGHWAY_ASTAR_STEP = 32;
-    public static final int DEFAULT_HIGHWAY_ASTAR_MAX_STEPS = 20_000;
-    public static final int HIGHWAY_ASTAR_MAX_STEPS_MIN = 1_000;
-    public static final int HIGHWAY_ASTAR_MAX_STEPS_MAX = 200_000;
-    public static final double DEFAULT_HIGHWAY_FLOATING_WEIGHT = 2.0;
-    public static final double DEFAULT_HIGHWAY_PENETRATION_WEIGHT = 4.0;
-
-    public static final int DEFAULT_HIGHWAY_GRID_BLOCKS = 2500;
-    public static final int HIGHWAY_GRID_BLOCKS_MIN = 128;
-    public static final int HIGHWAY_GRID_BLOCKS_MAX = 20_000;
-    public static final int DEFAULT_HIGHWAY_ROAD_WIDTH = 7;
-    public static final int HIGHWAY_ROAD_WIDTH_MIN = 1;
-    public static final int HIGHWAY_ROAD_WIDTH_MAX = 31;
-    public static final int DEFAULT_HIGHWAY_SLOPE_RUN_BLOCKS = 5;
-    public static final int DEFAULT_HIGHWAY_SLOPE_RISE_BLOCKS = 1;
-    public static final int HIGHWAY_SLOPE_RUN_MIN = 1;
-    public static final int HIGHWAY_SLOPE_RUN_MAX = 64;
-    public static final int HIGHWAY_SLOPE_RISE_MAX = 16;
 
     public static final int DEFAULT_PLAN_MAX_EDGE_LEN_BLOCKS = 2048;
     public static final int DEFAULT_BRIDGE_JOIN_LEN_BLOCKS = 1536;
@@ -113,30 +95,37 @@ public final class RoadConstants {
     public static final int STRUCTURE_OFFSET_MIN = 1;
     public static final int STRUCTURE_OFFSET_MAX = 64;
 
-    public static final int DEFAULT_MAX_ROADSIDE_VILLAGES_PER_ROAD = 3;
+    public static final int DEFAULT_MAX_ROADSIDE_VILLAGES_PER_ROAD = 6;
     public static final int ROADSIDE_VILLAGE_MAX_PER_ROAD_MAX = 8;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS = 64;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS = 32;
     public static final int ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS_MIN = 32;
     public static final int ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS_MAX = 512;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_WINDOW_SEGMENTS = 56;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_WINDOW_SEGMENTS = 24;
     public static final int ROADSIDE_VILLAGE_WINDOW_SEGMENTS_MIN = 24;
     public static final int ROADSIDE_VILLAGE_WINDOW_SEGMENTS_MAX = 256;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_NODE_COUNT_MIN = 10;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_NODE_COUNT_MAX = 20;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_NODE_COUNT_MIN = 6;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_NODE_COUNT_MAX = 14;
     public static final int ROADSIDE_VILLAGE_NODE_COUNT_MIN = 1;
     public static final int ROADSIDE_VILLAGE_NODE_COUNT_MAX = 24;
     public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_HEIGHT_DIFF = 4;
     public static final int ROADSIDE_VILLAGE_MAX_HEIGHT_DIFF_MAX = 12;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_LOCAL_SLOPE = 3;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_LOCAL_SLOPE = 4;
     public static final int ROADSIDE_VILLAGE_MAX_LOCAL_SLOPE_MAX = 8;
     public static final double DEFAULT_ROADSIDE_VILLAGE_MIN_CURVE_ANGLE = 0.0;
-    public static final double DEFAULT_ROADSIDE_VILLAGE_MAX_CURVE_ANGLE = 55.0;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_ROAD_BUFFER_BLOCKS = 10;
+    public static final double DEFAULT_ROADSIDE_VILLAGE_MAX_CURVE_ANGLE = 70.0;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_ROAD_BUFFER_BLOCKS = 6;
     public static final int ROADSIDE_VILLAGE_ROAD_BUFFER_MIN = 4;
     public static final int ROADSIDE_VILLAGE_ROAD_BUFFER_MAX = 64;
-    public static final int DEFAULT_ROADSIDE_VILLAGE_SLOT_SPACING_BLOCKS = 12;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_SLOT_SPACING_BLOCKS = 6;
     public static final int ROADSIDE_VILLAGE_SLOT_SPACING_MIN = 4;
     public static final int ROADSIDE_VILLAGE_SLOT_SPACING_MAX = 64;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL = 3;
+    public static final int ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL_MIN = 2;
+    public static final int ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL_MAX = 8;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_STEP_HEIGHT = 3;
+    public static final int ROADSIDE_VILLAGE_MAX_STEP_HEIGHT_MIN = 1;
+    public static final int ROADSIDE_VILLAGE_MAX_STEP_HEIGHT_MAX = 6;
+
     public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_DISTANCE_FROM_CENTER = 96;
     public static final int ROADSIDE_VILLAGE_MAX_DISTANCE_MIN = 16;
     public static final int ROADSIDE_VILLAGE_MAX_DISTANCE_MAX = 128;
@@ -206,15 +195,6 @@ public final class RoadConstants {
 
     public static final int CHUNK_SIZE_BLOCKS = 16;
 
-    // 公路动态交叉点选择
-    public static final int DEFAULT_INTERSECTION_WINDOW_SIZE = 64;
-    public static final int INTERSECTION_WINDOW_SIZE_MIN = 16;
-    public static final int INTERSECTION_WINDOW_SIZE_MAX = 256;
-    public static final double DEFAULT_INTERSECTION_EDGE_MARGIN = 0.1;
-    public static final double INTERSECTION_EDGE_MARGIN_MAX = 0.4;
-    public static final int HIGHWAY_TERRAIN_SAMPLING_STEP = 4;
-    public static final double DIAGONAL_WATER_RATIO_THRESHOLD = 0.3;
-    public static final double DIAGONAL_DISTANCE_FACTOR = 1.8;
 
     // 道路吸附后处理
     public static final int ROAD_SNAP_THRESHOLD = 12;

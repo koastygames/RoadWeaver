@@ -23,9 +23,7 @@ public record PendingRoadsideVillageSlot(
     public enum SlotKind {
         HOUSE,
         DECOR,
-        VILLAGER,
-        ANIMAL,
-        CAMEL
+        VILLAGER
     }
 
     public ResourceLocation poolId(ResourceLocation style) {
@@ -33,8 +31,6 @@ public record PendingRoadsideVillageSlot(
             case HOUSE -> new ResourceLocation("minecraft", "village/" + style.getPath() + "/houses");
             case DECOR -> new ResourceLocation("minecraft", "village/" + style.getPath() + "/decor");
             case VILLAGER -> new ResourceLocation("minecraft", "village/" + style.getPath() + "/villagers");
-            case ANIMAL -> new ResourceLocation("minecraft", "village/common/animals");
-            case CAMEL -> new ResourceLocation("minecraft", "village/desert/camel");
         };
     }
 }

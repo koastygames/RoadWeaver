@@ -8,6 +8,7 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
  */
 public final class PerformanceConfig implements SubConfig {
     private int sharedWorkerThreads = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() - 1));
+    private int initialGenerationThreads = defaultInitialGenerationThreads();
     private int maxConcurrentGenerations = Math.max(1, Math.min(2, sharedWorkerThreads));
     private int threadDutyCycle = RoadConstants.DEFAULT_DUTY_CYCLE;
     private boolean idleGenerationEnabled = true;
@@ -20,6 +21,7 @@ public final class PerformanceConfig implements SubConfig {
     @Override
     public void sanitize() {
         sharedWorkerThreads = Math.max(1, Math.min(RoadConstants.COMPUTE_THREADS_MAX, sharedWorkerThreads));
+        initialGenerationThreads = sanitizeInitialGenerationThreads(initialGenerationThreads);
         maxConcurrentGenerations = Math.max(1, Math.min(128, maxConcurrentGenerations));
         if (threadDutyCycle < RoadConstants.DUTY_CYCLE_MIN || threadDutyCycle > RoadConstants.DUTY_CYCLE_MAX) {
             threadDutyCycle = RoadConstants.DEFAULT_DUTY_CYCLE;
@@ -35,6 +37,7 @@ public final class PerformanceConfig implements SubConfig {
     public PerformanceConfig snapshot() {
         PerformanceConfig copy = new PerformanceConfig();
         copy.sharedWorkerThreads = this.sharedWorkerThreads;
+        copy.initialGenerationThreads = this.initialGenerationThreads;
         copy.maxConcurrentGenerations = this.maxConcurrentGenerations;
         copy.threadDutyCycle = this.threadDutyCycle;
         copy.idleGenerationEnabled = this.idleGenerationEnabled;
@@ -48,6 +51,8 @@ public final class PerformanceConfig implements SubConfig {
 
     public int sharedWorkerThreads() { return sharedWorkerThreads; }
     public void setSharedWorkerThreads(int v) { this.sharedWorkerThreads = Math.max(1, Math.min(RoadConstants.COMPUTE_THREADS_MAX, v)); }
+    public int initialGenerationThreads() { return initialGenerationThreads; }
+    public void setInitialGenerationThreads(int v) { this.initialGenerationThreads = sanitizeInitialGenerationThreads(v); }
     public int maxConcurrentGenerations() { return maxConcurrentGenerations; }
     public void setMaxConcurrentGenerations(int v) { this.maxConcurrentGenerations = Math.max(1, Math.min(128, v)); }
     public int threadDutyCycle() { return threadDutyCycle; }
@@ -66,6 +71,17 @@ public final class PerformanceConfig implements SubConfig {
     public void setOpenclValidateSamples(boolean v) { this.openclValidateSamples = v; }
 
     public boolean shouldThrottle() { return threadDutyCycle < RoadConstants.DUTY_CYCLE_MAX; }
+
+    private static int defaultInitialGenerationThreads() {
+        return Math.max(1, Math.min(RoadConstants.COMPUTE_THREADS_MAX, Runtime.getRuntime().availableProcessors()));
+    }
+
+    private static int sanitizeInitialGenerationThreads(int value) {
+        if (value <= 0) {
+            return defaultInitialGenerationThreads();
+        }
+        return Math.max(1, Math.min(RoadConstants.COMPUTE_THREADS_MAX, value));
+    }
 
     private static String normalizeOpenCLDevicePreference(String value) {
         if (value == null || value.isBlank()) {

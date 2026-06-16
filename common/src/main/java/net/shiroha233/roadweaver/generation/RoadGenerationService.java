@@ -10,15 +10,12 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
-import net.shiroha233.roadweaver.features.highway.config.HighwayGenerationConfig;
-import net.shiroha233.roadweaver.features.highway.generation.HighwayRoad;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.postprocess.RoadSnapService;
@@ -31,15 +28,13 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 道路生成调度器，管理 Path/Highway 双队列的 tick 驱动异步生成
+ * 道路生成调度器，管理 Path 队列的 tick 驱动异步生成
  */
 public final class RoadGenerationService {
     private RoadGenerationService() {}
 
     private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<StructureConnection>> QUEUES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> PROCESSED = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<StructureConnection>> HIGHWAY_QUEUES = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> HIGHWAY_PROCESSED = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING_COUNT = new ConcurrentHashMap<>();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
     private static final ConcurrentHashMap<ServerLevel, CachedPlayerList> PLAYER_LIST_CACHE = new ConcurrentHashMap<>();
@@ -56,8 +51,6 @@ public final class RoadGenerationService {
         ALL_RUNNING.clear();
         QUEUES.clear();
         PROCESSED.clear();
-        HIGHWAY_QUEUES.clear();
-        HIGHWAY_PROCESSED.clear();
         RUNNING_COUNT.clear();
         CoarsePathCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();
@@ -69,11 +62,8 @@ public final class RoadGenerationService {
         ALL_RUNNING.clear();
         QUEUES.clear();
         PROCESSED.clear();
-        HIGHWAY_QUEUES.clear();
-        HIGHWAY_PROCESSED.clear();
         RUNNING_COUNT.clear();
         RoadPlanningService.resetAll();
-        HighwayCellPathPlanningService.resetAll();
         CoarsePathCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();
         CoarseTerrainTileCache.clearAll();
@@ -85,12 +75,10 @@ public final class RoadGenerationService {
     public static void tick(ServerLevel level) {
         CURRENT_TICK++;
         refreshQueue(level);
-        refreshHighwayQueue(level);
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
 
         ConcurrentLinkedQueue<StructureConnection> q = QUEUES.computeIfAbsent(level, l -> new ConcurrentLinkedQueue<>());
-        ConcurrentLinkedQueue<StructureConnection> hq = HIGHWAY_QUEUES.computeIfAbsent(level, l -> new ConcurrentLinkedQueue<>());
-        if (q.isEmpty() && hq.isEmpty()) return;
+        if (q.isEmpty()) return;
 
         int limit = Math.max(1, ConfigService.get().performance().maxConcurrentGenerations());
         AtomicInteger cnt = RUNNING_COUNT.computeIfAbsent(level, l -> new AtomicInteger(0));
@@ -98,24 +86,15 @@ public final class RoadGenerationService {
         List<ServerPlayer> players = getCachedPlayers(level);
         if (players == null) return;
 
-        boolean pickHighway = false;
         while (cnt.get() < limit) {
-            if (q.isEmpty() && hq.isEmpty()) break;
+            if (q.isEmpty()) break;
 
-            boolean isHighway = !hq.isEmpty() && (q.isEmpty() || pickHighway);
-            pickHighway = !pickHighway;
-
-            StructureConnection conn = isHighway ? pollNearest(hq, players) : pollNearest(q, players);
+            StructureConnection conn = pollNearest(q, players);
             if (conn == null) continue;
 
-            if (isHighway) {
-                updateHighwayStatus(level, conn, ConnectionStatus.GENERATING);
-            } else {
-                updateConnectionStatus(level, conn, ConnectionStatus.GENERATING);
-            }
+            updateConnectionStatus(level, conn, ConnectionStatus.GENERATING);
 
             final StructureConnection task = conn;
-            final boolean highwayTask = isHighway;
             cnt.incrementAndGet();
             long epoch = ThreadPoolManager.currentEpoch();
 
@@ -123,11 +102,7 @@ public final class RoadGenerationService {
                 try {
                     if (Thread.currentThread().isInterrupted()) return;
                     if (!ThreadPoolManager.isEpoch(epoch)) return;
-                    if (highwayTask) {
-                        safeGenerateHighway(level, task, epoch);
-                    } else {
-                        safeGenerate(level, task, epoch);
-                    }
+                    safeGenerate(level, task, epoch);
                 } finally {
                     cnt.decrementAndGet();
                 }
@@ -161,21 +136,6 @@ public final class RoadGenerationService {
         }
     }
 
-    public static boolean generateHighwayTask(ServerLevel level, StructureConnection conn) {
-        if (level == null || conn == null) return false;
-        try {
-            if (Thread.currentThread().isInterrupted()) return false;
-            ModConfig cfg = ConfigService.get();
-            String dimId = level.dimension().location().toString();
-            if (!cfg.highwayEnabledForDimension(dimId)) return true;
-
-            HighwayGenerationConfig genCfg = HighwayGenerationConfig.from(cfg);
-            return new HighwayRoad(level, conn, genCfg).generateRoad(cfg.highway().aStarMaxSteps());
-        } catch (Throwable t) {
-            return false;
-        }
-    }
-
     // ==================== 安全生成包装 ====================
 
     private static void safeGenerate(ServerLevel level, StructureConnection conn, long epoch) {
@@ -199,28 +159,6 @@ public final class RoadGenerationService {
                 removeProcessed(level, conn);
             });
         }
-    }
-
-    private static void safeGenerateHighway(ServerLevel level, StructureConnection conn, long epoch) {
-        ConnectionStatus st;
-        try {
-            if (Thread.currentThread().isInterrupted()) return;
-            if (!ThreadPoolManager.isEpoch(epoch)) return;
-
-            boolean ok = generateHighwayTask(level, conn);
-            st = ok ? ConnectionStatus.COMPLETED : ConnectionStatus.FAILED;
-        } catch (Throwable t) {
-            st = ConnectionStatus.FAILED;
-        }
-
-        final ConnectionStatus finalSt = st;
-        StructureConnection finalized = new StructureConnection(conn.from(), conn.to(), finalSt);
-
-        executeOnMainThread(level, epoch, () -> {
-            updateHighwayStatus(level, conn, finalSt);
-            HighwayCellPathPlanningService.onHighwayEdgeFinalized(level, finalized);
-            removeHighwayProcessed(level, conn);
-        });
     }
 
     private static void executeOnMainThread(ServerLevel level, long epoch, Runnable action) {
@@ -252,34 +190,9 @@ public final class RoadGenerationService {
         provider.setStructureConnections(level, all);
     }
 
-    private static void updateHighwayStatus(ServerLevel level, StructureConnection conn, ConnectionStatus status) {
-        WorldDataProvider provider = WorldDataProvider.getInstance();
-        List<StructureConnection> origin = provider.getHighwayConnections(level);
-        List<StructureConnection> all = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
-        boolean found = false;
-        for (int i = 0; i < all.size(); i++) {
-            StructureConnection c = all.get(i);
-            if (PlanningUtils.sameEdge(c, conn)) {
-                all.set(i, new StructureConnection(c.from(), c.to(), status));
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            all.add(new StructureConnection(conn.from(), conn.to(), status));
-        }
-        provider.setHighwayConnections(level, all);
-    }
-
     private static void removeProcessed(ServerLevel level, StructureConnection conn) {
         long k = PlanningUtils.edgeKey(conn.from(), conn.to());
         ConcurrentHashMap<Long, Boolean> proc = PROCESSED.get(level);
-        if (proc != null) proc.remove(k);
-    }
-
-    private static void removeHighwayProcessed(ServerLevel level, StructureConnection conn) {
-        long k = PlanningUtils.edgeKey(conn.from(), conn.to());
-        ConcurrentHashMap<Long, Boolean> proc = HIGHWAY_PROCESSED.get(level);
         if (proc != null) proc.remove(k);
     }
 
@@ -303,23 +216,6 @@ public final class RoadGenerationService {
                     && IdleRoadGenerationService.isManagedByIdle(level, c)) {
                 continue;
             }
-            long key = PlanningUtils.edgeKey(c.from(), c.to());
-            if (proc.putIfAbsent(key, Boolean.TRUE) == null) {
-                q.add(c);
-            }
-        }
-    }
-
-    private static void refreshHighwayQueue(ServerLevel level) {
-        WorldDataProvider provider = WorldDataProvider.getInstance();
-        List<StructureConnection> list = provider.getHighwayConnections(level);
-        if (list == null) return;
-
-        ConcurrentLinkedQueue<StructureConnection> q = HIGHWAY_QUEUES.computeIfAbsent(level, l -> new ConcurrentLinkedQueue<>());
-        ConcurrentHashMap<Long, Boolean> proc = HIGHWAY_PROCESSED.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
-
-        for (StructureConnection c : list) {
-            if (c.status() != ConnectionStatus.PLANNED && c.status() != ConnectionStatus.GENERATING) continue;
             long key = PlanningUtils.edgeKey(c.from(), c.to());
             if (proc.putIfAbsent(key, Boolean.TRUE) == null) {
                 q.add(c);

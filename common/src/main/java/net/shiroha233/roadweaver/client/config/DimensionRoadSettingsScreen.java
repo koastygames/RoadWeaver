@@ -33,7 +33,6 @@ public class DimensionRoadSettingsScreen extends Screen {
     private Button bridgeEnabledBtn;
     private Button pathfindingBtn;
     private Button slopeLimitBtn;
-    private Button highwayEnabledBtn;
     private Button roadsideStructuresBtn;
     private Button roadSignsBtn;
     private Button resetDimensionBtn;
@@ -155,10 +154,6 @@ public class DimensionRoadSettingsScreen extends Screen {
                 .pos(x, y).size(w, BUTTON_HEIGHT).build();
         y += BUTTON_HEIGHT + BUTTON_GAP;
 
-        highwayEnabledBtn = Button.builder(Component.empty(), b -> toggleBool("highwayEnabled"))
-                .pos(x, y).size(w, BUTTON_HEIGHT).build();
-        y += BUTTON_HEIGHT + BUTTON_GAP;
-
         roadsideStructuresBtn = Button.builder(Component.empty(), b -> toggleBool("roadsideStructuresEnabled"))
                 .pos(x, y).size(w, BUTTON_HEIGHT).build();
         y += BUTTON_HEIGHT + BUTTON_GAP;
@@ -186,7 +181,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         addRenderableWidget(bridgeEnabledBtn);
         addRenderableWidget(pathfindingBtn);
         addRenderableWidget(slopeLimitBtn);
-        addRenderableWidget(highwayEnabledBtn);
         addRenderableWidget(roadsideStructuresBtn);
         addRenderableWidget(roadSignsBtn);
         addRenderableWidget(resetDimensionBtn);
@@ -201,7 +195,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         bridgeEnabledBtn.active = hasSelection;
         pathfindingBtn.active = hasSelection;
         slopeLimitBtn.active = hasSelection;
-        highwayEnabledBtn.active = hasSelection;
         roadsideStructuresBtn.active = hasSelection;
         roadSignsBtn.active = hasSelection;
         resetDimensionBtn.active = hasSelection;
@@ -215,8 +208,6 @@ public class DimensionRoadSettingsScreen extends Screen {
         pathfindingBtn.setMessage(pathfindingLine(s == null ? null : s.pathfindingAlgorithm()));
         slopeLimitBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.height_smoothing",
                 s == null ? null : s.slopeLimitEnabled()));
-        highwayEnabledBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.highway",
-                s == null ? null : s.highwayEnabled()));
         roadsideStructuresBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.roadside_structures",
                         s == null ? null : s.roadsideStructuresEnabled()));
         roadSignsBtn.setMessage(triStateLine("gui.roadweaver.dimension_road_settings.option.road_signs",
@@ -262,10 +253,6 @@ public class DimensionRoadSettingsScreen extends Screen {
             case "slopeLimitEnabled" -> {
                 next = nextTriState(s.slopeLimitEnabled());
                 s.setSlopeLimitEnabled(next);
-            }
-            case "highwayEnabled" -> {
-                next = nextTriState(s.highwayEnabled());
-                s.setHighwayEnabled(next);
             }
             case "roadsideStructuresEnabled" -> {
                 next = nextTriState(s.roadsideStructuresEnabled());

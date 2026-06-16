@@ -28,16 +28,11 @@ public abstract class WorldDataProvider {
     public abstract List<StructureConnection> getStructureConnections(ServerLevel level);
     public abstract void setStructureConnections(ServerLevel level, List<StructureConnection> connections);
 
-    public abstract List<StructureConnection> getHighwayConnections(ServerLevel level);
-    public abstract void setHighwayConnections(ServerLevel level, List<StructureConnection> connections);
-
     public abstract Set<Long> getPlannedTileKeys(ServerLevel level);
     public abstract void setPlannedTileKeys(ServerLevel level, Set<Long> keys);
     public abstract Map<Long, Long> getPlannedTileCenters(ServerLevel level);
     public abstract void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers);
 
-    public abstract Map<Long, Long> getHighwayIntersections(ServerLevel level);
-    public abstract void setHighwayIntersections(ServerLevel level, Map<Long, Long> intersections);
 
     /**
      * 添加单个结构位置（幂等）
