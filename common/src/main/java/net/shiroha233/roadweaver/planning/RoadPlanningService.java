@@ -194,10 +194,14 @@ public final class RoadPlanningService {
             for (StructureConnection c : existingSnapshot) {
                 BlockPos f = new BlockPos(c.from().getX(), 0, c.from().getZ());
                 BlockPos t = new BlockPos(c.to().getX(), 0, c.to().getZ());
-                long kf = PlanningUtils.pos2dKey(f);
-                long kt = PlanningUtils.pos2dKey(t);
-                if (seenPos.add(kf)) points.add(f);
-                if (seenPos.add(kt)) points.add(t);
+                if (inRect2d(f, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+                    long kf = PlanningUtils.pos2dKey(f);
+                    if (seenPos.add(kf)) points.add(f);
+                }
+                if (inRect2d(t, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+                    long kt = PlanningUtils.pos2dKey(t);
+                    if (seenPos.add(kt)) points.add(t);
+                }
             }
             if (points.size() < 2) return new PlannedRegionResult(List.of());
 

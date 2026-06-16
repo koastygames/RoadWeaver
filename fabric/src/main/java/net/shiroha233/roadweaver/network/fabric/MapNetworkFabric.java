@@ -16,7 +16,6 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
-import net.shiroha233.roadweaver.network.MapRequestBounds;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -51,15 +50,11 @@ public class MapNetworkFabric {
                 server.execute(() -> syncMapAccess(sp));
                 return;
             }
-            int cx = (int) Math.round(sp.getX());
-            int cz = (int) Math.round(sp.getZ());
-            
             CompletableFuture
                 .supplyAsync(() -> {
                     var level = sp.serverLevel();
                     ResourceLocation actualDimensionId = level.dimension().location();
-                    MapRequestBounds.Rect rect = MapRequestBounds.clampToPlayer(sp, minX, minZ, maxX, maxZ);
-                    MapSnapshot snapshot = MapDataCollector.build(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ(), cx, cz, rect.radiusBlocks());
+                    MapSnapshot snapshot = MapDataCollector.build(level, minX, minZ, maxX, maxZ);
                     FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
                     out.writeVarInt(requestSeq);
                     out.writeResourceLocation(actualDimensionId);

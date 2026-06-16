@@ -25,6 +25,7 @@ import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionR
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
+import net.shiroha233.roadweaver.structures.precompute.RoadsideVillagePrecomputer;
 
 import java.util.*;
 
@@ -113,6 +114,7 @@ public final class Road {
             RoadShardStorage.addRoad(level, rd);
 
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
+            RoadsideVillagePrecomputer.precomputeVillages(level, segments, spans, width, cache, random, targetY);
             return rd;
         } finally {
             if (terrain != null) terrain.dispose();

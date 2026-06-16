@@ -112,6 +112,35 @@ public final class RoadConstants {
     public static final int DEFAULT_LARGE_STRUCTURE_OFFSET = 16;
     public static final int STRUCTURE_OFFSET_MIN = 1;
     public static final int STRUCTURE_OFFSET_MAX = 64;
+
+    public static final int DEFAULT_MAX_ROADSIDE_VILLAGES_PER_ROAD = 3;
+    public static final int ROADSIDE_VILLAGE_MAX_PER_ROAD_MAX = 8;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS = 64;
+    public static final int ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS_MIN = 32;
+    public static final int ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS_MAX = 512;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_WINDOW_SEGMENTS = 56;
+    public static final int ROADSIDE_VILLAGE_WINDOW_SEGMENTS_MIN = 24;
+    public static final int ROADSIDE_VILLAGE_WINDOW_SEGMENTS_MAX = 256;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_NODE_COUNT_MIN = 10;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_NODE_COUNT_MAX = 20;
+    public static final int ROADSIDE_VILLAGE_NODE_COUNT_MIN = 1;
+    public static final int ROADSIDE_VILLAGE_NODE_COUNT_MAX = 24;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_HEIGHT_DIFF = 4;
+    public static final int ROADSIDE_VILLAGE_MAX_HEIGHT_DIFF_MAX = 12;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_LOCAL_SLOPE = 3;
+    public static final int ROADSIDE_VILLAGE_MAX_LOCAL_SLOPE_MAX = 8;
+    public static final double DEFAULT_ROADSIDE_VILLAGE_MIN_CURVE_ANGLE = 0.0;
+    public static final double DEFAULT_ROADSIDE_VILLAGE_MAX_CURVE_ANGLE = 55.0;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_ROAD_BUFFER_BLOCKS = 10;
+    public static final int ROADSIDE_VILLAGE_ROAD_BUFFER_MIN = 4;
+    public static final int ROADSIDE_VILLAGE_ROAD_BUFFER_MAX = 64;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_SLOT_SPACING_BLOCKS = 12;
+    public static final int ROADSIDE_VILLAGE_SLOT_SPACING_MIN = 4;
+    public static final int ROADSIDE_VILLAGE_SLOT_SPACING_MAX = 64;
+    public static final int DEFAULT_ROADSIDE_VILLAGE_MAX_DISTANCE_FROM_CENTER = 96;
+    public static final int ROADSIDE_VILLAGE_MAX_DISTANCE_MIN = 16;
+    public static final int ROADSIDE_VILLAGE_MAX_DISTANCE_MAX = 128;
+
     public static final int DEFAULT_VILLAGE_ROAD_OFFSET = 60;
     public static final int DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET = 15;
     public static final int ROAD_OFFSET_MAX = 256;

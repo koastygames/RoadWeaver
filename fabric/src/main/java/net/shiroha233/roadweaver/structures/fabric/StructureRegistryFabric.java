@@ -11,6 +11,7 @@ import net.shiroha233.roadweaver.structures.pieces.SimpleTemplatePiece;
 import net.shiroha233.roadweaver.structures.registry.ModStructureTypes;
 import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
+import net.shiroha233.roadweaver.structures.types.RoadsideVillageStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
@@ -44,6 +45,14 @@ public final class StructureRegistryFabric {
             roadsideType
         );
         ModStructureTypes.setRoadside(roadsideType);
+
+        StructureType<RoadsideVillageStructure> roadsideVillageType = () -> RoadsideVillageStructure.CODEC;
+        Registry.register(
+            BuiltInRegistries.STRUCTURE_TYPE,
+            new ResourceLocation(RoadWeaver.MOD_ID, "roadside_village"),
+            roadsideVillageType
+        );
+        ModStructureTypes.setRoadsideVillage(roadsideVillageType);
         
         StructureType<SpawnCabinStructure> spawnCabinType = () -> SpawnCabinStructure.CODEC;
         Registry.register(

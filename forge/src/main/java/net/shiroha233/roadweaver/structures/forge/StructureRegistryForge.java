@@ -13,6 +13,7 @@ import net.shiroha233.roadweaver.structures.pieces.SimpleTemplatePiece;
 import net.shiroha233.roadweaver.structures.registry.ModStructureTypes;
 import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
+import net.shiroha233.roadweaver.structures.types.RoadsideVillageStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
@@ -34,6 +35,10 @@ public final class StructureRegistryForge {
     public static final RegistryObject<StructureType<RoadsideStructure>> ROADSIDE =
             STRUCTURE_TYPES.register("roadside",
                 () -> () -> RoadsideStructure.CODEC);
+
+    public static final RegistryObject<StructureType<RoadsideVillageStructure>> ROADSIDE_VILLAGE =
+            STRUCTURE_TYPES.register("roadside_village",
+                () -> () -> RoadsideVillageStructure.CODEC);
     
     public static final RegistryObject<StructureType<SpawnCabinStructure>> SPAWN_CABIN =
             STRUCTURE_TYPES.register("spawn_cabin",
@@ -51,6 +56,7 @@ public final class StructureRegistryForge {
             event.enqueueWork(() -> {
                 ModStructurePieceTypes.setSimpleTemplate(SIMPLE_TEMPLATE.get());
                 ModStructureTypes.setRoadside(ROADSIDE.get());
+                ModStructureTypes.setRoadsideVillage(ROADSIDE_VILLAGE.get());
                 ModStructureTypes.setSpawnCabin(SPAWN_CABIN.get());
                 ModStructureTypes.setBridge(BRIDGE_TEMPLATE.get());
             });

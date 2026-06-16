@@ -19,6 +19,7 @@ public final class ModConfig {
     private HighwayConfig highway = new HighwayConfig();
     private PerformanceConfig performance = new PerformanceConfig();
     private RoadsideStructureConfig roadsideStructure = new RoadsideStructureConfig();
+    private RoadsideVillageConfig roadsideVillage = new RoadsideVillageConfig();
     private ClientConfig client = new ClientConfig();
     private Map<String, DimensionRoadSettings> dimensionRoadSettings = new ConcurrentHashMap<>();
 
@@ -31,6 +32,7 @@ public final class ModConfig {
         if (highway == null) highway = new HighwayConfig();
         if (performance == null) performance = new PerformanceConfig();
         if (roadsideStructure == null) roadsideStructure = new RoadsideStructureConfig();
+        if (roadsideVillage == null) roadsideVillage = new RoadsideVillageConfig();
         if (client == null) client = new ClientConfig();
 
         structurePrediction.sanitize();
@@ -41,6 +43,7 @@ public final class ModConfig {
         highway.sanitize();
         performance.sanitize();
         roadsideStructure.sanitize();
+        roadsideVillage.sanitize();
         client.sanitize();
 
         if (dimensionRoadSettings == null) {
@@ -61,6 +64,7 @@ public final class ModConfig {
     public HighwayConfig highway() { return highway; }
     public PerformanceConfig performance() { return performance; }
     public RoadsideStructureConfig roadsideStructure() { return roadsideStructure; }
+    public RoadsideVillageConfig roadsideVillage() { return roadsideVillage; }
     public ClientConfig client() { return client; }
 
     public boolean loadingTipsEnabled() {

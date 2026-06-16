@@ -19,7 +19,6 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
-import net.shiroha233.roadweaver.network.MapRequestBounds;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -95,14 +94,11 @@ public class MapNetworkForge {
                     c.setPacketHandled(true);
                     return;
                 }
-                int cx = (int) Math.round(player.getX());
-                int cz = (int) Math.round(player.getZ());
                 CompletableFuture
                     .supplyAsync(() -> {
                         var level = player.serverLevel();
                         ResourceLocation actualDimensionId = level.dimension().location();
-                        MapRequestBounds.Rect rect = MapRequestBounds.clampToPlayer(player, msg.minX, msg.minZ, msg.maxX, msg.maxZ);
-                        MapSnapshot snap = MapDataCollector.build(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ(), cx, cz, rect.radiusBlocks());
+                        MapSnapshot snap = MapDataCollector.build(level, msg.minX, msg.minZ, msg.maxX, msg.maxZ);
                         return new MapSnapshotS2C(msg.requestSeq, actualDimensionId, snap);
                     }, ComputeService.mapExecutor())
                     .thenAccept(packet -> c.enqueueWork(() -> CHANNEL.sendTo(packet, player.connection.connection, NetworkDirection.PLAY_TO_CLIENT)));

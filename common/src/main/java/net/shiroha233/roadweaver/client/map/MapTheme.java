@@ -21,7 +21,8 @@ public final class MapTheme {
 
     // 主色调 - Xaero 风格深黑主题
     public static final int COLOR_TEXT = 0xFFCCCCCC;
-    public static final int COLOR_STRUCTURE = 0xFFFFAA44;
+    public static final int COLOR_STRUCTURE = 0xFF000000;
+    public static final int STRUCTURE_MARKER_SIZE = 8;
 
     // 连接线颜色
     public static final int COLOR_PLANNED = 0xFF66CC66;
@@ -46,7 +47,16 @@ public final class MapTheme {
     public static final int COLOR_SELECTED = 0xFFFF3B30;
     public static final int COLOR_PREVIEW_LINE = 0xCCFF3B30;
 
-    // 玩家箭头 - 白色箭头在深色背景上可见
+    // 玩家标记 - 使用头像图标
+    public static final int PLAYER_AVATAR_SIZE = 12;
+    public static final int COLOR_PLAYER_AVATAR_FRAME = 0xB0000000;
+    public static final int COLOR_PLAYER_DIRECTION = 0xFFFFFFFF;
+    public static final int COLOR_PLAYER_DIRECTION_OUTLINE = 0xFF000000;
+    public static final int PLAYER_DIRECTION_TIP_LEN = 15;
+    public static final int PLAYER_DIRECTION_BASE_OFFSET = 8;
+    public static final int PLAYER_DIRECTION_HALF_WIDTH = 5;
+
+    // 玩家箭头 - 旧样式保留
     public static final int COLOR_PLAYER_ARROW = 0xFFFFFFFF;
     public static final int COLOR_PLAYER_OUTLINE = 0xFF000000;
     public static final int PLAYER_ARROW_TIP_LEN = 10;

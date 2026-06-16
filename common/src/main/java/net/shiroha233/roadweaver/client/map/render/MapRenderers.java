@@ -2,8 +2,10 @@ package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 
@@ -42,7 +44,7 @@ public final class MapRenderers {
             if (!isInViewWorld.test(bx, bz)) continue;
             int x = toScreenX.applyAsInt(bx);
             int y = toScreenY.applyAsInt(bz);
-            RenderUtils.drawPoint(g, x, y, size, color, left, top, right, bottom);
+            drawFilledCircle(g, x, y, Math.max(1, size / 2), color, left, top, right, bottom);
         }
     }
 
@@ -187,6 +189,78 @@ public final class MapRenderers {
         sr = x5 - gap;
         g.fill(sr - 28, y + 2, sr, y + 7, colorFailed);
         g.drawString(font, l5, x5, y, colorText, false);
+    }
+
+    private static void drawFilledCircle(GuiGraphics g,
+                                         int centerX,
+                                         int centerY,
+                                         int radius,
+                                         int color,
+                                         int left,
+                                         int top,
+                                         int right,
+                                         int bottom) {
+        int r = Math.max(1, radius);
+        int r2 = r * r;
+        for (int dy = -r; dy <= r; dy++) {
+            int y = centerY + dy;
+            if (y < top || y > bottom) continue;
+            int dxLimit = (int) Math.floor(Math.sqrt(r2 - dy * dy));
+            int x0 = Math.max(left, centerX - dxLimit);
+            int x1 = Math.min(right, centerX + dxLimit);
+            if (x0 <= x1) {
+                g.fill(x0, y, x1 + 1, y + 1, color);
+            }
+        }
+    }
+
+    public static void drawPlayerAvatar(GuiGraphics g,
+                                        ResourceLocation skinTexture,
+                                        int sx,
+                                        int sy,
+                                        float yawDeg,
+                                        int size,
+                                        int frameColor,
+                                        int directionColor,
+                                        int directionOutlineColor,
+                                        int directionTipLen,
+                                        int directionBaseOffset,
+                                        int directionHalfWidth,
+                                        int left,
+                                        int top,
+                                        int right,
+                                        int bottom) {
+        if (skinTexture == null) return;
+        double rx = Math.toRadians(yawDeg);
+        double dirX = -Math.sin(rx);
+        double dirY = Math.cos(rx);
+        double perpX = -dirY;
+        double perpY = dirX;
+        double tipX = sx + dirX * directionTipLen;
+        double tipY = sy + dirY * directionTipLen;
+        double baseX = sx + dirX * directionBaseOffset;
+        double baseY = sy + dirY * directionBaseOffset;
+        int ipx = (int) Math.round(tipX);
+        int ipy = (int) Math.round(tipY);
+        int ibx1 = (int) Math.round(baseX + perpX * directionHalfWidth);
+        int iby1 = (int) Math.round(baseY + perpY * directionHalfWidth);
+        int ibx2 = (int) Math.round(baseX - perpX * directionHalfWidth);
+        int iby2 = (int) Math.round(baseY - perpY * directionHalfWidth);
+        RenderUtils.fillTriangle(g, ipx - 1, ipy, ibx1 - 1, iby1, ibx2 - 1, iby2, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx + 1, ipy, ibx1 + 1, iby1, ibx2 + 1, iby2, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx, ipy - 1, ibx1, iby1 - 1, ibx2, iby2 - 1, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx, ipy + 1, ibx1, iby1 + 1, ibx2, iby2 + 1, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx, ipy, ibx1, iby1, ibx2, iby2, directionColor, left, top, right, bottom);
+
+        int half = size / 2;
+        int drawX = sx - half;
+        int drawY = sy - half;
+        if (drawX > right || drawX + size < left || drawY > bottom || drawY + size < top) {
+            return;
+        }
+        g.fill(drawX - 2, drawY - 2, drawX + size + 2, drawY + size + 2, frameColor);
+        g.fill(drawX - 1, drawY - 1, drawX + size + 1, drawY + size + 1, 0x66FFFFFF);
+        PlayerFaceRenderer.draw(g, skinTexture, drawX, drawY, size);
     }
 
     public static void drawPlayerArrow(GuiGraphics g,
