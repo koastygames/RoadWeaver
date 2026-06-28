@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.client.map.render;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.client.map.MapLoadSession;
 import net.shiroha233.roadweaver.client.map.MapTheme;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.ui.Rect;
@@ -46,6 +47,25 @@ public final class MapHudRenderer {
                 MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
                 snapshot.structuresCount(), snapshot.plannedCount(),
                 snapshot.generatingCount(), snapshot.completedCount(), snapshot.failedCount());
+    }
+
+    public static void renderLoadingStatus(GuiGraphics g, Font font, ToolbarLayout toolbar, MapLoadSession loadSession) {
+        if (loadSession == null) return;
+        String phaseText;
+        if (loadSession.lastPhase() == null) {
+            phaseText = "starting";
+        } else {
+            phaseText = loadSession.lastPhase().name().toLowerCase();
+        }
+        Component line1 = Component.literal("加载中 " + loadSession.completedResponses() + "/" + loadSession.totalResponses());
+        Component line2 = Component.literal("阶段 " + phaseText + " · " + loadSession.elapsedMs() + "ms");
+        int x = toolbar.configButton().right() + 8;
+        int y = toolbar.configButton().y() + 1;
+        int width = Math.max(font.width(line1), font.width(line2)) + 8;
+        int height = font.lineHeight * 2 + 6;
+        g.fill(x - 3, y - 2, x - 3 + width, y - 2 + height, MapTheme.LEGEND_BG);
+        g.drawString(font, line1, x, y, MapTheme.COLOR_TEXT, false);
+        g.drawString(font, line2, x, y + font.lineHeight + 2, MapTheme.COLOR_TEXT, false);
     }
 
     public static void renderToolbarButtons(GuiGraphics g, Font font, ToolbarLayout toolbar, int mouseX, int mouseY) {

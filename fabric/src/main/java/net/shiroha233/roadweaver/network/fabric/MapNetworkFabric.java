@@ -10,11 +10,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.shiroha233.roadweaver.client.map.ClientMapAccessGuard;
+import net.shiroha233.roadweaver.client.map.MapLoadPhase;
 import net.shiroha233.roadweaver.client.map.RoadMapScreen;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -30,21 +34,23 @@ import java.util.concurrent.CompletableFuture;
 public class MapNetworkFabric {
     public static final ResourceLocation REQ_RECT = new ResourceLocation("roadweaver", "map_request_rect");
     public static final ResourceLocation SNAP = new ResourceLocation("roadweaver", "map_snapshot");
+    public static final ResourceLocation PATCH = new ResourceLocation("roadweaver", "map_patch");
     public static final ResourceLocation TP_REQ = new ResourceLocation("roadweaver", "map_teleport");
     public static final ResourceLocation TP_ACK = new ResourceLocation("roadweaver", "map_teleport_ack");
     public static final ResourceLocation MAN_REQ = new ResourceLocation("roadweaver", "map_manual_connect");
     public static final ResourceLocation ACCESS_SYNC = new ResourceLocation("roadweaver", "map_access_sync");
 
     public static void registerServerReceivers() {
-        // 地图矩形范围请求
         ServerPlayNetworking.registerGlobalReceiver(REQ_RECT, (server, player, handler, buf, responseSender) -> {
             int requestSeq = buf.readVarInt();
-            buf.readResourceLocation(); // 客户端维度 ID 不可信，仅消费缓冲区
+            buf.readResourceLocation();
+            MapLoadPhase phase = MapLoadPhase.valueOf(buf.readUtf());
+            int responseIndex = buf.readVarInt();
             int minX = buf.readVarInt();
             int minZ = buf.readVarInt();
             int maxX = buf.readVarInt();
             int maxZ = buf.readVarInt();
-            
+
             ServerPlayer sp = player;
             if (!MapAccessService.canOpenMap(sp)) {
                 server.execute(() -> syncMapAccess(sp));
@@ -54,22 +60,27 @@ public class MapNetworkFabric {
                 .supplyAsync(() -> {
                     var level = sp.serverLevel();
                     ResourceLocation actualDimensionId = level.dimension().location();
-                    MapSnapshot snapshot = MapDataCollector.build(level, minX, minZ, maxX, maxZ);
+                    MapSnapshot snapshot = switch (phase) {
+                        case STRUCTURES -> MapDataCollector.buildStructuresSnapshot(level, minX, minZ, maxX, maxZ);
+                        case ROADS -> MapDataCollector.buildRoadsSnapshot(level, minX, minZ, maxX, maxZ);
+                        case CONNECTIONS -> MapDataCollector.buildConnectionsSnapshot(level, minX, minZ, maxX, maxZ);
+                    };
                     FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
                     out.writeVarInt(requestSeq);
                     out.writeResourceLocation(actualDimensionId);
+                    out.writeUtf(phase.name());
+                    out.writeVarInt(responseIndex);
                     MapSnapshotCodec.write(out, snapshot);
                     return out;
                 }, ThreadPoolManager.roleExecutor(ThreadPoolManager.TaskRole.MAP))
                 .thenAccept(out -> server.execute(() -> ServerPlayNetworking.send(sp, SNAP, out)));
         });
 
-        // 传送请求
         ServerPlayNetworking.registerGlobalReceiver(TP_REQ, (server, player, handler, buf, responseSender) -> {
             int x = buf.readVarInt();
-            buf.readVarInt(); // y 坐标不使用
+            buf.readVarInt();
             int z = buf.readVarInt();
-            
+
             server.execute(() -> {
                 ServerPlayer sp = player;
                 boolean allowed = sp.isCreative() || sp.hasPermissions(2);
@@ -79,15 +90,15 @@ public class MapNetworkFabric {
                     ServerPlayNetworking.send(sp, TP_ACK, out);
                     return;
                 }
-                
+
                 var level = sp.serverLevel();
                 level.getChunk(x >> 4, z >> 4);
                 int ty = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1; 
+                if (ty <= level.getMinBuildHeight()) ty = level.getSeaLevel() + 1;
                 else ty += 1;
-                
+
                 sp.teleportTo(level, x + 0.5, ty, z + 0.5, sp.getYRot(), sp.getXRot());
-                
+
                 FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
                 out.writeBoolean(true);
                 out.writeVarInt(x);
@@ -97,13 +108,12 @@ public class MapNetworkFabric {
             });
         });
 
-        // 手动连接请求
         ServerPlayNetworking.registerGlobalReceiver(MAN_REQ, (server, player, handler, buf, responseSender) -> {
             int ax = buf.readVarInt();
             int az = buf.readVarInt();
             int bx = buf.readVarInt();
             int bz = buf.readVarInt();
-            
+
             server.execute(() -> {
                 ServerPlayer sp = player;
                 if (sp == null) return;
@@ -118,43 +128,58 @@ public class MapNetworkFabric {
                 WorldDataProvider provider = WorldDataProvider.getInstance();
                 List<StructureConnection> origin = provider.getStructureConnections(level);
                 List<StructureConnection> list = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
-                
+
                 BlockPos a = new BlockPos(ax, 0, az);
                 BlockPos b = new BlockPos(bx, 0, bz);
-                
+
                 boolean exists = false;
                 for (StructureConnection c : list) {
                     BlockPos f = c.from();
                     BlockPos t = c.to();
-                    if ((f.equals(a) && t.equals(b)) || (f.equals(b) && t.equals(a))) { 
-                        exists = true; 
-                        break; 
+                    if ((f.equals(a) && t.equals(b)) || (f.equals(b) && t.equals(a))) {
+                        exists = true;
+                        break;
                     }
                 }
-                
+
                 if (!exists) {
-                    list.add(new StructureConnection(a, b, ConnectionStatus.PLANNED));
+                    StructureConnection created = new StructureConnection(a, b, ConnectionStatus.PLANNED);
+                    list.add(created);
                     provider.setStructureConnections(level, list);
+                    MapPatchService.publishConnection(level, created);
                 }
             });
         });
     }
 
     public static void registerClientReceivers() {
-        // 地图快照接收
         ClientPlayNetworking.registerGlobalReceiver(SNAP, (client, handler, buf, responseSender) -> {
             int requestSeq = buf.readVarInt();
             ResourceLocation dimensionId = buf.readResourceLocation();
+            MapLoadPhase phase = MapLoadPhase.valueOf(buf.readUtf());
+            int responseIndex = buf.readVarInt();
             MapSnapshot s = MapSnapshotCodec.read(buf);
-            
+
             client.execute(() -> {
                 if (client.screen instanceof RoadMapScreen screen) {
-                    screen.acceptSnapshot(requestSeq, dimensionId, s);
+                    screen.acceptSnapshotPart(requestSeq, dimensionId, phase, responseIndex, s);
                 }
             });
         });
-        
-        // 传送确认接收
+
+        ClientPlayNetworking.registerGlobalReceiver(PATCH, (client, handler, buf, responseSender) -> {
+            ResourceLocation dimensionId = buf.readResourceLocation();
+            MapSnapshotPatch patch = MapSnapshotCodec.readPatch(buf);
+
+            client.execute(() -> {
+                if (client.screen instanceof RoadMapScreen screen) {
+                    screen.acceptPatch(dimensionId, patch);
+                } else {
+                    MapSnapshotCache.applyPatch(dimensionId, patch);
+                }
+            });
+        });
+
         ClientPlayNetworking.registerGlobalReceiver(TP_ACK, (client, handler, buf, responseSender) -> {
             boolean ok = buf.readBoolean();
             int rx = 0, ry = 0, rz = 0;
@@ -163,7 +188,7 @@ public class MapNetworkFabric {
                 ry = buf.readVarInt();
                 rz = buf.readVarInt();
             }
-            
+
             int fx = rx, fy = ry, fz = rz;
             client.execute(() -> {
                 if (client.player == null) return;
@@ -183,10 +208,19 @@ public class MapNetworkFabric {
         });
     }
 
-    public static void requestSnapshot(int requestSeq, ResourceLocation dimensionId, int minX, int minZ, int maxX, int maxZ) {
+    public static void requestSnapshot(int requestSeq,
+                                       ResourceLocation dimensionId,
+                                       MapLoadPhase phase,
+                                       int responseIndex,
+                                       int minX,
+                                       int minZ,
+                                       int maxX,
+                                       int maxZ) {
         FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
         out.writeVarInt(requestSeq);
         out.writeResourceLocation(dimensionId);
+        out.writeUtf(phase.name());
+        out.writeVarInt(responseIndex);
         out.writeVarInt(minX);
         out.writeVarInt(minZ);
         out.writeVarInt(maxX);
@@ -209,6 +243,14 @@ public class MapNetworkFabric {
         out.writeVarInt(bx);
         out.writeVarInt(bz);
         ClientPlayNetworking.send(MAN_REQ, out);
+    }
+
+    public static void broadcastPatch(ServerPlayer player, ResourceLocation dimensionId, MapSnapshotPatch patch) {
+        if (player == null || dimensionId == null || patch == null || patch.isEmpty()) return;
+        FriendlyByteBuf out = new FriendlyByteBuf(Unpooled.buffer());
+        out.writeResourceLocation(dimensionId);
+        MapSnapshotCodec.writePatch(out, patch);
+        ServerPlayNetworking.send(player, PATCH, out);
     }
 
     public static void syncMapAccess(ServerPlayer player) {

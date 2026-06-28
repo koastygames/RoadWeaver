@@ -16,18 +16,55 @@ public final class MapDataCollector {
 
     public static final int MAX_SNAPSHOT_STRUCTURES = 2048;
     public static final int MAX_SNAPSHOT_CONNECTIONS = 4096;
-    public static final int MAX_SNAPSHOT_ROAD_POLYLINES = 512;
-    public static final int MAX_SNAPSHOT_ROAD_POINTS = 32768;
+    public static final int MAX_SNAPSHOT_ROAD_POLYLINES = 4096;
+    public static final int MAX_SNAPSHOT_ROAD_POINTS = 262144;
+    public static final int INCREMENTAL_RESPONSE_COUNT = 3;
 
     public static MapSnapshot build(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<StructureConnection> connections = MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<List<BlockPos>> roads = MapRoadCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        return composeSnapshot(structureResult, connections, roads);
+    }
 
+    public static MapSnapshot buildStructuresSnapshot(ServerLevel level,
+                                                      int minBlockX,
+                                                      int minBlockZ,
+                                                      int maxBlockX,
+                                                      int maxBlockZ) {
+        MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        return new MapSnapshot(
+                limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES),
+                List.of(),
+                limitList(structureResult.infos(), MAX_SNAPSHOT_STRUCTURES),
+                List.of());
+    }
+
+    public static MapSnapshot buildRoadsSnapshot(ServerLevel level,
+                                                 int minBlockX,
+                                                 int minBlockZ,
+                                                 int maxBlockX,
+                                                 int maxBlockZ) {
+        List<List<BlockPos>> roads = MapRoadCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        return new MapSnapshot(List.of(), List.of(), List.of(), limitRoadPolylines(roads));
+    }
+
+    public static MapSnapshot buildConnectionsSnapshot(ServerLevel level,
+                                                       int minBlockX,
+                                                       int minBlockZ,
+                                                       int maxBlockX,
+                                                       int maxBlockZ) {
+        List<StructureConnection> connections = MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        return new MapSnapshot(List.of(), limitList(connections, MAX_SNAPSHOT_CONNECTIONS), List.of(), List.of());
+    }
+
+    private static MapSnapshot composeSnapshot(MapStructureCollector.Result structureResult,
+                                               List<StructureConnection> connections,
+                                               List<List<BlockPos>> roads) {
         return new MapSnapshot(
                 limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES),
                 limitList(connections, MAX_SNAPSHOT_CONNECTIONS),
-                structureResult.infos(),
+                limitList(structureResult.infos(), MAX_SNAPSHOT_STRUCTURES),
                 limitRoadPolylines(roads));
     }
 

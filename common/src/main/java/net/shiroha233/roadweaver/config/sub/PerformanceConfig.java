@@ -11,7 +11,7 @@ public final class PerformanceConfig implements SubConfig {
     private int initialGenerationThreads = defaultInitialGenerationThreads();
     private int maxConcurrentGenerations = Math.max(1, Math.min(2, sharedWorkerThreads));
     private int threadDutyCycle = RoadConstants.DEFAULT_DUTY_CYCLE;
-    private boolean idleGenerationEnabled = true;
+    private boolean idleGenerationEnabled = false;
     private int idleThreadDutyCycle = 20;
     private boolean openclCoarseSamplingEnabled = true;
     private String openclDevicePreference = "AUTO";

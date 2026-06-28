@@ -444,6 +444,14 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startDoubleField(Component.translatable("config.roadweaver.roadside_village_spawn_chance"), cfg.spawnChance())
+                .setDefaultValue(def.spawnChance())
+                .setTooltip(Component.translatable("config.roadweaver.roadside_village_spawn_chance.tooltip"))
+                .setMin(0.0D).setMax(1.0D)
+                .setSaveConsumer(cfg::setSpawnChance)
+                .build());
+
+        category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.roadside_village_max_per_road"), cfg.maxVillagesPerRoad())
                 .setDefaultValue(def.maxVillagesPerRoad())
                 .setTooltip(Component.translatable("config.roadweaver.roadside_village_max_per_road.tooltip"))
@@ -451,100 +459,6 @@ public class ConfigScreenFactoryImpl {
                 .setSaveConsumer(cfg::setMaxVillagesPerRoad)
                 .build());
 
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_min_road_segments"), cfg.minRoadSegments())
-                .setDefaultValue(def.minRoadSegments())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_min_road_segments.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_MIN_ROAD_SEGMENTS_MAX)
-                .setSaveConsumer(cfg::setMinRoadSegments)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_window_segments"), cfg.windowSegments())
-                .setDefaultValue(def.windowSegments())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_window_segments.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_WINDOW_SEGMENTS_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_WINDOW_SEGMENTS_MAX)
-                .setSaveConsumer(cfg::setWindowSegments)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_target_node_count_min"), cfg.targetNodeCountMin())
-                .setDefaultValue(def.targetNodeCountMin())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_target_node_count_min.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_NODE_COUNT_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_NODE_COUNT_MAX)
-                .setSaveConsumer(cfg::setTargetNodeCountMin)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_target_node_count_max"), cfg.targetNodeCountMax())
-                .setDefaultValue(def.targetNodeCountMax())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_target_node_count_max.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_NODE_COUNT_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_NODE_COUNT_MAX)
-                .setSaveConsumer(cfg::setTargetNodeCountMax)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_max_height_diff"), cfg.maxHeightDiff())
-                .setDefaultValue(def.maxHeightDiff())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_max_height_diff.tooltip"))
-                .setMin(0).setMax(RoadConstants.ROADSIDE_VILLAGE_MAX_HEIGHT_DIFF_MAX)
-                .setSaveConsumer(cfg::setMaxHeightDiff)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_max_local_slope"), cfg.maxLocalSlope())
-                .setDefaultValue(def.maxLocalSlope())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_max_local_slope.tooltip"))
-                .setMin(0).setMax(RoadConstants.ROADSIDE_VILLAGE_MAX_LOCAL_SLOPE_MAX)
-                .setSaveConsumer(cfg::setMaxLocalSlope)
-                .build());
-
-        category.addEntry(eb
-                .startDoubleField(Component.translatable("config.roadweaver.roadside_village_min_curve_angle"), cfg.minCurveAngle())
-                .setDefaultValue(def.minCurveAngle())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_min_curve_angle.tooltip"))
-                .setMin(0.0D).setMax(180.0D)
-                .setSaveConsumer(cfg::setMinCurveAngle)
-                .build());
-
-        category.addEntry(eb
-                .startDoubleField(Component.translatable("config.roadweaver.roadside_village_max_curve_angle"), cfg.maxCurveAngle())
-                .setDefaultValue(def.maxCurveAngle())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_max_curve_angle.tooltip"))
-                .setMin(0.0D).setMax(180.0D)
-                .setSaveConsumer(cfg::setMaxCurveAngle)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_road_buffer_blocks"), cfg.roadBufferBlocks())
-                .setDefaultValue(def.roadBufferBlocks())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_road_buffer_blocks.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_ROAD_BUFFER_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_ROAD_BUFFER_MAX)
-                .setSaveConsumer(cfg::setRoadBufferBlocks)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_slot_spacing_blocks"), cfg.slotSpacingBlocks())
-                .setDefaultValue(def.slotSpacingBlocks())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_slot_spacing_blocks.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_SLOT_SPACING_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_SLOT_SPACING_MAX)
-                .setSaveConsumer(cfg::setSlotSpacingBlocks)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.roadside_village_max_distance_from_center"), cfg.maxDistanceFromCenter())
-                .setDefaultValue(def.maxDistanceFromCenter())
-                .setTooltip(Component.translatable("config.roadweaver.roadside_village_max_distance_from_center.tooltip"))
-                .setMin(RoadConstants.ROADSIDE_VILLAGE_MAX_DISTANCE_MIN)
-                .setMax(RoadConstants.ROADSIDE_VILLAGE_MAX_DISTANCE_MAX)
-                .setSaveConsumer(cfg::setMaxDistanceFromCenter)
-                .build());
     }
 
     private static void buildPerformanceCategory(ConfigBuilder builder, ConfigEntryBuilder eb, ModConfig conf, ModConfig defaultConf) {

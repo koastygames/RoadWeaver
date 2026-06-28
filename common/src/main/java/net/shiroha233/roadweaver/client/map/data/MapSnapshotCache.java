@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class MapSnapshotCache {
     private static final ConcurrentHashMap<String, ConcurrentHashMap<ResourceLocation, MapSnapshot>> BY_WORLD = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ConcurrentHashMap<ResourceLocation, MapSnapshotStore>> STORES_BY_WORLD = new ConcurrentHashMap<>();
     private static volatile String currentWorldId = null;
     private static final AtomicInteger CLEAR_SEQ = new AtomicInteger();
 
@@ -44,6 +45,39 @@ public final class MapSnapshotCache {
         else bucket.put(dimensionId, s);
     }
 
+    public static MapSnapshotStore store(ResourceLocation dimensionId) {
+        if (dimensionId == null) return new MapSnapshotStore();
+        String wid = currentWorldId;
+        if (wid == null) return new MapSnapshotStore();
+        ConcurrentHashMap<ResourceLocation, MapSnapshotStore> stores = STORES_BY_WORLD.computeIfAbsent(wid, k -> new ConcurrentHashMap<>());
+        return stores.computeIfAbsent(dimensionId, id -> {
+            MapSnapshot cached = peek(id);
+            return cached != null ? MapSnapshotStore.fromSnapshot(cached) : new MapSnapshotStore();
+        });
+    }
+
+    public static void putStoreSnapshot(ResourceLocation dimensionId, MapSnapshotStore store) {
+        if (dimensionId == null || store == null) return;
+        put(dimensionId, store.snapshot());
+    }
+
+    public static void applyPatch(ResourceLocation dimensionId, MapSnapshotPatch patch) {
+        if (dimensionId == null || patch == null) return;
+        MapSnapshotStore store = store(dimensionId);
+        store.apply(patch);
+        putStoreSnapshot(dimensionId, store);
+    }
+
+    public static void remove(ResourceLocation dimensionId) {
+        if (dimensionId == null) return;
+        String wid = currentWorldId;
+        if (wid == null) return;
+        ConcurrentHashMap<ResourceLocation, MapSnapshot> bucket = BY_WORLD.get(wid);
+        if (bucket != null) bucket.remove(dimensionId);
+        ConcurrentHashMap<ResourceLocation, MapSnapshotStore> stores = STORES_BY_WORLD.get(wid);
+        if (stores != null) stores.remove(dimensionId);
+    }
+
     public static void scheduleClear(long delayMs) {
         int token = CLEAR_SEQ.incrementAndGet();
         long d = Math.max(0L, delayMs);
@@ -67,17 +101,20 @@ public final class MapSnapshotCache {
     public static void clearAll() {
         CLEAR_SEQ.incrementAndGet();
         BY_WORLD.clear();
+        STORES_BY_WORLD.clear();
     }
 
     public static void clearWorld(String worldId) {
         if (worldId == null) return;
         BY_WORLD.remove(worldId);
+        STORES_BY_WORLD.remove(worldId);
     }
 
     private static void clearCurrentWorld() {
         String wid = currentWorldId;
         if (wid != null) {
             BY_WORLD.remove(wid);
+            STORES_BY_WORLD.remove(wid);
         }
     }
 }

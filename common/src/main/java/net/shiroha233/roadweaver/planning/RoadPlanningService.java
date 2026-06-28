@@ -12,6 +12,7 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
@@ -142,6 +143,7 @@ public final class RoadPlanningService {
         List<StructureConnection> merged = mergeConnections(existing, incoming);
         if (merged.size() != (existing == null ? 0 : existing.size())) {
             provider.setStructureConnections(level, merged);
+            publishNewConnections(level, existing, incoming);
         }
         prepareCoarseRegionForConnections(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
     }
@@ -257,6 +259,7 @@ public final class RoadPlanningService {
                 List<StructureConnection> merged = mergeConnections(existing, incoming);
                 if (merged.size() != (existing == null ? 0 : existing.size())) {
                     provider.setStructureConnections(level, merged);
+                    publishNewConnections(level, existing, incoming);
                 }
             });
         });
@@ -276,6 +279,28 @@ public final class RoadPlanningService {
             if (seen.add(k)) out.add(new StructureConnection(c.from(), c.to(), ConnectionStatus.PLANNED));
         }
         return out;
+    }
+
+    private static void publishNewConnections(ServerLevel level,
+                                              List<StructureConnection> existing,
+                                              List<StructureConnection> incoming) {
+        if (level == null || incoming == null || incoming.isEmpty()) return;
+        HashSet<Long> existingKeys = new HashSet<>();
+        if (existing != null) {
+            for (StructureConnection connection : existing) {
+                if (connection != null) {
+                    existingKeys.add(PlanningUtils.edgeKey(connection.from(), connection.to()));
+                }
+            }
+        }
+        for (StructureConnection connection : incoming) {
+            if (connection == null) continue;
+            long key = PlanningUtils.edgeKey(connection.from(), connection.to());
+            if (existingKeys.add(key)) {
+                MapPatchService.publishConnection(level,
+                        new StructureConnection(connection.from(), connection.to(), ConnectionStatus.PLANNED));
+            }
+        }
     }
 
     private static void prepareCoarseRegionForConnections(ServerLevel level,

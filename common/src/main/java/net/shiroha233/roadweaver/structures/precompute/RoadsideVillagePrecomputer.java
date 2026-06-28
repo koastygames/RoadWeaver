@@ -46,34 +46,31 @@ public final class RoadsideVillagePrecomputer {
                                          PathTerrainField terrain,
                                          RandomSource random,
                                          List<Integer> targetY) {
-        LOGGER.info("[RoadsideVillage] precomputeVillages ENTRY: segments={}", segments == null ? "null" : segments.size());
         if (segments == null || targetY == null || segments.size() != targetY.size()) {
-            LOGGER.info("[RoadsideVillage] precomputeVillages EARLY RETURN: null check");
             return 0;
         }
 
         ModConfig cfg = ConfigService.get();
         String dimId = level.dimension().location().toString();
         if (!cfg.roadsideStructuresEnabledForDimension(dimId)) {
-            LOGGER.info("[RoadsideVillage] precomputeVillages EARLY RETURN: disabled for dim={}", dimId);
             return 0;
         }
 
         RoadsideVillageConfig villageCfg = cfg.roadsideVillage();
         if (!villageCfg.enabled() || villageCfg.maxVillagesPerRoad() <= 0) {
-            LOGGER.info("[RoadsideVillage] precomputeVillages EARLY RETURN: village disabled");
+            return 0;
+        }
+
+        if (random.nextDouble() >= villageCfg.spawnChance()) {
             return 0;
         }
 
         if (segments.size() < villageCfg.minRoadSegments()) {
-            LOGGER.info("[RoadsideVillage] precomputeVillages EARLY RETURN: segments={} < minRoadSeg={}", segments.size(), villageCfg.minRoadSegments());
             return 0;
         }
 
         Set<Integer> bridgeIndices = collectBridgeIndices(segments, spans);
         List<WindowCandidate> candidates = chooseCandidateWindows(level, segments, targetY, width, cache, terrain, bridgeIndices, villageCfg);
-        LOGGER.info("[RoadsideVillage] precompute called: segments={} minRoadSeg={} bridges={} candidates={}", 
-            segments.size(), villageCfg.minRoadSegments(), bridgeIndices.size(), candidates.size());
         if (candidates.isEmpty()) {
             return 0;
         }
@@ -93,11 +90,7 @@ public final class RoadsideVillagePrecomputer {
             int nodeCount = Math.max(randomNodeCount(villageCfg, random), minClusterSlots);
             SlotLayout layout = createSlots(level, segments, targetY, width, cache, terrain, villageCfg, candidate, nodeCount, style, random);
             List<PendingRoadsideVillageSlot> slots = layout.slots();
-            LOGGER.info("[RoadsideVillage] createSlots: window=[{}, {}] style={} slots={} minRequired={}",
-                candidate.startIndex(), candidate.endIndex(), style, slots.size(), minClusterSlots);
             if (slots.size() < minClusterSlots) {
-                LOGGER.debug("Roadside village candidate window=[{}, {}] score={} produced only {} usable slots, need {}",
-                    candidate.startIndex(), candidate.endIndex(), candidate.score(), slots.size(), minClusterSlots);
                 continue;
             }
 

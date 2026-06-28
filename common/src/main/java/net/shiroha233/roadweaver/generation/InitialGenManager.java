@@ -5,6 +5,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
@@ -168,6 +169,7 @@ public final class InitialGenManager {
         if (current == null) return;
 
         List<StructureConnection> updated = new ArrayList<>(current);
+        List<StructureConnection> changedConnections = new ArrayList<>();
         boolean changed = false;
         for (int i = 0; i < updated.size(); i++) {
             StructureConnection original = updated.get(i);
@@ -175,11 +177,19 @@ public final class InitialGenManager {
             Boolean ok = results.get(k);
             if (ok == null) continue;
             ConnectionStatus newStatus = ok ? ConnectionStatus.COMPLETED : ConnectionStatus.FAILED;
-            updated.set(i, new StructureConnection(original.from(), original.to(), newStatus));
+            StructureConnection changedConnection = new StructureConnection(original.from(), original.to(), newStatus);
+            updated.set(i, changedConnection);
+            changedConnections.add(changedConnection);
             changed = true;
         }
         if (changed) {
             provider.setStructureConnections(level, updated);
+            for (StructureConnection changedConnection : changedConnections) {
+                MapPatchService.publishConnection(level, changedConnection);
+                if (changedConnection.status() == ConnectionStatus.COMPLETED) {
+                    MapPatchService.publishRoadForConnectionAsync(level, changedConnection);
+                }
+            }
         }
     }
 

@@ -14,6 +14,8 @@ import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotStore;
 import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
 import net.shiroha233.roadweaver.client.map.render.MapHudRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapOverlayRenderer;
@@ -47,6 +49,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     // 数据
     private MapSnapshot snapshot = MapSnapshot.empty();
     private ResourceLocation currentDimensionId;
+    private MapSnapshotStore snapshotStore = new MapSnapshotStore();
+    private MapLoadSession loadSession;
     
     // 组件
     private final MapState state = new MapState();
@@ -76,10 +80,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         Minecraft mc = this.minecraft;
         if (mc != null && mc.level != null) {
             currentDimensionId = mc.level.dimension().location();
-            MapSnapshot cached = MapSnapshotCache.peek(currentDimensionId);
-            if (cached != null) {
-                this.snapshot = cached;
-            }
+            snapshotStore = MapSnapshotCache.store(currentDimensionId);
+            this.snapshot = snapshotStore.snapshot();
         }
         computeMapRect();
         inputHandler.updateLayout(mapX, mapY, mapW, mapH, 0);
@@ -98,7 +100,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     public void removed() {
         super.removed();
         terrainTiles.clear();
-        MapSnapshotCache.scheduleClear(1000);
+        loadSession = null;
+        MapSnapshotCache.putStoreSnapshot(currentDimensionId, snapshotStore);
     }
 
     @Override
@@ -182,6 +185,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
         MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(this.font, mapH, state.isManualMode());
         MapHudRenderer.renderToolbarButtons(g, this.font, toolbar, mouseX, mouseY);
+        MapHudRenderer.renderLoadingStatus(g, this.font, toolbar, loadSession);
 
         if (!contextMenu.isOpen()) {
             MapInteraction.renderHoverTooltip(g, this.font, snapshot, view, 0, 0, mapW, mapH,
@@ -299,30 +303,45 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         Minecraft mc = this.minecraft;
         if (mc == null) return;
 
-        int contentW = mapW;
-        int contentH = mapH;
         MapViewportController.RequestRect requestRect = MapViewportController.currentRequestRect(view);
-        currentDimensionId = MapViewportController.syncDimensionAndRestoreCache(mc, currentDimensionId, cached -> this.snapshot = cached);
+        currentDimensionId = MapViewportController.syncDimensionAndRestoreCache(mc, currentDimensionId, cached -> {
+            snapshotStore = MapSnapshotCache.store(mc.level.dimension().location());
+            this.snapshot = snapshotStore.snapshot();
+        });
 
-        ServerLevel level = MapViewportController.resolveSingleplayerLevel(mc);
-        if (level != null) {
-            MapViewportController.requestTerrainTiles(mc, terrainTiles, view, contentW, contentH);
-            final int currentSeq = state.incrementAndGetRequestSeq();
+        ResourceLocation did = (mc.level != null) ? mc.level.dimension().location() : currentDimensionId;
+        if (did == null) {
+            did = new ResourceLocation("minecraft", "overworld");
+        }
+        if (currentDimensionId == null || !did.equals(currentDimensionId)) {
+            snapshotStore = MapSnapshotCache.store(did);
+            snapshot = snapshotStore.snapshot();
+        }
+        currentDimensionId = did;
 
-            CompletableFuture
-                .supplyAsync(() -> MapDataCollector.build(level, requestRect.minX(), requestRect.minZ(), requestRect.maxX(), requestRect.maxZ()),
-                             ComputeService.mapExecutor())
-                .thenAccept(snap -> mc.execute(() -> {
-                    if (state.getCurrentRequestSeq() == currentSeq) {
-                        acceptSnapshot(currentSeq, level.dimension().location(), snap);
-                    }
-                }));
+        List<MapViewportController.RequestRect> structureRects = MapViewportController.prioritizeMissingRects(
+                requestRect, snapshotStore.loadedRects(MapLoadPhase.STRUCTURES));
+        List<MapViewportController.RequestRect> roadRects = MapViewportController.prioritizeMissingRects(
+                requestRect, snapshotStore.loadedRects(MapLoadPhase.ROADS));
+        List<MapViewportController.RequestRect> connectionRects = MapViewportController.prioritizeMissingRects(
+                requestRect, snapshotStore.loadedRects(MapLoadPhase.CONNECTIONS));
+        List<MapLoadSession.ResponseRequest> requests;
+        if (!structureRects.isEmpty()) {
+            requests = MapLoadSession.ResponseRequest.fromRects(structureRects, List.of(), List.of());
+        } else if (!roadRects.isEmpty()) {
+            requests = MapLoadSession.ResponseRequest.fromRects(List.of(), roadRects, List.of());
+        } else if (!connectionRects.isEmpty()) {
+            requests = MapLoadSession.ResponseRequest.fromRects(List.of(), List.of(), connectionRects);
+        } else {
+            loadSession = null;
+            snapshot = snapshotStore.snapshot();
+            MapSnapshotCache.put(did, snapshot);
             return;
         }
 
         int requestSeq = state.incrementAndGetRequestSeq();
-        ResourceLocation did = (mc.level != null) ? mc.level.dimension().location() : new ResourceLocation("minecraft", "overworld");
-        ClientNetBridge.requestSnapshot(requestSeq, did, requestRect.minX(), requestRect.minZ(), requestRect.maxX(), requestRect.maxZ());
+        loadSession = new MapLoadSession(requestSeq, did, requests);
+        dispatchRemoteSnapshotLoad(requestSeq, did, requests);
     }
 
     @Override
@@ -369,13 +388,86 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     }
 
     public void acceptSnapshot(int requestSeq, ResourceLocation dimensionId, MapSnapshot snapshot) {
+        acceptSnapshotPart(requestSeq, dimensionId, MapLoadPhase.CONNECTIONS, 0, snapshot);
+    }
+
+    public void acceptPatch(ResourceLocation dimensionId, MapSnapshotPatch patch) {
+        if (dimensionId == null || patch == null) return;
+        if (currentDimensionId != null && !dimensionId.equals(currentDimensionId)) return;
+        snapshotStore.apply(patch);
+        this.snapshot = snapshotStore.snapshot();
+        MapSnapshotCache.put(dimensionId, this.snapshot);
+    }
+
+    public void acceptSnapshotPart(int requestSeq,
+                                   ResourceLocation dimensionId,
+                                   MapLoadPhase phase,
+                                   int responseIndex,
+                                   MapSnapshot snapshot) {
         if (dimensionId == null || snapshot == null) return;
         if (requestSeq != state.getCurrentRequestSeq()) return;
-
         if (currentDimensionId != null && !dimensionId.equals(currentDimensionId)) return;
+        if (loadSession == null || !loadSession.accepts(requestSeq, dimensionId)) return;
 
-        this.snapshot = snapshot;
-        MapSnapshotCache.put(dimensionId, snapshot);
+        MapLoadSession.ResponseRequest request = loadSession.requestAt(responseIndex);
+        MapViewportController.RequestRect loadedRect = request != null ? request.rect() : null;
+        MapLoadPhase loadedPhase = request != null ? request.phase() : phase;
+
+        snapshotStore.merge(loadedPhase, loadedRect, snapshot);
+        loadSession.markReceived(loadedPhase, responseIndex, snapshot);
+        this.snapshot = snapshotStore.snapshot();
+        MapSnapshotCache.put(dimensionId, this.snapshot);
+        if (loadSession.isComplete()) {
+            loadSession = null;
+            onRequestView();
+        }
+    }
+
+    private void scheduleSingleplayerSnapshotLoad(Minecraft mc,
+                                                  ServerLevel level,
+                                                  int requestSeq,
+                                                  List<MapLoadSession.ResponseRequest> requests) {
+        ResourceLocation dimensionId = level.dimension().location();
+        for (int responseIndex = 0; responseIndex < requests.size(); responseIndex++) {
+            MapLoadSession.ResponseRequest request = requests.get(responseIndex);
+            MapViewportController.RequestRect rect = request.rect();
+            scheduleSingleplayerPhase(mc, requestSeq, dimensionId, request.phase(), responseIndex,
+                    () -> buildSnapshotForPhase(level, request.phase(), rect));
+        }
+    }
+
+    private MapSnapshot buildSnapshotForPhase(ServerLevel level,
+                                             MapLoadPhase phase,
+                                             MapViewportController.RequestRect rect) {
+        return switch (phase) {
+            case STRUCTURES -> MapDataCollector.buildStructuresSnapshot(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ());
+            case ROADS -> MapDataCollector.buildRoadsSnapshot(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ());
+            case CONNECTIONS -> MapDataCollector.buildConnectionsSnapshot(level, rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ());
+        };
+    }
+
+    private int scheduleSingleplayerPhase(Minecraft mc,
+                                          int requestSeq,
+                                          ResourceLocation dimensionId,
+                                          MapLoadPhase phase,
+                                          int responseIndex,
+                                          java.util.function.Supplier<MapSnapshot> supplier) {
+        final int currentIndex = responseIndex;
+        CompletableFuture
+                .supplyAsync(supplier, ComputeService.mapExecutor())
+                .thenAccept(snap -> mc.execute(() -> acceptSnapshotPart(requestSeq, dimensionId, phase, currentIndex, snap)));
+        return responseIndex + 1;
+    }
+
+    private void dispatchRemoteSnapshotLoad(int requestSeq,
+                                            ResourceLocation dimensionId,
+                                            List<MapLoadSession.ResponseRequest> requests) {
+        for (int responseIndex = 0; responseIndex < requests.size(); responseIndex++) {
+            MapLoadSession.ResponseRequest request = requests.get(responseIndex);
+            MapViewportController.RequestRect rect = request.rect();
+            ClientNetBridge.requestSnapshot(requestSeq, dimensionId, request.phase(), responseIndex,
+                    rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ());
+        }
     }
 
     // ========== 辅助方法 ==========

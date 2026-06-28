@@ -12,6 +12,7 @@ import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
@@ -180,14 +181,22 @@ public final class RoadGenerationService {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> origin = provider.getStructureConnections(level);
         List<StructureConnection> all = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
+        StructureConnection updated = null;
         for (int i = 0; i < all.size(); i++) {
             StructureConnection c = all.get(i);
             if (PlanningUtils.sameEdge(c, conn)) {
-                all.set(i, new StructureConnection(c.from(), c.to(), status));
+                updated = new StructureConnection(c.from(), c.to(), status);
+                all.set(i, updated);
                 break;
             }
         }
         provider.setStructureConnections(level, all);
+        if (updated != null) {
+            MapPatchService.publishConnection(level, updated);
+            if (status == ConnectionStatus.COMPLETED) {
+                MapPatchService.publishRoadForConnectionAsync(level, updated);
+            }
+        }
     }
 
     private static void removeProcessed(ServerLevel level, StructureConnection conn) {

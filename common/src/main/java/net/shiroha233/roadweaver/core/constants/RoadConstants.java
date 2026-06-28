@@ -25,7 +25,7 @@ public final class RoadConstants {
     public static final int DEFAULT_COMPONENT_DEGREE_CAP = 3;
     public static final int DEFAULT_INITIAL_PLAN_RADIUS_CHUNKS = 128;
     public static final int DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS = 128;
-    public static final int DEFAULT_DYNAMIC_PLAN_STRIDE_CHUNKS = 32;
+    public static final int DEFAULT_DYNAMIC_PLAN_STRIDE_CHUNKS = 64;
     public static final int COARSE_REGION_MAX_RADIUS_CHUNKS = 2048;
     public static final int COARSE_REGION_MAX_TILES = 70_000;
     public static final int COARSE_REGION_MAX_SAMPLES = 1_100_000;
@@ -117,6 +117,7 @@ public final class RoadConstants {
     public static final int ROADSIDE_VILLAGE_ROAD_BUFFER_MIN = 4;
     public static final int ROADSIDE_VILLAGE_ROAD_BUFFER_MAX = 64;
     public static final int DEFAULT_ROADSIDE_VILLAGE_SLOT_SPACING_BLOCKS = 6;
+    public static final double DEFAULT_ROADSIDE_VILLAGE_SPAWN_CHANCE = 0.3;
     public static final int ROADSIDE_VILLAGE_SLOT_SPACING_MIN = 4;
     public static final int ROADSIDE_VILLAGE_SLOT_SPACING_MAX = 64;
     public static final int DEFAULT_ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL = 3;

@@ -26,7 +26,7 @@ public final class MapView {
         if (mc == null || mc.player == null) return;
         double px = mc.player.getX();
         double pz = mc.player.getZ();
-        double desiredBlocksPerCell = 16 * 16;
+        double desiredBlocksPerCell = 64.0;
         double desiredPxPerBlock = gridTargetPx / desiredBlocksPerCell;
         if (desiredPxPerBlock <= 0) return;
         double rangeX = contentW / desiredPxPerBlock;
@@ -109,7 +109,7 @@ public final class MapView {
     void clampZoom(int contentW, int contentH, int gridTargetPx) {
         if (contentW <= 0 || contentH <= 0) return;
         double minPpb = gridTargetPx / (512.0 * 16.0);
-        double maxPpb = gridTargetPx / 16.0;
+        double maxPpb = gridTargetPx / 2.0;
         double rx = Math.max(1.0, maxX - minX);
         double rz = Math.max(1.0, maxZ - minZ);
         double ppbX = contentW / rx;

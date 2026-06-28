@@ -21,6 +21,7 @@ public final class RoadsideVillageConfig implements SubConfig {
     private int buildingGapInterval = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL;
     private int maxStepHeight = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_MAX_STEP_HEIGHT;
     private int maxDistanceFromCenter = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_MAX_DISTANCE_FROM_CENTER;
+    private double spawnChance = RoadConstants.DEFAULT_ROADSIDE_VILLAGE_SPAWN_CHANCE;
 
     @Override
     public void sanitize() {
@@ -37,6 +38,7 @@ public final class RoadsideVillageConfig implements SubConfig {
         buildingGapInterval = Math.max(RoadConstants.ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_BUILDING_GAP_INTERVAL_MAX, buildingGapInterval));
         maxStepHeight = Math.max(RoadConstants.ROADSIDE_VILLAGE_MAX_STEP_HEIGHT_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_MAX_STEP_HEIGHT_MAX, maxStepHeight));
         maxDistanceFromCenter = Math.max(RoadConstants.ROADSIDE_VILLAGE_MAX_DISTANCE_MIN, Math.min(RoadConstants.ROADSIDE_VILLAGE_MAX_DISTANCE_MAX, maxDistanceFromCenter));
+        spawnChance = Math.max(0.0, Math.min(1.0, spawnChance));
     }
 
     @Override
@@ -56,6 +58,7 @@ public final class RoadsideVillageConfig implements SubConfig {
         copy.buildingGapInterval = this.buildingGapInterval;
         copy.maxStepHeight = this.maxStepHeight;
         copy.maxDistanceFromCenter = this.maxDistanceFromCenter;
+        copy.spawnChance = this.spawnChance;
         return copy;
     }
 
@@ -87,4 +90,6 @@ public final class RoadsideVillageConfig implements SubConfig {
     public void setMaxStepHeight(int v) { this.maxStepHeight = Math.max(1, v); }
     public int maxDistanceFromCenter() { return maxDistanceFromCenter; }
     public void setMaxDistanceFromCenter(int v) { this.maxDistanceFromCenter = Math.max(1, v); }
+    public double spawnChance() { return spawnChance; }
+    public void setSpawnChance(double v) { this.spawnChance = Math.max(0.0, Math.min(1.0, v)); }
 }
