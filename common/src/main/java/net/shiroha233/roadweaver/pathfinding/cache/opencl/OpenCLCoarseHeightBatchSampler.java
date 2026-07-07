@@ -1,5 +1,6 @@
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -30,6 +31,9 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
     private static final AtomicBoolean ENABLED_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean KERNEL_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean DISABLED_FALLBACK_LOGGED = new AtomicBoolean();
+    private static final Object SESSION_VALIDATION_LOCK = new Object();
+    private static boolean sessionValidationStarted;
+    private static boolean sessionValidationFinished;
 
     private final ServerLevel level;
     private final OpenCLRuntime runtime;
@@ -66,6 +70,12 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         }
         DensityGraphCompileResult graph = compileInitialDensity(level);
         if (!graph.supported()) {
+            if (graph.retryable()) {
+                LOGGER.info("OpenCL 粗采样暂时不可用，维度 {} 本次回退到 CPU，后续继续重试: {}",
+                        level.dimension().location(),
+                        graph.unsupportedReason());
+                return null;
+            }
             OpenCLWorldSupport.markUnsupported(level.dimension().location(), graph.unsupportedReason());
             LOGGER.info("OpenCL 粗采样暂不支持维度 {}，回退到 CPU: {}", level.dimension().location(), graph.unsupportedReason());
             return null;
@@ -81,6 +91,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                     graph.program(),
                     CpuCoarseHeightBatchSampler.create(level),
                     getNoiseSettings(level));
+            InitialGenerationProgressTracker.setBackend("OPENCL", runtime.deviceName(), null);
             if (ENABLED_LOGGED.compareAndSet(false, true)) {
                 LOGGER.info("OpenCL 粗采样已启用 preference={} nodes={} normalNoises={} splines={}",
                         runtime.devicePreference(),
@@ -91,7 +102,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             return sampler;
         } catch (Throwable t) {
             OpenCLWorldSupport.markUnsupported(level.dimension().location(), "OpenCL 粗采样器创建失败: " + t.getClass().getSimpleName());
-            LOGGER.info("OpenCL 粗采样器创建失败，维度 {} 回退到 CPU", level.dimension().location(), t);
+            LOGGER.info("OpenCL 粗采样器创建失败，维度 {} 回退到 CPU: {}", level.dimension().location(), t.getMessage(), t);
             return null;
         }
     }
@@ -102,7 +113,12 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             var router = randomState.router();
             return DensityGraphCompiler.compile(router.initialDensityWithoutJaggedness());
         } catch (Throwable t) {
-            return DensityGraphCompileResult.unsupported("initial density graph unavailable: " + t.getClass().getSimpleName());
+            LOGGER.info("OpenCL 初始 density graph 提取失败: dimension={} error={} message={}",
+                    level == null ? "null" : level.dimension().location(),
+                    t.getClass().getName(),
+                    t.getMessage(),
+                    t);
+            return DensityGraphCompileResult.retryable("initial density graph unavailable: " + t.getClass().getSimpleName());
         }
     }
 
@@ -112,36 +128,62 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             return null;
         }
         if (OpenCLWorldSupport.isUnsupported(level.dimension().location())) {
+            InitialGenerationProgressTracker.setBackend("CPU", "CPU",
+                    OpenCLWorldSupport.unsupportedReason(level.dimension().location()));
             return fallback.sampleHeights(request);
         }
         if (program.isEmpty()) {
+            InitialGenerationProgressTracker.setBackend("CPU", "CPU", "opencl_program_empty");
             return fallback.sampleHeights(request);
         }
         if (!OpenCLAvailability.isAvailable()) {
             if (DISABLED_FALLBACK_LOGGED.compareAndSet(false, true)) {
                 LOGGER.info("OpenCL 粗采样已禁用，当前请求直接使用 CPU: {}", OpenCLAvailability.disabledReason());
             }
+            InitialGenerationProgressTracker.setBackend("CPU", "CPU", OpenCLAvailability.disabledReason());
             return fallback.sampleHeights(request);
         }
+        long startedAt = System.currentTimeMillis();
         try {
+            ValidationMode validationMode = validationMode();
+            if (validationMode == ValidationMode.NONE && OpenCLWorldSupport.isUnsupported(level.dimension().location())) {
+                InitialGenerationProgressTracker.setBackend("CPU", "CPU",
+                        OpenCLWorldSupport.unsupportedReason(level.dimension().location()));
+                return fallback.sampleHeights(request);
+            }
             int[] heights = sampleHeightsOpenCL(request);
-            if (shouldValidateSamples()) {
-                int[] expected = fallback.sampleHeights(request);
-                if (expected == null) {
-                    return null;
+            try {
+                if (validationMode.shouldValidate()) {
+                    int[] expected = fallback.sampleHeights(request);
+                    if (expected == null) {
+                        return null;
+                    }
+                    if (!Arrays.equals(expected, heights)) {
+                        String mismatch = firstMismatch(expected, heights);
+                        OpenCLWorldSupport.markUnsupported(level.dimension().location(), "OpenCL 粗采样结果校验失败: " + mismatch);
+                        LOGGER.info("OpenCL 粗采样结果校验失败，维度 {} 回退到 CPU: {} {}",
+                                level.dimension().location(),
+                                mismatch,
+                                heightSummary(expected, heights));
+                        InitialGenerationProgressTracker.setBackend("CPU", "CPU", mismatch);
+                        return expected;
+                    }
+                    if (validationMode == ValidationMode.SESSION) {
+                        LOGGER.info("OpenCL 粗采样会话首批校验通过: samples={} {}", request.sampleCount(), heightSummary(expected, heights));
+                    }
                 }
-                if (!Arrays.equals(expected, heights)) {
-                    OpenCLWorldSupport.markUnsupported(level.dimension().location(), "OpenCL 粗采样结果校验失败: " + firstMismatch(expected, heights));
-                    LOGGER.info("OpenCL 粗采样结果校验失败，维度 {} 回退到 CPU: {}", level.dimension().location(), firstMismatch(expected, heights));
-                    return expected;
-                }
+            } finally {
+                finishSessionValidation(validationMode);
             }
             if (KERNEL_LOGGED.compareAndSet(false, true)) {
                 LOGGER.info("OpenCL 粗采样 kernel 已执行 samples={} nodes={}", request.sampleCount(), program.nodes().size());
             }
+            InitialGenerationProgressTracker.recordSampleBatch("OPENCL", request.sampleCount(),
+                    System.currentTimeMillis() - startedAt, runtime.deviceName(), null);
             return heights;
         } catch (Throwable t) {
             OpenCLAvailability.disable("OpenCL kernel 执行失败", t);
+            InitialGenerationProgressTracker.setBackend("CPU", "CPU", OpenCLAvailability.disabledReason());
             return fallback.sampleHeights(request);
         }
     }
@@ -307,11 +349,52 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         }
     }
 
+    private static ValidationMode validationMode() {
+        if (shouldValidateSamples()) {
+            return ValidationMode.CONFIG;
+        }
+        synchronized (SESSION_VALIDATION_LOCK) {
+            while (sessionValidationStarted && !sessionValidationFinished) {
+                try {
+                    SESSION_VALIDATION_LOCK.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return ValidationMode.NONE;
+                }
+            }
+            if (sessionValidationFinished) {
+                return ValidationMode.NONE;
+            }
+            sessionValidationStarted = true;
+            return ValidationMode.SESSION;
+        }
+    }
+
+    private static void finishSessionValidation(ValidationMode mode) {
+        if (mode != ValidationMode.SESSION) {
+            return;
+        }
+        synchronized (SESSION_VALIDATION_LOCK) {
+            sessionValidationFinished = true;
+            SESSION_VALIDATION_LOCK.notifyAll();
+        }
+    }
+
     private static boolean shouldValidateSamples() {
         try {
             return ConfigService.get().performance().openclValidateSamples();
         } catch (Throwable ignored) {
             return false;
+        }
+    }
+
+    private enum ValidationMode {
+        NONE,
+        SESSION,
+        CONFIG;
+
+        private boolean shouldValidate() {
+            return this != NONE;
         }
     }
 
@@ -323,6 +406,23 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             }
         }
         return "length cpu=" + expected.length + " gpu=" + actual.length;
+    }
+
+    private static String heightSummary(int[] expected, int[] actual) {
+        return "cpuRange=" + range(expected) + " gpuRange=" + range(actual);
+    }
+
+    private static String range(int[] values) {
+        if (values == null || values.length == 0) {
+            return "empty";
+        }
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+        for (int value : values) {
+            min = Math.min(min, value);
+            max = Math.max(max, value);
+        }
+        return min + ".." + max;
     }
 
     private static NoiseSettings getNoiseSettings(ServerLevel level) {

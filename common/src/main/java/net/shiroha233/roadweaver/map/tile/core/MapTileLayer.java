@@ -4,7 +4,7 @@ package net.shiroha233.roadweaver.map.tile.core;
  * 瓦片图层类型。
  */
 public enum MapTileLayer {
-    TERRAIN("terrain"),
+    TERRAIN("terrain_v2"),
     OVERLAY("overlay");
 
     private final String folderName;

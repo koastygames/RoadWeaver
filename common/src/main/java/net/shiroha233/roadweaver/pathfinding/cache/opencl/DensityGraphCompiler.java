@@ -1,6 +1,9 @@
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.core.Holder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -11,6 +14,7 @@ import java.util.Map;
  * Minecraft density graph 到 OpenCL 节点表的编译器。
  */
 public final class DensityGraphCompiler {
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private final Map<DensityFunction, Integer> seen = new IdentityHashMap<>();
     private final List<DensityGraphNode> nodes = new ArrayList<>();
     private final List<Double> constants = new ArrayList<>();
@@ -21,6 +25,7 @@ public final class DensityGraphCompiler {
 
     public static DensityGraphCompileResult compile(DensityFunction root) {
         if (root == null) {
+            LOGGER.info("OpenCL density graph compile rejected: root is null");
             return DensityGraphCompileResult.unsupported("density root is null");
         }
         DensityGraphCompiler compiler = new DensityGraphCompiler();
@@ -32,9 +37,22 @@ public final class DensityGraphCompiler {
                     compiler.constants,
                     compiler.noiseTables.toTables(),
                     compiler.splines));
+        } catch (TemporaryDensityGraphException e) {
+            LOGGER.info("OpenCL density graph compile deferred: root={} reason={}",
+                    root.getClass().getName(),
+                    e.getMessage());
+            return DensityGraphCompileResult.retryable(e.getMessage());
         } catch (UnsupportedDensityGraphException e) {
+            LOGGER.info("OpenCL density graph compile rejected: root={} reason={}",
+                    root.getClass().getName(),
+                    e.getMessage());
             return DensityGraphCompileResult.unsupported(e.getMessage());
         } catch (Throwable t) {
+            LOGGER.info("OpenCL density graph compile failed: root={} error={} message={}",
+                    root.getClass().getName(),
+                    t.getClass().getName(),
+                    t.getMessage(),
+                    t);
             return DensityGraphCompileResult.unsupported("density graph compile failed: " + t.getClass().getSimpleName());
         }
     }
@@ -195,9 +213,30 @@ public final class DensityGraphCompiler {
 
     private int holder(DensityFunction function) {
         Object holder = DensityGraphReflection.read(function, "function");
-        Object value = holder == null ? null : invokeValue(holder);
+        if (holder == null) {
+            LOGGER.info("OpenCL density graph holder node has no bound holder: node={}", function.getClass().getName());
+            throw new TemporaryDensityGraphException("holder node is not bound");
+        }
+
+        Object value;
+        try {
+            value = holderValue(holder);
+        } catch (Throwable t) {
+            LOGGER.info("OpenCL density graph holder value() invocation failed: node={} holder={} error={} message={}",
+                    function.getClass().getName(),
+                    holder.getClass().getName(),
+                    t.getClass().getName(),
+                    t.getMessage(),
+                    t);
+            throw new TemporaryDensityGraphException("holder node is not bound");
+        }
+
         if (!(value instanceof DensityFunction nested)) {
-            throw new UnsupportedDensityGraphException("holder node is not bound");
+            LOGGER.info("OpenCL density graph holder is bound to non-density value: node={} holder={} valueType={}",
+                    function.getClass().getName(),
+                    holder.getClass().getName(),
+                    value == null ? "null" : value.getClass().getName());
+            throw new TemporaryDensityGraphException("holder node is not bound");
         }
         return compileNode(nested);
     }
@@ -362,10 +401,17 @@ public final class DensityGraphCompiler {
 
     private static Object invokeValue(Object holder) {
         try {
-            return holder.getClass().getMethod("value").invoke(holder);
+            return holderValue(holder);
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private static Object holderValue(Object holder) {
+        if (holder instanceof Holder<?> typedHolder) {
+            return typedHolder.value();
+        }
+        return DensityGraphReflection.read(holder, "value");
     }
 
     private static String invokeString(Object owner, String methodName) {
@@ -377,6 +423,12 @@ public final class DensityGraphCompiler {
             return value == null ? null : String.valueOf(value);
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    private static final class TemporaryDensityGraphException extends RuntimeException {
+        private TemporaryDensityGraphException(String message) {
+            super(message);
         }
     }
 

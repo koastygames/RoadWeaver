@@ -115,6 +115,10 @@ public final class OpenCLRuntime implements AutoCloseable {
         return devicePreference;
     }
 
+    public String deviceName() {
+        return deviceName(device);
+    }
+
     public long context() {
         return context;
     }
