@@ -61,6 +61,10 @@ public final class PresetService {
                     PresetFile dto = readPresetFile(p);
                     if (dto == null)
                         continue;
+                    if (!isOverworldPreset(dto.dimensions)) {
+                        Files.deleteIfExists(p);
+                        continue;
+                    }
                     String id = dto.id;
                     if (id == null || id.isBlank())
                         id = stripExt(p.getFileName().toString());
@@ -154,6 +158,11 @@ public final class PresetService {
             FileStorageIO.writeStringAtomic(file, GSON.toJson(dto));
         } catch (Exception ignored) {
         }
+    }
+
+    private static boolean isOverworldPreset(List<String> dimensions) {
+        return dimensions == null || dimensions.isEmpty()
+                || (dimensions.size() == 1 && "minecraft:overworld".equals(dimensions.get(0)));
     }
 
     private static Map<String, PresetDef> defaultPresets() {
@@ -313,6 +322,7 @@ public final class PresetService {
         String id;
         String name;
         String type;
+        List<String> dimensions;
         List<String> materials;
         List<String> slabMaterials;
     }
