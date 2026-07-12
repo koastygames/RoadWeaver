@@ -32,7 +32,11 @@ public final class MapStructureCollector {
 
         List<StructureInfo> cached = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, sources);
         HashMap<Long, StructureInfo> bestInfoByPos = new HashMap<>();
+        HashMap<Long, StructureInfo> identityByPos = new HashMap<>();
         HashSet<BlockPos> structuresSet = new HashSet<>();
+        for (StructureInfo info : StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+            mergeBestStructureInfo(identityByPos, info);
+        }
         for (StructureInfo info : cached) {
             if (info == null || info.pos() == null) continue;
             mergeBestStructureInfo(bestInfoByPos, info);
@@ -40,15 +44,16 @@ public final class MapStructureCollector {
             structuresSet.add(new BlockPos(p.getX(), 0, p.getZ()));
         }
         for (StructureConnection connection : MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
-            addConnectionEndpoint(bestInfoByPos, structuresSet, connection.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
-            addConnectionEndpoint(bestInfoByPos, structuresSet, connection.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+            addConnectionEndpoint(bestInfoByPos, identityByPos, structuresSet, connection.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+            addConnectionEndpoint(bestInfoByPos, identityByPos, structuresSet, connection.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         }
         return new Result(new ArrayList<>(structuresSet), new ArrayList<>(bestInfoByPos.values()));
     }
 
     private static void addConnectionEndpoint(java.util.Map<Long, StructureInfo> infos,
-                                              HashSet<BlockPos> structures,
-                                              BlockPos pos,
+                                               java.util.Map<Long, StructureInfo> identities,
+                                               HashSet<BlockPos> structures,
+                                               BlockPos pos,
                                               int minBlockX,
                                               int minBlockZ,
                                               int maxBlockX,
@@ -59,7 +64,9 @@ public final class MapStructureCollector {
         if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) return;
         BlockPos normalized = new BlockPos(x, 0, z);
         structures.add(normalized);
-        infos.putIfAbsent((((long) x) << 32) ^ (z & 0xffffffffL), new StructureInfo(normalized, "unknown"));
+        long key = (((long) x) << 32) ^ (z & 0xffffffffL);
+        StructureInfo identity = identities.get(key);
+        mergeBestStructureInfo(infos, identity != null ? identity : new StructureInfo(normalized, "unknown"));
     }
 
     private static void mergeBestStructureInfo(java.util.Map<Long, StructureInfo> out, StructureInfo info) {
@@ -75,9 +82,7 @@ public final class MapStructureCollector {
         }
         String prevId = prev.structureId();
         String nextId = info.structureId();
-        if (prevId == null) prevId = "unknown";
-        if (nextId == null) nextId = "unknown";
-        if ("unknown".equals(prevId) && !"unknown".equals(nextId)) {
+        if (!StructureInfo.isKnownId(prevId) && StructureInfo.isKnownId(nextId)) {
             out.put(key, new StructureInfo(new BlockPos(x, 0, z), nextId));
         }
     }

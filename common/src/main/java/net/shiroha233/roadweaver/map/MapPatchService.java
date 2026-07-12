@@ -7,7 +7,9 @@ import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.core.model.StructureInfo;
 import net.shiroha233.roadweaver.network.ServerMapPatchBridge;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -24,11 +26,22 @@ public final class MapPatchService {
     public static void publishConnection(ServerLevel level, StructureConnection connection) {
         if (level == null || connection == null) return;
         MapSnapshotPatch patch = new MapSnapshotPatch(
-                List.of(),
+                collectEndpointInfos(level, connection),
                 List.of(normalize(connection)),
                 List.of(),
                 List.of());
         broadcast(level, patch);
+    }
+
+    public static void publishStructures(ServerLevel level, List<StructureInfo> structures) {
+        if (level == null || structures == null || structures.isEmpty()) return;
+        ArrayList<StructureInfo> normalized = new ArrayList<>(structures.size());
+        for (StructureInfo info : structures) {
+            if (info == null || info.pos() == null || !StructureInfo.isKnownId(info.structureId())) continue;
+            normalized.add(new StructureInfo(normalize(info.pos()), info.structureId()));
+        }
+        if (normalized.isEmpty()) return;
+        broadcast(level, new MapSnapshotPatch(normalized, List.of(), List.of(), List.of()));
     }
 
     public static void publishConnectionStatus(ServerLevel level, StructureConnection connection, ConnectionStatus status) {
@@ -85,6 +98,30 @@ public final class MapPatchService {
             }
         }
         return out;
+    }
+
+    private static List<StructureInfo> collectEndpointInfos(ServerLevel level, StructureConnection connection) {
+        ArrayList<StructureInfo> out = new ArrayList<>(2);
+        addEndpointInfo(level, connection.from(), out);
+        if (!samePos(connection.from(), connection.to())) addEndpointInfo(level, connection.to(), out);
+        return out;
+    }
+
+    private static void addEndpointInfo(ServerLevel level, BlockPos endpoint, List<StructureInfo> out) {
+        if (endpoint == null) return;
+        int x = endpoint.getX();
+        int z = endpoint.getZ();
+        for (StructureInfo info : StructureFileStorage.queryRect(level, x, z, x, z)) {
+            if (info == null || info.pos() == null || !StructureInfo.isKnownId(info.structureId())) continue;
+            out.add(new StructureInfo(new BlockPos(x, 0, z), info.structureId()));
+            return;
+        }
+    }
+
+    private static boolean samePos(BlockPos first, BlockPos second) {
+        return first != null && second != null
+                && first.getX() == second.getX()
+                && first.getZ() == second.getZ();
     }
 
     private static StructureConnection normalize(StructureConnection connection) {

@@ -105,18 +105,7 @@ public final class StructureFileStorage {
         StateData state = state(level);
         for (StructureInfo info : infos) {
             if (info == null || info.pos() == null) continue;
-            int x = info.pos().getX();
-            int z = info.pos().getZ();
-            long key = posKey(info.pos());
-            Integer existingSource = state.structureSources.get(key);
-            if (source == SOURCE_PREDICTED && existingSource != null && existingSource == SOURCE_MANUAL) {
-                continue;
-            }
-            state.structureLocations.structureInfos().removeIf(existing -> existing != null && samePos(existing.pos(), x, z));
-            state.structureLocations.structureLocations().removeIf(pos -> samePos(pos, x, z));
-            state.structureLocations.structureInfos().add(info);
-            state.structureLocations.structureLocations().add(info.pos());
-            state.structureSources.put(key, normalizeSource(source));
+            putStructure(state, info, source);
         }
         save(level, state);
     }
@@ -179,6 +168,18 @@ public final class StructureFileStorage {
         save(level, state);
     }
 
+    public static synchronized boolean claimScanWindow(ServerLevel level, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
+        return claimScanKey(level, scanWindowKey(minChunkX, minChunkZ, maxChunkX, maxChunkZ));
+    }
+
+    public static synchronized void markScanWindowDone(ServerLevel level, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
+        markScanKeyDone(level, scanWindowKey(minChunkX, minChunkZ, maxChunkX, maxChunkZ));
+    }
+
+    public static synchronized void releaseScanWindow(ServerLevel level, int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
+        releaseScanKey(level, scanWindowKey(minChunkX, minChunkZ, maxChunkX, maxChunkZ));
+    }
+
     public static synchronized boolean hasAnyStructure(ServerLevel level) {
         return !state(level).structureLocations.structureInfos().isEmpty();
     }
@@ -224,6 +225,50 @@ public final class StructureFileStorage {
 
     private static int normalizeSource(int source) {
         return source == SOURCE_MANUAL ? SOURCE_MANUAL : SOURCE_PREDICTED;
+    }
+
+    private static boolean claimScanKey(ServerLevel level, long key) {
+        StateData state = state(level);
+        long now = System.currentTimeMillis() / 1000L;
+        Long scannedAt = state.scanTiles.get(key);
+        if (scannedAt != null) {
+            if (scannedAt > 0) return false;
+            long start = scannedAt < 0 ? -scannedAt : now - 10 * 60 - 1;
+            if (now - start < 10 * 60) return false;
+            state.scanTiles.put(key, -now);
+            save(level, state);
+            return true;
+        }
+        state.scanTiles.put(key, -now);
+        save(level, state);
+        return true;
+    }
+
+    private static void markScanKeyDone(ServerLevel level, long key) {
+        StateData state = state(level);
+        state.scanTiles.put(key, System.currentTimeMillis() / 1000L);
+        save(level, state);
+    }
+
+    private static void releaseScanKey(ServerLevel level, long key) {
+        StateData state = state(level);
+        state.scanTiles.remove(key);
+        save(level, state);
+    }
+
+    private static long scanWindowKey(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ) {
+        long hash = 0xcbf29ce484222325L;
+        hash = mixScanHash(hash, minChunkX);
+        hash = mixScanHash(hash, minChunkZ);
+        hash = mixScanHash(hash, maxChunkX);
+        hash = mixScanHash(hash, maxChunkZ);
+        return hash;
+    }
+
+    private static long mixScanHash(long hash, int value) {
+        hash ^= value;
+        hash *= 0x100000001b3L;
+        return hash;
     }
 
     private static Set<Integer> normalizeSources(int[] sources) {
@@ -337,12 +382,28 @@ public final class StructureFileStorage {
         int z = info.pos().getZ();
         long key = posKey(info.pos());
         Integer existingSource = state.structureSources.get(key);
-        if (source == SOURCE_PREDICTED && existingSource != null && existingSource == SOURCE_MANUAL) return;
+        StructureInfo existingInfo = findStructureInfo(state.structureLocations.structureInfos(), x, z);
+        boolean incomingKnown = StructureInfo.isKnownId(info.structureId());
+        boolean existingKnown = existingInfo != null && StructureInfo.isKnownId(existingInfo.structureId());
+        if (source == SOURCE_PREDICTED && existingSource != null && existingSource == SOURCE_MANUAL) {
+            if (!incomingKnown || existingKnown) return;
+            source = SOURCE_MANUAL;
+        } else if (!incomingKnown && existingKnown) {
+            if (source == SOURCE_MANUAL) state.structureSources.put(key, SOURCE_MANUAL);
+            return;
+        }
         state.structureLocations.structureInfos().removeIf(existing -> existing != null && samePos(existing.pos(), x, z));
         state.structureLocations.structureLocations().removeIf(pos -> samePos(pos, x, z));
         state.structureLocations.structureInfos().add(info);
         state.structureLocations.structureLocations().add(info.pos());
         state.structureSources.put(key, normalizeSource(source));
+    }
+
+    private static StructureInfo findStructureInfo(List<StructureInfo> infos, int x, int z) {
+        for (StructureInfo info : infos) {
+            if (info != null && samePos(info.pos(), x, z)) return info;
+        }
+        return null;
     }
 
     private static void keepOnlyManualStructures(StateData state) {

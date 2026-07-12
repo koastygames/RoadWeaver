@@ -7,6 +7,7 @@ import net.shiroha233.roadweaver.core.model.StructureInfo;
 import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -36,10 +37,11 @@ public final class MapDataCollector {
                                                        int maxBlockZ) {
         ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        List<BlockPos> structures = limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES);
         return new MapSnapshot(
-                limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES),
+                structures,
                 List.of(),
-                limitList(structureResult.infos(), MAX_SNAPSHOT_STRUCTURES),
+                matchingStructureInfos(structures, structureResult.infos()),
                 List.of());
     }
 
@@ -70,11 +72,30 @@ public final class MapDataCollector {
     private static MapSnapshot composeSnapshot(MapStructureCollector.Result structureResult,
                                                List<StructureConnection> connections,
                                                List<List<BlockPos>> roads) {
+        List<BlockPos> structures = limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES);
         return new MapSnapshot(
-                limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES),
+                structures,
                 limitList(connections, MAX_SNAPSHOT_CONNECTIONS),
-                limitList(structureResult.infos(), MAX_SNAPSHOT_STRUCTURES),
+                matchingStructureInfos(structures, structureResult.infos()),
                 limitRoadPolylines(roads));
+    }
+
+    private static List<StructureInfo> matchingStructureInfos(List<BlockPos> structures, List<StructureInfo> infos) {
+        if (structures == null || structures.isEmpty() || infos == null || infos.isEmpty()) return List.of();
+        HashMap<Long, StructureInfo> byPos = new HashMap<>();
+        for (StructureInfo info : infos) {
+            if (info != null && info.pos() != null) byPos.put(posKey(info.pos()), info);
+        }
+        ArrayList<StructureInfo> out = new ArrayList<>(structures.size());
+        for (BlockPos structure : structures) {
+            StructureInfo info = byPos.get(posKey(structure));
+            if (info != null) out.add(info);
+        }
+        return out;
+    }
+
+    private static long posKey(BlockPos pos) {
+        return (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
     }
 
     private static <T> List<T> limitList(List<T> input, int maxSize) {

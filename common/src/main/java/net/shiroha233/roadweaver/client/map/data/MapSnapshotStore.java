@@ -112,7 +112,8 @@ public final class MapSnapshotStore {
             BlockPos normalized = normalize(pos);
             long key = posKey(normalized);
             structuresByPos.putIfAbsent(key, normalized);
-            mergeStructureName(key, snapshot.structureName(pos));
+            String name = snapshot.structureName(pos);
+            mergeStructureName(key, name);
         }
     }
 
@@ -123,24 +124,18 @@ public final class MapSnapshotStore {
             BlockPos normalized = normalize(info.pos());
             long key = posKey(normalized);
             structuresByPos.putIfAbsent(key, normalized);
-            mergeStructureName(key, info.structureId());
+            String name = info.structureId();
+            mergeStructureName(key, name);
         }
     }
 
     private void mergeStructureName(long key, String name) {
         if (name == null || name.isBlank()) return;
-        String existing = structureNamesByPos.get(key);
-        if (existing == null || existing.isBlank()) {
-            structureNamesByPos.put(key, name);
-            return;
-        }
-        if (isUnknownStructureId(existing) && !isUnknownStructureId(name)) {
+        String previous = structureNamesByPos.get(key);
+        if (previous == null || previous.isBlank()
+                || (!StructureInfo.isKnownId(previous) && StructureInfo.isKnownId(name))) {
             structureNamesByPos.put(key, name);
         }
-    }
-
-    private static boolean isUnknownStructureId(String id) {
-        return id == null || id.isBlank() || "unknown".equalsIgnoreCase(id);
     }
 
     private void mergeConnections(List<StructureConnection> connections) {

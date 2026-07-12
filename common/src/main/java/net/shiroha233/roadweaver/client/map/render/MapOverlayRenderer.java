@@ -35,7 +35,8 @@ public final class MapOverlayRenderer {
 
         int sxA = view.toScreenX(selectedA.getX(), 0, 0, contentW);
         int syA = view.toScreenY(selectedA.getZ(), 0, 0, contentH);
-        RenderUtils.drawPoint(g, sxA, syA, selectedPointSize, MapTheme.COLOR_SELECTED, left, top, right, bottom);
+        StructureIconRenderer.renderOutline(g, sxA, syA, selectedPointSize,
+                MapTheme.COLOR_SELECTED, left, top, right, bottom);
 
         if (!inputHandler.insideMap(mouseX, mouseY)) return;
         int sxB;

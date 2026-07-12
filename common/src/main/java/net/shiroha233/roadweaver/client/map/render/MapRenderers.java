@@ -1,6 +1,5 @@
 package net.shiroha233.roadweaver.client.map.render;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
@@ -11,7 +10,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
 
@@ -19,12 +17,6 @@ import java.util.function.IntUnaryOperator;
  * 地图渲染器集合
  */
 public final class MapRenderers {
-    private static final ResourceLocation VILLAGER_TEXTURE = new ResourceLocation("minecraft", "textures/entity/villager/villager.png");
-    private static final int STRUCTURE_ICON_FRAME = 0xB0000000;
-    private static final int STRUCTURE_ICON_OVERLAY = 0x66FFFFFF;
-    private static final int STRUCTURE_UNKNOWN_BG = 0xFF2B2B2B;
-    private static final int STRUCTURE_UNKNOWN_TEXT = 0xFFF2E7A1;
-
     private MapRenderers() {}
 
     public interface SegmentInView { boolean test(int x1, int z1, int x2, int z2); }
@@ -55,11 +47,7 @@ public final class MapRenderers {
             int x = toScreenX.applyAsInt(bx);
             int y = toScreenY.applyAsInt(bz);
             String structureId = structureIdResolver != null ? structureIdResolver.apply(p) : null;
-            if (isVillageStructure(structureId)) {
-                drawVillagerIcon(g, x, y, Math.max(10, size + 4), left, top, right, bottom);
-                continue;
-            }
-            drawQuestionIcon(g, font, x, y, Math.max(10, size + 4), left, top, right, bottom);
+            StructureIconRenderer.render(g, font, structureId, x, y, Math.max(10, size + 2), left, top, right, bottom);
         }
     }
 
@@ -204,57 +192,6 @@ public final class MapRenderers {
         sr = x5 - gap;
         g.fill(sr - 28, y + 2, sr, y + 7, colorFailed);
         g.drawString(font, l5, x5, y, colorText, false);
-    }
-
-    private static boolean isVillageStructure(String structureId) {
-        if (structureId == null || structureId.isBlank()) return false;
-        return structureId.toLowerCase(Locale.ROOT).contains("village");
-    }
-
-    private static void drawVillagerIcon(GuiGraphics g,
-                                         int centerX,
-                                         int centerY,
-                                         int size,
-                                         int left,
-                                         int top,
-                                         int right,
-                                         int bottom) {
-        int iconSize = Math.max(8, size);
-        int drawX = centerX - iconSize / 2;
-        int drawY = centerY - iconSize / 2;
-        if (drawX > right || drawX + iconSize < left || drawY > bottom || drawY + iconSize < top) {
-            return;
-        }
-        g.fill(drawX - 2, drawY - 2, drawX + iconSize + 2, drawY + iconSize + 2, STRUCTURE_ICON_FRAME);
-        g.fill(drawX - 1, drawY - 1, drawX + iconSize + 1, drawY + iconSize + 1, STRUCTURE_ICON_OVERLAY);
-        RenderSystem.enableBlend();
-        g.blit(VILLAGER_TEXTURE, drawX, drawY, iconSize, iconSize,
-                8.0F, 8.0F,
-                8, 10,
-                64, 64);
-        RenderSystem.disableBlend();
-    }
-
-    private static void drawQuestionIcon(GuiGraphics g,
-                                         Font font,
-                                         int centerX,
-                                         int centerY,
-                                         int size,
-                                         int left,
-                                         int top,
-                                         int right,
-                                         int bottom) {
-        int iconSize = Math.max(8, size);
-        int drawX = centerX - iconSize / 2;
-        int drawY = centerY - iconSize / 2;
-        if (drawX > right || drawX + iconSize < left || drawY > bottom || drawY + iconSize < top) {
-            return;
-        }
-        g.fill(drawX - 2, drawY - 2, drawX + iconSize + 2, drawY + iconSize + 2, STRUCTURE_ICON_FRAME);
-        g.fill(drawX - 1, drawY - 1, drawX + iconSize + 1, drawY + iconSize + 1, STRUCTURE_ICON_OVERLAY);
-        g.fill(drawX, drawY, drawX + iconSize, drawY + iconSize, STRUCTURE_UNKNOWN_BG);
-        int textY = drawY + Math.max(0, (iconSize - font.lineHeight) / 2);
-        g.drawCenteredString(font, "?", centerX, textY, STRUCTURE_UNKNOWN_TEXT);
     }
 
     public static void drawPlayerAvatar(GuiGraphics g,

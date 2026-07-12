@@ -46,9 +46,16 @@ public final class MapSnapshotAccumulator {
             long key = posKey(pos);
             structuresByPos.putIfAbsent(key, normalize(pos));
             String name = snapshot.structureName(pos);
-            if (name != null && !name.isBlank()) {
-                structureNamesByPos.put(key, name);
-            }
+            mergeStructureName(key, name);
+        }
+    }
+
+    private void mergeStructureName(long key, String name) {
+        if (name == null || name.isBlank()) return;
+        String previous = structureNamesByPos.get(key);
+        if (previous == null || previous.isBlank()
+                || (!StructureInfo.isKnownId(previous) && StructureInfo.isKnownId(name))) {
+            structureNamesByPos.put(key, name);
         }
     }
 
