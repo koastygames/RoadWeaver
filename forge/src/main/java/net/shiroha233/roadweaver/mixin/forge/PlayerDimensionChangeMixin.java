@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class PlayerDimensionChangeMixin {
     @Inject(method = "setServerLevel", at = @At("RETURN"))
     private void roadweaver$onSetServerLevel(ServerLevel level, CallbackInfo ci) {
-        if (level != null) {
+        if (level != null && InitialGenManager.shouldRunInitialGeneration(level)) {
             InitialGenManager.begin(level);
         }
     }

@@ -93,19 +93,17 @@ dependencies {
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:11.1.106")
 
-	// H2 Database - 道路数据持久化（纯Java，无native依赖）
-	// compileOnly: 编译时, modLocalRuntime: 开发运行时, shadowSqlite: 生产打包
-	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
-	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
-	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
-
 	// LWJGL OpenCL - GPU 加速粗采样
 	// OpenCL ICD/native 由系统 GPU 驱动提供；这里提供 Java binding，缺少驱动时运行期自动回退 CPU
 	compileOnly("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
 	include("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
 	modLocalRuntime("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
 	runtimeOnly("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
-	shadowSqlite("org.lwjgl:lwjgl-opencl:3.3.1") { transitive = false }
+
+	// H2 - 只用于旧数据迁移，生产包中重定位避免与其他模组冲突。
+	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
+	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
+	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
 
 }
 
@@ -121,14 +119,11 @@ shadowJar {
     exclude "architectury.common.json"
     configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
     archiveClassifier.set("dev-shadow")
-    
-    // 重定位 H2 Database 包
+
     relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
     
     // 排除不需要的文件
     exclude 'META-INF/versions/**'
-    // 排除 H2 中可能触发审查的动态编译/网络服务相关类
-    // SourceCompiler 会使用 JavaCompiler/Groovy 动态编译，Server/tools 可能被视为网络服务能力
     exclude 'org/h2/util/SourceCompiler*'
     exclude 'org/h2/tools/**'
     exclude 'org/h2/server/**'

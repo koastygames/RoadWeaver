@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.pathfinding.cache;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.sub.PerformanceConfig;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLAvailability;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLCoarseHeightBatchSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLDevicePreference;
@@ -29,8 +30,9 @@ public final class CoarseHeightBatchSamplers {
         if (opencl != null) {
             return opencl;
         }
+        String reason = OpenCLAvailability.disabledReason();
+        InitialGenerationProgressTracker.setBackend("CPU", "CPU", reason);
         if (FALLBACK_LOGGED.compareAndSet(false, true)) {
-            String reason = OpenCLAvailability.disabledReason();
             LOGGER.info("粗高度采样使用 CPU{}", reason == null ? "" : ": " + reason);
         }
         return CpuCoarseHeightBatchSampler.create(level);
@@ -63,17 +65,18 @@ public final class CoarseHeightBatchSamplers {
                 return null;
             }
             if (ATTEMPT_LOGGED.compareAndSet(false, true)) {
-                LOGGER.info("OpenCL 粗采样尝试启用: dimension={} samples={} preference={} validate={}",
+                LOGGER.info("OpenCL 粗采样尝试启用: dimension={} samples={} preference={} validate={} minSamples={}",
                         level.dimension().location(),
                         request.sampleCount(),
                         performance.openclDevicePreference(),
-                        performance.openclValidateSamples());
+                        performance.openclValidateSamples(),
+                        performance.openclMinSamples());
             }
             return OpenCLCoarseHeightBatchSampler.tryCreate(
                     level,
                     OpenCLDevicePreference.valueOf(performance.openclDevicePreference()));
         } catch (Throwable t) {
-            LOGGER.info("OpenCL 粗采样入口失败，使用 CPU", t);
+            LOGGER.info("OpenCL 粗采样入口失败，使用 CPU: {}", t.getMessage(), t);
             return null;
         }
     }

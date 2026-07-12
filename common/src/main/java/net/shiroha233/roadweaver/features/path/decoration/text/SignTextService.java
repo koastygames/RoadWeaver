@@ -10,8 +10,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.HangingSignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.shiroha233.roadweaver.persistence.files.SignTextFileStorage;
 import net.shiroha233.roadweaver.persistence.sharded.SignTextShardStorage;
-import net.shiroha233.roadweaver.persistence.sqlite.SignTextSqliteStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,7 +157,7 @@ public final class SignTextService {
             boolean ok = tryWrite(level, row.pos(), row.signType(), row.payload());
             if (!ok && !shouldDrop(level, row.pos())) {
                 if (row.retryCount() >= MAX_MEMORY_RETRIES) {
-                    SignTextShardStorage.upsertBatch(level, List.of(row));
+                    SignTextFileStorage.upsertBatch(level, List.of(new SignTextFileStorage.PendingSignWrite(row.pos(), row.signType(), row.payload())));
                 } else {
                     SignTextShardStorage.requeue(level, row);
                 }
@@ -173,8 +173,7 @@ public final class SignTextService {
             return;
         }
 
-        List<SignTextSqliteStorage.PendingSignText> pending = SignTextShardStorage.queryByChunk(level, chunkX, chunkZ,
-                remainingBudget);
+        List<SignTextFileStorage.PendingSignText> pending = SignTextFileStorage.queryByChunk(level, chunkX, chunkZ, remainingBudget);
         if (pending.isEmpty()) {
             if (needRetry || SignTextShardStorage.hasMemoryPending(level, chunkX, chunkZ)) {
                 markChunkDirty(level, chunkX, chunkZ);
@@ -184,7 +183,7 @@ public final class SignTextService {
 
         ArrayList<Long> doneIds = new ArrayList<>(pending.size());
 
-        for (SignTextSqliteStorage.PendingSignText row : pending) {
+        for (SignTextFileStorage.PendingSignText row : pending) {
             boolean ok = tryWrite(level, row.pos(), row.signType(), row.payload());
 
             if (ok || shouldDrop(level, row.pos())) {
@@ -195,7 +194,7 @@ public final class SignTextService {
         }
 
         if (!doneIds.isEmpty()) {
-            SignTextShardStorage.deleteByIds(level, doneIds);
+            SignTextFileStorage.deleteByIds(level, doneIds);
         }
         if (needRetry || SignTextShardStorage.hasMemoryPending(level, chunkX, chunkZ)) {
             markChunkDirty(level, chunkX, chunkZ);

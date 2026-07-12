@@ -138,6 +138,8 @@ public final class MapSnapshotStore {
         for (StructureConnection connection : connections) {
             if (connection == null || connection.from() == null || connection.to() == null) continue;
             StructureConnection normalized = normalize(connection);
+            ensureStructurePresent(normalized.from());
+            ensureStructurePresent(normalized.to());
             ConnectionKey key = ConnectionKey.of(normalized);
             StructureConnection previous = connectionsByKey.get(key);
             if (previous == null || statusPriority(normalized.status()) >= statusPriority(previous.status())) {
@@ -151,8 +153,16 @@ public final class MapSnapshotStore {
         for (StructureConnection connection : connections) {
             if (connection == null || connection.from() == null || connection.to() == null) continue;
             StructureConnection normalized = normalize(connection);
+            ensureStructurePresent(normalized.from());
+            ensureStructurePresent(normalized.to());
             connectionsByKey.put(ConnectionKey.of(normalized), normalized);
         }
+    }
+
+    private void ensureStructurePresent(BlockPos pos) {
+        if (pos == null) return;
+        BlockPos normalized = normalize(pos);
+        structuresByPos.putIfAbsent(posKey(normalized), normalized);
     }
 
     private void mergeRoads(List<List<BlockPos>> roads) {

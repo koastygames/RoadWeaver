@@ -12,6 +12,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 
 import java.util.*;
 
@@ -35,6 +36,24 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
         private static final String KEY_CONNECTIONS = "connections";
         private static final String KEY_PLANNED_TILES = "planned_tiles";
         private static final String KEY_PLANNED_TILE_CENTERS = "planned_tile_centers";
+        private static final Codec<Map<Long, Long>> LONG_KEY_MAP_CODEC = Codec.unboundedMap(Codec.STRING, Codec.LONG).xmap(
+                map -> {
+                    HashMap<Long, Long> out = new HashMap<>();
+                    for (Map.Entry<String, Long> entry : map.entrySet()) {
+                        try {
+                            out.put(Long.parseLong(entry.getKey()), entry.getValue());
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+                    return out;
+                },
+                map -> {
+                    HashMap<String, Long> out = new HashMap<>();
+                    for (Map.Entry<Long, Long> entry : map.entrySet()) {
+                        out.put(Long.toString(entry.getKey()), entry.getValue());
+                    }
+                    return out;
+                });
 
         public Data() {}
 
@@ -62,7 +81,7 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
 
             if (tag.contains(KEY_PLANNED_TILE_CENTERS)) {
                 Tag t = tag.get(KEY_PLANNED_TILE_CENTERS);
-                DataResult<Map<Long, Long>> res = Codec.unboundedMap(Codec.LONG, Codec.LONG).parse(new Dynamic<>(ops, t));
+                DataResult<Map<Long, Long>> res = LONG_KEY_MAP_CODEC.parse(new Dynamic<>(ops, t));
                 res.result().ifPresent(map -> data.plannedTileCenters = map);
             }
 
@@ -86,7 +105,7 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
                     .result()
                     .ifPresent(nbt -> tag.put(KEY_PLANNED_TILES, Objects.requireNonNull(nbt)));
 
-            Codec.unboundedMap(Codec.LONG, Codec.LONG).encodeStart(ops, plannedTileCenters)
+            LONG_KEY_MAP_CODEC.encodeStart(ops, plannedTileCenters)
                     .result()
                     .ifPresent(nbt -> tag.put(KEY_PLANNED_TILE_CENTERS, Objects.requireNonNull(nbt)));
 
@@ -94,38 +113,39 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
         }
 
         public StructureLocationData getStructureLocations() {
-            return structureLocations;
+            return new StructureLocationData(structureLocations.structureLocations(), structureLocations.structureInfos());
         }
 
         public void setStructureLocations(StructureLocationData data) {
-            this.structureLocations = Objects.requireNonNullElseGet(data, () -> new StructureLocationData(new ArrayList<>(), new ArrayList<>()));
+            StructureLocationData source = Objects.requireNonNullElseGet(data, () -> new StructureLocationData(new ArrayList<>(), new ArrayList<>()));
+            this.structureLocations = new StructureLocationData(source.structureLocations(), source.structureInfos());
             setDirty();
         }
 
         public List<StructureConnection> getConnections() {
-            return connections;
+            return new ArrayList<>(connections);
         }
 
         public void setConnections(List<StructureConnection> connections) {
-            this.connections = Objects.requireNonNullElseGet(connections, ArrayList::new);
+            this.connections = new ArrayList<>(Objects.requireNonNullElseGet(connections, ArrayList::new));
             setDirty();
         }
 
         public Set<Long> getPlannedTileKeys() {
-            return plannedTileKeys;
+            return new HashSet<>(plannedTileKeys);
         }
 
         public void setPlannedTileKeys(Set<Long> keys) {
-            this.plannedTileKeys = Objects.requireNonNullElseGet(keys, HashSet::new);
+            this.plannedTileKeys = new HashSet<>(Objects.requireNonNullElseGet(keys, HashSet::new));
             setDirty();
         }
 
         public Map<Long, Long> getPlannedTileCenters() {
-            return plannedTileCenters;
+            return new HashMap<>(plannedTileCenters);
         }
 
         public void setPlannedTileCenters(Map<Long, Long> centers) {
-            this.plannedTileCenters = Objects.requireNonNullElseGet(centers, HashMap::new);
+            this.plannedTileCenters = new HashMap<>(Objects.requireNonNullElseGet(centers, HashMap::new));
             setDirty();
         }
     }
@@ -136,41 +156,74 @@ public class ForgeWorldDataProvider extends WorldDataProvider {
 
     @Override
     public StructureLocationData getStructureLocations(ServerLevel level) {
-        return getOrCreate(level).getStructureLocations();
+        StructureLocationData current = StructureFileStorage.getStructureLocations(level);
+        if (hasStructureLocations(current)) return current;
+        StructureLocationData legacy = getOrCreate(level).getStructureLocations();
+        if (hasStructureLocations(legacy)) {
+            StructureFileStorage.setStructureLocations(level, legacy);
+            return StructureFileStorage.getStructureLocations(level);
+        }
+        return current;
     }
 
     @Override
     public void setStructureLocations(ServerLevel level, StructureLocationData data) {
-        getOrCreate(level).setStructureLocations(data);
+        StructureFileStorage.setStructureLocations(level, data);
     }
 
     @Override
     public List<StructureConnection> getStructureConnections(ServerLevel level) {
-        return getOrCreate(level).getConnections();
+        List<StructureConnection> current = StructureFileStorage.getStructureConnections(level);
+        if (!current.isEmpty()) return current;
+        List<StructureConnection> legacy = getOrCreate(level).getConnections();
+        if (legacy != null && !legacy.isEmpty()) {
+            StructureFileStorage.setStructureConnections(level, legacy);
+            return StructureFileStorage.getStructureConnections(level);
+        }
+        return current;
     }
 
     @Override
     public void setStructureConnections(ServerLevel level, List<StructureConnection> connections) {
-        getOrCreate(level).setConnections(connections);
+        StructureFileStorage.setStructureConnections(level, connections);
     }
 
     @Override
     public Set<Long> getPlannedTileKeys(ServerLevel level) {
-        return getOrCreate(level).getPlannedTileKeys();
+        Set<Long> current = StructureFileStorage.getPlannedTileKeys(level);
+        if (!current.isEmpty()) return current;
+        Set<Long> legacy = getOrCreate(level).getPlannedTileKeys();
+        if (legacy != null && !legacy.isEmpty()) {
+            StructureFileStorage.setPlannedTileKeys(level, legacy);
+            return StructureFileStorage.getPlannedTileKeys(level);
+        }
+        return current;
     }
 
     @Override
     public void setPlannedTileKeys(ServerLevel level, Set<Long> keys) {
-        getOrCreate(level).setPlannedTileKeys(keys);
+        StructureFileStorage.setPlannedTileKeys(level, keys);
     }
 
     @Override
     public Map<Long, Long> getPlannedTileCenters(ServerLevel level) {
-        return getOrCreate(level).getPlannedTileCenters();
+        Map<Long, Long> current = StructureFileStorage.getPlannedTileCenters(level);
+        if (!current.isEmpty()) return current;
+        Map<Long, Long> legacy = getOrCreate(level).getPlannedTileCenters();
+        if (legacy != null && !legacy.isEmpty()) {
+            StructureFileStorage.setPlannedTileCenters(level, legacy);
+            return StructureFileStorage.getPlannedTileCenters(level);
+        }
+        return current;
     }
 
     @Override
     public void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers) {
-        getOrCreate(level).setPlannedTileCenters(centers);
+        StructureFileStorage.setPlannedTileCenters(level, centers);
+    }
+
+    private static boolean hasStructureLocations(StructureLocationData data) {
+        return data != null
+                && ((!data.structureLocations().isEmpty()) || (!data.structureInfos().isEmpty()));
     }
 }

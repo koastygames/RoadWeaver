@@ -7,8 +7,9 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,15 +26,17 @@ public final class OverlayTileQueryService {
             return OverlayTileScene.empty();
         }
 
+        LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
                 && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
         int[] src = allowPredicted
-                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
-                : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
+                ? new int[]{StructureFileStorage.SOURCE_MANUAL, StructureFileStorage.SOURCE_PREDICTED}
+                : new int[]{StructureFileStorage.SOURCE_MANUAL};
 
-        List<StructureInfo> infos = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, src);
+        List<StructureInfo> infos = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, src);
         HashSet<BlockPos> uniqueStructures = new HashSet<>();
         ArrayList<BlockPos> structures = new ArrayList<>();
         for (StructureInfo info : infos) {

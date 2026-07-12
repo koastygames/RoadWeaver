@@ -8,7 +8,7 @@ import net.shiroha233.roadweaver.core.model.StructureInfo;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 
 import java.util.ArrayList;
@@ -53,10 +53,10 @@ public final class RoadNetworkApi {
         provider.setStructureLocations(level, updated);
 
         String id = (structureId != null && !structureId.isEmpty()) ? structureId : "unknown";
-        StructureSqliteStorage.addStructures(
+        StructureFileStorage.addStructures(
                 level,
                 java.util.List.of(new StructureInfo(new BlockPos(pos.getX(), 0, pos.getZ()), id)),
-                StructureSqliteStorage.SOURCE_MANUAL
+                StructureFileStorage.SOURCE_MANUAL
         );
     }
 
@@ -91,13 +91,13 @@ public final class RoadNetworkApi {
             provider.setStructureLocations(level, updated);
         }
 
-        StructureSqliteStorage.addStructures(
+        StructureFileStorage.addStructures(
                 level,
                 java.util.List.of(
                         new StructureInfo(new BlockPos(from.getX(), 0, from.getZ()), "unknown"),
                         new StructureInfo(new BlockPos(to.getX(), 0, to.getZ()), "unknown")
                 ),
-                StructureSqliteStorage.SOURCE_MANUAL
+                StructureFileStorage.SOURCE_MANUAL
         );
 
         List<StructureConnection> existingConns = provider.getStructureConnections(level);

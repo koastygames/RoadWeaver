@@ -12,7 +12,14 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationStage;
 import net.shiroha233.roadweaver.map.MapPatchService;
+import net.shiroha233.roadweaver.map.tile.core.MapTileCoord;
+import net.shiroha233.roadweaver.map.tile.core.MapTileLayer;
+import net.shiroha233.roadweaver.map.tile.core.MapTileRect;
+import net.shiroha233.roadweaver.map.tile.core.MapTileScheme;
+import net.shiroha233.roadweaver.map.tile.storage.ServerMapTileStorage;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
@@ -21,11 +28,16 @@ import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainPngWrit
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionSampler;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
+import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
 import net.shiroha233.roadweaver.planning.impl.KNNPlanner;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 import net.shiroha233.roadweaver.util.ComputeService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -39,8 +51,12 @@ import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.snapT
 public final class RoadPlanningService {
     private RoadPlanningService() {}
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final ConcurrentHashMap<Level, Set<Long>> PLANNED_TILES = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Level, ConcurrentHashMap<Long, Long>> PLANNED_TILE_CENTERS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Level, Set<Long>> TERRAIN_REPAIR_TILES = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Level, Set<Long>> ROAD_BACKFILL_PLAN_TILES = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Level, Set<Long>> PLANNING_TILES = new ConcurrentHashMap<>();
 
     private static void prunePlannedIfTooLarge(Level level) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
@@ -62,6 +78,7 @@ public final class RoadPlanningService {
 
     public static void initialPlan(ServerLevel level) {
         if (level == null) return;
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.PLANNING, "discovering_structures");
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.planning().initialPlanRadiusChunks());
         BlockPos spawn = level.getSharedSpawnPos();
@@ -79,6 +96,7 @@ public final class RoadPlanningService {
         ServerLevel level = player.serverLevel();
         ModConfig cfg = ConfigService.get();
         if (!cfg.planning().dynamicPlanEnabled()) return;
+        if (H2MigrationCoordinator.hasPendingLegacyData(level)) return;
         int radiusChunks = Math.max(1, cfg.planning().dynamicPlanRadiusChunks());
         int stride = Math.max(1, cfg.planning().dynamicPlanStrideChunks());
         int tile = Math.max(RoadConstants.PLAN_TILE_MIN, Math.min(RoadConstants.PLAN_TILE_MAX, stride));
@@ -87,20 +105,106 @@ public final class RoadPlanningService {
         int kx = floorDiv(pcx, tile);
         int kz = floorDiv(pcz, tile);
         long key = (((long) kx) << 32) ^ (kz & 0xffffffffL);
-        WorldDataProvider provider0 = WorldDataProvider.getInstance();
-        Set<Long> set = new HashSet<>(provider0.getPlannedTileKeys(level));
-        boolean isNewTile = set.add(key);
-        Map<Long, Long> centers = new HashMap<>(provider0.getPlannedTileCenters(level));
-        centers.putIfAbsent(key, (((long) pcx) << 32) ^ (pcz & 0xffffffffL));
-        provider0.setPlannedTileKeys(level, set);
-        provider0.setPlannedTileCenters(level, centers);
-        if (!isNewTile) return;
         int minX = (pcx - radiusChunks) * 16;
         int maxX = (pcx + radiusChunks) * 16;
         int minZ = (pcz - radiusChunks) * 16;
         int maxZ = (pcz + radiusChunks) * 16;
-        prunePlannedIfTooLarge(level);
-        planRectAsync(level, minX, minZ, maxX, maxZ);
+        WorldDataProvider provider0 = WorldDataProvider.getInstance();
+        boolean alreadyPlanned = provider0.getPlannedTileKeys(level).contains(key);
+        boolean hasExistingRoads = RoadShardStorage.hasRoadInRect(level, minX, minZ, maxX, maxZ);
+        if (hasExistingRoads) {
+            LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minX, minZ, maxX, maxZ);
+            ensureTerrainMapTilesAsync(level, key, minX, minZ, maxX, maxZ);
+        }
+
+        boolean backfillPlan = hasExistingRoads && markRoadBackfillPlanTile(level, key);
+        boolean shouldPlan = !alreadyPlanned || backfillPlan;
+        if (!shouldPlan) return;
+        if (!markPlanningTile(level, key)) return;
+        planRectAsync(level, minX, minZ, maxX, maxZ).whenComplete((ignored, error) -> {
+            unmarkPlanningTile(level, key);
+            if (error != null) {
+                if (backfillPlan) unmarkRoadBackfillPlanTile(level, key);
+                LOGGER.warn("动态规划 tile 失败，保留重试机会 dimension={} tile=[{},{}]", level.dimension().location(), kx, kz, error);
+                return;
+            }
+            markPlannedTile(level, key, pcx, pcz);
+            prunePlannedIfTooLarge(level);
+        });
+    }
+
+    private static boolean markRoadBackfillPlanTile(ServerLevel level, long tileKey) {
+        Set<Long> backfilled = ROAD_BACKFILL_PLAN_TILES.computeIfAbsent(level, ignored -> ConcurrentHashMap.newKeySet());
+        return backfilled.add(tileKey);
+    }
+
+    private static void unmarkRoadBackfillPlanTile(ServerLevel level, long tileKey) {
+        Set<Long> backfilled = ROAD_BACKFILL_PLAN_TILES.get(level);
+        if (backfilled != null) backfilled.remove(tileKey);
+    }
+
+    private static boolean markPlanningTile(ServerLevel level, long tileKey) {
+        Set<Long> planning = PLANNING_TILES.computeIfAbsent(level, ignored -> ConcurrentHashMap.newKeySet());
+        return planning.add(tileKey);
+    }
+
+    private static void unmarkPlanningTile(ServerLevel level, long tileKey) {
+        Set<Long> planning = PLANNING_TILES.get(level);
+        if (planning != null) planning.remove(tileKey);
+    }
+
+    private static void markPlannedTile(ServerLevel level, long tileKey, int centerChunkX, int centerChunkZ) {
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        Set<Long> set = new HashSet<>(provider.getPlannedTileKeys(level));
+        set.add(tileKey);
+        Map<Long, Long> centers = new HashMap<>(provider.getPlannedTileCenters(level));
+        centers.putIfAbsent(tileKey, (((long) centerChunkX) << 32) ^ (centerChunkZ & 0xffffffffL));
+        provider.setPlannedTileKeys(level, set);
+        provider.setPlannedTileCenters(level, centers);
+    }
+
+    private static void ensureTerrainMapTilesAsync(ServerLevel level,
+                                                   long tileKey,
+                                                   int minBlockX,
+                                                   int minBlockZ,
+                                                   int maxBlockX,
+                                                   int maxBlockZ) {
+        Set<Long> repaired = TERRAIN_REPAIR_TILES.computeIfAbsent(level, ignored -> ConcurrentHashMap.newKeySet());
+        if (repaired.contains(tileKey)) return;
+        if (hasCompleteTerrainTiles(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+            repaired.add(tileKey);
+            return;
+        }
+        if (!repaired.add(tileKey)) return;
+        ComputeService.runAsync(ThreadPoolManager.TaskRole.COARSE, () -> {
+            CoarseTerrainRegion region = null;
+            try {
+                ModConfig cfg = ConfigService.get();
+                int step = cfg.pathfindingCost().effectiveAStarStep();
+                region = CoarseTerrainRegionSampler.sample(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
+                CoarseTerrainPngWriter.writeTerrainTiles(level, region);
+                LOGGER.info("已补全已有道路区域地图粗地形瓦片 dimension={} min=({}, {}) max=({}, {})",
+                        level.dimension().location(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+            } catch (RuntimeException e) {
+                LOGGER.warn("补全已有道路区域地图粗地形瓦片失败 dimension={}", level.dimension().location(), e);
+            } finally {
+                if (region != null) region.dispose();
+            }
+        });
+    }
+
+    private static boolean hasCompleteTerrainTiles(ServerLevel level,
+                                                   int minBlockX,
+                                                   int minBlockZ,
+                                                   int maxBlockX,
+                                                   int maxBlockZ) {
+        for (int zoom = MapTileScheme.MIN_ZOOM; zoom <= MapTileScheme.MAX_ZOOM; zoom++) {
+            MapTileRect rect = MapTileScheme.tileRectForBlockRect(zoom, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+            for (MapTileCoord coord : rect.coords()) {
+                if (!ServerMapTileStorage.exists(level, MapTileLayer.TERRAIN, coord)) return false;
+            }
+        }
+        return true;
     }
 
     private static void planRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
@@ -150,7 +254,7 @@ public final class RoadPlanningService {
 
     private static void collectStructurePointsInto(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ, List<BlockPos> out, Set<Long> seenPos) {
         StructureIndexService.predictAndVerifyInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
-        List<StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        List<StructureInfo> cached = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         if (cached == null || cached.isEmpty()) return;
         for (StructureInfo info : cached) {
             if (info == null || info.pos() == null) continue;
@@ -248,20 +352,25 @@ public final class RoadPlanningService {
             return new PlannedRegionResult(incoming);
         }).thenAccept((PlannedRegionResult result) -> {
             if (result == null || result.incoming().isEmpty()) return;
+            publishIncomingConnections(level, epoch, result.incoming());
+        });
+    }
+
+    private static void publishIncomingConnections(ServerLevel level, long epoch, List<StructureConnection> incoming) {
+        if (level == null || incoming == null || incoming.isEmpty()) return;
+        if (!ThreadPoolManager.isEpoch(epoch)) return;
+        var server = level.getServer();
+        if (server == null) return;
+        ArrayList<StructureConnection> snapshot = new ArrayList<>(incoming);
+        server.execute(() -> {
             if (!ThreadPoolManager.isEpoch(epoch)) return;
-            var server = level.getServer();
-            if (server == null) return;
-            server.execute(() -> {
-                if (!ThreadPoolManager.isEpoch(epoch)) return;
-                WorldDataProvider provider = WorldDataProvider.getInstance();
-                List<StructureConnection> incoming = result.incoming();
-                List<StructureConnection> existing = provider.getStructureConnections(level);
-                List<StructureConnection> merged = mergeConnections(existing, incoming);
-                if (merged.size() != (existing == null ? 0 : existing.size())) {
-                    provider.setStructureConnections(level, merged);
-                    publishNewConnections(level, existing, incoming);
-                }
-            });
+            WorldDataProvider provider = WorldDataProvider.getInstance();
+            List<StructureConnection> existing = provider.getStructureConnections(level);
+            List<StructureConnection> merged = mergeConnections(existing, snapshot);
+            if (merged.size() != (existing == null ? 0 : existing.size())) {
+                provider.setStructureConnections(level, merged);
+                publishNewConnections(level, existing, snapshot);
+            }
         });
     }
 
@@ -344,6 +453,15 @@ public final class RoadPlanningService {
         ModConfig cfg = ConfigService.get();
         int dGrid = cfg.pathfindingCost().effectiveAStarStep();
         int maxSteps = cfg.pathfindingCost().aStarMaxSteps();
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.COARSE_PATHING, "computing_coarse_paths");
+        int totalPaths = 0;
+        for (StructureConnection connection : connections) {
+            if (connection == null) continue;
+            if (!region.contains(connection.from().getX(), connection.from().getZ())) continue;
+            if (!region.contains(connection.to().getX(), connection.to().getZ())) continue;
+            totalPaths++;
+        }
+        InitialGenerationProgressTracker.setCoarsePathPlan(totalPaths, "computing_coarse_paths");
         TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
             for (StructureConnection conn : connections) {
@@ -352,9 +470,13 @@ public final class RoadPlanningService {
                 if (!region.contains(conn.to().getX(), conn.to().getZ())) continue;
                 if (Thread.currentThread().isInterrupted()) break;
 
-                List<BlockPos> coarsePath = searchCoarsePath(level, conn, dGrid, maxSteps, cache, region);
-                if (coarsePath != null && !coarsePath.isEmpty()) {
-                    CoarsePathCache.put(level, conn, coarsePath);
+                try {
+                    List<BlockPos> coarsePath = searchCoarsePath(level, conn, dGrid, maxSteps, cache, region);
+                    if (coarsePath != null && !coarsePath.isEmpty()) {
+                        CoarsePathCache.put(level, conn, coarsePath);
+                    }
+                } finally {
+                    InitialGenerationProgressTracker.recordCoarsePathDone();
                 }
             }
         } finally {
@@ -460,5 +582,8 @@ public final class RoadPlanningService {
     public static void resetAll() {
         PLANNED_TILES.clear();
         PLANNED_TILE_CENTERS.clear();
+        TERRAIN_REPAIR_TILES.clear();
+        ROAD_BACKFILL_PLAN_TILES.clear();
+        PLANNING_TILES.clear();
     }
 }

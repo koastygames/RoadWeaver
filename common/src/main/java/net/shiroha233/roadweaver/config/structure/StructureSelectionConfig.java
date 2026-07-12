@@ -3,11 +3,11 @@ package net.shiroha233.roadweaver.config.structure;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
+import net.shiroha233.roadweaver.persistence.files.FileStorageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -184,9 +184,7 @@ public final class StructureSelectionConfig {
             data.enabledStructures = new ArrayList<>(enabledStructures);
             data.enabledTags = new ArrayList<>(enabledTags);
             data.useTagMode = useTagMode;
-            try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                GSON.toJson(data, writer);
-            }
+            FileStorageIO.writeStringAtomic(file, GSON.toJson(data));
         } catch (Exception e) {
             LOGGER.warn("结构选择配置保存失败", e);
         }

@@ -143,12 +143,13 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 MapTheme.COLOR_COMPLETED,
                 left, top, right, bottom,
                 Math.max(1, Math.round(16 / Math.max(0.1f, (float) view.pxPerBlockX(contentW)))));
-        MapRenderers.renderStructures(g, snapshot.structures(),
+        MapRenderers.renderStructures(g, this.font,
+                snapshot.structures(),
+                snapshot::structureName,
                 v -> view.toScreenX(v, 0, 0, contentW),
                 v -> view.toScreenY(v, 0, 0, contentH),
                 (x, z) -> view.isInViewWorld(x, z),
                 Math.max(MapTheme.STRUCTURE_MARKER_SIZE, computePointSize()),
-                MapTheme.COLOR_STRUCTURE,
                 left, top, right, bottom);
         List<StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
         boolean hasDetailedRoadPolylines = !snapshot.roadPolylines().isEmpty();

@@ -7,6 +7,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.map.tile.render.HeightShader;
 import net.shiroha233.roadweaver.map.tile.render.TerrainTilePalette;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.CoarseHeightBatchRequest;
 import net.shiroha233.roadweaver.pathfinding.cache.CoarseHeightBatchSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.CoarseHeightBatchSamplers;

@@ -4,8 +4,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,10 +27,10 @@ public final class MapStructureCollector {
                 && cfg.structurePrediction().enabled()
                 && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
         int[] sources = allowPredicted
-                ? new int[]{StructureSqliteStorage.SOURCE_MANUAL, StructureSqliteStorage.SOURCE_PREDICTED}
-                : new int[]{StructureSqliteStorage.SOURCE_MANUAL};
+                ? new int[]{StructureFileStorage.SOURCE_MANUAL, StructureFileStorage.SOURCE_PREDICTED}
+                : new int[]{StructureFileStorage.SOURCE_MANUAL};
 
-        List<StructureInfo> cached = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, sources);
+        List<StructureInfo> cached = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, sources);
         HashMap<Long, StructureInfo> bestInfoByPos = new HashMap<>();
         HashSet<BlockPos> structuresSet = new HashSet<>();
         for (StructureInfo info : cached) {
@@ -38,7 +39,27 @@ public final class MapStructureCollector {
             BlockPos p = info.pos();
             structuresSet.add(new BlockPos(p.getX(), 0, p.getZ()));
         }
+        for (StructureConnection connection : MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+            addConnectionEndpoint(bestInfoByPos, structuresSet, connection.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+            addConnectionEndpoint(bestInfoByPos, structuresSet, connection.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        }
         return new Result(new ArrayList<>(structuresSet), new ArrayList<>(bestInfoByPos.values()));
+    }
+
+    private static void addConnectionEndpoint(java.util.Map<Long, StructureInfo> infos,
+                                              HashSet<BlockPos> structures,
+                                              BlockPos pos,
+                                              int minBlockX,
+                                              int minBlockZ,
+                                              int maxBlockX,
+                                              int maxBlockZ) {
+        if (pos == null) return;
+        int x = pos.getX();
+        int z = pos.getZ();
+        if (x < minBlockX || x > maxBlockX || z < minBlockZ || z > maxBlockZ) return;
+        BlockPos normalized = new BlockPos(x, 0, z);
+        structures.add(normalized);
+        infos.putIfAbsent((((long) x) << 32) ^ (z & 0xffffffffL), new StructureInfo(normalized, "unknown"));
     }
 
     private static void mergeBestStructureInfo(java.util.Map<Long, StructureInfo> out, StructureInfo info) {

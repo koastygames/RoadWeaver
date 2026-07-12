@@ -5,7 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,11 +68,11 @@ public final class StructureIndexService {
             return List.of();
         }
 
-        StructureSqliteStorage.ensurePolicy(level, policyHash(cfg));
+        StructureFileStorage.ensurePolicy(level, policyHash(cfg));
 
         final long tAll0 = CACHE_DEBUG ? System.nanoTime() : 0L;
         final int beforeCount = CACHE_DEBUG
-                ? StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED).size()
+                ? StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureFileStorage.SOURCE_PREDICTED).size()
                 : 0;
 
         int cminx = Math.floorDiv(minBlockX, 16);
@@ -80,7 +80,7 @@ public final class StructureIndexService {
         int cmaxx = Math.floorDiv(maxBlockX, 16);
         int cmaxz = Math.floorDiv(maxBlockZ, 16);
 
-        int tileSize = Math.max(1, StructureSqliteStorage.SCAN_TILE_SIZE_CHUNKS);
+        int tileSize = Math.max(1, StructureFileStorage.SCAN_TILE_SIZE_CHUNKS);
         int tminx = Math.floorDiv(cminx, tileSize);
         int tminz = Math.floorDiv(cminz, tileSize);
         int tmaxx = Math.floorDiv(cmaxx, tileSize);
@@ -93,7 +93,7 @@ public final class StructureIndexService {
 
         for (int tx = tminx; tx <= tmaxx; tx++) {
             for (int tz = tminz; tz <= tmaxz; tz++) {
-                if (!StructureSqliteStorage.claimScanTile(level, tx, tz)) {
+                if (!StructureFileStorage.claimScanTile(level, tx, tz)) {
                     continue;
                 }
                 tilesClaimed++;
@@ -115,17 +115,17 @@ public final class StructureIndexService {
                     predictedTotal += predicted != null ? predicted.size() : 0;
                     verifiedTotal += verified != null ? verified.size() : 0;
                     if (verified != null && !verified.isEmpty()) {
-                        StructureSqliteStorage.addStructures(level, verified, StructureSqliteStorage.SOURCE_PREDICTED);
+                        StructureFileStorage.addStructures(level, verified, StructureFileStorage.SOURCE_PREDICTED);
                     }
-                    StructureSqliteStorage.markScanTileDone(level, tx, tz);
+                    StructureFileStorage.markScanTileDone(level, tx, tz);
                 } catch (Throwable t) {
-                    StructureSqliteStorage.releaseScanTile(level, tx, tz);
+                    StructureFileStorage.releaseScanTile(level, tx, tz);
                     LOGGER.warn("StructureIndexService: scan tile failed tile=[{},{}]", tx, tz, t);
                 }
             }
         }
 
-        List<StructureInfo> out = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED);
+        List<StructureInfo> out = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureFileStorage.SOURCE_PREDICTED);
         if (CACHE_DEBUG) {
             int afterCount = out.size();
             long ms = (System.nanoTime() - tAll0) / 1_000_000L;

@@ -4,6 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
+import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLCoarseHeightBatchSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLWorldSupport;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
@@ -33,6 +34,7 @@ public final class CacheManager {
         BridgeTemplateStructureRegistry.clearCache();
         RoadSpatialIndex.clearAllCache();
         TerrainSamplingStats.reset();
+        OpenCLCoarseHeightBatchSampler.clearProgramCache();
         LOGGER.debug("CacheManager: 缓存已初始化");
     }
 
@@ -66,6 +68,7 @@ public final class CacheManager {
         CoarsePathCache.clearAll();
         CoarseTerrainTileCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();
+        OpenCLCoarseHeightBatchSampler.clearProgramCache();
         OpenCLWorldSupport.clear();
 
         LOGGER.debug("CacheManager: 所有缓存已清理");

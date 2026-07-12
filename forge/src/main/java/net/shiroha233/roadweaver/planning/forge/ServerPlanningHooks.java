@@ -14,6 +14,7 @@ import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.runtime.CacheManager;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -35,6 +36,7 @@ public final class ServerPlanningHooks {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
+        H2MigrationCoordinator.migrateServer(event.getServer());
         CacheManager.onServerStarted();
         ThreadPoolManager.onServerStarted(event.getServer());
         SignTextService.clearPending();
@@ -48,12 +50,13 @@ public final class ServerPlanningHooks {
         boolean dedicated = event.getServer().isDedicatedServer();
         if (dedicated) {
             RoadGenerationService.onServerStarted();
-            RoadPlanningService.initialPlanAsync(level);
+            if (InitialGenManager.shouldRunInitialGeneration(level)) {
+                RoadPlanningService.initialPlanAsync(level);
+            }
             return;
         }
         
-        List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
-        if (conns == null || conns.isEmpty()) {
+        if (InitialGenManager.shouldRunInitialGeneration(level)) {
             RoadGenerationService.onServerStarted();
             InitialGenManager.begin(level);
             InitialGenManager.blockUntilDone(level);

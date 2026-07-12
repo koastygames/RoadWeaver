@@ -7,11 +7,11 @@ dependencies {
     modImplementation("dev.architectury:architectury:9.2.14")
     compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
 
-    // H2 Database - 编译时依赖，运行时由平台模块提供
-    compileOnly("com.h2database:h2:2.2.224")
-
     // LWJGL OpenCL - 编译时依赖，运行时 native 由平台模块提供
     compileOnly("org.lwjgl:lwjgl-opencl:3.3.1")
+
+    // H2 仅用于读取旧版世界数据，运行时由平台模块打包。
+    compileOnly("com.h2database:h2:2.2.224") { transitive = false }
 }
  
 sourceSets {

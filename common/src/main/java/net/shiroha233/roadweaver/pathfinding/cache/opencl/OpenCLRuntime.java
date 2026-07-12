@@ -142,6 +142,7 @@ public final class OpenCLRuntime implements AutoCloseable {
 
     public static void closeSharedRuntimeForTests() {
         synchronized (RUNTIME_LOCK) {
+            OpenCLCoarseHeightBatchSampler.clearProgramCache();
             OpenCLRuntime runtime = sharedRuntime;
             sharedRuntime = null;
             if (runtime != null) {

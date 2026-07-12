@@ -24,9 +24,15 @@ public final class CoarseTerrainPngWriter {
         for (int zoom = MapTileScheme.MIN_ZOOM; zoom <= MapTileScheme.MAX_ZOOM; zoom++) {
             MapTileRect rect = region.bounds().tileRect(zoom);
             for (MapTileCoord coord : rect.coords()) {
-                ServerMapTileStorage.writePng(level, MapTileLayer.TERRAIN, coord, renderTile(level, region, coord));
+                synchronized (tileLock(level, coord)) {
+                    ServerMapTileStorage.writePng(level, MapTileLayer.TERRAIN, coord, renderTile(level, region, coord));
+                }
             }
         }
+    }
+
+    private static Object tileLock(ServerLevel level, MapTileCoord coord) {
+        return ServerMapTileStorage.path(level, MapTileLayer.TERRAIN, coord).toAbsolutePath().normalize().toString().intern();
     }
 
     private static BufferedImage renderTile(ServerLevel level, CoarseTerrainRegion region, MapTileCoord coord) {

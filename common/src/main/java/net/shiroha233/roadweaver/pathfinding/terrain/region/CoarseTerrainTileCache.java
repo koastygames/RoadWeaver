@@ -2,7 +2,8 @@ package net.shiroha233.roadweaver.pathfinding.terrain.region;
 
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
-import net.shiroha233.roadweaver.persistence.sqlite.CoarseTerrainTileSqliteStorage;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
+import net.shiroha233.roadweaver.persistence.files.CoarseTerrainTileFileStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +28,10 @@ public final class CoarseTerrainTileCache {
         if (level == null || key == null) return null;
 
         CoarseTerrainTile cached = getMemory(key);
-        if (cached != null) return cached;
+        if (cached != null) {
+            InitialGenerationProgressTracker.recordTileMemoryHit();
+            return cached;
+        }
 
         CompletableFuture<CoarseTerrainTile> future = new CompletableFuture<>();
         CompletableFuture<CoarseTerrainTile> existing = IN_FLIGHT.putIfAbsent(key, future);
@@ -75,15 +79,17 @@ public final class CoarseTerrainTileCache {
         CoarseTerrainTile cached = getMemory(key);
         if (cached != null) return cached;
 
-        CoarseTerrainTile stored = CoarseTerrainTileSqliteStorage.loadTile(level, key);
+        CoarseTerrainTile stored = CoarseTerrainTileFileStorage.loadTile(level, key);
         if (stored != null) {
+            InitialGenerationProgressTracker.recordTileDiskHit();
             putMemory(key, stored);
             return stored;
         }
 
         CoarseTerrainTile sampled = CoarseTerrainTileSampler.sample(level, key);
         if (sampled != null) {
-            CoarseTerrainTileSqliteStorage.saveTile(level, sampled);
+            InitialGenerationProgressTracker.recordTileSampled();
+            CoarseTerrainTileFileStorage.saveTile(level, sampled);
             putMemory(key, sampled);
         }
         return sampled;

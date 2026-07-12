@@ -7,6 +7,7 @@ import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
+import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -21,11 +22,12 @@ import java.util.List;
 public abstract class MinecraftServerMixin {
     @Inject(method = "prepareLevels", at = @At("HEAD"))
     private void roadweaver$preloadBeforePrepareLevels(ChunkProgressListener listener, CallbackInfo ci) {
-        if (((MinecraftServer)(Object)this).isDedicatedServer()) return;
-        ServerLevel level = ((MinecraftServer)(Object)this).overworld();
+        MinecraftServer server = (MinecraftServer)(Object)this;
+        H2MigrationCoordinator.migrateServer(server);
+        if (server.isDedicatedServer()) return;
+        ServerLevel level = server.overworld();
         if (level == null) return;
-        List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
-        if (conns == null || conns.isEmpty()) {
+        if (InitialGenManager.shouldRunInitialGeneration(level)) {
             InitialGenManager.begin(level);
             InitialGenManager.blockUntilDone(level);
         } else {

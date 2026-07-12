@@ -9,11 +9,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.shiroha233.roadweaver.persistence.files.FileStorageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -202,8 +202,8 @@ public final class PresetService {
     }
 
     private static void writePreset(Path file, PresetFile dto) {
-        try (BufferedWriter bw = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-            GSON.toJson(dto, bw);
+        try {
+            FileStorageIO.writeStringAtomic(file, GSON.toJson(dto));
         } catch (Exception ignored) {
         }
     }

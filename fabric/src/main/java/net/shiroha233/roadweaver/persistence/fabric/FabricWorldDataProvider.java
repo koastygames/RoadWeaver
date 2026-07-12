@@ -6,10 +6,8 @@ import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.attachments.WorldDataAttachment;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,43 +19,75 @@ public class FabricWorldDataProvider extends WorldDataProvider {
 
     @Override
     public StructureLocationData getStructureLocations(ServerLevel level) {
-        StructureLocationData data = ((AttachmentTarget) level).getAttached(WorldDataAttachment.STRUCTURE_LOCATIONS);
-        return data != null ? data : new StructureLocationData(new ArrayList<>(), new ArrayList<>());
+        StructureLocationData current = StructureFileStorage.getStructureLocations(level);
+        if (hasStructureLocations(current)) return current;
+        StructureLocationData legacy = ((AttachmentTarget) level).getAttached(WorldDataAttachment.STRUCTURE_LOCATIONS);
+        if (hasStructureLocations(legacy)) {
+            StructureFileStorage.setStructureLocations(level, legacy);
+            return StructureFileStorage.getStructureLocations(level);
+        }
+        return current;
     }
 
     @Override
     public void setStructureLocations(ServerLevel level, StructureLocationData data) {
-        ((AttachmentTarget) level).setAttached(WorldDataAttachment.STRUCTURE_LOCATIONS, data);
+        StructureFileStorage.setStructureLocations(level, data);
     }
 
     @Override
     public List<StructureConnection> getStructureConnections(ServerLevel level) {
-        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.CONNECTED_STRUCTURES, ArrayList::new);
+        List<StructureConnection> current = StructureFileStorage.getStructureConnections(level);
+        if (!current.isEmpty()) return current;
+        List<StructureConnection> legacy = ((AttachmentTarget) level).getAttached(WorldDataAttachment.CONNECTED_STRUCTURES);
+        if (legacy != null && !legacy.isEmpty()) {
+            StructureFileStorage.setStructureConnections(level, legacy);
+            return StructureFileStorage.getStructureConnections(level);
+        }
+        return current;
     }
 
     @Override
     public void setStructureConnections(ServerLevel level, List<StructureConnection> connections) {
-        ((AttachmentTarget) level).setAttached(WorldDataAttachment.CONNECTED_STRUCTURES, connections);
+        StructureFileStorage.setStructureConnections(level, connections);
     }
 
     @Override
     public Set<Long> getPlannedTileKeys(ServerLevel level) {
-        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.PLANNED_TILE_KEYS, HashSet::new);
+        Set<Long> current = StructureFileStorage.getPlannedTileKeys(level);
+        if (!current.isEmpty()) return current;
+        Set<Long> legacy = ((AttachmentTarget) level).getAttached(WorldDataAttachment.PLANNED_TILE_KEYS);
+        if (legacy != null && !legacy.isEmpty()) {
+            StructureFileStorage.setPlannedTileKeys(level, legacy);
+            return StructureFileStorage.getPlannedTileKeys(level);
+        }
+        return current;
     }
 
     @Override
     public void setPlannedTileKeys(ServerLevel level, Set<Long> keys) {
-        ((AttachmentTarget) level).setAttached(WorldDataAttachment.PLANNED_TILE_KEYS, keys);
+        StructureFileStorage.setPlannedTileKeys(level, keys);
     }
 
     @Override
     public Map<Long, Long> getPlannedTileCenters(ServerLevel level) {
-        return ((AttachmentTarget) level).getAttachedOrCreate(WorldDataAttachment.PLANNED_TILE_CENTERS, HashMap::new);
+        Map<Long, Long> current = StructureFileStorage.getPlannedTileCenters(level);
+        if (!current.isEmpty()) return current;
+        Map<Long, Long> legacy = ((AttachmentTarget) level).getAttached(WorldDataAttachment.PLANNED_TILE_CENTERS);
+        if (legacy != null && !legacy.isEmpty()) {
+            StructureFileStorage.setPlannedTileCenters(level, legacy);
+            return StructureFileStorage.getPlannedTileCenters(level);
+        }
+        return current;
     }
 
     @Override
     public void setPlannedTileCenters(ServerLevel level, Map<Long, Long> centers) {
-        ((AttachmentTarget) level).setAttached(WorldDataAttachment.PLANNED_TILE_CENTERS, centers);
+        StructureFileStorage.setPlannedTileCenters(level, centers);
+    }
+
+    private static boolean hasStructureLocations(StructureLocationData data) {
+        return data != null
+                && ((!data.structureLocations().isEmpty()) || (!data.structureInfos().isEmpty()));
     }
 
     }

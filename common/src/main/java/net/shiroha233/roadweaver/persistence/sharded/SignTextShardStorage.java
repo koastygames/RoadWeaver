@@ -3,7 +3,7 @@ package net.shiroha233.roadweaver.persistence.sharded;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.level.ServerLevel;
-import net.shiroha233.roadweaver.persistence.sqlite.SignTextSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.SignTextFileStorage;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +16,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SignTextShardStorage {
     private SignTextShardStorage() {}
 
-    public static final int TYPE_DISTANCE = SignTextSqliteStorage.TYPE_DISTANCE;
-    public static final int TYPE_SEA_QUESTION = SignTextSqliteStorage.TYPE_SEA_QUESTION;
+    public static final int TYPE_DISTANCE = SignTextFileStorage.TYPE_DISTANCE;
+    public static final int TYPE_SEA_QUESTION = SignTextFileStorage.TYPE_SEA_QUESTION;
+    private static final int MAX_PENDING_PER_CHUNK = 256;
+    private static final int MAX_PENDING_PER_LEVEL = 10_000;
     private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>>> MEMORY_PENDING = new ConcurrentHashMap<>();
 
     public record PendingSignWrite(BlockPos pos, int signType, String payload, int retryCount, long firstQueuedAtMs) {
@@ -25,8 +27,8 @@ public final class SignTextShardStorage {
             return new PendingSignWrite(pos, signType, payload, retryCount + 1, firstQueuedAtMs);
         }
 
-        private SignTextSqliteStorage.PendingSignWrite toPersistentWrite() {
-            return new SignTextSqliteStorage.PendingSignWrite(pos, signType, payload);
+        private SignTextFileStorage.PendingSignWrite toPersistentWrite() {
+            return new SignTextFileStorage.PendingSignWrite(pos, signType, payload);
         }
     }
 
@@ -37,20 +39,20 @@ public final class SignTextShardStorage {
 
     public static void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
         if (level == null || writes == null || writes.isEmpty()) return;
-        ArrayList<SignTextSqliteStorage.PendingSignWrite> batch = new ArrayList<>(writes.size());
+        ArrayList<SignTextFileStorage.PendingSignWrite> batch = new ArrayList<>(writes.size());
         for (PendingSignWrite write : writes) {
             if (write == null || write.pos() == null) continue;
             batch.add(write.toPersistentWrite());
         }
-        SignTextSqliteStorage.upsertBatch(level, batch);
+        SignTextFileStorage.upsertBatch(level, batch);
     }
 
-    public static List<SignTextSqliteStorage.PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
-        return SignTextSqliteStorage.queryByChunk(level, chunkX, chunkZ, limit);
+    public static List<SignTextFileStorage.PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
+        return SignTextFileStorage.queryByChunk(level, chunkX, chunkZ, limit);
     }
 
     public static void deleteByIds(ServerLevel level, List<Long> ids) {
-        SignTextSqliteStorage.deleteByIds(level, ids);
+        SignTextFileStorage.deleteByIds(level, ids);
     }
 
     public static List<PendingSignWrite> takeMemoryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
@@ -100,11 +102,25 @@ public final class SignTextShardStorage {
         ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets = MEMORY_PENDING.get(level);
         if (levelBuckets == null || levelBuckets.isEmpty()) return;
         ArrayList<PendingSignWrite> batch = new ArrayList<>();
-        for (ConcurrentHashMap<Long, PendingSignWrite> chunkBucket : levelBuckets.values()) {
+        ArrayList<MemoryEntry> entries = new ArrayList<>();
+        for (var chunkEntry : levelBuckets.entrySet()) {
+            ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = chunkEntry.getValue();
             if (chunkBucket == null || chunkBucket.isEmpty()) continue;
-            batch.addAll(chunkBucket.values());
+            for (var writeEntry : chunkBucket.entrySet()) {
+                PendingSignWrite write = writeEntry.getValue();
+                if (write == null) continue;
+                batch.add(write);
+                entries.add(new MemoryEntry(chunkEntry.getKey(), writeEntry.getKey(), write));
+            }
         }
         upsertBatch(level, batch);
+        for (MemoryEntry entry : entries) {
+            ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = levelBuckets.get(entry.chunkKey());
+            if (chunkBucket == null) continue;
+            chunkBucket.remove(entry.posKey(), entry.write());
+            if (chunkBucket.isEmpty()) levelBuckets.remove(entry.chunkKey(), chunkBucket);
+        }
+        if (levelBuckets.isEmpty()) MEMORY_PENDING.remove(level, levelBuckets);
     }
 
     public static void clearLevel(ServerLevel level) {
@@ -123,5 +139,19 @@ public final class SignTextShardStorage {
         ConcurrentHashMap<Long, PendingSignWrite> chunkBucket =
                 levelBuckets.computeIfAbsent(chunkKey, k -> new ConcurrentHashMap<>());
         chunkBucket.put(write.pos().asLong(), write);
+        if (chunkBucket.size() > MAX_PENDING_PER_CHUNK || pendingCount(levelBuckets) > MAX_PENDING_PER_LEVEL) {
+            flushPending(level);
+        }
     }
+
+    private static int pendingCount(ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets) {
+        int total = 0;
+        for (ConcurrentHashMap<Long, PendingSignWrite> bucket : levelBuckets.values()) {
+            if (bucket != null) total += bucket.size();
+            if (total > MAX_PENDING_PER_LEVEL) return total;
+        }
+        return total;
+    }
+
+    private record MemoryEntry(long chunkKey, long posKey, PendingSignWrite write) {}
 }

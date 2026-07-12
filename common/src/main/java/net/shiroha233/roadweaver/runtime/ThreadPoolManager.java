@@ -45,6 +45,7 @@ public final class ThreadPoolManager {
 
     private static final AtomicReference<ThreadPoolExecutor> INITIAL_WORKERS = new AtomicReference<>();
     private static final AtomicReference<ThreadPoolExecutor> SHARED_EXEC = new AtomicReference<>();
+    private static final AtomicReference<ThreadPoolExecutor> MAP_WORKERS = new AtomicReference<>();
     private static final AtomicLong EPOCH = new AtomicLong(0L);
     private static final AtomicLong TASK_SEQ = new AtomicLong(0L);
 
@@ -64,16 +65,19 @@ public final class ThreadPoolManager {
         EPOCH.incrementAndGet();
         rebuildInitialPool(resolveInitialGenerationThreads());
         rebuildSharedPool(resolveSharedWorkerThreads());
-        LOGGER.debug("ThreadPoolManager: 工作池已启动 (epoch={}, initialThreads={}, sharedThreads={})",
-                EPOCH.get(), resolveInitialGenerationThreads(), resolveSharedWorkerThreads());
+        rebuildMapPool(resolveMapWorkerThreads());
+        LOGGER.debug("ThreadPoolManager: 工作池已启动 (epoch={}, initialThreads={}, sharedThreads={}, mapThreads={})",
+                EPOCH.get(), resolveInitialGenerationThreads(), resolveSharedWorkerThreads(), resolveMapWorkerThreads());
     }
 
     public static synchronized void onServerStopping() {
         EPOCH.incrementAndGet();
         shutdownQuietly(INITIAL_WORKERS.get());
         shutdownQuietly(SHARED_EXEC.get());
+        shutdownQuietly(MAP_WORKERS.get());
         INITIAL_WORKERS.set(null);
         SHARED_EXEC.set(null);
+        MAP_WORKERS.set(null);
         LOGGER.debug("ThreadPoolManager: 工作池已关闭 (epoch={})", EPOCH.get());
     }
 
@@ -186,7 +190,11 @@ public final class ThreadPoolManager {
     // ==================== 内部方法 ====================
 
     private static ThreadPoolExecutor executorFor(TaskRole role) {
-        return role == TaskRole.INITIAL ? initialExecutor() : sharedExecutor();
+        return switch (role == null ? TaskRole.PLANNING : role) {
+            case INITIAL -> initialExecutor();
+            case MAP -> mapExecutor();
+            default -> sharedExecutor();
+        };
     }
 
     private static ThreadPoolExecutor initialExecutor() {
@@ -217,6 +225,20 @@ public final class ThreadPoolManager {
         return e;
     }
 
+    private static ThreadPoolExecutor mapExecutor() {
+        ThreadPoolExecutor e = MAP_WORKERS.get();
+        if (e == null || e.isShutdown()) {
+            synchronized (ThreadPoolManager.class) {
+                e = MAP_WORKERS.get();
+                if (e == null || e.isShutdown()) {
+                    rebuildMapPool(resolveMapWorkerThreads());
+                    e = MAP_WORKERS.get();
+                }
+            }
+        }
+        return e;
+    }
+
     private static void rebuildInitialPool(int threads) {
         shutdownQuietly(INITIAL_WORKERS.get());
         INITIAL_WORKERS.set(new ThreadPoolExecutor(
@@ -238,6 +260,18 @@ public final class ThreadPoolManager {
                 TimeUnit.MILLISECONDS,
                 new PriorityBlockingQueue<>(),
                 namedFactory("RW-Worker")
+        ));
+    }
+
+    private static void rebuildMapPool(int threads) {
+        shutdownQuietly(MAP_WORKERS.get());
+        MAP_WORKERS.set(new ThreadPoolExecutor(
+                threads,
+                threads,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new PriorityBlockingQueue<>(),
+                namedFactory("RW-Map")
         ));
     }
 
@@ -271,6 +305,11 @@ public final class ThreadPoolManager {
         } catch (Throwable ignored) {}
         int available = Runtime.getRuntime().availableProcessors();
         return Math.max(1, Math.min(4, available - 1));
+    }
+
+    private static int resolveMapWorkerThreads() {
+        int available = Runtime.getRuntime().availableProcessors();
+        return Math.max(1, Math.min(2, available - 1));
     }
 
     private static final class RoleExecutorService extends AbstractExecutorService {

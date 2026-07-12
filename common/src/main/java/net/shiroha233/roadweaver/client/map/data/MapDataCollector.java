@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +22,7 @@ public final class MapDataCollector {
     public static final int INCREMENTAL_RESPONSE_COUNT = 3;
 
     public static MapSnapshot build(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<StructureConnection> connections = MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<List<BlockPos>> roads = MapRoadCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
@@ -29,9 +31,10 @@ public final class MapDataCollector {
 
     public static MapSnapshot buildStructuresSnapshot(ServerLevel level,
                                                       int minBlockX,
-                                                      int minBlockZ,
-                                                      int maxBlockX,
-                                                      int maxBlockZ) {
+                                                       int minBlockZ,
+                                                       int maxBlockX,
+                                                       int maxBlockZ) {
+        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         return new MapSnapshot(
                 limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES),
@@ -42,20 +45,26 @@ public final class MapDataCollector {
 
     public static MapSnapshot buildRoadsSnapshot(ServerLevel level,
                                                  int minBlockX,
-                                                 int minBlockZ,
-                                                 int maxBlockX,
-                                                 int maxBlockZ) {
+                                                  int minBlockZ,
+                                                  int maxBlockX,
+                                                  int maxBlockZ) {
+        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<List<BlockPos>> roads = MapRoadCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         return new MapSnapshot(List.of(), List.of(), List.of(), limitRoadPolylines(roads));
     }
 
     public static MapSnapshot buildConnectionsSnapshot(ServerLevel level,
                                                        int minBlockX,
-                                                       int minBlockZ,
-                                                       int maxBlockX,
-                                                       int maxBlockZ) {
+                                                        int minBlockZ,
+                                                        int maxBlockX,
+                                                        int maxBlockZ) {
+        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<StructureConnection> connections = MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         return new MapSnapshot(List.of(), limitList(connections, MAX_SNAPSHOT_CONNECTIONS), List.of(), List.of());
+    }
+
+    private static void ensureLegacyRoadMetadata(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+        LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
     }
 
     private static MapSnapshot composeSnapshot(MapStructureCollector.Result structureResult,

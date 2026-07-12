@@ -70,7 +70,7 @@ public final class RoadsideVillageJigsawPlanner {
         List<StructurePoolElement> candidates = holder.get().value().getShuffledTemplates(random);
         for (StructurePoolElement element : candidates) {
             Optional<BoundingBox> templateBounds = safeBoundingBox(templateManager, element, BlockPos.ZERO, Rotation.NONE);
-            if (templateBounds.isEmpty() || isEmptyElementBounds(templateBounds.get())) {
+            if (templateBounds.isEmpty() || shouldSkipElement(slot, templateBounds.get())) {
                 continue;
             }
 
@@ -85,6 +85,10 @@ public final class RoadsideVillageJigsawPlanner {
 
     private static boolean isEmptyElementBounds(BoundingBox box) {
         return box.getXSpan() <= 1 && box.getZSpan() <= 1;
+    }
+
+    private static boolean shouldSkipElement(PendingRoadsideVillageSlot slot, BoundingBox box) {
+        return slot.kind() != PendingRoadsideVillageSlot.SlotKind.VILLAGER && isEmptyElementBounds(box);
     }
 
     private static Optional<BoundingBox> safeBoundingBox(StructureTemplateManager templateManager,

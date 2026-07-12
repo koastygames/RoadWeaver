@@ -20,6 +20,7 @@ import java.nio.DoubleBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -32,26 +33,28 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
     private static final AtomicBoolean KERNEL_LOGGED = new AtomicBoolean();
     private static final AtomicBoolean DISABLED_FALLBACK_LOGGED = new AtomicBoolean();
     private static final Object SESSION_VALIDATION_LOCK = new Object();
+    private static final Object PROGRAM_CACHE_LOCK = new Object();
+    private static final IdentityHashMap<Object, CachedDensityProgram> PROGRAM_CACHE = new IdentityHashMap<>();
     private static boolean sessionValidationStarted;
     private static boolean sessionValidationFinished;
 
     private final ServerLevel level;
     private final OpenCLRuntime runtime;
+    private final CachedDensityProgram cachedProgram;
     private final DensityGraphProgram program;
-    private final CpuCoarseHeightBatchSampler fallback;
     private final int minY;
     private final int maxY;
     private final int cellHeight;
+    private CpuCoarseHeightBatchSampler fallback;
 
     private OpenCLCoarseHeightBatchSampler(ServerLevel level,
-                                           OpenCLRuntime runtime,
-                                           DensityGraphProgram program,
-                                           CpuCoarseHeightBatchSampler fallback,
-                                           NoiseSettings settings) {
+                                            OpenCLRuntime runtime,
+                                            CachedDensityProgram cachedProgram,
+                                            NoiseSettings settings) {
         this.level = level;
         this.runtime = runtime;
-        this.program = program;
-        this.fallback = fallback;
+        this.cachedProgram = cachedProgram;
+        this.program = cachedProgram.program();
         this.minY = settings.minY();
         this.maxY = settings.minY() + settings.height();
         this.cellHeight = settings.getCellHeight();
@@ -68,7 +71,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                     OpenCLWorldSupport.unsupportedReason(level.dimension().location()));
             return null;
         }
-        DensityGraphCompileResult graph = compileInitialDensity(level);
+        CachedCompileResult graph = compileInitialDensity(level);
         if (!graph.supported()) {
             if (graph.retryable()) {
                 LOGGER.info("OpenCL 粗采样暂时不可用，维度 {} 本次回退到 CPU，后续继续重试: {}",
@@ -88,16 +91,15 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             OpenCLCoarseHeightBatchSampler sampler = new OpenCLCoarseHeightBatchSampler(
                     level,
                     runtime,
-                    graph.program(),
-                    CpuCoarseHeightBatchSampler.create(level),
+                    graph.cachedProgram(),
                     getNoiseSettings(level));
             InitialGenerationProgressTracker.setBackend("OPENCL", runtime.deviceName(), null);
             if (ENABLED_LOGGED.compareAndSet(false, true)) {
                 LOGGER.info("OpenCL 粗采样已启用 preference={} nodes={} normalNoises={} splines={}",
                         runtime.devicePreference(),
-                        graph.program().nodes().size(),
-                        graph.program().noiseTables().normalNoises().size(),
-                        graph.program().splines().size());
+                        graph.cachedProgram().program().nodes().size(),
+                        graph.cachedProgram().program().noiseTables().normalNoises().size(),
+                        graph.cachedProgram().program().splines().size());
             }
             return sampler;
         } catch (Throwable t) {
@@ -107,18 +109,39 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         }
     }
 
-    private static DensityGraphCompileResult compileInitialDensity(ServerLevel level) {
+    public static void clearProgramCache() {
+        synchronized (PROGRAM_CACHE_LOCK) {
+            for (CachedDensityProgram program : PROGRAM_CACHE.values()) {
+                program.close();
+            }
+            PROGRAM_CACHE.clear();
+        }
+    }
+
+    private static CachedCompileResult compileInitialDensity(ServerLevel level) {
         try {
             var randomState = level.getChunkSource().getGeneratorState().randomState();
-            var router = randomState.router();
-            return DensityGraphCompiler.compile(router.initialDensityWithoutJaggedness());
+            synchronized (PROGRAM_CACHE_LOCK) {
+                CachedDensityProgram cached = PROGRAM_CACHE.get(randomState);
+                if (cached != null) {
+                    return CachedCompileResult.supported(cached);
+                }
+                var router = randomState.router();
+                DensityGraphCompileResult result = DensityGraphCompiler.compile(router.initialDensityWithoutJaggedness());
+                if (!result.supported()) {
+                    return CachedCompileResult.from(result);
+                }
+                cached = new CachedDensityProgram(result.program());
+                PROGRAM_CACHE.put(randomState, cached);
+                return CachedCompileResult.supported(cached);
+            }
         } catch (Throwable t) {
             LOGGER.info("OpenCL 初始 density graph 提取失败: dimension={} error={} message={}",
                     level == null ? "null" : level.dimension().location(),
                     t.getClass().getName(),
                     t.getMessage(),
                     t);
-            return DensityGraphCompileResult.retryable("initial density graph unavailable: " + t.getClass().getSimpleName());
+            return CachedCompileResult.retryable("initial density graph unavailable: " + t.getClass().getSimpleName());
         }
     }
 
@@ -130,18 +153,18 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         if (OpenCLWorldSupport.isUnsupported(level.dimension().location())) {
             InitialGenerationProgressTracker.setBackend("CPU", "CPU",
                     OpenCLWorldSupport.unsupportedReason(level.dimension().location()));
-            return fallback.sampleHeights(request);
+            return fallback().sampleHeights(request);
         }
         if (program.isEmpty()) {
             InitialGenerationProgressTracker.setBackend("CPU", "CPU", "opencl_program_empty");
-            return fallback.sampleHeights(request);
+            return fallback().sampleHeights(request);
         }
         if (!OpenCLAvailability.isAvailable()) {
             if (DISABLED_FALLBACK_LOGGED.compareAndSet(false, true)) {
                 LOGGER.info("OpenCL 粗采样已禁用，当前请求直接使用 CPU: {}", OpenCLAvailability.disabledReason());
             }
             InitialGenerationProgressTracker.setBackend("CPU", "CPU", OpenCLAvailability.disabledReason());
-            return fallback.sampleHeights(request);
+            return fallback().sampleHeights(request);
         }
         long startedAt = System.currentTimeMillis();
         try {
@@ -149,12 +172,12 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
             if (validationMode == ValidationMode.NONE && OpenCLWorldSupport.isUnsupported(level.dimension().location())) {
                 InitialGenerationProgressTracker.setBackend("CPU", "CPU",
                         OpenCLWorldSupport.unsupportedReason(level.dimension().location()));
-                return fallback.sampleHeights(request);
+                return fallback().sampleHeights(request);
             }
             int[] heights = sampleHeightsOpenCL(request);
             try {
                 if (validationMode.shouldValidate()) {
-                    int[] expected = fallback.sampleHeights(request);
+                    int[] expected = fallback().sampleHeights(request);
                     if (expected == null) {
                         return null;
                     }
@@ -184,7 +207,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         } catch (Throwable t) {
             OpenCLAvailability.disable("OpenCL kernel 执行失败", t);
             InitialGenerationProgressTracker.setBackend("CPU", "CPU", OpenCLAvailability.disabledReason());
-            return fallback.sampleHeights(request);
+            return fallback().sampleHeights(request);
         }
     }
 
@@ -195,7 +218,16 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
 
     @Override
     public void close() {
-        fallback.close();
+        if (fallback != null) {
+            fallback.close();
+        }
+    }
+
+    private CpuCoarseHeightBatchSampler fallback() {
+        if (fallback == null) {
+            fallback = CpuCoarseHeightBatchSampler.create(level);
+        }
+        return fallback;
     }
 
     private int[] sampleHeightsOpenCL(CoarseHeightBatchRequest request) {
@@ -205,62 +237,41 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
     }
 
     private int[] sampleHeightsOpenCLLocked(CoarseHeightBatchRequest request) {
-        KernelPayload payload = KernelPayload.from(program, request, minY, maxY, cellHeight);
+        synchronized (cachedProgram) {
+            return sampleHeightsOpenCLWithProgram(request);
+        }
+    }
+
+    private int[] sampleHeightsOpenCLWithProgram(CoarseHeightBatchRequest request) {
+        RequestKernelPayload payload = RequestKernelPayload.from(program, request, minY, maxY, cellHeight);
+        OpenCLDeviceBuffers staticBuffers = cachedProgram.buffers(runtime);
         List<Long> memObjects = new ArrayList<>();
         List<Buffer> hostBuffers = new ArrayList<>();
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer err = stack.mallocInt(1);
 
             IntBuffer params = directInt(payload.params(), hostBuffers);
-            IntBuffer nodeInts = directInt(payload.nodeInts(), hostBuffers);
-            DoubleBuffer nodeValues = directDouble(payload.nodeValues(), hostBuffers);
-            IntBuffer normalInts = directInt(payload.normalInts(), hostBuffers);
-            DoubleBuffer normalValues = directDouble(payload.normalValues(), hostBuffers);
-            IntBuffer perlinInts = directInt(payload.perlinInts(), hostBuffers);
-            DoubleBuffer perlinValues = directDouble(payload.perlinValues(), hostBuffers);
-            DoubleBuffer amplitudes = directDouble(payload.amplitudes(), hostBuffers);
-            IntBuffer improvedIndices = directInt(payload.improvedIndices(), hostBuffers);
-            DoubleBuffer improvedValues = directDouble(payload.improvedValues(), hostBuffers);
-            IntBuffer permutations = directInt(payload.permutations(), hostBuffers);
-            IntBuffer splineInts = directInt(payload.splineInts(), hostBuffers);
-            DoubleBuffer splineLocations = directDouble(payload.splineLocations(), hostBuffers);
-            IntBuffer splineValueNodes = directInt(payload.splineValueNodes(), hostBuffers);
-            DoubleBuffer splineDerivatives = directDouble(payload.splineDerivatives(), hostBuffers);
 
             long paramsMem = readOnly(params, err, memObjects);
-            long nodeIntsMem = readOnly(nodeInts, err, memObjects);
-            long nodeValuesMem = readOnly(nodeValues, err, memObjects);
-            long normalIntsMem = readOnly(normalInts, err, memObjects);
-            long normalValuesMem = readOnly(normalValues, err, memObjects);
-            long perlinIntsMem = readOnly(perlinInts, err, memObjects);
-            long perlinValuesMem = readOnly(perlinValues, err, memObjects);
-            long amplitudesMem = readOnly(amplitudes, err, memObjects);
-            long improvedIndicesMem = readOnly(improvedIndices, err, memObjects);
-            long improvedValuesMem = readOnly(improvedValues, err, memObjects);
-            long permutationsMem = readOnly(permutations, err, memObjects);
-            long splineIntsMem = readOnly(splineInts, err, memObjects);
-            long splineLocationsMem = readOnly(splineLocations, err, memObjects);
-            long splineValueNodesMem = readOnly(splineValueNodes, err, memObjects);
-            long splineDerivativesMem = readOnly(splineDerivatives, err, memObjects);
             long scratchMem = buffer(CL10.CL_MEM_READ_WRITE, payload.scratchBytes(), err, memObjects);
             long heightsMem = buffer(CL10.CL_MEM_WRITE_ONLY, intBytes(request.sampleCount()), err, memObjects);
 
             int arg = 0;
             setKernelArg(arg++, paramsMem);
-            setKernelArg(arg++, nodeIntsMem);
-            setKernelArg(arg++, nodeValuesMem);
-            setKernelArg(arg++, normalIntsMem);
-            setKernelArg(arg++, normalValuesMem);
-            setKernelArg(arg++, perlinIntsMem);
-            setKernelArg(arg++, perlinValuesMem);
-            setKernelArg(arg++, amplitudesMem);
-            setKernelArg(arg++, improvedIndicesMem);
-            setKernelArg(arg++, improvedValuesMem);
-            setKernelArg(arg++, permutationsMem);
-            setKernelArg(arg++, splineIntsMem);
-            setKernelArg(arg++, splineLocationsMem);
-            setKernelArg(arg++, splineValueNodesMem);
-            setKernelArg(arg++, splineDerivativesMem);
+            setKernelArg(arg++, staticBuffers.nodeIntsMem());
+            setKernelArg(arg++, staticBuffers.nodeValuesMem());
+            setKernelArg(arg++, staticBuffers.normalIntsMem());
+            setKernelArg(arg++, staticBuffers.normalValuesMem());
+            setKernelArg(arg++, staticBuffers.perlinIntsMem());
+            setKernelArg(arg++, staticBuffers.perlinValuesMem());
+            setKernelArg(arg++, staticBuffers.amplitudesMem());
+            setKernelArg(arg++, staticBuffers.improvedIndicesMem());
+            setKernelArg(arg++, staticBuffers.improvedValuesMem());
+            setKernelArg(arg++, staticBuffers.permutationsMem());
+            setKernelArg(arg++, staticBuffers.splineIntsMem());
+            setKernelArg(arg++, staticBuffers.splineLocationsMem());
+            setKernelArg(arg++, staticBuffers.splineValueNodesMem());
+            setKernelArg(arg++, staticBuffers.splineDerivativesMem());
             setKernelArg(arg++, scratchMem);
             setKernelArg(arg, heightsMem);
 
@@ -433,29 +444,82 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
         return NoiseSettings.create(-64, 384, 1, 2);
     }
 
-    private record KernelPayload(
+    private record CachedCompileResult(
+            CachedDensityProgram cachedProgram,
+            String unsupportedReason,
+            boolean retryable
+    ) {
+        private static CachedCompileResult supported(CachedDensityProgram program) {
+            return new CachedCompileResult(program, null, false);
+        }
+
+        private static CachedCompileResult unsupported(String reason) {
+            return new CachedCompileResult(null, reason == null || reason.isBlank() ? "unknown" : reason, false);
+        }
+
+        private static CachedCompileResult retryable(String reason) {
+            return new CachedCompileResult(null, reason == null || reason.isBlank() ? "unknown" : reason, true);
+        }
+
+        private static CachedCompileResult from(DensityGraphCompileResult result) {
+            if (result.retryable()) {
+                return retryable(result.unsupportedReason());
+            }
+            return unsupported(result.unsupportedReason());
+        }
+
+        private boolean supported() {
+            return cachedProgram != null && cachedProgram.program() != null && !cachedProgram.program().isEmpty() && unsupportedReason == null;
+        }
+    }
+
+    private static final class CachedDensityProgram {
+        private final DensityGraphProgram program;
+        private final StaticKernelPayload payload;
+        private OpenCLDeviceBuffers buffers;
+        private long bufferContext;
+
+        private CachedDensityProgram(DensityGraphProgram program) {
+            this.program = program;
+            this.payload = StaticKernelPayload.from(program);
+        }
+
+        private DensityGraphProgram program() {
+            return program;
+        }
+
+        private synchronized OpenCLDeviceBuffers buffers(OpenCLRuntime runtime) {
+            if (buffers != null && bufferContext == runtime.context()) {
+                return buffers;
+            }
+            closeBuffers();
+            buffers = OpenCLDeviceBuffers.create(runtime, payload);
+            bufferContext = runtime.context();
+            return buffers;
+        }
+
+        private synchronized void close() {
+            closeBuffers();
+        }
+
+        private void closeBuffers() {
+            if (buffers != null) {
+                buffers.close();
+                buffers = null;
+                bufferContext = 0L;
+            }
+        }
+    }
+
+    private record RequestKernelPayload(
             int[] params,
-            int[] nodeInts,
-            double[] nodeValues,
-            int[] normalInts,
-            double[] normalValues,
-            int[] perlinInts,
-            double[] perlinValues,
-            double[] amplitudes,
-            int[] improvedIndices,
-            double[] improvedValues,
-            int[] permutations,
-            int[] splineInts,
-            double[] splineLocations,
-            int[] splineValueNodes,
-            double[] splineDerivatives,
             long scratchBytes
     ) {
-        private static KernelPayload from(DensityGraphProgram program,
-                                          CoarseHeightBatchRequest request,
-                                          int minY,
-                                          int maxY,
-                                          int cellHeight) {
+        private static RequestKernelPayload from(DensityGraphProgram program,
+                                                CoarseHeightBatchRequest request,
+                                                int minY,
+                                                int maxY,
+                                                int cellHeight) {
             int sampleCount = request.sampleCount();
             int nodeCount = program.nodes().size();
             int[] params = {
@@ -474,7 +538,31 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                     program.noiseTables().improvedNoises().size(),
                     program.splines().size()
             };
+            long scratchBytes = Math.multiplyExact(
+                    Math.multiplyExact((long) sampleCount, (long) Math.max(1, nodeCount)),
+                    (long) Double.BYTES);
+            return new RequestKernelPayload(params, scratchBytes);
+        }
+    }
 
+    private record StaticKernelPayload(
+            int[] nodeInts,
+            double[] nodeValues,
+            int[] normalInts,
+            double[] normalValues,
+            int[] perlinInts,
+            double[] perlinValues,
+            double[] amplitudes,
+            int[] improvedIndices,
+            double[] improvedValues,
+            int[] permutations,
+            int[] splineInts,
+            double[] splineLocations,
+            int[] splineValueNodes,
+            double[] splineDerivatives
+    ) {
+        private static StaticKernelPayload from(DensityGraphProgram program) {
+            int nodeCount = program.nodes().size();
             int[] nodeInts = new int[Math.multiplyExact(nodeCount, 5)];
             double[] nodeValues = new double[Math.multiplyExact(nodeCount, 4)];
             for (int i = 0; i < nodeCount; i++) {
@@ -558,11 +646,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                 splineInts[intBase + 2] = spline.pointCount();
             }
 
-            long scratchBytes = Math.multiplyExact(
-                    Math.multiplyExact((long) sampleCount, (long) Math.max(1, nodeCount)),
-                    (long) Double.BYTES);
-            return new KernelPayload(
-                    params,
+            return new StaticKernelPayload(
                     nodeInts,
                     nodeValues,
                     normalInts,
@@ -576,8 +660,7 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                     splineInts,
                     toDoubleArray(splineLocationValues),
                     toIntArray(splineValueNodeValues),
-                    toDoubleArray(splineDerivativeValues),
-                    scratchBytes);
+                    toDoubleArray(splineDerivativeValues));
         }
 
         private static double[] toDoubleArray(List<Double> values) {
@@ -594,6 +677,120 @@ public final class OpenCLCoarseHeightBatchSampler implements CoarseHeightBatchSa
                 result[i] = values.get(i);
             }
             return result;
+        }
+    }
+
+    private record OpenCLDeviceBuffers(
+            long nodeIntsMem,
+            long nodeValuesMem,
+            long normalIntsMem,
+            long normalValuesMem,
+            long perlinIntsMem,
+            long perlinValuesMem,
+            long amplitudesMem,
+            long improvedIndicesMem,
+            long improvedValuesMem,
+            long permutationsMem,
+            long splineIntsMem,
+            long splineLocationsMem,
+            long splineValueNodesMem,
+            long splineDerivativesMem,
+            long[] handles
+    ) implements AutoCloseable {
+        private static OpenCLDeviceBuffers create(OpenCLRuntime runtime, StaticKernelPayload payload) {
+            List<Long> memObjects = new ArrayList<>();
+            List<Buffer> hostBuffers = new ArrayList<>();
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                IntBuffer err = stack.mallocInt(1);
+                long nodeIntsMem = uploadReadOnly(runtime, directInt(payload.nodeInts(), hostBuffers), err, memObjects);
+                long nodeValuesMem = uploadReadOnly(runtime, directDouble(payload.nodeValues(), hostBuffers), err, memObjects);
+                long normalIntsMem = uploadReadOnly(runtime, directInt(payload.normalInts(), hostBuffers), err, memObjects);
+                long normalValuesMem = uploadReadOnly(runtime, directDouble(payload.normalValues(), hostBuffers), err, memObjects);
+                long perlinIntsMem = uploadReadOnly(runtime, directInt(payload.perlinInts(), hostBuffers), err, memObjects);
+                long perlinValuesMem = uploadReadOnly(runtime, directDouble(payload.perlinValues(), hostBuffers), err, memObjects);
+                long amplitudesMem = uploadReadOnly(runtime, directDouble(payload.amplitudes(), hostBuffers), err, memObjects);
+                long improvedIndicesMem = uploadReadOnly(runtime, directInt(payload.improvedIndices(), hostBuffers), err, memObjects);
+                long improvedValuesMem = uploadReadOnly(runtime, directDouble(payload.improvedValues(), hostBuffers), err, memObjects);
+                long permutationsMem = uploadReadOnly(runtime, directInt(payload.permutations(), hostBuffers), err, memObjects);
+                long splineIntsMem = uploadReadOnly(runtime, directInt(payload.splineInts(), hostBuffers), err, memObjects);
+                long splineLocationsMem = uploadReadOnly(runtime, directDouble(payload.splineLocations(), hostBuffers), err, memObjects);
+                long splineValueNodesMem = uploadReadOnly(runtime, directInt(payload.splineValueNodes(), hostBuffers), err, memObjects);
+                long splineDerivativesMem = uploadReadOnly(runtime, directDouble(payload.splineDerivatives(), hostBuffers), err, memObjects);
+                long[] handles = toLongArray(memObjects);
+                return new OpenCLDeviceBuffers(
+                        nodeIntsMem,
+                        nodeValuesMem,
+                        normalIntsMem,
+                        normalValuesMem,
+                        perlinIntsMem,
+                        perlinValuesMem,
+                        amplitudesMem,
+                        improvedIndicesMem,
+                        improvedValuesMem,
+                        permutationsMem,
+                        splineIntsMem,
+                        splineLocationsMem,
+                        splineValueNodesMem,
+                        splineDerivativesMem,
+                        handles);
+            } catch (Throwable t) {
+                releaseAll(memObjects);
+                throw t;
+            } finally {
+                for (Buffer hostBuffer : hostBuffers) {
+                    MemoryUtil.memFree(hostBuffer);
+                }
+            }
+        }
+
+        @Override
+        public void close() {
+            releaseAll(Arrays.asList(toBoxed(handles)));
+        }
+
+        private static long uploadReadOnly(OpenCLRuntime runtime, IntBuffer host, IntBuffer err, List<Long> memObjects) {
+            long mem = createDeviceBuffer(runtime, CL10.CL_MEM_READ_ONLY, intBytes(host.remaining()), err, memObjects);
+            check(CL10.clEnqueueWriteBuffer(runtime.queue(), mem, true, 0L, host, (org.lwjgl.PointerBuffer) null, (org.lwjgl.PointerBuffer) null), "clEnqueueWriteBuffer(int/static)");
+            return mem;
+        }
+
+        private static long uploadReadOnly(OpenCLRuntime runtime, DoubleBuffer host, IntBuffer err, List<Long> memObjects) {
+            long mem = createDeviceBuffer(runtime, CL10.CL_MEM_READ_ONLY, doubleBytes(host.remaining()), err, memObjects);
+            check(CL10.clEnqueueWriteBuffer(runtime.queue(), mem, true, 0L, host, (org.lwjgl.PointerBuffer) null, (org.lwjgl.PointerBuffer) null), "clEnqueueWriteBuffer(double/static)");
+            return mem;
+        }
+
+        private static long createDeviceBuffer(OpenCLRuntime runtime, long flags, long bytes, IntBuffer err, List<Long> memObjects) {
+            long mem = CL10.clCreateBuffer(runtime.context(), flags, Math.max(1L, bytes), err);
+            check(err.get(0), "clCreateBuffer(static)");
+            memObjects.add(mem);
+            return mem;
+        }
+
+        private static long[] toLongArray(List<Long> values) {
+            long[] result = new long[values.size()];
+            for (int i = 0; i < values.size(); i++) {
+                result[i] = values.get(i);
+            }
+            return result;
+        }
+
+        private static Long[] toBoxed(long[] values) {
+            Long[] result = new Long[values == null ? 0 : values.length];
+            for (int i = 0; i < result.length; i++) {
+                result[i] = values[i];
+            }
+            return result;
+        }
+
+        private static void releaseAll(List<Long> memObjects) {
+            for (long memObject : memObjects) {
+                if (memObject != 0L) {
+                    try {
+                        CL10.clReleaseMemObject(memObject);
+                    } catch (Throwable ignored) {}
+                }
+            }
         }
     }
 }

@@ -1,6 +1,8 @@
 package net.shiroha233.roadweaver.pathfinding.terrain.region;
 
 import net.minecraft.server.level.ServerLevel;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationStage;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import org.slf4j.Logger;
@@ -48,6 +50,8 @@ public final class CoarseTerrainRegionSampler {
         if (keys.size() > RoadConstants.COARSE_REGION_MAX_TILES) {
             throw new IllegalArgumentException("coarse region tile count too large: " + keys.size());
         }
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.COARSE_SAMPLING, "sampling_coarse_tiles");
+        InitialGenerationProgressTracker.setTilePlan(keys.size(), bounds.sampleCount(), "sampling_coarse_tiles");
         logRegionLoad(bounds, keys.size());
 
         Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles = loadTiles(level, keys);
@@ -106,7 +110,10 @@ public final class CoarseTerrainRegionSampler {
         for (CoarseTerrainTileKey key : keys) {
             if (Thread.currentThread().isInterrupted()) return out;
             CoarseTerrainTile tile = CoarseTerrainTileCache.getOrLoad(level, key);
-            if (tile != null) out.put(key, tile);
+            if (tile != null) {
+                out.put(key, tile);
+                InitialGenerationProgressTracker.recordTileLoaded();
+            }
         }
         return out;
     }
@@ -131,6 +138,7 @@ public final class CoarseTerrainRegionSampler {
                 TileLoadResult result = future.get();
                 if (result != null && result.tile() != null) {
                     out.put(result.key(), result.tile());
+                    InitialGenerationProgressTracker.recordTileLoaded();
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -168,16 +176,13 @@ public final class CoarseTerrainRegionSampler {
     private static ThreadPoolExecutor tileExecutor(int parallelism) {
         int threads = Math.max(1, Math.min(RoadConstants.COARSE_REGION_PARALLEL_MAX_THREADS, parallelism));
         ThreadPoolExecutor current = TILE_EXECUTOR.get();
-        if (current != null && !current.isShutdown() && current.getCorePoolSize() == threads) {
+        if (current != null && !current.isShutdown()) {
             return current;
         }
         synchronized (CoarseTerrainRegionSampler.class) {
             current = TILE_EXECUTOR.get();
-            if (current != null && !current.isShutdown() && current.getCorePoolSize() == threads) {
-                return current;
-            }
             if (current != null && !current.isShutdown()) {
-                current.shutdownNow();
+                return current;
             }
             ThreadPoolExecutor next = new ThreadPoolExecutor(
                     threads,

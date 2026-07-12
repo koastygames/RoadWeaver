@@ -1,4 +1,4 @@
-package net.shiroha233.roadweaver.client.loading;
+package net.shiroha233.roadweaver.client.loading.fabric;
 
 /**
  * 平台侧“打开地图”按键文案实现。

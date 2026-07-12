@@ -98,8 +98,8 @@ public final class ClientMapTileTextureCache {
             return null;
         }
 
-        // 4. 同步加载
-        return loadTexture(mc, path, key, currentLastMod, inViewport);
+        startAsyncLoad(mc, path, key, currentLastMod, inViewport);
+        return null;
     }
 
     public static synchronized ResourceLocation getOrLoad(Minecraft mc, Path path) {
@@ -120,27 +120,7 @@ public final class ClientMapTileTextureCache {
             }
         }
 
-        CompletableFuture<ResourceLocation> future = CompletableFuture.supplyAsync(() -> {
-            try (InputStream input = Files.newInputStream(path)) {
-                NativeImage image = NativeImage.read(input);
-                DynamicTexture texture = new DynamicTexture(image);
-                ResourceLocation location = mc.getTextureManager().register(
-                        "roadweaver_map_tile/" + Integer.toHexString(key.hashCode()), texture);
-                TextureEntry entry = new TextureEntry(location, lastModified(path));
-
-                synchronized (ClientMapTileTextureCache.class) {
-                    BACKGROUND_CACHE.put(key, entry);
-                    trimBackgroundCache(mc);
-                }
-                return location;
-            } catch (IOException e) {
-                deleteCorruptTile(path, e);
-                return null;
-            }
-        }, LOAD_EXECUTOR);
-
-        PENDING_LOADS.put(key, future);
-        future.whenComplete((loc, ex) -> PENDING_LOADS.remove(key));
+        startAsyncLoad(mc, path, key, lastModified(path), false);
     }
 
     public static synchronized void trimToViewport(Minecraft mc, Set<String> viewportKeys) {
@@ -181,25 +161,71 @@ public final class ClientMapTileTextureCache {
         BACKGROUND_CACHE.clear();
     }
 
-    private static ResourceLocation loadTexture(Minecraft mc, Path path, String key, long lastMod, boolean inViewport) {
-        try (InputStream input = Files.newInputStream(path)) {
-            NativeImage image = NativeImage.read(input);
-            DynamicTexture texture = new DynamicTexture(image);
+    private static CompletableFuture<ResourceLocation> startAsyncLoad(Minecraft mc,
+                                                                      Path path,
+                                                                      String key,
+                                                                      long lastMod,
+                                                                      boolean inViewport) {
+        CompletableFuture<ResourceLocation> future = new CompletableFuture<>();
+        CompletableFuture<ResourceLocation> existing = PENDING_LOADS.putIfAbsent(key, future);
+        if (existing != null) {
+            return existing;
+        }
+
+        LOAD_EXECUTOR.execute(() -> {
+            NativeImage image = null;
+            try (InputStream input = Files.newInputStream(path)) {
+                image = NativeImage.read(input);
+                NativeImage loadedImage = image;
+                image = null;
+                mc.execute(() -> registerLoadedTexture(mc, path, key, lastMod, inViewport, loadedImage, future));
+            } catch (IOException e) {
+                deleteCorruptTile(path, e);
+                future.complete(null);
+            } catch (Throwable t) {
+                if (image != null) {
+                    image.close();
+                }
+                LOGGER.warn("地图瓦片 PNG 加载失败: {}", path, t);
+                future.complete(null);
+            }
+        });
+        future.whenComplete((loc, ex) -> PENDING_LOADS.remove(key, future));
+        return future;
+    }
+
+    private static void registerLoadedTexture(Minecraft mc,
+                                              Path path,
+                                              String key,
+                                              long lastMod,
+                                              boolean inViewport,
+                                              NativeImage image,
+                                              CompletableFuture<ResourceLocation> future) {
+        DynamicTexture texture = null;
+        try {
+            texture = new DynamicTexture(image);
             ResourceLocation location = mc.getTextureManager().register(
                     "roadweaver_map_tile/" + Integer.toHexString(key.hashCode()), texture);
             TextureEntry entry = new TextureEntry(location, lastMod);
 
-            if (inViewport) {
-                VIEWPORT_CACHE.put(key, entry);
-                trimViewportCache(mc);
-            } else {
-                BACKGROUND_CACHE.put(key, entry);
-                trimBackgroundCache(mc);
+            synchronized (ClientMapTileTextureCache.class) {
+                if (inViewport) {
+                    VIEWPORT_CACHE.put(key, entry);
+                    trimViewportCache(mc);
+                } else {
+                    BACKGROUND_CACHE.put(key, entry);
+                    trimBackgroundCache(mc);
+                }
             }
-            return location;
-        } catch (IOException e) {
-            deleteCorruptTile(path, e);
-            return null;
+            future.complete(location);
+        } catch (Throwable t) {
+            if (texture != null) {
+                texture.close();
+            } else if (image != null) {
+                image.close();
+            }
+            LOGGER.warn("地图瓦片 PNG 纹理注册失败: {}", path, t);
+            future.complete(null);
         }
     }
 
