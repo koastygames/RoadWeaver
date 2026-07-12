@@ -52,11 +52,9 @@ public final class RoadPlanningService {
     private RoadPlanningService() {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-    private static final ConcurrentHashMap<Level, Set<Long>> PLANNED_TILES = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Level, ConcurrentHashMap<Long, Long>> PLANNED_TILE_CENTERS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Level, Set<Long>> TERRAIN_REPAIR_TILES = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Level, Set<Long>> ROAD_BACKFILL_PLAN_TILES = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Level, Set<Long>> PLANNING_TILES = new ConcurrentHashMap<>();
+    private static final Set<Long> TERRAIN_REPAIR_TILES = ConcurrentHashMap.newKeySet();
+    private static final Set<Long> ROAD_BACKFILL_PLAN_TILES = ConcurrentHashMap.newKeySet();
+    private static final Set<Long> PLANNING_TILES = ConcurrentHashMap.newKeySet();
 
     private static void prunePlannedIfTooLarge(Level level) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
@@ -77,7 +75,7 @@ public final class RoadPlanningService {
     }
 
     public static void initialPlan(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         InitialGenerationProgressTracker.enterStage(InitialGenerationStage.PLANNING, "discovering_structures");
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.planning().initialPlanRadiusChunks());
@@ -94,6 +92,7 @@ public final class RoadPlanningService {
     public static void planAroundPlayer(ServerPlayer player) {
         if (player == null) return;
         ServerLevel level = player.serverLevel();
+        if (!Level.OVERWORLD.equals(level.dimension())) return;
         ModConfig cfg = ConfigService.get();
         if (!cfg.planning().dynamicPlanEnabled()) return;
         if (H2MigrationCoordinator.hasPendingLegacyData(level)) return;
@@ -134,23 +133,19 @@ public final class RoadPlanningService {
     }
 
     private static boolean markRoadBackfillPlanTile(ServerLevel level, long tileKey) {
-        Set<Long> backfilled = ROAD_BACKFILL_PLAN_TILES.computeIfAbsent(level, ignored -> ConcurrentHashMap.newKeySet());
-        return backfilled.add(tileKey);
+        return ROAD_BACKFILL_PLAN_TILES.add(tileKey);
     }
 
     private static void unmarkRoadBackfillPlanTile(ServerLevel level, long tileKey) {
-        Set<Long> backfilled = ROAD_BACKFILL_PLAN_TILES.get(level);
-        if (backfilled != null) backfilled.remove(tileKey);
+        ROAD_BACKFILL_PLAN_TILES.remove(tileKey);
     }
 
     private static boolean markPlanningTile(ServerLevel level, long tileKey) {
-        Set<Long> planning = PLANNING_TILES.computeIfAbsent(level, ignored -> ConcurrentHashMap.newKeySet());
-        return planning.add(tileKey);
+        return PLANNING_TILES.add(tileKey);
     }
 
     private static void unmarkPlanningTile(ServerLevel level, long tileKey) {
-        Set<Long> planning = PLANNING_TILES.get(level);
-        if (planning != null) planning.remove(tileKey);
+        PLANNING_TILES.remove(tileKey);
     }
 
     private static void markPlannedTile(ServerLevel level, long tileKey, int centerChunkX, int centerChunkZ) {
@@ -169,13 +164,12 @@ public final class RoadPlanningService {
                                                    int minBlockZ,
                                                    int maxBlockX,
                                                    int maxBlockZ) {
-        Set<Long> repaired = TERRAIN_REPAIR_TILES.computeIfAbsent(level, ignored -> ConcurrentHashMap.newKeySet());
-        if (repaired.contains(tileKey)) return;
+        if (TERRAIN_REPAIR_TILES.contains(tileKey)) return;
         if (hasCompleteTerrainTiles(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
-            repaired.add(tileKey);
+            TERRAIN_REPAIR_TILES.add(tileKey);
             return;
         }
-        if (!repaired.add(tileKey)) return;
+        if (!TERRAIN_REPAIR_TILES.add(tileKey)) return;
         ComputeService.runAsync(ThreadPoolManager.TaskRole.COARSE, () -> {
             CoarseTerrainRegion region = null;
             try {
@@ -268,7 +262,7 @@ public final class RoadPlanningService {
     }
 
     public static CompletableFuture<Void> initialPlanAsync(ServerLevel level) {
-        if (level == null) return CompletableFuture.completedFuture(null);
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return CompletableFuture.completedFuture(null);
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.planning().initialPlanRadiusChunks());
         BlockPos spawn = level.getSharedSpawnPos();
@@ -284,6 +278,7 @@ public final class RoadPlanningService {
     private record PlannedRegionResult(List<StructureConnection> incoming) {}
 
     public static CompletableFuture<Void> planRectAsync(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return CompletableFuture.completedFuture(null);
         final long epoch = ThreadPoolManager.currentEpoch();
         final List<StructureConnection> existingSnapshot;
         {
@@ -580,8 +575,6 @@ public final class RoadPlanningService {
     }
 
     public static void resetAll() {
-        PLANNED_TILES.clear();
-        PLANNED_TILE_CENTERS.clear();
         TERRAIN_REPAIR_TILES.clear();
         ROAD_BACKFILL_PLAN_TILES.clear();
         PLANNING_TILES.clear();

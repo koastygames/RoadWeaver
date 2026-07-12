@@ -5,6 +5,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.HangingSignBlockEntity;
@@ -33,21 +34,19 @@ public final class SignTextService {
     private static final int MAX_DISTANCE_TEXT_LEN = 32;
     private static final int MAX_MEMORY_RETRIES = 2;
 
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<Long>> DIRTY_CHUNKS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> DIRTY_MARKS = new ConcurrentHashMap<>();
+    private static final ConcurrentLinkedQueue<Long> DIRTY_CHUNKS = new ConcurrentLinkedQueue<>();
+    private static final ConcurrentHashMap<Long, Boolean> DIRTY_MARKS = new ConcurrentHashMap<>();
 
     public static void tick(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
 
-        ConcurrentLinkedQueue<Long> queue = DIRTY_CHUNKS.get(level);
-        if (queue == null || queue.isEmpty()) return;
+        if (DIRTY_CHUNKS.isEmpty()) return;
 
-        ConcurrentHashMap<Long, Boolean> marks = DIRTY_MARKS.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
         int budget = CHUNK_BUDGET_PER_TICK;
         while (budget-- > 0) {
-            Long chunkKey = queue.poll();
+            Long chunkKey = DIRTY_CHUNKS.poll();
             if (chunkKey == null) return;
-            marks.remove(chunkKey);
+            DIRTY_MARKS.remove(chunkKey);
 
             int chunkX = ChunkPos.getX(chunkKey);
             int chunkZ = ChunkPos.getZ(chunkKey);
@@ -62,20 +61,20 @@ public final class SignTextService {
     }
 
     public static void onChunkReady(ServerLevel level, ChunkPos chunkPos) {
-        if (level == null || chunkPos == null) return;
+        if (level == null || chunkPos == null || !Level.OVERWORLD.equals(level.dimension())) return;
         markChunkDirty(level, chunkPos.x, chunkPos.z);
     }
 
     public static void onDimensionUnload(ServerLevel level) {
-        if (level == null) return;
-        DIRTY_CHUNKS.remove(level);
-        DIRTY_MARKS.remove(level);
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        DIRTY_CHUNKS.clear();
+        DIRTY_MARKS.clear();
         SignTextShardStorage.clearLevel(level);
     }
 
     public static void writeDistanceSign(WorldGenLevel level, BlockPos pos, String text) {
         net.minecraft.world.level.Level l = level.getLevel();
-        if (!(l instanceof net.minecraft.server.level.ServerLevel sLevel)) return;
+        if (!(l instanceof net.minecraft.server.level.ServerLevel sLevel) || !Level.OVERWORLD.equals(sLevel.dimension())) return;
 
         try {
             String safeText = sanitizeDistanceText(text);
@@ -112,7 +111,7 @@ public final class SignTextService {
 
     public static void writeSeaQuestionSign(WorldGenLevel level, BlockPos pos) {
         net.minecraft.world.level.Level l = level.getLevel();
-        if (!(l instanceof net.minecraft.server.level.ServerLevel sLevel)) return;
+        if (!(l instanceof net.minecraft.server.level.ServerLevel sLevel) || !Level.OVERWORLD.equals(sLevel.dimension())) return;
 
         try {
             SignTextShardStorage.upsert(sLevel, pos, SignTextShardStorage.TYPE_SEA_QUESTION, "");
@@ -147,6 +146,7 @@ public final class SignTextService {
     }
 
     private static void processChunk(ServerLevel level, int chunkX, int chunkZ) {
+        if (!Level.OVERWORLD.equals(level.dimension())) return;
         if (level.getChunkSource().getChunkNow(chunkX, chunkZ) == null) return;
         boolean needRetry = false;
 
@@ -202,10 +202,10 @@ public final class SignTextService {
     }
 
     private static void markChunkDirty(ServerLevel level, int chunkX, int chunkZ) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         long key = ChunkPos.asLong(chunkX, chunkZ);
-        ConcurrentHashMap<Long, Boolean> marks = DIRTY_MARKS.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
-        if (marks.putIfAbsent(key, Boolean.TRUE) != null) return;
-        DIRTY_CHUNKS.computeIfAbsent(level, l -> new ConcurrentLinkedQueue<>()).add(key);
+        if (DIRTY_MARKS.putIfAbsent(key, Boolean.TRUE) != null) return;
+        DIRTY_CHUNKS.add(key);
     }
 
     private static boolean shouldDrop(ServerLevel level, BlockPos pos) {
@@ -213,7 +213,7 @@ public final class SignTextService {
     }
 
     public static void flushPersistentFallback(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         SignTextShardStorage.flushPending(level);
     }
 

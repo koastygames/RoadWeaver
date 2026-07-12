@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.persistence.sqlite;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.persistence.files.CoarseTerrainTileFileStorage;
 import net.shiroha233.roadweaver.persistence.files.FileStorageIO;
 import net.shiroha233.roadweaver.persistence.files.FileStoragePathResolver;
@@ -35,7 +36,7 @@ public final class H2MigrationCoordinator {
     public static boolean migrateLevel(ServerLevel level) {
         if (level == null || isCompleted(level)) return false;
 
-        if (!RoadDatabaseManager.hasAnyLegacyDatabase(level)) {
+        if (!hasMigratableLegacyData(level)) {
             if (markCompleted(level)) {
                 LOGGER.info("未发现旧 H2 数据库，跳过迁移 dimension={}", level.dimension().location());
                 return false;
@@ -58,7 +59,8 @@ public final class H2MigrationCoordinator {
             structureCount = RoadDatabaseManager.hasLegacyDatabase(level, RoadDatabaseManager.DB_MAP)
                     ? StructureFileStorage.importLegacyState(level)
                     : 0;
-            if (RoadDatabaseManager.hasLegacyDatabase(level, RoadDatabaseManager.DB_ROAD)) {
+            if (Level.OVERWORLD.equals(level.dimension())
+                    && RoadDatabaseManager.hasLegacyDatabase(level, RoadDatabaseManager.DB_ROAD)) {
                 roadCount = RoadFileStorage.importLegacyRoads(level);
                 signTextCount = SignTextFileStorage.importLegacySignTexts(level);
             } else {
@@ -82,7 +84,15 @@ public final class H2MigrationCoordinator {
     }
 
     public static boolean hasPendingLegacyData(ServerLevel level) {
-        return level != null && !isCompleted(level) && RoadDatabaseManager.hasAnyLegacyDatabase(level);
+        return level != null && !isCompleted(level) && hasMigratableLegacyData(level);
+    }
+
+    private static boolean hasMigratableLegacyData(ServerLevel level) {
+        if (level == null) return false;
+        return RoadDatabaseManager.hasLegacyDatabase(level, RoadDatabaseManager.DB_MAP)
+                || RoadDatabaseManager.hasLegacyDatabase(level, RoadDatabaseManager.DB_TERRAIN)
+                || (Level.OVERWORLD.equals(level.dimension())
+                && RoadDatabaseManager.hasLegacyDatabase(level, RoadDatabaseManager.DB_ROAD));
     }
 
     private static boolean isCompleted(ServerLevel level) {

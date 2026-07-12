@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.persistence.files;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacyH2Importer;
 import org.slf4j.Logger;
@@ -38,7 +39,7 @@ public final class SignTextFileStorage {
     public static record PendingSignWrite(BlockPos pos, int signType, String payload) {}
 
     public static synchronized void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
-        if (level == null || writes == null || writes.isEmpty()) return;
+        if (!isOverworld(level) || writes == null || writes.isEmpty()) return;
         Map<Long, List<PendingSignText>> byChunk = new HashMap<>();
         for (PendingSignWrite write : writes) {
             if (write == null || write.pos() == null) continue;
@@ -54,7 +55,7 @@ public final class SignTextFileStorage {
     }
 
     public static synchronized List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
-        if (level == null || limit <= 0) return List.of();
+        if (!isOverworld(level) || limit <= 0) return List.of();
         long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
         List<PendingSignText> chunk = loadChunk(level, chunkKey);
         if (chunk.size() <= limit) return new ArrayList<>(chunk);
@@ -62,7 +63,7 @@ public final class SignTextFileStorage {
     }
 
     public static synchronized int importLegacySignTexts(ServerLevel level) {
-        if (level == null) return 0;
+        if (!isOverworld(level)) return 0;
         int imported = 0;
         Map<Long, List<PendingSignWrite>> byChunk = new HashMap<>();
         for (LegacyH2Importer.LegacyPendingSignText row : LegacyH2Importer.loadPendingSignTexts(level)) {
@@ -79,7 +80,7 @@ public final class SignTextFileStorage {
     }
 
     public static synchronized void deleteByIds(ServerLevel level, List<Long> ids) {
-        if (level == null || ids == null || ids.isEmpty()) return;
+        if (!isOverworld(level) || ids == null || ids.isEmpty()) return;
         Map<Long, List<Long>> byChunk = new HashMap<>();
         for (Long id : ids) {
             if (id == null) continue;
@@ -95,7 +96,7 @@ public final class SignTextFileStorage {
     }
 
     public static synchronized void clearLevel(ServerLevel level) {
-        if (level == null) return;
+        if (!isOverworld(level)) return;
         FileStorageIO.deleteTree(FileStoragePathResolver.categoryRoot(level, CATEGORY), null, "清理路牌文本文件失败");
     }
 
@@ -129,6 +130,10 @@ public final class SignTextFileStorage {
         long x = (int) (chunkKey >> 32);
         long z = (int) chunkKey;
         return root.resolve(Long.toString(x)).resolve(Long.toString(z) + FILE_SUFFIX);
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 
     private static final class SignChunkData {

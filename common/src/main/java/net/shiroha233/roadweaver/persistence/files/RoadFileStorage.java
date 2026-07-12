@@ -8,6 +8,7 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.persistence.sqlite.LegacyH2Importer;
@@ -54,7 +55,7 @@ public final class RoadFileStorage {
     }
 
     public static void addRoad(ServerLevel level, RoadData road) {
-        if (level == null || road == null || road.roadSegmentList() == null || road.roadSegmentList().isEmpty()) return;
+        if (!isOverworld(level) || road == null || road.roadSegmentList() == null || road.roadSegmentList().isEmpty()) return;
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -73,7 +74,7 @@ public final class RoadFileStorage {
     }
 
     public static List<RoadData> queryRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        if (level == null) return List.of();
+        if (!isOverworld(level)) return List.of();
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -94,7 +95,7 @@ public final class RoadFileStorage {
     }
 
     public static List<RoadData> loadAll(ServerLevel level) {
-        if (level == null) return List.of();
+        if (!isOverworld(level)) return List.of();
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -114,7 +115,7 @@ public final class RoadFileStorage {
     }
 
     public static RoadData loadByFingerprint(ServerLevel level, long fingerprint) {
-        if (level == null) return null;
+        if (!isOverworld(level)) return null;
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -131,7 +132,7 @@ public final class RoadFileStorage {
     }
 
     public static synchronized int importLegacyRoads(ServerLevel level) {
-        if (level == null) return 0;
+        if (!isOverworld(level)) return 0;
         ArrayList<RoadData> roads = new ArrayList<>();
         for (RoadData road : LegacyH2Importer.loadRoads(level)) {
             if (road == null) continue;
@@ -142,7 +143,7 @@ public final class RoadFileStorage {
     }
 
     public static void deleteRoad(ServerLevel level, long fingerprint) {
-        if (level == null) return;
+        if (!isOverworld(level)) return;
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -167,7 +168,7 @@ public final class RoadFileStorage {
     }
 
     public static boolean hasAnyRoad(ServerLevel level) {
-        if (level == null) return false;
+        if (!isOverworld(level)) return false;
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -186,7 +187,7 @@ public final class RoadFileStorage {
     }
 
     public static boolean hasRoadInRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        if (level == null) return false;
+        if (!isOverworld(level)) return false;
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -202,7 +203,7 @@ public final class RoadFileStorage {
     }
 
     public static void replaceRoad(ServerLevel level, long oldFingerprint, RoadData newRoad) {
-        if (level == null || newRoad == null || newRoad.roadSegmentList() == null || newRoad.roadSegmentList().isEmpty()) return;
+        if (!isOverworld(level) || newRoad == null || newRoad.roadSegmentList() == null || newRoad.roadSegmentList().isEmpty()) return;
         synchronized (lock(level)) {
             try {
                 Path root = FileStoragePathResolver.categoryRoot(level, CATEGORY);
@@ -233,7 +234,7 @@ public final class RoadFileStorage {
     }
 
     public static void clearAll(ServerLevel level) {
-        if (level == null) return;
+        if (!isOverworld(level)) return;
         synchronized (lock(level)) {
             FileStorageIO.deleteTree(FileStoragePathResolver.categoryRoot(level, CATEGORY), LOGGER, "清理道路文件存储失败");
         }
@@ -241,6 +242,10 @@ public final class RoadFileStorage {
 
     private static Object lock(ServerLevel level) {
         return (FileStoragePathResolver.categoryRoot(level, CATEGORY).toString() + "#lock").intern();
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 
     private static boolean intersects(RoadEntry entry, int minX, int minZ, int maxX, int maxZ) {

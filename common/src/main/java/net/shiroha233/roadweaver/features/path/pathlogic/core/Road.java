@@ -62,10 +62,8 @@ public final class Road {
         List<BlockState> materials;
         List<BlockState> slabMaterials;
         PresetService.RoadType presetType = (type == 0) ? PresetService.RoadType.ARTIFICIAL : PresetService.RoadType.NATURAL;
-        ResourceLocation dimId = level.dimension().location();
-
         if (presetType == PresetService.RoadType.ARTIFICIAL) {
-            PresetService.PresetDef preset = PresetService.choosePreset(random, dimId, presetType);
+            PresetService.PresetDef preset = PresetService.choosePreset(random, presetType);
             materials = PresetService.toBlockStatesFromIds(preset.materials());
             slabMaterials = PresetService.toBlockStatesFromIds(preset.slabMaterials());
         } else {

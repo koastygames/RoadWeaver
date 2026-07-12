@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
@@ -16,6 +17,7 @@ public final class MapRoadCollector {
     private MapRoadCollector() {}
 
     public static List<List<BlockPos>> collect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return List.of();
         List<RoadData> roadDataList = RoadShardStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         ArrayList<List<BlockPos>> roads = new ArrayList<>();
         for (RoadData rd : roadDataList) {

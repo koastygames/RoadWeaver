@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.persistence.sqlite;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.persistence.files.RoadFileStorage;
 
@@ -15,13 +16,14 @@ public final class RoadSqliteStorage {
     private RoadSqliteStorage() {}
 
     public static void addRoad(ServerLevel level, RoadData rd) {
+        if (!isOverworld(level)) return;
         RoadFileStorage.addRoad(level, rd);
     }
 
     public static List<RoadData> queryRect(ServerLevel level,
                                            int minBlockX, int minBlockZ,
                                            int maxBlockX, int maxBlockZ) {
-        return RoadFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        return isOverworld(level) ? RoadFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ) : List.of();
     }
 
     public static CompletableFuture<List<RoadData>> queryRectAsync(ServerLevel level,
@@ -35,19 +37,22 @@ public final class RoadSqliteStorage {
     }
 
     public static void deleteRoad(ServerLevel level, long fp) {
+        if (!isOverworld(level)) return;
         RoadFileStorage.deleteRoad(level, fp);
     }
 
     public static void replaceRoad(ServerLevel level, long oldFp, RoadData newRd) {
-        if (newRd == null || newRd.roadSegmentList() == null || newRd.roadSegmentList().isEmpty()) return;
+        if (!isOverworld(level) || newRd == null || newRd.roadSegmentList() == null || newRd.roadSegmentList().isEmpty()) return;
         RoadFileStorage.replaceRoad(level, oldFp, newRd);
     }
 
     public static void flushAll(ServerLevel level) {
+        if (!isOverworld(level)) return;
         // 文件型存储写入即落盘。
     }
 
     public static void clearAll(ServerLevel level) {
+        if (!isOverworld(level)) return;
         RoadFileStorage.clearAll(level);
     }
 
@@ -85,5 +90,9 @@ public final class RoadSqliteStorage {
             }
         }
         return null;
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 }

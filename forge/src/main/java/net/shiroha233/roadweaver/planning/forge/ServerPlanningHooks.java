@@ -71,15 +71,17 @@ public final class ServerPlanningHooks {
         if (server == null) return;
         
         if ((tick++ % 20) == 0) {
-            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
-                RoadPlanningService.planAroundPlayer(p);
-                IdleRoadGenerationService.tickPlayer(p);
+                for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                    if (Level.OVERWORLD.equals(p.serverLevel().dimension())) {
+                        SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
+                        RoadPlanningService.planAroundPlayer(p);
+                        IdleRoadGenerationService.tickPlayer(p);
+                    }
+                }
             }
-        }
 
-        for (ServerLevel level : server.getAllLevels()) {
-            if (level == null) continue;
+        ServerLevel level = server.getLevel(Level.OVERWORLD);
+        if (level != null) {
             IdleRoadGenerationService.tick(level);
             RoadGenerationService.tick(level);
             SignTextService.tick(level);

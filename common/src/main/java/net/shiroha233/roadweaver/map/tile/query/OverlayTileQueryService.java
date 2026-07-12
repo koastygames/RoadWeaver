@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.map.tile.query;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
@@ -26,12 +27,15 @@ public final class OverlayTileQueryService {
             return OverlayTileScene.empty();
         }
 
-        LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        boolean overworld = Level.OVERWORLD.equals(level.dimension());
+        if (overworld) {
+            LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+        }
 
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && overworld;
         int[] src = allowPredicted
                 ? new int[]{StructureFileStorage.SOURCE_MANUAL, StructureFileStorage.SOURCE_PREDICTED}
                 : new int[]{StructureFileStorage.SOURCE_MANUAL};
@@ -48,6 +52,9 @@ public final class OverlayTileQueryService {
         }
 
         ArrayList<List<BlockPos>> roads = new ArrayList<>();
+        if (!overworld) {
+            return new OverlayTileScene(structures, roads);
+        }
         List<RoadData> roadDataList = RoadShardStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         for (RoadData rd : roadDataList) {
             List<RoadSegmentPlacement> segments = rd.roadSegmentList();

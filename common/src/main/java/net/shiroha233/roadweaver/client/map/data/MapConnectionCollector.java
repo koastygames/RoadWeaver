@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
@@ -17,6 +18,7 @@ public final class MapConnectionCollector {
     private MapConnectionCollector() {}
 
     public static List<StructureConnection> collect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return List.of();
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> connections = provider.getStructureConnections(level);
 

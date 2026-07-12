@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.persistence.sqlite;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.persistence.files.SignTextFileStorage;
 
 import java.util.ArrayList;
@@ -22,12 +23,12 @@ public final class SignTextSqliteStorage {
     public record PendingSignWrite(BlockPos pos, int signType, String payload) {}
 
     public static void upsert(ServerLevel level, BlockPos pos, int signType, String payload) {
-        if (pos == null) return;
+        if (!isOverworld(level) || pos == null) return;
         upsertBatch(level, List.of(new PendingSignWrite(pos, signType, payload)));
     }
 
     public static void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
-        if (level == null || writes == null || writes.isEmpty()) return;
+        if (!isOverworld(level) || writes == null || writes.isEmpty()) return;
         ArrayList<SignTextFileStorage.PendingSignWrite> batch = new ArrayList<>(writes.size());
         for (PendingSignWrite write : writes) {
             if (write == null || write.pos() == null) continue;
@@ -37,7 +38,7 @@ public final class SignTextSqliteStorage {
     }
 
     public static List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
-        if (level == null || limit <= 0) return List.of();
+        if (!isOverworld(level) || limit <= 0) return List.of();
         List<SignTextFileStorage.PendingSignText> rows = SignTextFileStorage.queryByChunk(level, chunkX, chunkZ, limit);
         if (rows.isEmpty()) return List.of();
         ArrayList<PendingSignText> out = new ArrayList<>(rows.size());
@@ -48,6 +49,11 @@ public final class SignTextSqliteStorage {
     }
 
     public static void deleteByIds(ServerLevel level, List<Long> ids) {
+        if (!isOverworld(level)) return;
         SignTextFileStorage.deleteByIds(level, ids);
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 }

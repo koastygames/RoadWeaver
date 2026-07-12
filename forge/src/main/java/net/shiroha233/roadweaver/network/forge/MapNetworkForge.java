@@ -19,17 +19,12 @@ import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
-import net.shiroha233.roadweaver.core.model.ConnectionStatus;
-import net.shiroha233.roadweaver.core.model.StructureConnection;
-import net.shiroha233.roadweaver.map.MapPatchService;
-import net.shiroha233.roadweaver.map.MapPatchService;
+import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.api.RoadNetworkApi;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapSnapshotCodec;
-import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.util.ComputeService;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -365,26 +360,10 @@ public class MapNetworkForge {
                 }
 
                 var level = sp.serverLevel();
-                WorldDataProvider provider = WorldDataProvider.getInstance();
-                List<StructureConnection> origin = provider.getStructureConnections(level);
-                List<StructureConnection> list = origin != null ? new ArrayList<>(origin) : new ArrayList<>();
+                if (!Level.OVERWORLD.equals(level.dimension())) return;
                 BlockPos a = new BlockPos(msg.ax, 0, msg.az);
                 BlockPos b = new BlockPos(msg.bx, 0, msg.bz);
-                boolean exists = false;
-                for (StructureConnection sc : list) {
-                    BlockPos f = sc.from();
-                    BlockPos t = sc.to();
-                    if ((f.equals(a) && t.equals(b)) || (f.equals(b) && t.equals(a))) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
-                    StructureConnection created = new StructureConnection(a, b, ConnectionStatus.PLANNED);
-                    list.add(created);
-                    provider.setStructureConnections(level, list);
-                    MapPatchService.publishConnection(level, created);
-                }
+                RoadNetworkApi.ensureConnection(level, a, b);
             });
             c.setPacketHandled(true);
         }

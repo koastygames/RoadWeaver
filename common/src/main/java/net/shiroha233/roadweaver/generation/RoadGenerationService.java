@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
@@ -34,11 +35,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class RoadGenerationService {
     private RoadGenerationService() {}
 
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentLinkedQueue<StructureConnection>> QUEUES = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> PROCESSED = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING_COUNT = new ConcurrentHashMap<>();
+    private static final ConcurrentLinkedQueue<StructureConnection> QUEUE = new ConcurrentLinkedQueue<>();
+    private static final ConcurrentHashMap<Long, Boolean> PROCESSED = new ConcurrentHashMap<>();
+    private static final AtomicInteger RUNNING_COUNT = new AtomicInteger();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
-    private static final ConcurrentHashMap<ServerLevel, CachedPlayerList> PLAYER_LIST_CACHE = new ConcurrentHashMap<>();
+    private static final CachedPlayerList PLAYER_LIST_CACHE = new CachedPlayerList();
     private static final int PLAYER_LIST_REFRESH_TICKS = 5;
     private static long CURRENT_TICK = 0L;
 
@@ -50,9 +51,10 @@ public final class RoadGenerationService {
 
     public static void onServerStarted() {
         ALL_RUNNING.clear();
-        QUEUES.clear();
+        QUEUE.clear();
         PROCESSED.clear();
-        RUNNING_COUNT.clear();
+        RUNNING_COUNT.set(0);
+        PLAYER_LIST_CACHE.clear();
         CoarsePathCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();
         CoarseTerrainTileCache.clearAll();
@@ -61,9 +63,10 @@ public final class RoadGenerationService {
     public static void onServerStopping() {
         ALL_RUNNING.forEach(f -> f.cancel(true));
         ALL_RUNNING.clear();
-        QUEUES.clear();
+        QUEUE.clear();
         PROCESSED.clear();
-        RUNNING_COUNT.clear();
+        RUNNING_COUNT.set(0);
+        PLAYER_LIST_CACHE.clear();
         RoadPlanningService.resetAll();
         CoarsePathCache.clearAll();
         CoarseTerrainRegionRegistry.clearAll();
@@ -74,15 +77,16 @@ public final class RoadGenerationService {
     // ==================== tick 调度 ====================
 
     public static void tick(ServerLevel level) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         CURRENT_TICK++;
         refreshQueue(level);
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
 
-        ConcurrentLinkedQueue<StructureConnection> q = QUEUES.computeIfAbsent(level, l -> new ConcurrentLinkedQueue<>());
+        ConcurrentLinkedQueue<StructureConnection> q = QUEUE;
         if (q.isEmpty()) return;
 
         int limit = Math.max(1, ConfigService.get().performance().maxConcurrentGenerations());
-        AtomicInteger cnt = RUNNING_COUNT.computeIfAbsent(level, l -> new AtomicInteger(0));
+        AtomicInteger cnt = RUNNING_COUNT;
 
         List<ServerPlayer> players = getCachedPlayers(level);
         if (players == null) return;
@@ -115,7 +119,7 @@ public final class RoadGenerationService {
     // ==================== 纯生成逻辑（无副作用） ====================
 
     public static boolean generateTask(ServerLevel level, StructureConnection conn) {
-        if (level == null || conn == null) return false;
+        if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         try {
             if (Thread.currentThread().isInterrupted()) return false;
 
@@ -126,8 +130,7 @@ public final class RoadGenerationService {
 
             if (Thread.currentThread().isInterrupted()) return false;
             ModConfig modCfg = ConfigService.get();
-            String dimId = level.dimension().location().toString();
-            if (!modCfg.roadsEnabledForDimension(dimId)) return true;
+            if (!modCfg.roadAppearance().roadsEnabled()) return true;
 
             RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
             new Road(level, conn, cfg, genCfg).generateRoad(modCfg.pathfindingCost().aStarMaxSteps());
@@ -201,8 +204,7 @@ public final class RoadGenerationService {
 
     private static void removeProcessed(ServerLevel level, StructureConnection conn) {
         long k = PlanningUtils.edgeKey(conn.from(), conn.to());
-        ConcurrentHashMap<Long, Boolean> proc = PROCESSED.get(level);
-        if (proc != null) proc.remove(k);
+        PROCESSED.remove(k);
     }
 
     // ==================== 队列刷新 ====================
@@ -212,8 +214,8 @@ public final class RoadGenerationService {
         List<StructureConnection> list = provider.getStructureConnections(level);
         if (list == null) return;
 
-        ConcurrentLinkedQueue<StructureConnection> q = QUEUES.computeIfAbsent(level, l -> new ConcurrentLinkedQueue<>());
-        ConcurrentHashMap<Long, Boolean> proc = PROCESSED.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentLinkedQueue<StructureConnection> q = QUEUE;
+        ConcurrentHashMap<Long, Boolean> proc = PROCESSED;
 
         for (StructureConnection c : list) {
             if (c.status() != ConnectionStatus.PLANNED && c.status() != ConnectionStatus.GENERATING) continue;
@@ -273,7 +275,7 @@ public final class RoadGenerationService {
     }
 
     private static List<ServerPlayer> getCachedPlayers(ServerLevel level) {
-        CachedPlayerList cache = PLAYER_LIST_CACHE.computeIfAbsent(level, l -> new CachedPlayerList());
+        CachedPlayerList cache = PLAYER_LIST_CACHE;
         if (CURRENT_TICK - cache.lastTick >= PLAYER_LIST_REFRESH_TICKS || cache.players == null) {
             List<ServerPlayer> fresh = new ArrayList<>();
             var server = level.getServer();
@@ -290,5 +292,10 @@ public final class RoadGenerationService {
     private static final class CachedPlayerList {
         long lastTick = Long.MIN_VALUE;
         List<ServerPlayer> players = null;
+
+        void clear() {
+            lastTick = Long.MIN_VALUE;
+            players = null;
+        }
     }
 }

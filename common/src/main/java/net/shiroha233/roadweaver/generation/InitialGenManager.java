@@ -1,6 +1,7 @@
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
@@ -49,7 +50,7 @@ public final class InitialGenManager {
     }
 
     public static void begin(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         if (!shouldRunInitialGeneration(level)) return;
 
         active = true;
@@ -81,7 +82,7 @@ public final class InitialGenManager {
     }
 
     public static boolean shouldRunInitialGeneration(ServerLevel level) {
-        if (level == null) return false;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> conns = provider.getStructureConnections(level);
         if (conns != null && !conns.isEmpty()) return false;
@@ -90,7 +91,7 @@ public final class InitialGenManager {
     }
 
     public static void blockUntilDone(ServerLevel level) {
-        if (!active) return;
+        if (!active || level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         WorldDataProvider provider = WorldDataProvider.getInstance();
 
         List<StructureConnection> list = provider.getStructureConnections(level);

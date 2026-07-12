@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
@@ -60,14 +61,16 @@ public final class ServerPlanningHooks {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if ((tick++ % 20) == 0) {
                 for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                    SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
-                    RoadPlanningService.planAroundPlayer(p);
-                    IdleRoadGenerationService.tickPlayer(p);
+                    if (Level.OVERWORLD.equals(p.serverLevel().dimension())) {
+                        SignTextService.onChunkReady(p.serverLevel(), p.chunkPosition());
+                        RoadPlanningService.planAroundPlayer(p);
+                        IdleRoadGenerationService.tickPlayer(p);
+                    }
                 }
             }
 
-            for (ServerLevel level : server.getAllLevels()) {
-                if (level == null) continue;
+            ServerLevel level = server.getLevel(Level.OVERWORLD);
+            if (level != null) {
                 IdleRoadGenerationService.tick(level);
                 RoadGenerationService.tick(level);
                 SignTextService.tick(level);

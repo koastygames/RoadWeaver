@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.map;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.RoadData;
@@ -24,7 +25,7 @@ public final class MapPatchService {
     private MapPatchService() {}
 
     public static void publishConnection(ServerLevel level, StructureConnection connection) {
-        if (level == null || connection == null) return;
+        if (!isOverworld(level) || connection == null) return;
         MapSnapshotPatch patch = new MapSnapshotPatch(
                 collectEndpointInfos(level, connection),
                 List.of(normalize(connection)),
@@ -50,7 +51,7 @@ public final class MapPatchService {
     }
 
     public static void publishRoadForConnectionAsync(ServerLevel level, StructureConnection connection) {
-        if (level == null || connection == null) return;
+        if (!isOverworld(level) || connection == null) return;
         ThreadPoolManager.supplyAsync(ThreadPoolManager.TaskRole.MAP, () -> buildRoadPatch(level, connection))
                 .thenAccept(patch -> broadcast(level, patch));
     }
@@ -152,5 +153,9 @@ public final class MapPatchService {
         hash ^= road.size();
         hash *= 0x100000001b3L;
         return hash;
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 }

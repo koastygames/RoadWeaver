@@ -67,8 +67,6 @@ public class ConfigScreenFactoryImpl {
                 .setSaveConsumer(cfg::setEnabled)
                 .build());
 
-        category.addEntry(new OpenStructurePredictionDimensionWhitelistEntry());
-
         category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.radius_chunks"), cfg.predictRadiusChunks())
                 .setDefaultValue(def.predictRadiusChunks())
@@ -153,8 +151,6 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.roads_enabled.tooltip"))
                 .setSaveConsumer(cfg::setRoadsEnabled)
                 .build());
-
-        category.addEntry(new OpenDimensionRoadSettingsEntry());
 
         category.addEntry(eb
                 .startBooleanToggle(Component.translatable("config.roadweaver.allow_artificial"), cfg.allowArtificial())

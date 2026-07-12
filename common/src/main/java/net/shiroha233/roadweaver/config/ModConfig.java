@@ -3,8 +3,6 @@ package net.shiroha233.roadweaver.config;
 import net.shiroha233.roadweaver.config.sub.*;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 模组配置聚合类，通过组合持有所有子配置实例
@@ -21,7 +19,6 @@ public final class ModConfig {
     private RoadsideStructureConfig roadsideStructure = new RoadsideStructureConfig();
     private RoadsideVillageConfig roadsideVillage = new RoadsideVillageConfig();
     private ClientConfig client = new ClientConfig();
-    private Map<String, DimensionRoadSettings> dimensionRoadSettings = new ConcurrentHashMap<>();
 
     public void sanitize() {
         if (structurePrediction == null) structurePrediction = new StructurePredictionConfig();
@@ -44,13 +41,6 @@ public final class ModConfig {
         roadsideVillage.sanitize();
         client.sanitize();
 
-        if (dimensionRoadSettings == null) {
-            dimensionRoadSettings = new ConcurrentHashMap<>();
-        } else {
-            try {
-                dimensionRoadSettings.values().removeIf(v -> v == null || v.isAllInherit());
-            } catch (Throwable ignored) {}
-        }
     }
 
 
@@ -73,53 +63,6 @@ public final class ModConfig {
         return client.loadingProgressEnabled();
     }
 
-    public Map<String, DimensionRoadSettings> dimensionRoadSettings() {
-        return dimensionRoadSettings;
-    }
-
-    public void setDimensionRoadSettings(Map<String, DimensionRoadSettings> v) {
-        this.dimensionRoadSettings = new ConcurrentHashMap<>(v == null ? Map.of() : v);
-        try {
-            this.dimensionRoadSettings.values().removeIf(s -> s == null || s.isAllInherit());
-        } catch (Throwable ignored) {}
-    }
-
-    public DimensionRoadSettings getOrCreateDimensionSettings(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty()) return null;
-        return dimensionRoadSettings.computeIfAbsent(dimensionId, k -> new DimensionRoadSettings());
-    }
-
-    public void removeDimensionSettingsIfAllInherit(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty()) return;
-        DimensionRoadSettings s = dimensionRoadSettings.get(dimensionId);
-        if (s != null && s.isAllInherit()) dimensionRoadSettings.remove(dimensionId);
-    }
-
-    private DimensionRoadSettings getDimSettings(String dimensionId) {
-        if (dimensionId == null || dimensionId.isEmpty() || dimensionRoadSettings == null) return null;
-        return dimensionRoadSettings.get(dimensionId);
-    }
-
-    private static boolean chooseBool(Boolean override, boolean globalValue) {
-        return override != null ? override : globalValue;
-    }
-
-    public boolean roadsEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.roadsEnabled(), roadAppearance.roadsEnabled());
-    }
-
-    public boolean bridgeEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.bridgeEnabled(), bridge.enabled());
-    }
-
-    public PathfindingCostConfig.PathfindingAlgorithm pathfindingAlgorithmForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        PathfindingCostConfig.PathfindingAlgorithm v = (s == null) ? null : s.pathfindingAlgorithm();
-        return v != null ? v : pathfindingCost.pathfindingAlgorithm();
-    }
-
     public boolean tunnelEnabled() {
         return roadAppearance.tunnelEnabled();
     }
@@ -132,31 +75,8 @@ public final class ModConfig {
         return roadAppearance.tunnelClearHeight();
     }
 
-    public boolean slopeLimitEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.slopeLimitEnabled(), roadAppearance.slopeLimitEnabled());
-    }
-
-    public boolean roadsideStructuresEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.roadsideStructuresEnabled(), roadsideStructure.enabled());
-    }
-
-    public boolean roadSignsEnabledForDimension(String dimId) {
-        DimensionRoadSettings s = getDimSettings(dimId);
-        return chooseBool(s == null ? null : s.roadSignsEnabled(), roadAppearance.roadSignsEnabled());
-    }
-
     public int averagingRadius() {
         return roadAppearance.averagingRadius();
-    }
-
-    public List<String> structurePredictionDimensionWhitelist() {
-        return structurePrediction.dimensionWhitelist();
-    }
-
-    public void setStructurePredictionDimensionWhitelist(List<String> v) {
-        structurePrediction.setDimensionWhitelist(v);
     }
 
     public boolean structurePredictionEnabled() {
@@ -233,10 +153,6 @@ public final class ModConfig {
 
     public int lampInterval() {
         return roadAppearance.lampInterval();
-    }
-
-    public boolean isStructurePredictionEnabledForDimension(String dimensionId) {
-        return structurePrediction.isEnabledForDimension(dimensionId);
     }
 
     public int predictRadiusChunks() {

@@ -51,8 +51,7 @@ public final class RoadsideVillagePrecomputer {
         }
 
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
-        if (!cfg.roadsideStructuresEnabledForDimension(dimId)) {
+        if (!cfg.roadsideStructure().enabled()) {
             return 0;
         }
 
@@ -111,7 +110,7 @@ public final class RoadsideVillagePrecomputer {
 
             ResourceLocation placementId = new ResourceLocation(
                 MOD_ID,
-                "roadside_village/" + level.dimension().location().getPath() + "/" + originChunk.x + "_" + originChunk.z + "_" + candidate.startIndex()
+                "roadside_village/" + originChunk.x + "_" + originChunk.z + "_" + candidate.startIndex()
             );
 
             PendingRoadsideVillage village = new PendingRoadsideVillage(

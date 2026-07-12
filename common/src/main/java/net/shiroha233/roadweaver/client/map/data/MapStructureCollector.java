@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
@@ -25,7 +26,7 @@ public final class MapStructureCollector {
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()
-                && cfg.structurePrediction().isEnabledForDimension(level.dimension().location().toString());
+                && Level.OVERWORLD.equals(level.dimension());
         int[] sources = allowPredicted
                 ? new int[]{StructureFileStorage.SOURCE_MANUAL, StructureFileStorage.SOURCE_PREDICTED}
                 : new int[]{StructureFileStorage.SOURCE_MANUAL};

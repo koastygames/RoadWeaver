@@ -1,8 +1,8 @@
 package net.shiroha233.roadweaver.runtime;
 
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
-import net.shiroha233.roadweaver.generation.ChunkGenTracker;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLCoarseHeightBatchSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLWorldSupport;
@@ -13,6 +13,7 @@ import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
+import net.shiroha233.roadweaver.structures.precompute.PendingRoadsideVillageStorage;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
 import org.slf4j.Logger;
@@ -42,14 +43,21 @@ public final class CacheManager {
      * 服务器停止时清理所有缓存
      */
     public static void onServerStopping(Iterable<ServerLevel> levels) {
+        ServerLevel overworld = null;
         for (ServerLevel level : levels) {
+            if (level != null && Level.OVERWORLD.equals(level.dimension())) {
+                overworld = level;
+                break;
+            }
+        }
+        if (overworld != null) {
             try {
-                SignTextService.flushPersistentFallback(level);
+                SignTextService.flushPersistentFallback(overworld);
             } catch (Exception e) {
                 LOGGER.warn("刷写 SignTextService 失败: {}", e.getMessage());
             }
             try {
-                RoadShardStorage.flushAll(level);
+                RoadShardStorage.flushAll(overworld);
             } catch (Exception e) {
                 LOGGER.warn("刷写 RoadShardStorage 失败: {}", e.getMessage());
             }
@@ -60,9 +68,9 @@ public final class CacheManager {
         RoadsideStructureRegistry.clearCache();
         BridgeTemplateStructureRegistry.clearCache();
         PendingStructureStorage.clearAll();
+        PendingRoadsideVillageStorage.clearAll();
         RoadSpatialIndex.clearAllCache();
         RoadPlanningService.resetAll();
-        ChunkGenTracker.clearAll();
         SignTextService.clearPending();
         TerrainSamplingStats.reset();
         CoarsePathCache.clearAll();
@@ -78,7 +86,7 @@ public final class CacheManager {
      * 维度卸载时清理该维度关联的缓存
      */
     public static void onDimensionUnload(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
 
         try {
             SignTextService.flushPersistentFallback(level);
@@ -95,9 +103,10 @@ public final class CacheManager {
         }
 
         RoadSpatialIndex.clearCache(level);
-        PendingStructureStorage.clearDimension(level.dimension().location());
-        RoadsideStructureRegistry.clearCache(level.dimension());
-        BridgeTemplateStructureRegistry.clearCache(level.dimension());
+        PendingStructureStorage.clearAll();
+        PendingRoadsideVillageStorage.clearAll();
+        RoadsideStructureRegistry.clearCache();
+        BridgeTemplateStructureRegistry.clearCache();
         SignTextService.onDimensionUnload(level);
 
         LOGGER.debug("CacheManager: 维度 {} 缓存已清理", level.dimension().location());

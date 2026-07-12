@@ -13,7 +13,6 @@
     "forge.GenericVegetationFeatureMixin",
     "forge.dynamictree.DynamicTreeFeatureMixin",
     "forge.ServerLevelStructureMixin",
-    "forge.PlayerDimensionChangeMixin",
     "forge.tyg.TreeFromStructureNBTFeatureMixin",
     "forge.rtf.RTFTemplateFeatureMixin",
     "forge.rtf.RTFBushFeatureMixin",

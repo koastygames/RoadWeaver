@@ -10,7 +10,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
 import net.shiroha233.roadweaver.config.PresetService;
-import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,12 +34,7 @@ public class MaterialPresetEditorScreen extends Screen {
     private Button cancelButton;
     private Button newButton;
     private Button deleteButton;
-    private Button dimensionButton;
-    private DimensionListWidget dimensionListWidget;
-    
-    private ResourceLocation filterDimension = new ResourceLocation("minecraft:overworld");
     private PresetService.RoadType filterType = PresetService.RoadType.ARTIFICIAL;
-    private boolean pendingCloseDimensionDropdown = false;
     
     private int editorLeft;
     private int editorWidth;
@@ -54,7 +48,6 @@ public class MaterialPresetEditorScreen extends Screen {
         String id;
         String name;
         PresetService.RoadType type;
-        Set<ResourceLocation> dimensions = new HashSet<>();
         List<String> materials = new ArrayList<>();
         List<String> slabMaterials = new ArrayList<>();
     }
@@ -68,8 +61,6 @@ public class MaterialPresetEditorScreen extends Screen {
     protected void init() {
         super.init();
         this.clearWidgets();
-        this.dimensionListWidget = null;
-        this.pendingCloseDimensionDropdown = false;
 
         int topBarY = 24;
         int bottomY = this.height - 24;
@@ -124,15 +115,8 @@ public class MaterialPresetEditorScreen extends Screen {
         this.addRenderableWidget(blockCandidateWidget);
 
         int topY = topBarY;
-        int typeW = 76;
-        int dimW = Math.max(90, editorW - typeW - gap);
-
-        this.dimensionButton = Button.builder(getDimensionButtonText(), btn -> toggleDimensionDropdown())
-                .bounds(editorX, topY, dimW, 20).build();
-        this.addRenderableWidget(dimensionButton);
-
         this.typeButton = Button.builder(Component.translatable("gui.roadweaver.preset_editor.road_type"), b -> toggleTypeFilter())
-                .bounds(editorX + dimW + gap, topY, typeW, 20).build();
+                .bounds(editorX, topY, 120, 20).build();
         this.addRenderableWidget(typeButton);
         updateTypeButton(filterType);
 
@@ -170,117 +154,10 @@ public class MaterialPresetEditorScreen extends Screen {
             loadPresets();
         }
         
-        populateDimensions();
         refreshPresetListUI();
         ensureSelectionMatchesFilter();
     }
     
-    private void populateDimensions() {
-        StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        List<ResourceLocation> dims = new ArrayList<>();
-        if (result != null) {
-            dims.addAll(result.dimensions());
-        }
-        if (!dims.contains(new ResourceLocation("minecraft:overworld"))) {
-            dims.add(new ResourceLocation("minecraft:overworld"));
-        }
-        if (filterDimension == null || !dims.contains(filterDimension)) {
-            filterDimension = dims.get(0);
-        }
-        if (dimensionButton != null) {
-            dimensionButton.setMessage(getDimensionButtonText());
-            dimensionButton.active = !dims.isEmpty();
-        }
-    }
-
-    private Component getDimensionDisplayName(ResourceLocation dimId) {
-        String key = "dimension." + dimId.getNamespace() + "." + dimId.getPath();
-        Component translated = Component.translatable(key);
-        if (!Objects.equals(translated.getString(), key)) {
-            return translated;
-        }
-        return Component.literal(dimId.toString());
-    }
-
-    private Component getDimensionButtonText() {
-        return Component.translatable("config.roadweaver.structure_selection.dimension", getDimensionDisplayName(filterDimension));
-    }
-
-    private void toggleDimensionDropdown() {
-        if (dimensionListWidget != null) {
-            closeDimensionDropdown();
-        } else {
-            openDimensionDropdown();
-        }
-    }
-
-    private void openDimensionDropdown() {
-        StructureDiscoveryService.DiscoveryResult result = StructureDiscoveryService.getResult();
-        if (result == null || dimensionButton == null) return;
-
-        List<DimensionListWidget.Row> rows = new ArrayList<>();
-        for (ResourceLocation dimId : result.dimensions()) {
-            Component title = getDimensionDisplayName(dimId);
-            Component subtitle = Component.literal(dimId.toString());
-            rows.add(new DimensionListWidget.Row(dimId, title,
-                    !Objects.equals(title.getString(), subtitle.getString()) ? subtitle : null));
-        }
-        if (rows.isEmpty()) return;
-
-        int top = dimensionButton.getY() + dimensionButton.getHeight() + 2;
-        int maxH = Math.max(height - 24 - top - 4, 44);
-        int desiredRows = Math.max(2, Math.min(8, rows.size()));
-        int listH = Math.min(desiredRows * 22, maxH);
-
-        DimensionListWidget list = new DimensionListWidget(minecraft, dimensionButton.getWidth(), listH, top, selected -> {
-            filterDimension = selected;
-            if (dimensionButton != null) {
-                dimensionButton.setMessage(getDimensionButtonText());
-            }
-            pendingCloseDimensionDropdown = true;
-            refreshPresetListUI();
-            ensureSelectionMatchesFilter();
-        });
-        list.setLeftPos(dimensionButton.getX());
-        list.setRenderBackground(false);
-        list.setRenderTopAndBottom(false);
-        list.setRows(rows, filterDimension);
-        dimensionListWidget = list;
-        addRenderableWidget(list);
-    }
-
-    private void closeDimensionDropdown() {
-        if (dimensionListWidget == null) return;
-        removeWidget(dimensionListWidget);
-        dimensionListWidget = null;
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        DimensionListWidget dd = dimensionListWidget;
-        Button btn = dimensionButton;
-
-        if (dd != null && dd.isMouseOver(mouseX, mouseY)) {
-            dd.mouseClicked(mouseX, mouseY, button);
-            return true;
-        }
-
-        if (dd != null && btn != null) {
-            boolean clickedButton = btn.isMouseOver(mouseX, mouseY);
-            boolean clickedDropdown = dd.isMouseOver(mouseX, mouseY);
-            if (!clickedButton && !clickedDropdown) {
-                closeDimensionDropdown();
-            }
-        }
-
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
-        if (pendingCloseDimensionDropdown) {
-            pendingCloseDimensionDropdown = false;
-            closeDimensionDropdown();
-        }
-        return handled;
-    }
-
     private void loadPresets() {
         presets.clear();
         originalIds.clear();
@@ -291,7 +168,6 @@ public class MaterialPresetEditorScreen extends Screen {
             p.id = def.id();
             p.name = def.name();
             p.type = def.type();
-            p.dimensions = new HashSet<>(def.dimensions());
             p.materials = new ArrayList<>(def.materials());
             p.slabMaterials = new ArrayList<>(def.slabMaterials());
             presets.add(p);
@@ -340,7 +216,6 @@ public class MaterialPresetEditorScreen extends Screen {
         p.id = "custom_" + System.currentTimeMillis();
         p.name = "New Preset";
         p.type = filterType;
-        p.dimensions.add(filterDimension);
         if (filterType == PresetService.RoadType.NATURAL) {
             p.materials.add("minecraft:dirt_path");
         } else {
@@ -438,7 +313,6 @@ public class MaterialPresetEditorScreen extends Screen {
     private boolean matchesFilter(UiPreset p) {
         if (p == null) return false;
         if (filterType != null && p.type != filterType) return false;
-        if (filterDimension != null && (p.dimensions == null || !p.dimensions.contains(filterDimension))) return false;
         return true;
     }
 
@@ -539,7 +413,6 @@ public class MaterialPresetEditorScreen extends Screen {
                 p.id, 
                 p.name, 
                 p.type, 
-                new ArrayList<>(p.dimensions), 
                 p.materials, 
                 p.slabMaterials
             );

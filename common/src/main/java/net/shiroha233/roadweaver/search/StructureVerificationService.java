@@ -5,6 +5,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerChunkCache;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.storage.ChunkScanAccess;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.levelgen.structure.StructureCheckResult;
 import net.minecraft.core.Registry;
 
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.config.ConfigService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +32,8 @@ public final class StructureVerificationService {
      */
     public static List<StructureInfo> verifyPredictedStructures(ServerLevel level,
                                                                         List<StructureInfo> predicted) {
-        if (predicted == null || predicted.isEmpty()) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())
+                || !ConfigService.get().structurePredictionEnabled() || predicted == null || predicted.isEmpty()) {
             return List.of();
         }
 

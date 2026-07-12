@@ -2,6 +2,7 @@ package net.shiroha233.roadweaver.search;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
@@ -31,17 +32,13 @@ public final class StructureIndexService {
      * 预测并验证围绕出生点的结构
      */
     public static List<StructureInfo> predictAndVerifyAroundSpawn(ServerLevel level) {
-        if (level == null) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) {
             return List.of();
         }
         ModConfig cfg = ConfigService.get();
         if (cfg == null || !cfg.structurePredictionEnabled()) {
             return List.of();
         }
-        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString())) {
-            return List.of();
-        }
-
         BlockPos spawn = level.getSharedSpawnPos();
         int radiusChunks = Math.max(1, cfg.predictRadiusChunks());
         int minBlockX = (spawn.getX() >> 4) - radiusChunks;
@@ -57,7 +54,7 @@ public final class StructureIndexService {
     public static List<StructureInfo> predictAndVerifyInRect(ServerLevel level,
                                                                      int minBlockX, int minBlockZ,
                                                                      int maxBlockX, int maxBlockZ) {
-        if (level == null) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) {
             return List.of();
         }
 
@@ -65,10 +62,6 @@ public final class StructureIndexService {
         if (cfg == null || !cfg.structurePredictionEnabled()) {
             return List.of();
         }
-        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString())) {
-            return List.of();
-        }
-
         StructureFileStorage.ensurePolicy(level, policyHash(cfg));
 
         final long tAll0 = CACHE_DEBUG ? System.nanoTime() : 0L;

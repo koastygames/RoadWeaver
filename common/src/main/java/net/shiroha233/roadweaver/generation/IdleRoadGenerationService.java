@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.generation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
@@ -42,10 +43,10 @@ public final class IdleRoadGenerationService {
     private static final int IDLE_RADIUS_EXPAND_STEP_CHUNKS = 32;
     private static final int IDLE_CENTER_FOLLOW_STEP_CHUNKS = 8;
 
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<UUID, IdleWindow>> WINDOWS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> IDLE_OWNED = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> IN_FLIGHT = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, IdleWindow> WINDOWS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, Boolean> IDLE_OWNED = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, Boolean> IN_FLIGHT = new ConcurrentHashMap<>();
+    private static final AtomicInteger RUNNING = new AtomicInteger();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
 
     private static final class IdleWindow {
@@ -65,7 +66,7 @@ public final class IdleRoadGenerationService {
         WINDOWS.clear();
         IDLE_OWNED.clear();
         IN_FLIGHT.clear();
-        RUNNING.clear();
+        RUNNING.set(0);
         ALL_RUNNING.clear();
     }
 
@@ -79,16 +80,16 @@ public final class IdleRoadGenerationService {
         WINDOWS.clear();
         IDLE_OWNED.clear();
         IN_FLIGHT.clear();
-        RUNNING.clear();
+        RUNNING.set(0);
     }
 
     public static void tickPlayer(ServerPlayer player) {
         if (player == null) return;
 
         ServerLevel level = player.serverLevel();
+        if (!Level.OVERWORLD.equals(level.dimension())) return;
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
-        if (!cfg.roadsEnabledForDimension(dimId)) return;
+        if (!cfg.roadAppearance().roadsEnabled()) return;
 
         if (!cfg.performance().idleGenerationEnabled()) return;
 
@@ -97,7 +98,7 @@ public final class IdleRoadGenerationService {
         int pcx = player.chunkPosition().x;
         int pcz = player.chunkPosition().z;
 
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
         UUID playerId = player.getUUID();
         IdleWindow win = perLevel.get(playerId);
         if (win == null) {
@@ -141,7 +142,7 @@ public final class IdleRoadGenerationService {
     }
 
     public static void tick(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
 
         ModConfig cfg = ConfigService.get();
         if (!cfg.performance().idleGenerationEnabled()) {
@@ -154,7 +155,7 @@ public final class IdleRoadGenerationService {
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
         reservePlannedEdges(level);
 
-        AtomicInteger running = RUNNING.computeIfAbsent(level, l -> new AtomicInteger(0));
+        AtomicInteger running = RUNNING;
         List<ServerPlayer> players = collectPlayers(level);
         int duty = cfg.performance().idleThreadDutyCycle();
 
@@ -165,7 +166,7 @@ public final class IdleRoadGenerationService {
             if (conn == null) break;
 
             long key = PlanningUtils.edgeKey(conn.from(), conn.to());
-            ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+            ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT;
             if (inFlight.putIfAbsent(key, Boolean.TRUE) != null) continue;
             if (!updateStatus(level, conn, ConnectionStatus.GENERATING, ConnectionStatus.PLANNED)) {
                 inFlight.remove(key);
@@ -181,11 +182,11 @@ public final class IdleRoadGenerationService {
     }
 
     public static boolean shouldReserveForIdle(ServerLevel level, StructureConnection conn) {
-        if (level == null || conn == null) return false;
+        if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        if (owned == null || owned.isEmpty()) return false;
+        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        if (owned.isEmpty()) return false;
 
         long key = PlanningUtils.edgeKey(conn.from(), conn.to());
         if (!owned.containsKey(key)) return false;
@@ -196,17 +197,15 @@ public final class IdleRoadGenerationService {
     }
 
     public static boolean isManagedByIdle(ServerLevel level, StructureConnection conn) {
-        if (level == null || conn == null) return false;
+        if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
         long key = PlanningUtils.edgeKey(conn.from(), conn.to());
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.get(level);
-        if (inFlight != null && inFlight.containsKey(key)) return true;
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        return owned != null && owned.containsKey(key);
+        if (IN_FLIGHT.containsKey(key)) return true;
+        return IDLE_OWNED.containsKey(key);
     }
 
     private static void runIdleTask(ServerLevel level, StructureConnection task, long key, int duty, long epoch) {
-        AtomicInteger running = RUNNING.computeIfAbsent(level, l -> new AtomicInteger(0));
+        AtomicInteger running = RUNNING;
         ThreadPoolManager.resetThrottle();
         try {
             if (Thread.currentThread().isInterrupted()) return;
@@ -237,10 +236,8 @@ public final class IdleRoadGenerationService {
     }
 
     private static void removeOwnership(ServerLevel level, long key) {
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        if (owned != null) owned.remove(key);
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.get(level);
-        if (inFlight != null) inFlight.remove(key);
+        IDLE_OWNED.remove(key);
+        IN_FLIGHT.remove(key);
     }
 
     private static void reservePlannedEdges(ServerLevel level) {
@@ -248,7 +245,7 @@ public final class IdleRoadGenerationService {
         if (conns == null || conns.isEmpty()) return;
         if (!hasWindows(level)) return;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
         for (StructureConnection c : conns) {
             if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
             if (!isInsideAnyWindow(level, c)) continue;
@@ -260,12 +257,12 @@ public final class IdleRoadGenerationService {
         List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) return null;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        if (owned == null || owned.isEmpty()) return null;
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        if (owned.isEmpty()) return null;
+        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT;
 
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        if (perLevel == null || perLevel.isEmpty()) return null;
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
+        if (perLevel.isEmpty()) return null;
 
         StructureConnection best = null;
         long bestDist = Long.MAX_VALUE;
@@ -330,8 +327,8 @@ public final class IdleRoadGenerationService {
     }
 
     private static void cleanupWindows(ServerLevel level) {
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        if (perLevel == null || perLevel.isEmpty()) return;
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
+        if (perLevel.isEmpty()) return;
 
         Set<UUID> alive = new HashSet<>();
         for (ServerPlayer p : collectPlayers(level)) {
@@ -340,28 +337,26 @@ public final class IdleRoadGenerationService {
         perLevel.keySet().removeIf(id -> !alive.contains(id));
 
         if (perLevel.isEmpty()) {
-            WINDOWS.remove(level);
-            IDLE_OWNED.remove(level);
-            IN_FLIGHT.remove(level);
-            RUNNING.remove(level);
+            IDLE_OWNED.clear();
+            IN_FLIGHT.clear();
+            RUNNING.set(0);
         }
     }
 
     private static void clearLevel(ServerLevel level) {
-        WINDOWS.remove(level);
-        IDLE_OWNED.remove(level);
-        IN_FLIGHT.remove(level);
-        RUNNING.remove(level);
+        WINDOWS.clear();
+        IDLE_OWNED.clear();
+        IN_FLIGHT.clear();
+        RUNNING.set(0);
     }
 
     private static boolean hasWindows(ServerLevel level) {
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        return perLevel != null && !perLevel.isEmpty();
+        return !WINDOWS.isEmpty();
     }
 
     private static boolean isInsideAnyWindow(ServerLevel level, StructureConnection conn) {
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        if (perLevel == null || perLevel.isEmpty() || conn == null) return false;
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
+        if (perLevel.isEmpty() || conn == null) return false;
 
         int mx = (conn.from().getX() + conn.to().getX()) >> 1;
         int mz = (conn.from().getZ() + conn.to().getZ()) >> 1;

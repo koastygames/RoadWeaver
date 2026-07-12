@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.persistence.sharded;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.persistence.files.SignTextFileStorage;
 
 import java.util.ArrayList;
@@ -19,8 +20,8 @@ public final class SignTextShardStorage {
     public static final int TYPE_DISTANCE = SignTextFileStorage.TYPE_DISTANCE;
     public static final int TYPE_SEA_QUESTION = SignTextFileStorage.TYPE_SEA_QUESTION;
     private static final int MAX_PENDING_PER_CHUNK = 256;
-    private static final int MAX_PENDING_PER_LEVEL = 10_000;
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>>> MEMORY_PENDING = new ConcurrentHashMap<>();
+    private static final int MAX_PENDING = 10_000;
+    private static final ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> MEMORY_PENDING = new ConcurrentHashMap<>();
 
     public record PendingSignWrite(BlockPos pos, int signType, String payload, int retryCount, long firstQueuedAtMs) {
         public PendingSignWrite withRetry() {
@@ -33,12 +34,12 @@ public final class SignTextShardStorage {
     }
 
     public static void upsert(ServerLevel level, BlockPos pos, int signType, String payload) {
-        if (level == null || pos == null) return;
+        if (!isOverworld(level) || pos == null) return;
         putMemory(level, new PendingSignWrite(pos, signType, payload, 0, System.currentTimeMillis()));
     }
 
     public static void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
-        if (level == null || writes == null || writes.isEmpty()) return;
+        if (!isOverworld(level) || writes == null || writes.isEmpty()) return;
         ArrayList<SignTextFileStorage.PendingSignWrite> batch = new ArrayList<>(writes.size());
         for (PendingSignWrite write : writes) {
             if (write == null || write.pos() == null) continue;
@@ -48,19 +49,18 @@ public final class SignTextShardStorage {
     }
 
     public static List<SignTextFileStorage.PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
-        return SignTextFileStorage.queryByChunk(level, chunkX, chunkZ, limit);
+        return isOverworld(level) ? SignTextFileStorage.queryByChunk(level, chunkX, chunkZ, limit) : List.of();
     }
 
     public static void deleteByIds(ServerLevel level, List<Long> ids) {
+        if (!isOverworld(level)) return;
         SignTextFileStorage.deleteByIds(level, ids);
     }
 
     public static List<PendingSignWrite> takeMemoryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
-        if (level == null || limit <= 0) return List.of();
-        ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets = MEMORY_PENDING.get(level);
-        if (levelBuckets == null) return List.of();
+        if (!isOverworld(level) || limit <= 0) return List.of();
         long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
-        ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = levelBuckets.get(chunkKey);
+        ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = MEMORY_PENDING.get(chunkKey);
         if (chunkBucket == null || chunkBucket.isEmpty()) return List.of();
 
         ArrayList<PendingSignWrite> out = new ArrayList<>(Math.min(limit, chunkBucket.size()));
@@ -71,39 +71,31 @@ public final class SignTextShardStorage {
             }
         }
         if (chunkBucket.isEmpty()) {
-            levelBuckets.remove(chunkKey, chunkBucket);
-        }
-        if (levelBuckets.isEmpty()) {
-            MEMORY_PENDING.remove(level, levelBuckets);
+            MEMORY_PENDING.remove(chunkKey, chunkBucket);
         }
         return out;
     }
 
     public static void requeue(ServerLevel level, PendingSignWrite write) {
-        if (level == null || write == null || write.pos() == null) return;
-        ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets =
-                MEMORY_PENDING.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        if (!isOverworld(level) || write == null || write.pos() == null) return;
         long chunkKey = ChunkPos.asLong(write.pos().getX() >> 4, write.pos().getZ() >> 4);
         ConcurrentHashMap<Long, PendingSignWrite> chunkBucket =
-                levelBuckets.computeIfAbsent(chunkKey, k -> new ConcurrentHashMap<>());
+                MEMORY_PENDING.computeIfAbsent(chunkKey, k -> new ConcurrentHashMap<>());
         chunkBucket.putIfAbsent(write.pos().asLong(), write.withRetry());
     }
 
     public static boolean hasMemoryPending(ServerLevel level, int chunkX, int chunkZ) {
-        if (level == null) return false;
-        ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets = MEMORY_PENDING.get(level);
-        if (levelBuckets == null) return false;
-        ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = levelBuckets.get(ChunkPos.asLong(chunkX, chunkZ));
+        if (!isOverworld(level)) return false;
+        ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = MEMORY_PENDING.get(ChunkPos.asLong(chunkX, chunkZ));
         return chunkBucket != null && !chunkBucket.isEmpty();
     }
 
     public static void flushPending(ServerLevel level) {
-        if (level == null) return;
-        ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets = MEMORY_PENDING.get(level);
-        if (levelBuckets == null || levelBuckets.isEmpty()) return;
+        if (!isOverworld(level)) return;
+        if (MEMORY_PENDING.isEmpty()) return;
         ArrayList<PendingSignWrite> batch = new ArrayList<>();
         ArrayList<MemoryEntry> entries = new ArrayList<>();
-        for (var chunkEntry : levelBuckets.entrySet()) {
+        for (var chunkEntry : MEMORY_PENDING.entrySet()) {
             ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = chunkEntry.getValue();
             if (chunkBucket == null || chunkBucket.isEmpty()) continue;
             for (var writeEntry : chunkBucket.entrySet()) {
@@ -115,17 +107,16 @@ public final class SignTextShardStorage {
         }
         upsertBatch(level, batch);
         for (MemoryEntry entry : entries) {
-            ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = levelBuckets.get(entry.chunkKey());
+            ConcurrentHashMap<Long, PendingSignWrite> chunkBucket = MEMORY_PENDING.get(entry.chunkKey());
             if (chunkBucket == null) continue;
             chunkBucket.remove(entry.posKey(), entry.write());
-            if (chunkBucket.isEmpty()) levelBuckets.remove(entry.chunkKey(), chunkBucket);
+            if (chunkBucket.isEmpty()) MEMORY_PENDING.remove(entry.chunkKey(), chunkBucket);
         }
-        if (levelBuckets.isEmpty()) MEMORY_PENDING.remove(level, levelBuckets);
     }
 
     public static void clearLevel(ServerLevel level) {
-        if (level == null) return;
-        MEMORY_PENDING.remove(level);
+        if (!isOverworld(level)) return;
+        MEMORY_PENDING.clear();
     }
 
     public static void clearAllMemory() {
@@ -133,24 +124,26 @@ public final class SignTextShardStorage {
     }
 
     private static void putMemory(ServerLevel level, PendingSignWrite write) {
-        ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets =
-                MEMORY_PENDING.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
         long chunkKey = ChunkPos.asLong(write.pos().getX() >> 4, write.pos().getZ() >> 4);
         ConcurrentHashMap<Long, PendingSignWrite> chunkBucket =
-                levelBuckets.computeIfAbsent(chunkKey, k -> new ConcurrentHashMap<>());
+                MEMORY_PENDING.computeIfAbsent(chunkKey, k -> new ConcurrentHashMap<>());
         chunkBucket.put(write.pos().asLong(), write);
-        if (chunkBucket.size() > MAX_PENDING_PER_CHUNK || pendingCount(levelBuckets) > MAX_PENDING_PER_LEVEL) {
+        if (chunkBucket.size() > MAX_PENDING_PER_CHUNK || pendingCount() > MAX_PENDING) {
             flushPending(level);
         }
     }
 
-    private static int pendingCount(ConcurrentHashMap<Long, ConcurrentHashMap<Long, PendingSignWrite>> levelBuckets) {
+    private static int pendingCount() {
         int total = 0;
-        for (ConcurrentHashMap<Long, PendingSignWrite> bucket : levelBuckets.values()) {
+        for (ConcurrentHashMap<Long, PendingSignWrite> bucket : MEMORY_PENDING.values()) {
             if (bucket != null) total += bucket.size();
-            if (total > MAX_PENDING_PER_LEVEL) return total;
+            if (total > MAX_PENDING) return total;
         }
         return total;
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 
     private record MemoryEntry(long chunkKey, long posKey, PendingSignWrite write) {}

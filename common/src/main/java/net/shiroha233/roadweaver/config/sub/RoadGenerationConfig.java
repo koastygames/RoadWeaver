@@ -29,7 +29,7 @@ public final class RoadGenerationConfig implements SubConfig {
         cfg.allowArtificial = config.roadAppearance().allowArtificial();
         cfg.allowNatural = config.roadAppearance().allowNatural();
         cfg.averagingRadius = config.averagingRadius();
-        cfg.slopeLimitEnabled = config.slopeLimitEnabledForDimension(null);
+        cfg.slopeLimitEnabled = config.slopeLimitEnabled();
         cfg.maxSlopeStepPerTwoSegments = config.roadAppearance().maxSlopeStepPerTwoSegments();
 
         PathfindingCostConfig pf = config.pathfindingCost();

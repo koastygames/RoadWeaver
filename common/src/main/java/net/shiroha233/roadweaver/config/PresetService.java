@@ -75,9 +75,7 @@ public final class PresetService {
 
                     String name = dto.name == null || dto.name.isBlank() ? id : dto.name;
                     RoadType type = parseRoadType(dto.type, id);
-                    List<ResourceLocation> dims = parseDimensions(dto.dimensions);
-
-                    PresetDef def = new PresetDef(id, name, type, Collections.unmodifiableList(dims),
+                    PresetDef def = new PresetDef(id, name, type,
                             Collections.unmodifiableList(valid), Collections.unmodifiableList(validSlabs));
                     if (map.containsKey(id)) {
                         LOGGER.warn("Duplicate preset id '{}', file {} is ignored", id, p.getFileName());
@@ -88,13 +86,6 @@ public final class PresetService {
             }
         } catch (Exception e) {
             LOGGER.warn("Failed scanning presets: {}", presetDir, e);
-        }
-
-        if (!map.isEmpty()) {
-            ResourceLocation nether = new ResourceLocation("minecraft:the_nether");
-            ResourceLocation end = new ResourceLocation("minecraft:the_end");
-            tryEnsureDimensionSamplePresets(presetDir, map, nether);
-            tryEnsureDimensionSamplePresets(presetDir, map, end);
         }
 
         if (map.isEmpty()) {
@@ -131,49 +122,6 @@ public final class PresetService {
         } catch (IllegalArgumentException e) {
             LOGGER.warn("Invalid road type '{}' in preset {}, defaulting to ARTIFICIAL", typeStr, presetId);
             return RoadType.ARTIFICIAL;
-        }
-    }
-
-    private static List<ResourceLocation> parseDimensions(List<String> dimStrings) {
-        List<ResourceLocation> dims = new ArrayList<>();
-        if (dimStrings != null) {
-            for (String d : dimStrings) {
-                ResourceLocation rl = ResourceLocation.tryParse(d);
-                if (rl != null)
-                    dims.add(rl);
-            }
-        }
-        if (dims.isEmpty()) {
-            dims.add(new ResourceLocation("minecraft:overworld"));
-        }
-        return dims;
-    }
-
-    private static void tryEnsureDimensionSamplePresets(Path presetDir, Map<String, PresetDef> map,
-            ResourceLocation dimension) {
-        if (dimension == null)
-            return;
-        boolean hasAny = false;
-        for (PresetDef d : map.values()) {
-            if (d != null && d.dimensions() != null && d.dimensions().contains(dimension)) {
-                hasAny = true;
-                break;
-            }
-        }
-        if (hasAny)
-            return;
-
-        for (SamplePresets.SamplePresetTemplate template : SamplePresets.SAMPLE_PRESETS) {
-            if (template == null)
-                continue;
-            if (template.dimensions() == null || !template.dimensions().contains(dimension))
-                continue;
-            Path file = presetDir.resolve(template.id() + ".json");
-            if (!Files.exists(file)) {
-                writePreset(file, template.toPresetFile());
-            }
-            PresetDef def = template.toPresetDef();
-            map.putIfAbsent(def.id(), def);
         }
     }
 
@@ -225,24 +173,24 @@ public final class PresetService {
         return List.copyOf(PRESETS.get().values());
     }
 
-    public static synchronized PresetDef choosePreset(RandomSource rnd, ResourceLocation dimension, RoadType type) {
+    public static synchronized PresetDef choosePreset(RandomSource rnd, RoadType type) {
         if (PRESETS.get().isEmpty())
             reload();
         Map<String, PresetDef> all = PRESETS.get();
 
         List<PresetDef> candidates = new ArrayList<>();
         for (PresetDef def : all.values()) {
-            if (def.type == type && def.dimensions.contains(dimension)) {
+            if (def.type == type) {
                 candidates.add(def);
             }
         }
 
         if (candidates.isEmpty()) {
             if (type == RoadType.NATURAL) {
-                return new PresetDef("fallback_natural", "Natural Fallback", RoadType.NATURAL, List.of(dimension),
+                return new PresetDef("fallback_natural", "Natural Fallback", RoadType.NATURAL,
                         List.of("minecraft:dirt_path", "minecraft:gravel"), List.of());
             }
-            return new PresetDef("fallback_artificial", "Artificial Fallback", RoadType.ARTIFICIAL, List.of(dimension),
+            return new PresetDef("fallback_artificial", "Artificial Fallback", RoadType.ARTIFICIAL,
                     List.of("minecraft:stone_bricks"), List.of("minecraft:stone_brick_slab"));
         }
 
@@ -291,8 +239,7 @@ public final class PresetService {
         return toBlockStatesAllowEmpty(ids);
     }
 
-    public static synchronized PresetDef findNaturalPresetForBiome(ResourceLocation dimension,
-            ResourceLocation biomeId) {
+    public static synchronized PresetDef findNaturalPresetForBiome(net.minecraft.resources.ResourceLocation biomeId) {
         if (biomeId == null)
             return null;
         if (PRESETS.get().isEmpty())
@@ -309,8 +256,6 @@ public final class PresetService {
             return null;
         if (def.type != RoadType.NATURAL)
             return null;
-        if (dimension != null && (def.dimensions == null || !def.dimensions.contains(dimension)))
-            return null;
         return def;
     }
 
@@ -324,7 +269,7 @@ public final class PresetService {
     }
 
     public static synchronized void saveOrUpdatePresetFile(String id, String name, RoadType type,
-            List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
+            List<String> materials, List<String> slabMaterials) {
         if (id == null || id.isBlank()) {
             return;
         }
@@ -340,7 +285,6 @@ public final class PresetService {
         dto.id = id;
         dto.name = name;
         dto.type = type.name();
-        dto.dimensions = dimensions.stream().map(ResourceLocation::toString).toList();
         dto.materials = materials == null ? List.of() : new ArrayList<>(materials);
         dto.slabMaterials = slabMaterials == null ? List.of() : new ArrayList<>(slabMaterials);
         writePreset(presetDir.resolve(id + ".json"), dto);
@@ -348,8 +292,7 @@ public final class PresetService {
 
     public static synchronized void saveOrUpdatePresetFile(String id, String name, List<String> materials,
             List<String> slabMaterials) {
-        saveOrUpdatePresetFile(id, name, RoadType.ARTIFICIAL, List.of(new ResourceLocation("minecraft:overworld")),
-                materials, slabMaterials);
+        saveOrUpdatePresetFile(id, name, RoadType.ARTIFICIAL, materials, slabMaterials);
     }
 
     public static synchronized void deletePresetFile(String id) {
@@ -370,12 +313,10 @@ public final class PresetService {
         String id;
         String name;
         String type;
-        List<String> dimensions;
         List<String> materials;
         List<String> slabMaterials;
     }
 
-    public record PresetDef(String id, String name, RoadType type, List<ResourceLocation> dimensions,
-            List<String> materials, List<String> slabMaterials) {
+    public record PresetDef(String id, String name, RoadType type, List<String> materials, List<String> slabMaterials) {
     }
 }

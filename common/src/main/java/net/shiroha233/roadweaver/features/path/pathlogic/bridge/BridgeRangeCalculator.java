@@ -45,13 +45,12 @@ public final class BridgeRangeCalculator {
 
     public static RangeResult compute(List<BlockPos> middlePositions, List<RoadSpan> spans) {
         ModConfig cfg = ConfigService.get();
-        return compute(middlePositions, spans, cfg, null);
+        return compute(middlePositions, spans, cfg);
     }
 
     public static RangeResult compute(List<BlockPos> middlePositions,
                                       List<RoadSpan> spans,
-                                      ModConfig cfg,
-                                      String dimensionId) {
+                                      ModConfig cfg) {
         int n = middlePositions.size();
         boolean[] isBridge = new boolean[n];
         boolean[] skipSegments = new boolean[n];
@@ -61,10 +60,7 @@ public final class BridgeRangeCalculator {
             return new RangeResult(isBridge, List.of(), skipSegments);
         }
 
-        boolean bridgeEnabled = (dimensionId == null || dimensionId.isEmpty())
-                ? cfg.bridgeEnabled()
-                : cfg.bridgeEnabledForDimension(dimensionId);
-        if (!bridgeEnabled) {
+        if (!cfg.bridgeEnabled()) {
             return new RangeResult(isBridge, List.of(), skipSegments);
         }
 

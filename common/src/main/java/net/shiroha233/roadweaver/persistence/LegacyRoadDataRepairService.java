@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.persistence;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
@@ -31,13 +32,11 @@ public final class LegacyRoadDataRepairService {
 
     public static void repairServerMetadata(MinecraftServer server) {
         if (server == null) return;
-        for (ServerLevel level : server.getAllLevels()) {
-            repairRoadMetadata(level);
-        }
+        repairRoadMetadata(server.overworld());
     }
 
     public static int repairRoadMetadata(ServerLevel level) {
-        if (level == null || !RoadShardStorage.hasAnyRoad(level)) return 0;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension()) || !RoadShardStorage.hasAnyRoad(level)) return 0;
         WorldDataProvider provider = WorldDataProvider.getInstance();
         provider.getStructureLocations(level);
         List<StructureConnection> existing = provider.getStructureConnections(level);
@@ -45,7 +44,7 @@ public final class LegacyRoadDataRepairService {
     }
 
     public static int repairRoadMetadataInRect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        if (level == null) return 0;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return 0;
         WorldDataProvider provider = WorldDataProvider.getInstance();
         provider.getStructureLocations(level);
         List<StructureConnection> existing = provider.getStructureConnections(level);
