@@ -16,6 +16,9 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
@@ -25,12 +28,20 @@ import java.util.function.Predicate;
 final class NoiseChunkHeightSampler {
     private static final ZeroBeardifier ZERO_BEARDIFIER = ZeroBeardifier.INSTANCE;
 
+    private static final int CHUNK_CACHE_CAPACITY = 256;
+
     private final RandomState randomState;
     private final NoiseGeneratorSettings generatorSettings;
     private final NoiseSettings noiseSettings;
     private final Aquifer.FluidPicker fluidPicker;
     private final BlockState defaultBlock;
-    private final ConcurrentHashMap<Long, ChunkHeightData> chunkCache = new ConcurrentHashMap<>();
+    private final Map<Long, ChunkHeightData> chunkCache = Collections.synchronizedMap(
+            new LinkedHashMap<Long, ChunkHeightData>(CHUNK_CACHE_CAPACITY, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<Long, ChunkHeightData> eldest) {
+                    return size() > CHUNK_CACHE_CAPACITY;
+                }
+            });
 
     private NoiseChunkHeightSampler(RandomState randomState,
                                     NoiseGeneratorSettings generatorSettings,
@@ -61,8 +72,12 @@ final class NoiseChunkHeightSampler {
         return chunkData(x, z).oceanFloorWg(localIndex(x, z));
     }
 
+    /**
+     * 释放缓存。用新实例替换而非 clear()，确保内部 table 数组被 GC 回收。
+     */
     void clear() {
         chunkCache.clear();
+        // LinkedHashMap LRU 容量固定256，不会过度膨胀，clear后table适中无需替换
     }
 
     private ChunkHeightData chunkData(int x, int z) {

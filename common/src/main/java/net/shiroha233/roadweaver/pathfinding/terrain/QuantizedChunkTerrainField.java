@@ -24,11 +24,11 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
     private final int minZ;
     private final int sizeX;
     private final int sizeZ;
-    private final short[] heights;
-    private final short[] oceanFloors;
-    private final byte[] waterColumns;
-    private final byte[] validCells;
-    private final Holder<Biome>[] biomes;
+    private short[] heights;
+    private short[] oceanFloors;
+    private byte[] waterColumns;
+    private byte[] validCells;
+    private Holder<Biome>[] biomes;
 
     @SuppressWarnings("unchecked")
     private QuantizedChunkTerrainField(int step,
@@ -126,7 +126,7 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
                     Holder<Biome> biome = cache.getBiome(level, worldX, worldZ);
                     boolean biomeWater = biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN) || biome.is(BiomeTags.IS_DEEP_OCEAN);
                     boolean columnWater = (biomeWater && oceanFloor < seaLevel)
-                            || ((worldSurface <= seaLevel + 1) && (oceanFloor < worldSurface - 1));
+                            || (oceanFloor < worldSurface);
 
                     field.heights[index] = (short) height;
                     field.oceanFloors[index] = (short) oceanFloor;
@@ -195,6 +195,18 @@ public final class QuantizedChunkTerrainField implements PathTerrainField {
     @Override
     public int step() {
         return step;
+    }
+
+    /**
+     * 释放内部紧凑数组，协助 GC 回收。调用后此对象不可再用。
+     */
+    @Override
+    public void dispose() {
+        heights = null;
+        oceanFloors = null;
+        waterColumns = null;
+        validCells = null;
+        biomes = null;
     }
 
     public List<BlockPos> gridPositions() {

@@ -11,12 +11,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * 地形采样缓存
  */
 public final class TerrainSamplingCache {
-    private final ConcurrentHashMap<Long, Boolean> waterCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Integer, ConcurrentHashMap<Long, Boolean>> nearWaterCacheByDistance = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Boolean> columnWaterCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, Holder<Biome>> biomeCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Boolean> waterCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, ConcurrentHashMap<Long, Boolean>> nearWaterCacheByDistance = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Boolean> columnWaterCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Integer> heightCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Integer> oceanFloorCache = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Long, Holder<Biome>> biomeCache = new ConcurrentHashMap<>();
 
     private volatile FastHeightSampler fastSampler;
     private volatile AccurateHeightSampler accurateSampler;
@@ -127,7 +127,7 @@ public final class TerrainSamplingCache {
         }
         boolean isWaterBiome = isWaterLike(level, x, z);
         boolean biomeWater = isWaterBiome && of < sea;
-        boolean heightWater = (surface <= sea + 1) && (of < surface - 1);
+        boolean heightWater = of < surface;
         boolean res = biomeWater || heightWater;
         columnWaterCache.put(key, res);
         return res;
@@ -166,9 +166,9 @@ public final class TerrainSamplingCache {
     }
 
     private void clearPrecisionDerivedCaches() {
-        heightCache.clear();
-        oceanFloorCache.clear();
-        columnWaterCache.clear();
+        heightCache = new ConcurrentHashMap<>();
+        oceanFloorCache = new ConcurrentHashMap<>();
+        columnWaterCache = new ConcurrentHashMap<>();
     }
 
     public boolean isHighPrecisionMode() {
@@ -180,13 +180,16 @@ public final class TerrainSamplingCache {
         return accurateSampler;
     }
 
+    /**
+     * 释放所有缓存。用新实例替换而非 clear()，确保内部 table 数组被 GC 回收。
+     */
     public void clear() {
-        waterCache.clear();
-        nearWaterCacheByDistance.clear();
-        columnWaterCache.clear();
-        heightCache.clear();
-        oceanFloorCache.clear();
-        biomeCache.clear();
+        waterCache = new ConcurrentHashMap<>();
+        nearWaterCacheByDistance = new ConcurrentHashMap<>();
+        columnWaterCache = new ConcurrentHashMap<>();
+        heightCache = new ConcurrentHashMap<>();
+        oceanFloorCache = new ConcurrentHashMap<>();
+        biomeCache = new ConcurrentHashMap<>();
         if (fastSampler != null) fastSampler.clearCache();
         if (accurateSampler != null) accurateSampler.clear();
     }

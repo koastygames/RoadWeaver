@@ -2,13 +2,15 @@ package net.shiroha233.roadweaver.api;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 
 import java.util.ArrayList;
@@ -28,7 +30,7 @@ public final class RoadNetworkApi {
 
     public static void registerStructureEndpoint(ServerLevel level, BlockPos pos, String structureId,
             boolean autoConnect) {
-        if (level == null || pos == null)
+        if (level == null || pos == null || !Level.OVERWORLD.equals(level.dimension()))
             return;
         WorldDataProvider provider = WorldDataProvider.getInstance();
         StructureLocationData existing = provider.getStructureLocations(level);
@@ -53,10 +55,10 @@ public final class RoadNetworkApi {
         provider.setStructureLocations(level, updated);
 
         String id = (structureId != null && !structureId.isEmpty()) ? structureId : "unknown";
-        StructureSqliteStorage.addStructures(
+        StructureFileStorage.addStructures(
                 level,
                 java.util.List.of(new StructureInfo(new BlockPos(pos.getX(), 0, pos.getZ()), id)),
-                StructureSqliteStorage.SOURCE_MANUAL
+                StructureFileStorage.SOURCE_MANUAL
         );
     }
 
@@ -65,7 +67,7 @@ public final class RoadNetworkApi {
     }
 
     public static void ensureConnection(ServerLevel level, BlockPos from, BlockPos to, boolean generateImmediately) {
-        if (level == null || from == null || to == null)
+        if (level == null || from == null || to == null || !Level.OVERWORLD.equals(level.dimension()))
             return;
         if (from.equals(to))
             return;
@@ -91,13 +93,13 @@ public final class RoadNetworkApi {
             provider.setStructureLocations(level, updated);
         }
 
-        StructureSqliteStorage.addStructures(
+        StructureFileStorage.addStructures(
                 level,
                 java.util.List.of(
                         new StructureInfo(new BlockPos(from.getX(), 0, from.getZ()), "unknown"),
                         new StructureInfo(new BlockPos(to.getX(), 0, to.getZ()), "unknown")
                 ),
-                StructureSqliteStorage.SOURCE_MANUAL
+                StructureFileStorage.SOURCE_MANUAL
         );
 
         List<StructureConnection> existingConns = provider.getStructureConnections(level);
@@ -112,8 +114,10 @@ public final class RoadNetworkApi {
         }
 
         if (!exists) {
-            list.add(new StructureConnection(from, to, ConnectionStatus.PLANNED));
+            StructureConnection connection = new StructureConnection(from, to, ConnectionStatus.PLANNED);
+            list.add(connection);
             provider.setStructureConnections(level, list);
+            MapPatchService.publishConnection(level, connection);
         }
 
         if (generateImmediately) {
@@ -155,7 +159,7 @@ public final class RoadNetworkApi {
     }
 
     public static void planRegion(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        if (level == null)
+        if (level == null || !Level.OVERWORLD.equals(level.dimension()))
             return;
         RoadPlanningService.planRectAsync(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
     }

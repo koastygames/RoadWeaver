@@ -15,9 +15,17 @@ public final class PlanningUtils {
         return (x << 32) ^ (z & 0xffffffffL);
     }
 
+    public static BlockPos posFrom2dKey(long key) {
+        return new BlockPos((int) (key >> 32), 0, (int) key);
+    }
+
     public static long edgeKey(BlockPos a, BlockPos b) {
         long ka = pos2dKey(a);
         long kb = pos2dKey(b);
+        return edgeKey(ka, kb);
+    }
+
+    public static long edgeKey(long ka, long kb) {
         long lo = Math.min(ka, kb);
         long hi = Math.max(ka, kb);
         return (hi << 1) ^ lo;

@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.LevelSimulatedReader;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
@@ -17,7 +18,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 道路空间索引，使用 8x8 网格划分实现 O(1)~O(k) 空间查询
@@ -27,8 +27,8 @@ public final class RoadSpatialIndex {
 
     private static final int GRID_SIZE = RoadConstants.SPATIAL_INDEX_GRID_SIZE;
     private static final int GRID_SHIFT = RoadConstants.SPATIAL_INDEX_GRID_SHIFT;
-    private static final int MAX_CACHED_CHUNKS_PER_DIM = RoadConstants.SPATIAL_INDEX_MAX_CACHED_CHUNKS;
-    private static final Map<String, Map<Long, ChunkGridIndex>> CHUNK_INDEX = new ConcurrentHashMap<>();
+    private static final int MAX_CACHED_CHUNKS = RoadConstants.SPATIAL_INDEX_MAX_CACHED_CHUNKS;
+    private static final Map<Long, ChunkGridIndex> CHUNK_INDEX = createLRUCache();
 
     private static Map<Long, ChunkGridIndex> createLRUCache() {
         return Collections.synchronizedMap(
@@ -38,7 +38,7 @@ public final class RoadSpatialIndex {
                 true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<Long, ChunkGridIndex> eldest) {
-                    return size() > MAX_CACHED_CHUNKS_PER_DIM;
+                    return size() > MAX_CACHED_CHUNKS;
                 }
             });
     }
@@ -54,32 +54,28 @@ public final class RoadSpatialIndex {
     }
 
     public static boolean isNearRoad(ServerLevel level, BlockPos pos) {
-        if (level == null || pos == null) return false;
+        if (level == null || pos == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         if (!ConfigService.get().roadAppearance().preventTreesOnRoad()) return false;
         return isNearRoadXZ(level, pos, computeMaxPossibleMargin());
     }
 
     private static int computeMaxPossibleMargin() {
         int wRoad = Math.max(0, ConfigService.get().roadAppearance().roadWidth());
-        int wHighway = Math.max(0, ConfigService.get().highway().roadWidth());
-        return Math.max(1, (Math.max(wRoad, wHighway) / 2) + 1);
+        return Math.max(1, (wRoad / 2) + 1);
     }
 
     private static boolean isNearRoadXZ(ServerLevel level, BlockPos pos, int margin) {
         int cx = pos.getX() >> 4;
         int cz = pos.getZ() >> 4;
-        String dimKey = dimKey(level);
-
-        Map<Long, ChunkGridIndex> dimIndex = CHUNK_INDEX.computeIfAbsent(dimKey, k -> createLRUCache());
         long chunkKey = chunkKey(cx, cz);
 
-        ChunkGridIndex gridIndex = dimIndex.get(chunkKey);
+        ChunkGridIndex gridIndex = CHUNK_INDEX.get(chunkKey);
         if (gridIndex == null) {
-            synchronized (dimIndex) {
-                gridIndex = dimIndex.get(chunkKey);
+            synchronized (CHUNK_INDEX) {
+                gridIndex = CHUNK_INDEX.get(chunkKey);
                 if (gridIndex == null) {
                     gridIndex = buildChunkGridIndex(level, cx, cz);
-                    dimIndex.put(chunkKey, gridIndex);
+                    CHUNK_INDEX.put(chunkKey, gridIndex);
                 }
             }
         }
@@ -175,12 +171,8 @@ public final class RoadSpatialIndex {
         return (((long) gx) << 32) | (gz & 0xFFFFFFFFL);
     }
 
-    private static String dimKey(ServerLevel level) {
-        return level.dimension().location().toString();
-    }
-
     public static void clearCache(ServerLevel level) {
-        if (level != null) CHUNK_INDEX.remove(dimKey(level));
+        if (level != null && Level.OVERWORLD.equals(level.dimension())) CHUNK_INDEX.clear();
     }
 
     public static void clearAllCache() {
@@ -188,14 +180,13 @@ public final class RoadSpatialIndex {
     }
 
     public static void invalidateChunk(ServerLevel level, int cx, int cz) {
-        if (level == null) return;
-        Map<Long, ChunkGridIndex> dimIndex = CHUNK_INDEX.get(dimKey(level));
-        if (dimIndex != null) dimIndex.remove(chunkKey(cx, cz));
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        CHUNK_INDEX.remove(chunkKey(cx, cz));
     }
 
     private static final class ChunkGridIndex {
         static final ChunkGridIndex EMPTY = new ChunkGridIndex();
-        private final Map<Long, Long2ByteOpenHashMap> grids = new ConcurrentHashMap<>();
+        private final Map<Long, Long2ByteOpenHashMap> grids = new java.util.concurrent.ConcurrentHashMap<>();
 
         void addPoint(long gridKey, long packedPos, int margin) {
             int m = Math.max(0, Math.min(RoadConstants.SPATIAL_INDEX_MAX_MARGIN, margin));

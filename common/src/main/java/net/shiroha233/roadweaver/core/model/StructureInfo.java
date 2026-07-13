@@ -14,4 +14,8 @@ public record StructureInfo(BlockPos pos, String structureId) {
                     Codec.STRING.optionalFieldOf("structure_id", "unknown").forGetter(StructureInfo::structureId)
             ).apply(instance, StructureInfo::new)
     );
+
+    public static boolean isKnownId(String structureId) {
+        return structureId != null && !structureId.isBlank() && !"unknown".equalsIgnoreCase(structureId.trim());
+    }
 }

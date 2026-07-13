@@ -17,7 +17,7 @@ import net.minecraft.world.level.storage.loot.LootTable;
 import java.util.List;
 
 /**
- * 结构战利品配�?
+ * 结构战利品配置。
  */
 public record LootConfig(
     ResourceLocation lootTable,

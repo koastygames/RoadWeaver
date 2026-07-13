@@ -9,18 +9,15 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
-import net.shiroha233.roadweaver.client.render.RoadWeaverScreen;
-import net.shiroha233.roadweaver.client.render.ScreenBackgrounds;
-import net.shiroha233.roadweaver.client.render.RoadWeaverUi;
 import net.shiroha233.roadweaver.config.PresetService;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 材料预设编辑器界�?
+ * 材料预设编辑器界面
  */
-public class MaterialPresetEditorScreen extends RoadWeaverScreen {
+public class MaterialPresetEditorScreen extends Screen {
     private static final int MARGIN = 6;
     private static final float ZH_SCALE = 1.35f;
     private static final float EN_SCALE = 0.85f;
@@ -37,28 +34,11 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     private Button cancelButton;
     private Button newButton;
     private Button deleteButton;
-    private Button dimensionButton;
-    private DimensionListWidget dimensionListWidget;
-    
-    private ResourceLocation filterDimension = ResourceLocation.parse("minecraft:overworld");
     private PresetService.RoadType filterType = PresetService.RoadType.ARTIFICIAL;
-    private boolean pendingCloseDimensionDropdown = false;
     
     private int editorLeft;
     private int editorWidth;
     private int editorHeaderY;
-    private int leftPanelX;
-    private int leftPanelY;
-    private int leftPanelWidth;
-    private int leftPanelHeight;
-    private int editorPanelX;
-    private int editorPanelY;
-    private int editorPanelWidth;
-    private int editorPanelHeight;
-    private int candidatePanelX;
-    private int candidatePanelY;
-    private int candidatePanelWidth;
-    private int candidatePanelHeight;
     
     private final List<UiPreset> presets = new ArrayList<>();
     private final Set<String> originalIds = new HashSet<>();
@@ -68,7 +48,6 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         String id;
         String name;
         PresetService.RoadType type;
-        Set<ResourceLocation> dimensions = new HashSet<>();
         List<String> materials = new ArrayList<>();
         List<String> slabMaterials = new ArrayList<>();
     }
@@ -82,8 +61,6 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     protected void init() {
         super.init();
         this.clearWidgets();
-        this.dimensionListWidget = null;
-        this.pendingCloseDimensionDropdown = false;
 
         int topBarY = 24;
         int bottomY = this.height - 24;
@@ -137,29 +114,9 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         this.blockCandidateWidget = new BlockCandidateWidget(candidateX, topBarY, candidateW, contentH, this::onBlockSelectedFromCandidate);
         this.addRenderableWidget(blockCandidateWidget);
 
-        this.leftPanelX = leftPanelX - 4;
-        this.leftPanelY = topBarY - 4;
-        this.leftPanelWidth = leftPanelW + 8;
-        this.leftPanelHeight = contentH + 8;
-        this.editorPanelX = editorX - 4;
-        this.editorPanelY = topBarY - 4;
-        this.editorPanelWidth = editorW + 8;
-        this.editorPanelHeight = contentH + 8;
-        this.candidatePanelX = candidateX - 4;
-        this.candidatePanelY = topBarY - 4;
-        this.candidatePanelWidth = candidateW + 8;
-        this.candidatePanelHeight = contentH + 8;
-
         int topY = topBarY;
-        int typeW = 76;
-        int dimW = Math.max(90, editorW - typeW - gap);
-
-        this.dimensionButton = Button.builder(getDimensionButtonText(), btn -> toggleDimensionDropdown())
-                .bounds(editorX, topY, dimW, 20).build();
-        this.addRenderableWidget(dimensionButton);
-
         this.typeButton = Button.builder(Component.translatable("gui.roadweaver.preset_editor.road_type"), b -> toggleTypeFilter())
-                .bounds(editorX + dimW + gap, topY, typeW, 20).build();
+                .bounds(editorX, topY, 120, 20).build();
         this.addRenderableWidget(typeButton);
         updateTypeButton(filterType);
 
@@ -197,103 +154,10 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
             loadPresets();
         }
         
-        populateDimensions();
         refreshPresetListUI();
         ensureSelectionMatchesFilter();
     }
     
-    private void populateDimensions() {
-        List<ResourceLocation> dims = DimensionUiHelper.collectDimensions(
-                DimensionUiHelper.getLatestDiscoveryResult(),
-                filterDimension == null ? List.of() : List.of(filterDimension));
-        if (filterDimension == null || !dims.contains(filterDimension)) {
-            filterDimension = dims.get(0);
-        }
-        if (dimensionButton != null) {
-            dimensionButton.setMessage(getDimensionButtonText());
-            dimensionButton.active = !dims.isEmpty();
-        }
-    }
-
-    private Component getDimensionDisplayName(ResourceLocation dimId) {
-        return DimensionUiHelper.getDisplayName(dimId);
-    }
-
-    private Component getDimensionButtonText() {
-        return Component.translatable("config.roadweaver.structure_selection.dimension", getDimensionDisplayName(filterDimension));
-    }
-
-    private void toggleDimensionDropdown() {
-        if (dimensionListWidget != null) {
-            closeDimensionDropdown();
-        } else {
-            openDimensionDropdown();
-        }
-    }
-
-    private void openDimensionDropdown() {
-        if (dimensionButton == null) return;
-
-        List<ResourceLocation> dimensions = DimensionUiHelper.collectDimensions(
-                DimensionUiHelper.getLatestDiscoveryResult(),
-                filterDimension == null ? List.of() : List.of(filterDimension));
-        List<DimensionListWidget.Row> rows = DimensionUiHelper.buildRows(dimensions, false);
-        if (rows.isEmpty()) return;
-
-        int top = dimensionButton.getY() + dimensionButton.getHeight() + 2;
-        int maxH = Math.max(height - 24 - top - 4, 44);
-        int desiredRows = Math.max(2, Math.min(8, rows.size()));
-        int listH = Math.min(desiredRows * 22, maxH);
-
-        DimensionListWidget list = new DimensionListWidget(minecraft, dimensionButton.getWidth(), listH, top, selected -> {
-            filterDimension = selected;
-            if (dimensionButton != null) {
-                dimensionButton.setMessage(getDimensionButtonText());
-            }
-            pendingCloseDimensionDropdown = true;
-            refreshPresetListUI();
-            ensureSelectionMatchesFilter();
-        });
-        list.setLeftPos(dimensionButton.getX());
-        list.setRenderBackground(false);
-        list.setRenderTopAndBottom(false);
-        list.setRows(rows, filterDimension);
-        dimensionListWidget = list;
-        addRenderableWidget(list);
-    }
-
-    private void closeDimensionDropdown() {
-        if (dimensionListWidget == null) return;
-        removeWidget(dimensionListWidget);
-        dimensionListWidget = null;
-    }
-
-    @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        DimensionListWidget dd = dimensionListWidget;
-        Button btn = dimensionButton;
-
-        if (dd != null && dd.isMouseOver(mouseX, mouseY)) {
-            dd.mouseClicked(mouseX, mouseY, button);
-            return true;
-        }
-
-        if (dd != null && btn != null) {
-            boolean clickedButton = btn.isMouseOver(mouseX, mouseY);
-            boolean clickedDropdown = dd.isMouseOver(mouseX, mouseY);
-            if (!clickedButton && !clickedDropdown) {
-                closeDimensionDropdown();
-            }
-        }
-
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
-        if (pendingCloseDimensionDropdown) {
-            pendingCloseDimensionDropdown = false;
-            closeDimensionDropdown();
-        }
-        return handled;
-    }
-
     private void loadPresets() {
         presets.clear();
         originalIds.clear();
@@ -304,7 +168,6 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
             p.id = def.id();
             p.name = def.name();
             p.type = def.type();
-            p.dimensions = new HashSet<>(def.dimensions());
             p.materials = new ArrayList<>(def.materials());
             p.slabMaterials = new ArrayList<>(def.slabMaterials());
             presets.add(p);
@@ -353,7 +216,6 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
         p.id = "custom_" + System.currentTimeMillis();
         p.name = "New Preset";
         p.type = filterType;
-        p.dimensions.add(filterDimension);
         if (filterType == PresetService.RoadType.NATURAL) {
             p.materials.add("minecraft:dirt_path");
         } else {
@@ -451,7 +313,6 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     private boolean matchesFilter(UiPreset p) {
         if (p == null) return false;
         if (filterType != null && p.type != filterType) return false;
-        if (filterDimension != null && (p.dimensions == null || !p.dimensions.contains(filterDimension))) return false;
         return true;
     }
 
@@ -552,7 +413,6 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
                 p.id, 
                 p.name, 
                 p.type, 
-                new ArrayList<>(p.dimensions), 
                 p.materials, 
                 p.slabMaterials
             );
@@ -564,10 +424,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
     
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        ScreenBackgrounds.render(g, this.width, this.height);
-        RoadWeaverUi.drawPanel(g, leftPanelX, leftPanelY, leftPanelWidth, leftPanelHeight);
-        RoadWeaverUi.drawPanel(g, editorPanelX, editorPanelY, editorPanelWidth, editorPanelHeight);
-        RoadWeaverUi.drawPanel(g, candidatePanelX, candidatePanelY, candidatePanelWidth, candidatePanelHeight);
+        this.renderBackground(g, mouseX, mouseY, partialTick);
         super.render(g, mouseX, mouseY, partialTick);
 
         UiPreset p = (activePresetIndex >= 0 && activePresetIndex < presets.size()) ? presets.get(activePresetIndex) : null;
@@ -593,7 +450,7 @@ public class MaterialPresetEditorScreen extends RoadWeaverScreen {
             }
         }
         
-        RoadWeaverUi.drawScreenHeader(g, font, this.width, this.title, null);
+        g.drawCenteredString(font, this.title, this.width / 2, 8, 0xFFFFFF);
     }
     
     @Override

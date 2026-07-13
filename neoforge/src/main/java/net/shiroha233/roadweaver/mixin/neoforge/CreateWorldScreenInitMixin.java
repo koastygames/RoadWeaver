@@ -20,10 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 
 /**
- * Mixin 鐢ㄤ簬鍦ㄥ垱寤轰笘鐣岀晫闈㈠垵濮嬪寲鏃惰幏鍙?RegistryAccess 骞跺彂鐜扮粨鏋?
- * 
- * 杩欐槸瑙ｅ喅 NeoForge 鐗堢粨鏋勯€夋嫨鍒楄〃鏃犳硶鎻愬彇鐨勫叧閿?Mixin銆?
- * 閫氳繃鍦ㄥ垱寤轰笘鐣岀晫闈㈠垵濮嬪寲鏃惰幏鍙?RegistryAccess锛屽彲浠ユ彁鍓嶅彂鐜版墍鏈夊彲鐢ㄧ殑缁撴瀯銆?
+ * 在创建世界界面初始化后读取 RegistryAccess，供结构选择界面提前发现结构。
  */
 @Mixin(CreateWorldScreen.class)
 public abstract class CreateWorldScreenInitMixin extends Screen {
@@ -36,13 +33,10 @@ public abstract class CreateWorldScreenInitMixin extends Screen {
         super(Component.empty());
     }
 
-    /**
-     * 鍦?CreateWorldScreen.init 瀹屾垚鍚庢敞鍏ワ紝鑾峰彇 RegistryAccess 骞跺彂鐜扮粨鏋勩€?
-     * 浣跨敤 init 閬垮厤鏋勯€犲嚱鏁扮鍚嶅湪 1.21.1 鍙戠敓鍙樺寲瀵艰嚧娉ㄥ叆澶辨晥銆?
-     */
+    /** 注入 init 尾部，避免绑定 1.21.1 中容易变化的构造器签名。 */
     @Inject(method = "init", at = @At("TAIL"))
     private void onInitEnd(CallbackInfo ci) {
-        // 浠?WorldCreationContext 鑾峰彇 RegistryAccess 骞跺彂鐜扮粨鏋?
+        // 从 WorldCreationContext 获取 RegistryAccess 并发现结构。
         try {
             WorldCreationContext settings = uiState != null ? uiState.getSettings() : null;
             if (settings != null) {

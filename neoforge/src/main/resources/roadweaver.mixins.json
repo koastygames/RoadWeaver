@@ -15,7 +15,6 @@
     "neoforge.StructureManagerAccessor",
     "neoforge.dynamictree.DynamicTreeFeatureMixin",
     "neoforge.ServerLevelStructureMixin",
-    "neoforge.PlayerDimensionChangeMixin",
     "neoforge.tyg.TreeFromStructureNBTFeatureMixin",
     "neoforge.rtf.RTFTemplateFeatureMixin",
     "neoforge.rtf.RTFBushFeatureMixin"

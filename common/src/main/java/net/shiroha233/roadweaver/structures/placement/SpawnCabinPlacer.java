@@ -11,12 +11,13 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 
 /**
- * 初始小屋放置�? */
+ * 初始小屋放置器。
+ */
 public final class SpawnCabinPlacer {
     private SpawnCabinPlacer() {}
     
@@ -56,10 +57,10 @@ public final class SpawnCabinPlacer {
         
         provider.addStructureLocation(level, anchor);
 
-        StructureSqliteStorage.addStructures(
+        StructureFileStorage.addStructures(
                 level,
                 java.util.List.of(new StructureInfo(new BlockPos(anchor.getX(), 0, anchor.getZ()), STRUCTURE_ID.toString())),
-                StructureSqliteStorage.SOURCE_MANUAL
+                StructureFileStorage.SOURCE_MANUAL
         );
         
         return true;

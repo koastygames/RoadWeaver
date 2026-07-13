@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 
 import java.util.*;
@@ -15,10 +16,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PendingStructureStorage {
     private PendingStructureStorage() {}
     
-    private static final ConcurrentHashMap<ResourceLocation, ConcurrentHashMap<Long, List<PendingRoadsideStructure>>> PENDING = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, List<PendingRoadsideStructure>> PENDING = new ConcurrentHashMap<>();
     
-    private static final int MAX_INJECTED_PER_DIM = 4096;
-    private static final ConcurrentHashMap<ResourceLocation, Set<Long>> INJECTED = new ConcurrentHashMap<>();
+    private static final int MAX_INJECTED = 4096;
+    private static final Set<Long> INJECTED = createLimitedSet();
     
     private static Set<Long> createLimitedSet() {
         return java.util.Collections.newSetFromMap(
@@ -26,7 +27,7 @@ public final class PendingStructureStorage {
                 new java.util.LinkedHashMap<Long, Boolean>(256, 0.75f, true) {
                     @Override
                     protected boolean removeEldestEntry(java.util.Map.Entry<Long, Boolean> eldest) {
-                        return size() > MAX_INJECTED_PER_DIM;
+                        return size() > MAX_INJECTED;
                     }
                 }
             )
@@ -38,69 +39,46 @@ public final class PendingStructureStorage {
                                            BlockPos anchor, 
                                            Rotation rotation,
                                            int sizeX, int sizeY, int sizeZ) {
-        ResourceLocation dimKey = level.dimension().location();
+        if (!isOverworld(level) || structureId == null || anchor == null || rotation == null) return;
         PendingRoadsideStructure pending = new PendingRoadsideStructure(
             structureId, anchor, rotation, sizeX, sizeY, sizeZ
         );
         
         long chunkKey = pending.chunkKey();
-        PENDING.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>())
-               .computeIfAbsent(chunkKey, k -> Collections.synchronizedList(new ArrayList<>()))
+        PENDING.computeIfAbsent(chunkKey, k -> Collections.synchronizedList(new ArrayList<>()))
                .add(pending);
     }
     
     public static List<PendingRoadsideStructure> getPendingStructures(ServerLevel level, ChunkPos chunkPos) {
-        ResourceLocation dimKey = level.dimension().location();
+        if (!isOverworld(level) || chunkPos == null) return Collections.emptyList();
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
-        Set<Long> injected = INJECTED.get(dimKey);
-        if (injected != null && injected.contains(chunkKey)) {
+        if (INJECTED.contains(chunkKey)) {
             return Collections.emptyList();
         }
         
-        var dimMap = PENDING.get(dimKey);
-        if (dimMap == null) {
-            return Collections.emptyList();
-        }
-        
-        List<PendingRoadsideStructure> structures = dimMap.get(chunkKey);
+        List<PendingRoadsideStructure> structures = PENDING.get(chunkKey);
         return structures != null ? new ArrayList<>(structures) : Collections.emptyList();
     }
     
     public static void markAsInjected(ServerLevel level, ChunkPos chunkPos) {
-        ResourceLocation dimKey = level.dimension().location();
+        if (!isOverworld(level) || chunkPos == null) return;
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
-        INJECTED.computeIfAbsent(dimKey, k -> createLimitedSet())
-                .add(chunkKey);
-        
-        var dimMap = PENDING.get(dimKey);
-        if (dimMap != null) {
-            dimMap.remove(chunkKey);
-        }
+        INJECTED.add(chunkKey);
+        PENDING.remove(chunkKey);
     }
     
     public static boolean hasPendingStructures(ServerLevel level, ChunkPos chunkPos) {
-        ResourceLocation dimKey = level.dimension().location();
+        if (!isOverworld(level) || chunkPos == null) return false;
         long chunkKey = ((long) chunkPos.x << 32) | (chunkPos.z & 0xFFFFFFFFL);
         
-        Set<Long> injected = INJECTED.get(dimKey);
-        if (injected != null && injected.contains(chunkKey)) {
+        if (INJECTED.contains(chunkKey)) {
             return false;
         }
         
-        var dimMap = PENDING.get(dimKey);
-        if (dimMap == null) {
-            return false;
-        }
-        
-        List<PendingRoadsideStructure> structures = dimMap.get(chunkKey);
+        List<PendingRoadsideStructure> structures = PENDING.get(chunkKey);
         return structures != null && !structures.isEmpty();
-    }
-    
-    public static void clearDimension(ResourceLocation dimension) {
-        PENDING.remove(dimension);
-        INJECTED.remove(dimension);
     }
     
     public static void clearAll() {
@@ -109,11 +87,11 @@ public final class PendingStructureStorage {
     }
     
     public static int getPendingCount(ServerLevel level) {
-        ResourceLocation dimKey = level.dimension().location();
-        var dimMap = PENDING.get(dimKey);
-        if (dimMap == null) {
-            return 0;
-        }
-        return dimMap.values().stream().mapToInt(List::size).sum();
+        if (!isOverworld(level)) return 0;
+        return PENDING.values().stream().mapToInt(List::size).sum();
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 }

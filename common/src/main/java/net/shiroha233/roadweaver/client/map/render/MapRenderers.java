@@ -2,12 +2,15 @@ package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
 
 /**
@@ -29,12 +32,13 @@ public final class MapRenderers {
     }
 
     public static void renderStructures(GuiGraphics g,
+                                        Font font,
                                         List<BlockPos> points,
+                                        Function<BlockPos, String> structureIdResolver,
                                         IntUnaryOperator toScreenX,
                                         IntUnaryOperator toScreenY,
                                         java.util.function.BiPredicate<Integer, Integer> isInViewWorld,
                                         int size,
-                                        int color,
                                         int left, int top, int right, int bottom) {
         for (BlockPos p : points) {
             int bx = p.getX();
@@ -42,7 +46,8 @@ public final class MapRenderers {
             if (!isInViewWorld.test(bx, bz)) continue;
             int x = toScreenX.applyAsInt(bx);
             int y = toScreenY.applyAsInt(bz);
-            RenderUtils.drawPoint(g, x, y, size, color, left, top, right, bottom);
+            String structureId = structureIdResolver != null ? structureIdResolver.apply(p) : null;
+            StructureIconRenderer.render(g, font, structureId, x, y, Math.max(10, size + 2), left, top, right, bottom);
         }
     }
 
@@ -187,6 +192,55 @@ public final class MapRenderers {
         sr = x5 - gap;
         g.fill(sr - 28, y + 2, sr, y + 7, colorFailed);
         g.drawString(font, l5, x5, y, colorText, false);
+    }
+
+    public static void drawPlayerAvatar(GuiGraphics g,
+                                        ResourceLocation skinTexture,
+                                        int sx,
+                                        int sy,
+                                        float yawDeg,
+                                        int size,
+                                        int frameColor,
+                                        int directionColor,
+                                        int directionOutlineColor,
+                                        int directionTipLen,
+                                        int directionBaseOffset,
+                                        int directionHalfWidth,
+                                        int left,
+                                        int top,
+                                        int right,
+                                        int bottom) {
+        if (skinTexture == null) return;
+        double rx = Math.toRadians(yawDeg);
+        double dirX = -Math.sin(rx);
+        double dirY = Math.cos(rx);
+        double perpX = -dirY;
+        double perpY = dirX;
+        double tipX = sx + dirX * directionTipLen;
+        double tipY = sy + dirY * directionTipLen;
+        double baseX = sx + dirX * directionBaseOffset;
+        double baseY = sy + dirY * directionBaseOffset;
+        int ipx = (int) Math.round(tipX);
+        int ipy = (int) Math.round(tipY);
+        int ibx1 = (int) Math.round(baseX + perpX * directionHalfWidth);
+        int iby1 = (int) Math.round(baseY + perpY * directionHalfWidth);
+        int ibx2 = (int) Math.round(baseX - perpX * directionHalfWidth);
+        int iby2 = (int) Math.round(baseY - perpY * directionHalfWidth);
+        RenderUtils.fillTriangle(g, ipx - 1, ipy, ibx1 - 1, iby1, ibx2 - 1, iby2, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx + 1, ipy, ibx1 + 1, iby1, ibx2 + 1, iby2, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx, ipy - 1, ibx1, iby1 - 1, ibx2, iby2 - 1, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx, ipy + 1, ibx1, iby1 + 1, ibx2, iby2 + 1, directionOutlineColor, left, top, right, bottom);
+        RenderUtils.fillTriangle(g, ipx, ipy, ibx1, iby1, ibx2, iby2, directionColor, left, top, right, bottom);
+
+        int half = size / 2;
+        int drawX = sx - half;
+        int drawY = sy - half;
+        if (drawX > right || drawX + size < left || drawY > bottom || drawY + size < top) {
+            return;
+        }
+        g.fill(drawX - 2, drawY - 2, drawX + size + 2, drawY + size + 2, frameColor);
+        g.fill(drawX - 1, drawY - 1, drawX + size + 1, drawY + size + 1, 0x66FFFFFF);
+        PlayerFaceRenderer.draw(g, skinTexture, drawX, drawY, size);
     }
 
     public static void drawPlayerArrow(GuiGraphics g,

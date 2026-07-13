@@ -2,10 +2,7 @@
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BiomeTags;
-import net.minecraft.world.level.biome.Biome;
 import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
@@ -149,6 +146,12 @@ public final class PotentialFieldPathfinder implements Pathfinder {
         double contourFactor = 1.0 - alignment * contourDiscount * Math.min(1.0, gradMag * 2.0);
         double adjustedBase = baseCost * Math.max(0.3, contourFactor);
 
+        PathTerrainField.SampleBundle b = terrain.sampleBundle(np.getX(), np.getZ());
+        int biomeCost = b.waterBiome() ? (BIOME_BASE_COST * 3) : 0;
+        boolean waterColumn = b.columnWater();
+        boolean nearWater = isNearWaterLike(terrain, nxz.getX(), nxz.getZ(), d);
+        int waterDepth = b.waterDepth();
+
         int elevation = Math.abs(np.getY() - current.getY());
         double grade = computeGrade(current, np, horizDist);
         double gradePenalty = 0.0;
@@ -175,15 +178,6 @@ public final class PotentialFieldPathfinder implements Pathfinder {
         }
 
         int stabilityCost = calculateTerrainStability(terrain, np, np.getY(), d);
-
-        Holder<Biome> biome = biome(terrain, np.getX(), np.getZ());
-        int biomeCost = (biome.is(BiomeTags.IS_RIVER) || biome.is(BiomeTags.IS_OCEAN)
-                || biome.is(BiomeTags.IS_DEEP_OCEAN)) ? (BIOME_BASE_COST * 3) : 0;
-        boolean waterColumn = isColumnWater(terrain, nxz.getX(), nxz.getZ());
-        boolean nearWater = isNearWaterLike(terrain, nxz.getX(), nxz.getZ(), d);
-        int sea = terrain.seaLevel();
-        int oceanFloor = oceanFloorSampler(terrain, nxz.getX(), nxz.getZ());
-        int waterDepth = Math.max(0, sea - oceanFloor);
 
         double waterPenalty = 0.0;
         if (waterColumn) {

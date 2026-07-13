@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 道路吸附后处理服务：检测近距离平行路段，将副路吸附到主路上，
@@ -49,6 +50,24 @@ public final class RoadSnapService {
                 minX - margin, minZ - margin, maxX + margin, maxZ + margin);
         if (roads == null || roads.size() < 2) return;
         snapRoadList(level, roads);
+    }
+
+    public static CompletableFuture<Void> snapAroundConnectionAsync(ServerLevel level, BlockPos from, BlockPos to) {
+        if (level == null || from == null || to == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        int minX = Math.min(from.getX(), to.getX());
+        int minZ = Math.min(from.getZ(), to.getZ());
+        int maxX = Math.max(from.getX(), to.getX());
+        int maxZ = Math.max(from.getZ(), to.getZ());
+        int margin = SPLIT_THRESHOLD * 2;
+
+        return RoadSqliteStorage.queryRectAsync(level,
+                minX - margin, minZ - margin, maxX + margin, maxZ + margin)
+                .thenAcceptAsync(roads -> {
+                    if (roads == null || roads.size() < 2) return;
+                    snapRoadList(level, roads);
+                }, command -> level.getServer().execute(command));
     }
 
     private static void snapRoadList(ServerLevel level, List<RoadData> roads) {

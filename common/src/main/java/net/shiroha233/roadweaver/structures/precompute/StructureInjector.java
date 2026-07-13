@@ -5,18 +5,23 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import net.shiroha233.roadweaver.structures.pieces.SimpleTemplatePiece;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
+import net.shiroha233.roadweaver.structures.types.RoadsideVillageStructure;
 import net.shiroha233.roadweaver.structures.types.SpawnCabinStructure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,8 +33,13 @@ public final class StructureInjector {
     private static final Logger LOGGER = LoggerFactory.getLogger("RoadWeaver/StructureInjector");
     
     public static void injectPendingStructures(ServerLevel level, ChunkAccess chunk) {
+        if (level == null || chunk == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        injectSimplePendingStructures(level, chunk);
+        injectRoadsideVillages(level, chunk);
+    }
+
+    private static void injectSimplePendingStructures(ServerLevel level, ChunkAccess chunk) {
         ChunkPos chunkPos = chunk.getPos();
-        
         List<PendingRoadsideStructure> pending = PendingStructureStorage.getPendingStructures(level, chunkPos);
         if (pending.isEmpty()) {
             return;
@@ -77,12 +87,11 @@ public final class StructureInjector {
                     structure,
                     chunkPos,
                     0,
-                    new net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer(List.of(piece))
+                    new PiecesContainer(List.of(piece))
                 );
                 
                 SectionPos sectionPos = SectionPos.of(chunkPos, 0);
                 structureManager.setStartForStructure(sectionPos, structure, start, chunk);
-                
                 injectedCount++;
                 
             } catch (Exception e) {
@@ -97,5 +106,52 @@ public final class StructureInjector {
         }
         
         PendingStructureStorage.markAsInjected(level, chunkPos);
+    }
+
+    private static void injectRoadsideVillages(ServerLevel level, ChunkAccess chunk) {
+        ChunkPos chunkPos = chunk.getPos();
+        List<PendingRoadsideVillage> villages = PendingRoadsideVillageStorage.getPendingVillages(level, chunkPos);
+        if (villages.isEmpty()) {
+            return;
+        }
+
+        Registry<Structure> structureRegistry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        StructureManager structureManager = level.structureManager();
+        StructureTemplateManager templateManager = level.getStructureManager();
+        SectionPos sectionPos = SectionPos.of(chunkPos, 0);
+        int injectedCount = 0;
+
+        for (PendingRoadsideVillage village : villages) {
+            try {
+                Structure structure = structureRegistry.get(village.structureId());
+                if (!(structure instanceof RoadsideVillageStructure)) {
+                    LOGGER.warn("Roadside village structure {} is not available", village.structureId());
+                    continue;
+                }
+
+                List<PoolElementStructurePiece> pieces = RoadsideVillageJigsawPlanner.createPieces(level, village, templateManager);
+                if (pieces.isEmpty()) {
+                    LOGGER.debug("Roadside village {} produced no pieces", village.placementId());
+                    continue;
+                }
+
+                StructureStart start = new StructureStart(
+                    structure,
+                    chunkPos,
+                    0,
+                    new PiecesContainer(new ArrayList<>(pieces))
+                );
+                structureManager.setStartForStructure(sectionPos, structure, start, chunk);
+                injectedCount++;
+            } catch (Exception e) {
+                LOGGER.error("Failed to inject roadside village {}", village.placementId(), e);
+            }
+        }
+
+        if (injectedCount > 0) {
+            LOGGER.debug("Injected {} roadside villages into chunk [{}, {}]", injectedCount, chunkPos.x, chunkPos.z);
+        }
+
+        PendingRoadsideVillageStorage.markAsInjected(level, chunkPos);
     }
 }

@@ -2,10 +2,12 @@ package net.shiroha233.roadweaver.search;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
-import net.shiroha233.roadweaver.persistence.sqlite.StructureSqliteStorage;
+import net.shiroha233.roadweaver.map.MapPatchService;
+import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,17 +32,13 @@ public final class StructureIndexService {
      * 预测并验证围绕出生点的结构
      */
     public static List<StructureInfo> predictAndVerifyAroundSpawn(ServerLevel level) {
-        if (level == null) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) {
             return List.of();
         }
         ModConfig cfg = ConfigService.get();
         if (cfg == null || !cfg.structurePredictionEnabled()) {
             return List.of();
         }
-        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString())) {
-            return List.of();
-        }
-
         BlockPos spawn = level.getSharedSpawnPos();
         int radiusChunks = Math.max(1, cfg.predictRadiusChunks());
         int minBlockX = (spawn.getX() >> 4) - radiusChunks;
@@ -56,7 +54,7 @@ public final class StructureIndexService {
     public static List<StructureInfo> predictAndVerifyInRect(ServerLevel level,
                                                                      int minBlockX, int minBlockZ,
                                                                      int maxBlockX, int maxBlockZ) {
-        if (level == null) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) {
             return List.of();
         }
 
@@ -64,15 +62,11 @@ public final class StructureIndexService {
         if (cfg == null || !cfg.structurePredictionEnabled()) {
             return List.of();
         }
-        if (!cfg.isStructurePredictionEnabledForDimension(level.dimension().location().toString())) {
-            return List.of();
-        }
-
-        StructureSqliteStorage.ensurePolicy(level, policyHash(cfg));
+        StructureFileStorage.ensurePolicy(level, policyHash(cfg));
 
         final long tAll0 = CACHE_DEBUG ? System.nanoTime() : 0L;
         final int beforeCount = CACHE_DEBUG
-                ? StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED).size()
+                ? StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureFileStorage.SOURCE_PREDICTED).size()
                 : 0;
 
         int cminx = Math.floorDiv(minBlockX, 16);
@@ -80,58 +74,41 @@ public final class StructureIndexService {
         int cmaxx = Math.floorDiv(maxBlockX, 16);
         int cmaxz = Math.floorDiv(maxBlockZ, 16);
 
-        int tileSize = Math.max(1, StructureSqliteStorage.SCAN_TILE_SIZE_CHUNKS);
-        int tminx = Math.floorDiv(cminx, tileSize);
-        int tminz = Math.floorDiv(cminz, tileSize);
-        int tmaxx = Math.floorDiv(cmaxx, tileSize);
-        int tmaxz = Math.floorDiv(cmaxz, tileSize);
-
-        int tilesTotal = (tmaxx - tminx + 1) * (tmaxz - tminz + 1);
-        int tilesClaimed = 0;
+        int windowsClaimed = 0;
         int predictedTotal = 0;
         int verifiedTotal = 0;
 
-        for (int tx = tminx; tx <= tmaxx; tx++) {
-            for (int tz = tminz; tz <= tmaxz; tz++) {
-                if (!StructureSqliteStorage.claimScanTile(level, tx, tz)) {
-                    continue;
+        if (StructureFileStorage.claimScanWindow(level, cminx, cminz, cmaxx, cmaxz)) {
+            windowsClaimed++;
+            try {
+                List<StructureInfo> predicted = StructurePredictor.predictStructuresInRect(
+                        level,
+                        cminx, cminz, cmaxx, cmaxz,
+                        cfg.biomePrefilter(),
+                        cfg.structureWhitelist(),
+                        cfg.structureBlacklist()
+                );
+                List<StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
+                predictedTotal += predicted != null ? predicted.size() : 0;
+                verifiedTotal += verified != null ? verified.size() : 0;
+                if (verified != null && !verified.isEmpty()) {
+                    StructureFileStorage.addStructures(level, verified, StructureFileStorage.SOURCE_PREDICTED);
+                    MapPatchService.publishStructures(level, verified);
                 }
-                tilesClaimed++;
-
-                try {
-                    int tileMinChunkX = tx * tileSize;
-                    int tileMinChunkZ = tz * tileSize;
-                    int tileMaxChunkX = tileMinChunkX + tileSize - 1;
-                    int tileMaxChunkZ = tileMinChunkZ + tileSize - 1;
-
-                    List<StructureInfo> predicted = StructurePredictor.predictStructuresInRect(
-                            level,
-                            tileMinChunkX, tileMinChunkZ, tileMaxChunkX, tileMaxChunkZ,
-                            cfg.biomePrefilter(),
-                            cfg.structureWhitelist(),
-                            cfg.structureBlacklist()
-                    );
-                    List<StructureInfo> verified = StructureVerificationService.verifyPredictedStructures(level, predicted);
-                    predictedTotal += predicted != null ? predicted.size() : 0;
-                    verifiedTotal += verified != null ? verified.size() : 0;
-                    if (verified != null && !verified.isEmpty()) {
-                        StructureSqliteStorage.addStructures(level, verified, StructureSqliteStorage.SOURCE_PREDICTED);
-                    }
-                    StructureSqliteStorage.markScanTileDone(level, tx, tz);
-                } catch (Throwable t) {
-                    StructureSqliteStorage.releaseScanTile(level, tx, tz);
-                    LOGGER.warn("StructureIndexService: scan tile failed tile=[{},{}]", tx, tz, t);
-                }
+                StructureFileStorage.markScanWindowDone(level, cminx, cminz, cmaxx, cmaxz);
+            } catch (Throwable t) {
+                StructureFileStorage.releaseScanWindow(level, cminx, cminz, cmaxx, cmaxz);
+                LOGGER.warn("StructureIndexService: scan window failed rect=[{},{}..{},{}]", cminx, cminz, cmaxx, cmaxz, t);
             }
         }
 
-        List<StructureInfo> out = StructureSqliteStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureSqliteStorage.SOURCE_PREDICTED);
+        List<StructureInfo> out = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, StructureFileStorage.SOURCE_PREDICTED);
         if (CACHE_DEBUG) {
             int afterCount = out.size();
             long ms = (System.nanoTime() - tAll0) / 1_000_000L;
-            LOGGER.info("StructureIndexService.predictAndVerifyInRect rect=[{},{}..{},{}] tilesTotal={} tilesClaimed={} predicted={} verified={} cachedBefore={} cachedAfter={} timeMs={}",
+            LOGGER.info("StructureIndexService.predictAndVerifyInRect rect=[{},{}..{},{}] windowsClaimed={} predicted={} verified={} cachedBefore={} cachedAfter={} timeMs={}",
                     minBlockX, minBlockZ, maxBlockX, maxBlockZ,
-                    tilesTotal, tilesClaimed,
+                    windowsClaimed,
                     predictedTotal, verifiedTotal,
                     beforeCount, afterCount,
                     ms);
@@ -148,6 +125,7 @@ public final class StructureIndexService {
         String raw = "biomePrefilter=" + cfg.biomePrefilter()
                 + "|whitelist=" + String.join(",", wl)
                 + "|blacklist=" + String.join(",", bl);
+        raw += "|scanWindowVersion=2";
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] dig = md.digest(raw.getBytes(StandardCharsets.UTF_8));

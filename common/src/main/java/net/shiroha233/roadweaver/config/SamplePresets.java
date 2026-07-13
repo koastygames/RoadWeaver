@@ -1,7 +1,5 @@
 package net.shiroha233.roadweaver.config;
 
-import net.minecraft.resources.ResourceLocation;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,10 +7,6 @@ import java.util.List;
  * 内置示例预设模板定义
  */
 final class SamplePresets {
-    private static final ResourceLocation OVERWORLD = ResourceLocation.parse("minecraft:overworld");
-    private static final ResourceLocation NETHER = ResourceLocation.parse("minecraft:the_nether");
-    private static final ResourceLocation END = ResourceLocation.parse("minecraft:the_end");
-
     static final List<SamplePresetTemplate> SAMPLE_PRESETS;
 
     static {
@@ -22,50 +16,22 @@ final class SamplePresets {
                 "stone_street",
                 "Stone Street",
                 PresetService.RoadType.ARTIFICIAL,
-                List.of(OVERWORLD),
                 List.of("minecraft:stone_bricks", "minecraft:polished_andesite"),
                 List.of("minecraft:stone_brick_slab", "minecraft:polished_andesite_slab")));
         list.add(new SamplePresetTemplate(
                 "mud_road",
                 "Mud Road",
                 PresetService.RoadType.ARTIFICIAL,
-                List.of(OVERWORLD),
                 List.of("minecraft:mud_bricks", "minecraft:packed_mud"),
                 List.of("minecraft:mud_brick_slab")));
         list.add(new SamplePresetTemplate(
                 "aged_stone",
                 "Aged Stone",
                 PresetService.RoadType.ARTIFICIAL,
-                List.of(OVERWORLD),
                 List.of("minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks"),
                 List.of("minecraft:stone_brick_slab", "minecraft:mossy_stone_brick_slab")));
 
-        // ===== 人工道路（下�?末地�?=====
-        list.add(new SamplePresetTemplate(
-                "nether_blackstone_road",
-                "Nether Blackstone Road",
-                PresetService.RoadType.ARTIFICIAL,
-                List.of(NETHER),
-                List.of("minecraft:polished_blackstone_bricks", "minecraft:polished_blackstone", "minecraft:blackstone",
-                        "minecraft:basalt"),
-                List.of("minecraft:polished_blackstone_brick_slab", "minecraft:blackstone_slab")));
-        list.add(new SamplePresetTemplate(
-                "nether_brick_road",
-                "Nether Brick Road",
-                PresetService.RoadType.ARTIFICIAL,
-                List.of(NETHER),
-                List.of("minecraft:nether_bricks", "minecraft:red_nether_bricks", "minecraft:cracked_nether_bricks",
-                        "minecraft:blackstone"),
-                List.of("minecraft:nether_brick_slab", "minecraft:red_nether_brick_slab")));
-        list.add(new SamplePresetTemplate(
-                "end_endstone_road",
-                "End Stone Road",
-                PresetService.RoadType.ARTIFICIAL,
-                List.of(END),
-                List.of("minecraft:end_stone_bricks", "minecraft:end_stone", "minecraft:purpur_block"),
-                List.of("minecraft:end_stone_brick_slab", "minecraft:purpur_slab")));
-
-        // ===== 自然道路（按生物群系划分�?====
+        // ===== 自然道路（按生物群系划分）=====
         list.add(naturalPreset("plains", "Plains Trail",
                 List.of("minecraft:dirt_path", "minecraft:gravel", "minecraft:coarse_dirt"),
                 List.of("minecraft:oak_slab")));
@@ -190,62 +156,10 @@ final class SamplePresets {
                 List.of("minecraft:mycelium", "minecraft:dirt_path", "minecraft:coarse_dirt"),
                 List.of("minecraft:oak_slab")));
 
-        // ===== 自然道路（下界） =====
-        list.add(naturalPresetInDimensions("minecraft:nether_wastes", "Nether Wastes Trail",
-                List.of(NETHER),
-                List.of("minecraft:netherrack", "minecraft:blackstone", "minecraft:basalt"),
-                List.of("minecraft:blackstone_slab")));
-        list.add(naturalPresetInDimensions("minecraft:crimson_forest", "Crimson Forest Trail",
-                List.of(NETHER),
-                List.of("minecraft:crimson_nylium", "minecraft:netherrack", "minecraft:nether_wart_block"),
-                List.of("minecraft:crimson_slab")));
-        list.add(naturalPresetInDimensions("minecraft:warped_forest", "Warped Forest Trail",
-                List.of(NETHER),
-                List.of("minecraft:warped_nylium", "minecraft:netherrack", "minecraft:warped_wart_block"),
-                List.of("minecraft:warped_slab")));
-        list.add(naturalPresetInDimensions("minecraft:soul_sand_valley", "Soul Sand Valley Trail",
-                List.of(NETHER),
-                List.of("minecraft:soul_sand", "minecraft:soul_soil", "minecraft:blackstone"),
-                List.of("minecraft:blackstone_slab")));
-        list.add(naturalPresetInDimensions("minecraft:basalt_deltas", "Basalt Deltas Trail",
-                List.of(NETHER),
-                List.of("minecraft:basalt", "minecraft:polished_basalt", "minecraft:blackstone"),
-                List.of("minecraft:blackstone_slab")));
-
-        // ===== 自然道路（末地） =====
-        list.add(naturalPresetInDimensions("minecraft:the_end", "End Trail",
-                List.of(END),
-                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
-                List.of("minecraft:end_stone_brick_slab")));
-        list.add(naturalPresetInDimensions("minecraft:end_highlands", "End Highlands Trail",
-                List.of(END),
-                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
-                List.of("minecraft:end_stone_brick_slab")));
-        list.add(naturalPresetInDimensions("minecraft:end_midlands", "End Midlands Trail",
-                List.of(END),
-                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
-                List.of("minecraft:end_stone_brick_slab")));
-        list.add(naturalPresetInDimensions("minecraft:small_end_islands", "Small End Islands Trail",
-                List.of(END),
-                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
-                List.of("minecraft:end_stone_brick_slab")));
-        list.add(naturalPresetInDimensions("minecraft:end_barrens", "End Barrens Trail",
-                List.of(END),
-                List.of("minecraft:end_stone", "minecraft:end_stone_bricks"),
-                List.of("minecraft:end_stone_brick_slab")));
-
         SAMPLE_PRESETS = List.copyOf(list);
     }
 
     private static SamplePresetTemplate naturalPreset(String biomeId, String displayName, List<String> materials,
-            List<String> slabMaterials) {
-        return naturalPresetInDimensions(biomeId, displayName, List.of(OVERWORLD), materials, slabMaterials);
-    }
-
-    private static SamplePresetTemplate naturalPresetInDimensions(String biomeId,
-            String displayName,
-            List<ResourceLocation> dimensions,
-            List<String> materials,
             List<String> slabMaterials) {
         String sanitizedId = biomeId.contains(":")
                 ? biomeId.replace(':', '_')
@@ -255,19 +169,17 @@ final class SamplePresets {
                 presetId,
                 displayName,
                 PresetService.RoadType.NATURAL,
-                List.copyOf(dimensions),
                 List.copyOf(materials),
                 List.copyOf(slabMaterials));
     }
 
     record SamplePresetTemplate(String id, String name, PresetService.RoadType type,
-            List<ResourceLocation> dimensions, List<String> materials, List<String> slabMaterials) {
+            List<String> materials, List<String> slabMaterials) {
         PresetService.PresetDef toPresetDef() {
             return new PresetService.PresetDef(
                     id,
                     name,
                     type,
-                    List.copyOf(dimensions),
                     List.copyOf(materials),
                     List.copyOf(slabMaterials));
         }
@@ -277,7 +189,6 @@ final class SamplePresets {
             dto.id = id;
             dto.name = name;
             dto.type = type.name();
-            dto.dimensions = dimensions.stream().map(ResourceLocation::toString).toList();
             dto.materials = List.copyOf(materials);
             dto.slabMaterials = List.copyOf(slabMaterials);
             return dto;

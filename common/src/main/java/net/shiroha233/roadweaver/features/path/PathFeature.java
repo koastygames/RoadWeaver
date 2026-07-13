@@ -47,13 +47,11 @@ public class PathFeature extends Feature<PathFeatureConfig> {
     public boolean place(FeaturePlaceContext<PathFeatureConfig> ctx) {
         WorldGenLevel world = ctx.level();
         Level lvl = world.getLevel();
-        if (!(lvl instanceof ServerLevel server))
+        if (!(lvl instanceof ServerLevel server) || !Level.OVERWORLD.equals(server.dimension()))
             return false;
 
         ModConfig cfg = ConfigService.get();
-        String dimId = server.dimension().location().toString();
-        
-        if (!cfg.roadsEnabledForDimension(dimId))
+        if (!cfg.roadAppearance().roadsEnabled())
             return false;
 
         ChunkPos currentChunk = new ChunkPos(ctx.origin());
@@ -90,13 +88,11 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             RandomSource random,
             ModConfig cfg,
             int averagingRadius) {
-        String dimId = server.dimension().location().toString();
-        
-        if (!cfg.roadsEnabledForDimension(dimId)) {
+        if (!cfg.roadAppearance().roadsEnabled()) {
             return;
         }
 
-        boolean bridgeEnabled = cfg.bridgeEnabledForDimension(dimId);
+        boolean bridgeEnabled = cfg.bridgeEnabled();
         int roadType = data.roadType();
         if (roadType != 0 && roadType != 1) {
             return;
@@ -110,8 +106,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             return;
 
         List<BlockPos> middlePositions = segments.stream().map(RoadSegmentPlacement::middlePos).toList();
-        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg,
-                dimId);
+        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg);
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
         boolean[] skipSegments = res.skipSegments();
@@ -130,7 +125,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 : null);
 
         var targetY = data.targetY();
-        boolean slopeLimitEnabled = cfg.slopeLimitEnabledForDimension(dimId);
+        boolean slopeLimitEnabled = cfg.slopeLimitEnabled();
         HeightProfileService.HeightProfile hp = HeightProfileService.build(
                 world,
                 middlePositions,
@@ -214,7 +209,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                 SegmentPaver.paveSegment(world, seg, i, middlePositions, baseYArr, roadType, materials, slabMaterials,
                         random, cfg);
 
-                if (cfg.roadSignsEnabledForDimension(dimId)) {
+                if (cfg.roadAppearance().roadSignsEnabled()) {
                     SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
                             world,
                             decorations,

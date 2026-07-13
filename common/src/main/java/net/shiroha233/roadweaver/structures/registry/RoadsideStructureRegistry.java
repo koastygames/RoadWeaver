@@ -4,18 +4,16 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.shiroha233.roadweaver.structures.data.BiomeCategory;
 import net.shiroha233.roadweaver.structures.types.RoadsideStructure;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 路边结构注册中心
@@ -23,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RoadsideStructureRegistry {
     private RoadsideStructureRegistry() {}
     
-    private static final Map<ResourceKey<?>, List<RoadsideStructureEntry>> CACHE = new ConcurrentHashMap<>();
+    private static volatile List<RoadsideStructureEntry> cache;
     
     public record RoadsideStructureEntry(
         ResourceLocation id,
@@ -32,8 +30,13 @@ public final class RoadsideStructureRegistry {
     ) {}
     
     public static List<RoadsideStructureEntry> getAll(ServerLevel level) {
-        ResourceKey<?> dimensionKey = level.dimension();
-        return CACHE.computeIfAbsent(dimensionKey, k -> loadFromRegistry(level.registryAccess()));
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return List.of();
+        List<RoadsideStructureEntry> current = cache;
+        if (current != null) return current;
+        synchronized (RoadsideStructureRegistry.class) {
+            if (cache == null) cache = List.copyOf(loadFromRegistry(level.registryAccess()));
+            return cache;
+        }
     }
     
     public static RoadsideStructureEntry choose(ServerLevel level,
@@ -99,10 +102,6 @@ public final class RoadsideStructureRegistry {
     }
     
     public static void clearCache() {
-        CACHE.clear();
-    }
-    
-    public static void clearCache(ResourceKey<?> dimensionKey) {
-        CACHE.remove(dimensionKey);
+        cache = null;
     }
 }
