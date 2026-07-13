@@ -4,6 +4,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.levelgen.Beardifier;
 import net.minecraft.world.level.levelgen.DensityFunction;
@@ -64,14 +65,13 @@ public class BeardifierMixin implements RoadBeardifierAccess {
 
             LevelAccessor levelAccessor = ((StructureManagerAccessor) mgr).roadweaver$getLevel();
             ServerLevel serverLevel = roadweaver$resolveServerLevel(levelAccessor);
-            if (serverLevel == null) return;
+            if (serverLevel == null || !Level.OVERWORLD.equals(serverLevel.dimension())) return;
 
             int minX = pos.getMinBlockX();
             int minZ = pos.getMinBlockZ();
             int maxX = pos.getMaxBlockX();
             int maxZ = pos.getMaxBlockZ();
-            String dimId = serverLevel.dimension().location().toString();
-            boolean includeBridgeSegments = !cfg.bridgeEnabledForDimension(dimId);
+            boolean includeBridgeSegments = !cfg.bridgeEnabled();
 
             List<RoadData> roads = RoadShardStorage.queryRect(serverLevel,
                     minX - 16, minZ - 16, maxX + 16, maxZ + 16);

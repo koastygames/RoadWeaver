@@ -2,18 +2,15 @@ package net.shiroha233.roadweaver.persistence.sqlite;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.minecraft.world.level.Level;
+import net.shiroha233.roadweaver.persistence.files.SignTextFileStorage;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
- * 路牌文本延迟写入存储
+ * 路牌文本存储门面，底层已切换到文件型存储。
  */
 public final class SignTextSqliteStorage {
     private SignTextSqliteStorage() {}
@@ -21,84 +18,42 @@ public final class SignTextSqliteStorage {
     public static final int TYPE_DISTANCE = 0;
     public static final int TYPE_SEA_QUESTION = 1;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-
-    private static final String SQL_UPSERT =
-            "MERGE INTO pending_sign_texts (chunk_x, chunk_z, x, y, z, sign_type, payload, updated_at) "
-            + "KEY (x, y, z) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    private static final String SQL_QUERY_BY_CHUNK =
-            "SELECT id, x, y, z, sign_type, payload "
-            + "FROM pending_sign_texts WHERE chunk_x = ? AND chunk_z = ? ORDER BY id LIMIT ?";
-    private static final String SQL_DELETE_BY_ID = "DELETE FROM pending_sign_texts WHERE id = ?";
-
     public record PendingSignText(long id, BlockPos pos, int signType, String payload) {}
 
-    public static synchronized void upsert(ServerLevel level, BlockPos pos, int signType, String payload) {
-        if (level == null || pos == null) return;
-        String safePayload = payload == null ? "" : payload;
-        int chunkX = pos.getX() >> 4;
-        int chunkZ = pos.getZ() >> 4;
-        long now = System.currentTimeMillis() / 1000L;
+    public record PendingSignWrite(BlockPos pos, int signType, String payload) {}
 
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_UPSERT)) {
-                stmt.setInt(1, chunkX);
-                stmt.setInt(2, chunkZ);
-                stmt.setInt(3, pos.getX());
-                stmt.setInt(4, pos.getY());
-                stmt.setInt(5, pos.getZ());
-                stmt.setInt(6, signType);
-                stmt.setString(7, safePayload);
-                stmt.setLong(8, now);
-                stmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            LOGGER.error("upsert pending_sign_texts failed", e);
-        }
+    public static void upsert(ServerLevel level, BlockPos pos, int signType, String payload) {
+        if (!isOverworld(level) || pos == null) return;
+        upsertBatch(level, List.of(new PendingSignWrite(pos, signType, payload)));
     }
 
-    public static synchronized List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
-        if (level == null || limit <= 0) return List.of();
-        ArrayList<PendingSignText> out = new ArrayList<>();
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_QUERY_BY_CHUNK)) {
-                stmt.setInt(1, chunkX);
-                stmt.setInt(2, chunkZ);
-                stmt.setInt(3, limit);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    while (rs.next()) {
-                        long id = rs.getLong("id");
-                        int x = rs.getInt("x");
-                        int y = rs.getInt("y");
-                        int z = rs.getInt("z");
-                        int signType = rs.getInt("sign_type");
-                        String payload = rs.getString("payload");
-                        out.add(new PendingSignText(id, new BlockPos(x, y, z), signType, payload));
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            LOGGER.error("queryByChunk pending_sign_texts failed", e);
+    public static void upsertBatch(ServerLevel level, Collection<PendingSignWrite> writes) {
+        if (!isOverworld(level) || writes == null || writes.isEmpty()) return;
+        ArrayList<SignTextFileStorage.PendingSignWrite> batch = new ArrayList<>(writes.size());
+        for (PendingSignWrite write : writes) {
+            if (write == null || write.pos() == null) continue;
+            batch.add(new SignTextFileStorage.PendingSignWrite(write.pos(), write.signType(), write.payload()));
+        }
+        SignTextFileStorage.upsertBatch(level, batch);
+    }
+
+    public static List<PendingSignText> queryByChunk(ServerLevel level, int chunkX, int chunkZ, int limit) {
+        if (!isOverworld(level) || limit <= 0) return List.of();
+        List<SignTextFileStorage.PendingSignText> rows = SignTextFileStorage.queryByChunk(level, chunkX, chunkZ, limit);
+        if (rows.isEmpty()) return List.of();
+        ArrayList<PendingSignText> out = new ArrayList<>(rows.size());
+        for (SignTextFileStorage.PendingSignText row : rows) {
+            out.add(new PendingSignText(row.id(), row.pos(), row.signType(), row.payload()));
         }
         return out;
     }
 
-    public static synchronized void deleteByIds(ServerLevel level, List<Long> ids) {
-        if (level == null || ids == null || ids.isEmpty()) return;
-        try {
-            Connection conn = RoadDatabaseManager.getConnection(level);
-            try (PreparedStatement stmt = conn.prepareStatement(SQL_DELETE_BY_ID)) {
-                for (Long id : ids) {
-                    if (id == null) continue;
-                    stmt.setLong(1, id);
-                    stmt.addBatch();
-                }
-                stmt.executeBatch();
-            }
-        } catch (SQLException e) {
-            LOGGER.error("deleteByIds pending_sign_texts failed", e);
-        }
+    public static void deleteByIds(ServerLevel level, List<Long> ids) {
+        if (!isOverworld(level)) return;
+        SignTextFileStorage.deleteByIds(level, ids);
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null && Level.OVERWORLD.equals(level.dimension());
     }
 }

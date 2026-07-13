@@ -54,8 +54,7 @@ public final class RoadsideStructurePrecomputer {
         
         ModConfig cfg = ConfigService.get();
 
-        String dimId = level.dimension().location().toString();
-        if (!cfg.roadsideStructuresEnabledForDimension(dimId)) {
+        if (!cfg.roadsideStructure().enabled()) {
             return 0;
         }
         

@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * 缁撴瀯鍒楄〃缁勪欢 - 鏀寔鏍戝舰灞曠ず銆佹ā缁勫浘锟?
+ * 结构列表组件，支持树形展示和模组图标。
  */
 public class StructureListWidget extends RoadWeaverSelectionList<StructureListWidget.Entry> {
     private static final Map<String, Optional<ResourceLocation>> MOD_ICON_CACHE = new HashMap<>();

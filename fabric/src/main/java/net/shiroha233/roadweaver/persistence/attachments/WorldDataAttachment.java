@@ -5,9 +5,9 @@ import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.resources.ResourceLocation;
 import net.shiroha233.roadweaver.RoadWeaver;
+import net.shiroha233.roadweaver.map.permission.MapAccessPolicy;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
-import net.shiroha233.roadweaver.map.permission.MapAccessPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,11 +23,6 @@ public class WorldDataAttachment {
 
     public static final AttachmentType<List<StructureConnection>> CONNECTED_STRUCTURES = AttachmentRegistry.createPersistent(
             ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "connected_villages"),
-            Codec.list(StructureConnection.CODEC)
-    );
-
-    public static final AttachmentType<List<StructureConnection>> HIGHWAY_CONNECTIONS = AttachmentRegistry.createPersistent(
-            ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_connections"),
             Codec.list(StructureConnection.CODEC)
     );
 

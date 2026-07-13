@@ -20,17 +20,16 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 import net.shiroha233.roadweaver.structures.types.BridgeTemplateStructure;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 桥模板结构注册中�?
+ * 桥模板结构注册中心。
  */
 public final class BridgeTemplateStructureRegistry {
 
     private BridgeTemplateStructureRegistry() {
     }
 
-    private static final Map<ResourceKey<?>, List<BridgeTemplate>> CACHE = new ConcurrentHashMap<>();
+    private static volatile List<BridgeTemplate> cache;
 
     public static class BridgeTemplate {
         private final ResourceLocation id;
@@ -175,8 +174,13 @@ public final class BridgeTemplateStructureRegistry {
     }
 
     public static List<BridgeTemplate> getAll(ServerLevel level) {
-        ResourceKey<?> dimensionKey = level.dimension();
-        return CACHE.computeIfAbsent(dimensionKey, k -> loadFromRegistry(level));
+        if (level == null || !net.minecraft.world.level.Level.OVERWORLD.equals(level.dimension())) return List.of();
+        List<BridgeTemplate> current = cache;
+        if (current != null) return current;
+        synchronized (BridgeTemplateStructureRegistry.class) {
+            if (cache == null) cache = List.copyOf(loadFromRegistry(level));
+            return cache;
+        }
     }
 
     public static BridgeTemplate choose(ServerLevel level, int seed) {
@@ -239,10 +243,6 @@ public final class BridgeTemplateStructureRegistry {
     }
 
     public static void clearCache() {
-        CACHE.clear();
-    }
-
-    public static void clearCache(ResourceKey<?> dimensionKey) {
-        CACHE.remove(dimensionKey);
+        cache = null;
     }
 }

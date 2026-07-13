@@ -4,6 +4,7 @@ import dev.architectury.platform.Platform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.shiroha233.roadweaver.client.loading.OpenMapKeyTextBridge;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 
@@ -22,12 +23,12 @@ public final class LoadingTipsRenderer {
     private static final int TOP_WARNING_BG = 0x90000000;
     private static final int TOP_WARNING_COLOR = 0xFFF6D365;
 
-    private static final List<Component> TIPS = List.of(
-            Component.translatable("tip.roadweaver.loading.1"),
-            Component.translatable("tip.roadweaver.loading.2"),
-            Component.translatable("tip.roadweaver.loading.3"),
-            Component.translatable("tip.roadweaver.loading.4"),
-            Component.translatable("tip.roadweaver.loading.5"));
+    private static final List<String> TIP_KEYS = List.of(
+            "tip.roadweaver.loading.1",
+            "tip.roadweaver.loading.2",
+            "tip.roadweaver.loading.3",
+            "tip.roadweaver.loading.4",
+            "tip.roadweaver.loading.5");
 
     private static int currentIndex = 0;
     private static long lastSwitchTimeMillis = 0L;
@@ -43,7 +44,7 @@ public final class LoadingTipsRenderer {
         if (mc == null) {
             return;
         }
-        if (TIPS.isEmpty()) {
+        if (TIP_KEYS.isEmpty()) {
             return;
         }
 
@@ -60,13 +61,15 @@ public final class LoadingTipsRenderer {
         }
         if (now - lastSwitchTimeMillis >= INTERVAL_MILLIS) {
             lastSwitchTimeMillis = now;
-            currentIndex = (currentIndex + 1) % TIPS.size();
+            currentIndex = (currentIndex + 1) % TIP_KEYS.size();
         }
 
-        if (currentIndex >= TIPS.size()) {
+        if (currentIndex >= TIP_KEYS.size()) {
             currentIndex = 0;
         }
-        Component tip = TIPS.get(currentIndex);
+        Component tip = currentIndex == 0
+                ? Component.translatable(TIP_KEYS.get(currentIndex), OpenMapKeyTextBridge.getDisplayText())
+                : Component.translatable(TIP_KEYS.get(currentIndex));
 
         var font = mc.font;
         int sw = mc.getWindow().getGuiScaledWidth();

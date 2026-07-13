@@ -3,10 +3,12 @@ package net.shiroha233.roadweaver.generation;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
@@ -18,17 +20,14 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 闲时道路生成服务：
@@ -44,14 +43,11 @@ public final class IdleRoadGenerationService {
     private static final int IDLE_RADIUS_EXPAND_STEP_CHUNKS = 32;
     private static final int IDLE_CENTER_FOLLOW_STEP_CHUNKS = 8;
 
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<UUID, IdleWindow>> WINDOWS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> IDLE_OWNED = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, ConcurrentHashMap<Long, Boolean>> IN_FLIGHT = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, IdleWindow> WINDOWS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, Boolean> IDLE_OWNED = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Long, Boolean> IN_FLIGHT = new ConcurrentHashMap<>();
+    private static final AtomicInteger RUNNING = new AtomicInteger();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
-
-    private static final AtomicReference<ExecutorService> IDLE_EXEC = new AtomicReference<>();
-    private static final AtomicInteger IDLE_EXEC_THREADS = new AtomicInteger(-1);
 
     private static final class IdleWindow {
         volatile int centerChunkX;
@@ -70,9 +66,8 @@ public final class IdleRoadGenerationService {
         WINDOWS.clear();
         IDLE_OWNED.clear();
         IN_FLIGHT.clear();
-        RUNNING.clear();
+        RUNNING.set(0);
         ALL_RUNNING.clear();
-        ensureExecutor(Math.max(0, ConfigService.get().performance().idleGenerationThreads()));
     }
 
     public static void onServerStopping() {
@@ -85,29 +80,25 @@ public final class IdleRoadGenerationService {
         WINDOWS.clear();
         IDLE_OWNED.clear();
         IN_FLIGHT.clear();
-        RUNNING.clear();
-        shutdownExecutor();
+        RUNNING.set(0);
     }
 
     public static void tickPlayer(ServerPlayer player) {
         if (player == null) return;
 
         ServerLevel level = player.serverLevel();
+        if (!Level.OVERWORLD.equals(level.dimension())) return;
         ModConfig cfg = ConfigService.get();
-        String dimId = level.dimension().location().toString();
-        if (!cfg.roadsEnabledForDimension(dimId)) return;
+        if (!cfg.roadAppearance().roadsEnabled()) return;
 
-        int threads = Math.max(0, cfg.performance().idleGenerationThreads());
-        if (threads <= 0) return;
-
-        ensureExecutor(threads);
+        if (!cfg.performance().idleGenerationEnabled()) return;
 
         int baseRadius = resolveBaseRadiusChunks(cfg);
         int expandStep = resolveExpandStepChunks(cfg);
         int pcx = player.chunkPosition().x;
         int pcz = player.chunkPosition().z;
 
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
         UUID playerId = player.getUUID();
         IdleWindow win = perLevel.get(playerId);
         if (win == null) {
@@ -151,32 +142,31 @@ public final class IdleRoadGenerationService {
     }
 
     public static void tick(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
 
         ModConfig cfg = ConfigService.get();
-        int threads = Math.max(0, cfg.performance().idleGenerationThreads());
-        if (threads <= 0) {
-            ensureExecutor(0);
+        if (!cfg.performance().idleGenerationEnabled()) {
             clearLevel(level);
             return;
         }
 
-        ensureExecutor(threads);
         cleanupWindows(level);
 
         ALL_RUNNING.removeIf(f -> f == null || f.isDone() || f.isCancelled());
         reservePlannedEdges(level);
 
-        AtomicInteger running = RUNNING.computeIfAbsent(level, l -> new AtomicInteger(0));
+        AtomicInteger running = RUNNING;
         List<ServerPlayer> players = collectPlayers(level);
         int duty = cfg.performance().idleThreadDutyCycle();
 
-        while (running.get() < threads) {
+        int limit = Math.min(1, Math.max(1, cfg.performance().maxConcurrentGenerations()));
+
+        while (running.get() < limit) {
             StructureConnection conn = pollNearestOwnedPlanned(level, players);
             if (conn == null) break;
 
             long key = PlanningUtils.edgeKey(conn.from(), conn.to());
-            ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+            ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT;
             if (inFlight.putIfAbsent(key, Boolean.TRUE) != null) continue;
             if (!updateStatus(level, conn, ConnectionStatus.GENERATING, ConnectionStatus.PLANNED)) {
                 inFlight.remove(key);
@@ -186,17 +176,17 @@ public final class IdleRoadGenerationService {
             running.incrementAndGet();
             long epoch = ThreadPoolManager.currentEpoch();
             final StructureConnection task = conn;
-            Future<?> future = executor().submit(() -> runIdleTask(level, task, key, duty, epoch));
+            Future<?> future = ThreadPoolManager.submit(ThreadPoolManager.TaskRole.IDLE, () -> runIdleTask(level, task, key, duty, epoch));
             ALL_RUNNING.add(future);
         }
     }
 
     public static boolean shouldReserveForIdle(ServerLevel level, StructureConnection conn) {
-        if (level == null || conn == null) return false;
-        if (ConfigService.get().performance().idleGenerationThreads() <= 0) return false;
+        if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
+        if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        if (owned == null || owned.isEmpty()) return false;
+        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        if (owned.isEmpty()) return false;
 
         long key = PlanningUtils.edgeKey(conn.from(), conn.to());
         if (!owned.containsKey(key)) return false;
@@ -207,17 +197,15 @@ public final class IdleRoadGenerationService {
     }
 
     public static boolean isManagedByIdle(ServerLevel level, StructureConnection conn) {
-        if (level == null || conn == null) return false;
-        if (ConfigService.get().performance().idleGenerationThreads() <= 0) return false;
+        if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
+        if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
         long key = PlanningUtils.edgeKey(conn.from(), conn.to());
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.get(level);
-        if (inFlight != null && inFlight.containsKey(key)) return true;
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        return owned != null && owned.containsKey(key);
+        if (IN_FLIGHT.containsKey(key)) return true;
+        return IDLE_OWNED.containsKey(key);
     }
 
     private static void runIdleTask(ServerLevel level, StructureConnection task, long key, int duty, long epoch) {
-        AtomicInteger running = RUNNING.computeIfAbsent(level, l -> new AtomicInteger(0));
+        AtomicInteger running = RUNNING;
         ThreadPoolManager.resetThrottle();
         try {
             if (Thread.currentThread().isInterrupted()) return;
@@ -229,7 +217,7 @@ public final class IdleRoadGenerationService {
                 updateStatus(level, task, st, ConnectionStatus.GENERATING, ConnectionStatus.PLANNED);
                 removeOwnership(level, key);
                 if (st == ConnectionStatus.COMPLETED) {
-                    RoadSnapService.snapAroundConnection(level, task.from(), task.to());
+                    RoadSnapService.snapAroundConnectionAsync(level, task.from(), task.to());
                 }
             });
         } catch (Throwable t) {
@@ -248,10 +236,8 @@ public final class IdleRoadGenerationService {
     }
 
     private static void removeOwnership(ServerLevel level, long key) {
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        if (owned != null) owned.remove(key);
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.get(level);
-        if (inFlight != null) inFlight.remove(key);
+        IDLE_OWNED.remove(key);
+        IN_FLIGHT.remove(key);
     }
 
     private static void reservePlannedEdges(ServerLevel level) {
@@ -259,7 +245,7 @@ public final class IdleRoadGenerationService {
         if (conns == null || conns.isEmpty()) return;
         if (!hasWindows(level)) return;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
         for (StructureConnection c : conns) {
             if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
             if (!isInsideAnyWindow(level, c)) continue;
@@ -271,25 +257,41 @@ public final class IdleRoadGenerationService {
         List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) return null;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED.get(level);
-        if (owned == null || owned.isEmpty()) return null;
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT.computeIfAbsent(level, l -> new ConcurrentHashMap<>());
+        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        if (owned.isEmpty()) return null;
+        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT;
+
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
+        if (perLevel.isEmpty()) return null;
 
         StructureConnection best = null;
         long bestDist = Long.MAX_VALUE;
-        for (StructureConnection c : conns) {
-            if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
-            long key = PlanningUtils.edgeKey(c.from(), c.to());
-            if (!owned.containsKey(key)) continue;
-            if (!isInsideAnyWindow(level, c)) {
-                owned.remove(key);
-                continue;
-            }
-            if (inFlight.containsKey(key)) continue;
-            long d = playerDistance2(c, players);
-            if (d < bestDist) {
-                best = c;
-                bestDist = d;
+
+        for (Map.Entry<UUID, IdleWindow> windowEntry : perLevel.entrySet()) {
+            IdleWindow w = windowEntry.getValue();
+            if (w == null) continue;
+            int wcCx = w.centerChunkX;
+            int wcCz = w.centerChunkZ;
+            int wRadius = w.radiusChunks;
+
+            for (StructureConnection c : conns) {
+                if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
+                long key = PlanningUtils.edgeKey(c.from(), c.to());
+                if (!owned.containsKey(key)) continue;
+                int mx = (c.from().getX() + c.to().getX()) >> 1;
+                int mz = (c.from().getZ() + c.to().getZ()) >> 1;
+                int mcx = mx >> 4;
+                int mcz = mz >> 4;
+                if (Math.abs(mcx - wcCx) > wRadius || Math.abs(mcz - wcCz) > wRadius) {
+                    owned.remove(key);
+                    continue;
+                }
+                if (inFlight.containsKey(key)) continue;
+                long d = playerDistance2(c, players);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = c;
+                }
             }
         }
         return best;
@@ -312,16 +314,21 @@ public final class IdleRoadGenerationService {
             StructureConnection c = all.get(i);
             if (!PlanningUtils.sameEdge(c, conn)) continue;
             if (!allowed.isEmpty() && !allowed.contains(c.status())) return false;
-            all.set(i, new StructureConnection(c.from(), c.to(), to));
+            StructureConnection updated = new StructureConnection(c.from(), c.to(), to);
+            all.set(i, updated);
             provider.setStructureConnections(level, all);
+            MapPatchService.publishConnection(level, updated);
+            if (to == ConnectionStatus.COMPLETED) {
+                MapPatchService.publishRoadForConnectionAsync(level, updated);
+            }
             return true;
         }
         return false;
     }
 
     private static void cleanupWindows(ServerLevel level) {
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        if (perLevel == null || perLevel.isEmpty()) return;
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
+        if (perLevel.isEmpty()) return;
 
         Set<UUID> alive = new HashSet<>();
         for (ServerPlayer p : collectPlayers(level)) {
@@ -330,28 +337,26 @@ public final class IdleRoadGenerationService {
         perLevel.keySet().removeIf(id -> !alive.contains(id));
 
         if (perLevel.isEmpty()) {
-            WINDOWS.remove(level);
-            IDLE_OWNED.remove(level);
-            IN_FLIGHT.remove(level);
-            RUNNING.remove(level);
+            IDLE_OWNED.clear();
+            IN_FLIGHT.clear();
+            RUNNING.set(0);
         }
     }
 
     private static void clearLevel(ServerLevel level) {
-        WINDOWS.remove(level);
-        IDLE_OWNED.remove(level);
-        IN_FLIGHT.remove(level);
-        RUNNING.remove(level);
+        WINDOWS.clear();
+        IDLE_OWNED.clear();
+        IN_FLIGHT.clear();
+        RUNNING.set(0);
     }
 
     private static boolean hasWindows(ServerLevel level) {
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        return perLevel != null && !perLevel.isEmpty();
+        return !WINDOWS.isEmpty();
     }
 
     private static boolean isInsideAnyWindow(ServerLevel level, StructureConnection conn) {
-        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS.get(level);
-        if (perLevel == null || perLevel.isEmpty() || conn == null) return false;
+        ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
+        if (perLevel.isEmpty() || conn == null) return false;
 
         int mx = (conn.from().getX() + conn.to().getX()) >> 1;
         int mz = (conn.from().getZ() + conn.to().getZ()) >> 1;
@@ -474,60 +479,5 @@ public final class IdleRoadGenerationService {
             if (!ThreadPoolManager.isEpoch(epoch)) return;
             action.run();
         });
-    }
-
-    private static ExecutorService executor() {
-        ExecutorService e = IDLE_EXEC.get();
-        if (e != null && !e.isShutdown()) return e;
-        synchronized (IdleRoadGenerationService.class) {
-            e = IDLE_EXEC.get();
-            if (e == null || e.isShutdown()) {
-                int threads = Math.max(0, ConfigService.get().performance().idleGenerationThreads());
-                ensureExecutor(threads);
-                e = IDLE_EXEC.get();
-            }
-        }
-        return e;
-    }
-
-    private static synchronized void ensureExecutor(int threads) {
-        int resolved = Math.max(0, threads);
-        ExecutorService old = IDLE_EXEC.get();
-        if (resolved <= 0) {
-            if (old != null && !old.isShutdown()) old.shutdownNow();
-            IDLE_EXEC.set(null);
-            IDLE_EXEC_THREADS.set(0);
-            return;
-        }
-        if (old != null && !old.isShutdown() && IDLE_EXEC_THREADS.get() == resolved) return;
-        if (old != null && !old.isShutdown()) old.shutdownNow();
-        IDLE_EXEC.set(Executors.newFixedThreadPool(resolved, new NamedFactory("RW-Idle")));
-        IDLE_EXEC_THREADS.set(resolved);
-    }
-
-    private static synchronized void shutdownExecutor() {
-        ExecutorService exec = IDLE_EXEC.getAndSet(null);
-        if (exec != null && !exec.isShutdown()) {
-            try {
-                exec.shutdownNow();
-            } catch (Throwable ignored) {}
-        }
-        IDLE_EXEC_THREADS.set(-1);
-    }
-
-    private static final class NamedFactory implements ThreadFactory {
-        private final String prefix;
-        private final AtomicInteger next = new AtomicInteger(1);
-
-        private NamedFactory(String prefix) {
-            this.prefix = prefix;
-        }
-
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, prefix + "-" + next.getAndIncrement());
-            t.setDaemon(true);
-            return t;
-        }
     }
 }

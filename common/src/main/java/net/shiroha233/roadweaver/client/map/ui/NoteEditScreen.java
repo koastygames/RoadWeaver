@@ -71,7 +71,7 @@ public class NoteEditScreen extends RoadWeaverScreen {
         // 绘制书本背景
         g.blit(BOOK_TEXTURE, bookX, bookY, 0, 0, BOOK_WIDTH, BOOK_HEIGHT);
         
-        // 标题（优先显示别名，否则显示坐标�?
+        // 标题优先显示别名，否则显示坐标。
         String alias = ClientMapNotes.getAlias(targetPos);
         String titleStr = (alias != null && !alias.isEmpty()) 
                 ? alias 
@@ -137,7 +137,7 @@ public class NoteEditScreen extends RoadWeaverScreen {
                 lines.set(cursorLine, newLine);
                 cursorPos--;
             } else if (cursorLine > 0) {
-                // 合并到上一�?
+                // 合并到上一行。
                 String current = lines.remove(cursorLine);
                 cursorLine--;
                 String prev = lines.get(cursorLine);
@@ -147,21 +147,21 @@ public class NoteEditScreen extends RoadWeaverScreen {
             return true;
         }
         
-        // Delete 删除光标后字�?
+        // Delete 删除光标后的字符。
         if (keyCode == 261) {
             String current = lines.get(cursorLine);
             if (cursorPos < current.length()) {
                 String newLine = current.substring(0, cursorPos) + current.substring(cursorPos + 1);
                 lines.set(cursorLine, newLine);
             } else if (cursorLine < lines.size() - 1) {
-                // 合并下一�?
+                // 合并下一行。
                 String next = lines.remove(cursorLine + 1);
                 lines.set(cursorLine, current + next);
             }
             return true;
         }
         
-        // 方向�?
+        // 方向键。
         if (keyCode == 263) { // Left
             if (cursorPos > 0) cursorPos--;
             else if (cursorLine > 0) {
@@ -234,7 +234,7 @@ public class NoteEditScreen extends RoadWeaverScreen {
             if (clickedLine < lines.size()) {
                 cursorLine = clickedLine;
                 String line = lines.get(cursorLine);
-                // 计算点击位置对应的字符位�?
+                // 计算点击位置对应的字符位置。
                 int relX = (int) (mouseX - textX);
                 cursorPos = 0;
                 for (int i = 0; i <= line.length(); i++) {
@@ -252,7 +252,7 @@ public class NoteEditScreen extends RoadWeaverScreen {
     }
 
     private void save() {
-        // 清除旧笔记，保存新笔�?
+        // 清除旧笔记，保存新笔记。
         ClientMapNotes.clearNotes(targetPos);
         for (String line : lines) {
             if (!line.isEmpty()) {

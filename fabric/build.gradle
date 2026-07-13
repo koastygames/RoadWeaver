@@ -9,8 +9,9 @@ architectury {
 
 configurations {
 	common
-	shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
-	shadowSqlite // 用于打包数据库依赖
+	shadowCommon
+	shadowSqlite
+	shadowLwjglNatives
 	compileClasspath.extendsFrom common
 	runtimeClasspath.extendsFrom common
 	developmentFabric.extendsFrom common
@@ -30,35 +31,39 @@ dependencies {
 	implementation project(":common")
 	common(project(path: ":common", configuration: "namedElements")) { transitive = false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive = false }
-	
-	// Fabric Loader
+
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	
-	// Fabric API
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	
-	// Architectury API - 内嵌到模组中
+
 	modImplementation("dev.architectury:architectury-fabric:${project.architectury_version}") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
 	include("dev.architectury:architectury-fabric:${project.architectury_version}")
-	
-	// Cloth Config API for Fabric
+
 	modApi("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
 		exclude group: "net.fabricmc.fabric-api"
 	}
 	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
-	
-	// 可选开发模组
+
 	modLocalRuntime("maven.modrinth:mOgUt4GM:${project.modmenu_version}")
 	modRuntimeOnly("maven.modrinth:mOgUt4GM:${project.modmenu_version}")
-	
-	// H2 Database - 道路数据持久化（纯Java，无native依赖）
-	// compileOnly: 编译时, modLocalRuntime: 开发运行时（避免 Architectury Transformer 处理）, shadowSqlite: 生产打包
+
+	// Dedicated servers omit LWJGL. Bundle its Java API and core JNI; the system GPU driver still provides the OpenCL ICD.
+	compileOnly("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
+	include("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
+	include("org.lwjgl:lwjgl:3.3.3") { transitive = false }
+	modLocalRuntime("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
+	runtimeOnly("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
+	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-windows") { transitive = false }
+	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-windows-arm64") { transitive = false }
+	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-linux") { transitive = false }
+	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-linux-arm64") { transitive = false }
+	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos") { transitive = false }
+	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos-arm64") { transitive = false }
+
 	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
 	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
 	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
-
 }
 
 processResources {
@@ -71,27 +76,20 @@ processResources {
 
 shadowJar {
 	exclude "architectury.common.json"
-	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
+	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite,
+	                  project.configurations.shadowLwjglNatives]
 	archiveClassifier.set("dev-shadow")
-	
-	// 重定位 H2 Database 包
+
 	relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
-	
-	// 排除不需要的文件
+
 	exclude 'META-INF/versions/**'
-	// 排除 H2 中可能触发审查的动态编译/网络服务相关类
-	// SourceCompiler 会使用 JavaCompiler/Groovy 动态编译，Server/tools 可能被视为网络服务能力
 	exclude 'org/h2/util/SourceCompiler*'
 	exclude 'org/h2/tools/**'
 	exclude 'org/h2/server/**'
 	exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
 	exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
 	exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
-	
-	// 强制更新 META-INF/services 里的类名
 	mergeServiceFiles()
-	
-	// 排除 module-info.class 避免 JPMS 冲突
 	exclude 'module-info.class'
 }
 
@@ -104,7 +102,7 @@ remapJar {
 jar {
 	archiveClassifier.set("dev")
 	from("${rootProject.projectDir}/LICENSE") {
-		rename { "${it}_${base.archivesName.get()}"}
+		rename { "${it}_${base.archivesName.get()}" }
 	}
 }
 
@@ -123,9 +121,6 @@ components.java {
 
 sourceSets {
 	main {
-		java {
-			// Avoid JPMS split-package with shaded common (network package) in dev runtime
-		}
 		resources {
 			exclude 'pack.mcmeta'
 		}

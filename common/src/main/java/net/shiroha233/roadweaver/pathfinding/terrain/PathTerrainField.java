@@ -26,6 +26,12 @@ public interface PathTerrainField {
 
     int step();
 
+    /**
+     * 释放内部大数组，协助 GC 回收。默认空操作。
+     * 持有紧凑数组的实现（如 QuantizedChunkTerrainField）应覆写。
+     */
+    default void dispose() {}
+
     default boolean isWaterBiome(int x, int z) {
         if (!contains(x, z)) {
             return false;
@@ -46,4 +52,20 @@ public interface PathTerrainField {
                 && isColumnWater(x, z)
                 && waterDepth(x, z) >= Math.max(1, minWaterDepth);
     }
+
+    /**
+     * 单次读出邻居展开所需的所有属性，避免对同一坐标的多次 cache lookup。
+     * 默认实现仅组合现有方法，量化实现可折叠为单次数组访问。
+     */
+    default SampleBundle sampleBundle(int x, int z) {
+        int h = height(x, z);
+        int sea = seaLevel();
+        int ocean = oceanFloor(x, z);
+        boolean water = isColumnWater(x, z);
+        boolean waterBiome = isWaterBiome(x, z);
+        int depth = Math.max(0, sea - ocean);
+        return new SampleBundle(h, ocean, water, waterBiome, depth);
+    }
+
+    record SampleBundle(int height, int oceanFloor, boolean columnWater, boolean waterBiome, int waterDepth) {}
 }

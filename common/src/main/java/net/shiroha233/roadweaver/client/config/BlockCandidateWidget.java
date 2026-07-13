@@ -34,7 +34,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * 方块候选选择�?- 带搜索和滚动条交�?
+ * 方块候选选择器，支持搜索和滚动条交互。
  */
 public class BlockCandidateWidget extends AbstractContainerEventHandler implements Renderable, NarratableEntry {
     private static final int SLOT_SIZE = 18;

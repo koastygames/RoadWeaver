@@ -14,13 +14,15 @@ public final class PlanningConfig implements SubConfig {
     private int initialPlanRadiusChunks = RoadConstants.DEFAULT_INITIAL_PLAN_RADIUS_CHUNKS;
     private boolean dynamicPlanEnabled = true;
     private int dynamicPlanRadiusChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS;
-    private int dynamicPlanStrideChunks = 128;
+    private int dynamicPlanStrideChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_STRIDE_CHUNKS;
     private PlanningAlgorithm planningAlgorithm = PlanningAlgorithm.RNG;
 
     @Override
     public void sanitize() {
         if (initialPlanRadiusChunks <= 0) initialPlanRadiusChunks = 64;
+        initialPlanRadiusChunks = Math.min(RoadConstants.COARSE_REGION_MAX_RADIUS_CHUNKS, initialPlanRadiusChunks);
         if (dynamicPlanRadiusChunks <= 0) dynamicPlanRadiusChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS;
+        dynamicPlanRadiusChunks = Math.min(RoadConstants.COARSE_REGION_MAX_RADIUS_CHUNKS, dynamicPlanRadiusChunks);
         if (dynamicPlanStrideChunks <= 0) {
             dynamicPlanStrideChunks = Math.max(RoadConstants.PLAN_TILE_MIN,
                     Math.min(RoadConstants.PLAN_TILE_MAX, Math.max(1, dynamicPlanRadiusChunks) / 2));

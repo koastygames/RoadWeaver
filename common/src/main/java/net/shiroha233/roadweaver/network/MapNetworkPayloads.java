@@ -6,43 +6,85 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.BlockPos;
+import net.shiroha233.roadweaver.client.map.MapLoadPhase;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 
 public class MapNetworkPayloads {
     public static final CustomPacketPayload.Type<MapRequestRectPayload> REQ_RECT = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_request_rect"));
     public static final CustomPacketPayload.Type<MapSnapshotPayload> SNAP = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_snapshot"));
+    public static final CustomPacketPayload.Type<MapPatchPayload> PATCH = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_patch"));
     public static final CustomPacketPayload.Type<MapTeleportPayload> TP_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport"));
     public static final CustomPacketPayload.Type<MapTeleportAckPayload> TP_ACK = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
     public static final CustomPacketPayload.Type<MapManualConnectPayload> MAN_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
     public static final CustomPacketPayload.Type<MapAccessSyncPayload> ACCESS_SYNC = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_access_sync"));
 
-    public record MapRequestRectPayload(int requestSeq, ResourceLocation dimension, int minX, int minZ, int maxX, int maxZ) implements CustomPacketPayload {
-        public static final StreamCodec<FriendlyByteBuf, MapRequestRectPayload> CODEC = StreamCodec.composite(
-            ByteBufCodecs.VAR_INT, MapRequestRectPayload::requestSeq,
-            ResourceLocation.STREAM_CODEC, MapRequestRectPayload::dimension,
-            ByteBufCodecs.VAR_INT, MapRequestRectPayload::minX,
-            ByteBufCodecs.VAR_INT, MapRequestRectPayload::minZ,
-            ByteBufCodecs.VAR_INT, MapRequestRectPayload::maxX,
-            ByteBufCodecs.VAR_INT, MapRequestRectPayload::maxZ,
-            MapRequestRectPayload::new
+    public record MapRequestRectPayload(int requestSeq,
+                                        ResourceLocation dimension,
+                                        MapLoadPhase phase,
+                                        int responseIndex,
+                                        int minX,
+                                        int minZ,
+                                        int maxX,
+                                        int maxZ) implements CustomPacketPayload {
+        public static final StreamCodec<FriendlyByteBuf, MapRequestRectPayload> CODEC = StreamCodec.of(
+            (buf, val) -> {
+                buf.writeVarInt(val.requestSeq);
+                buf.writeResourceLocation(val.dimension);
+                buf.writeUtf(val.phase.name());
+                buf.writeVarInt(val.responseIndex);
+                buf.writeVarInt(val.minX);
+                buf.writeVarInt(val.minZ);
+                buf.writeVarInt(val.maxX);
+                buf.writeVarInt(val.maxZ);
+            },
+            buf -> new MapRequestRectPayload(
+                buf.readVarInt(),
+                buf.readResourceLocation(),
+                MapLoadPhase.valueOf(buf.readUtf()),
+                buf.readVarInt(),
+                buf.readVarInt(),
+                buf.readVarInt(),
+                buf.readVarInt(),
+                buf.readVarInt()
+            )
         );
         @Override public Type<MapRequestRectPayload> type() { return REQ_RECT; }
     }
 
-    public record MapSnapshotPayload(int requestSeq, ResourceLocation dimension, MapSnapshot snapshot) implements CustomPacketPayload {
+    public record MapSnapshotPayload(int requestSeq,
+                                     ResourceLocation dimension,
+                                     MapLoadPhase phase,
+                                     int responseIndex,
+                                     MapSnapshot snapshot) implements CustomPacketPayload {
         public static final StreamCodec<FriendlyByteBuf, MapSnapshotPayload> CODEC = StreamCodec.of(
             (buf, val) -> {
                 buf.writeVarInt(val.requestSeq);
                 buf.writeResourceLocation(val.dimension);
+                buf.writeUtf(val.phase.name());
+                buf.writeVarInt(val.responseIndex);
                 MapSnapshotCodec.write(buf, val.snapshot);
             },
             buf -> new MapSnapshotPayload(
                 buf.readVarInt(),
                 buf.readResourceLocation(),
+                MapLoadPhase.valueOf(buf.readUtf()),
+                buf.readVarInt(),
                 MapSnapshotCodec.read(buf)
             )
         );
         @Override public Type<MapSnapshotPayload> type() { return SNAP; }
+    }
+
+    public record MapPatchPayload(ResourceLocation dimension, MapSnapshotPatch patch) implements CustomPacketPayload {
+        public static final StreamCodec<FriendlyByteBuf, MapPatchPayload> CODEC = StreamCodec.of(
+            (buf, val) -> {
+                buf.writeResourceLocation(val.dimension);
+                MapSnapshotCodec.writePatch(buf, val.patch);
+            },
+            buf -> new MapPatchPayload(buf.readResourceLocation(), MapSnapshotCodec.readPatch(buf))
+        );
+        @Override public Type<MapPatchPayload> type() { return PATCH; }
     }
 
     public record MapTeleportPayload(int x, int y, int z) implements CustomPacketPayload {

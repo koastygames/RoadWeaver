@@ -8,6 +8,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.levelgen.structure.placement.StructurePlacement
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
 
 import java.util.ArrayList;
@@ -45,12 +47,14 @@ public final class StructurePredictor {
             boolean biomePrefilter,
             List<String> whitelist,
             List<String> blacklist) {
+        if (!isOverworld(level)) return List.of();
         return predictOverworldStructuresInRect(level, minChunkX, minChunkZ, maxChunkX, maxChunkZ, biomePrefilter,
                 whitelist, blacklist);
     }
 
     public static List<StructureInfo> predictOverworldVillagesAroundSpawn(ServerLevel level, int radiusChunks,
             boolean biomePrefilter) {
+        if (!isOverworld(level)) return List.of();
         RegistryAccess registryAccess = level.registryAccess();
         Registry<StructureSet> setRegistry = registryAccess.registryOrThrow(Registries.STRUCTURE_SET);
         Optional<Holder.Reference<StructureSet>> optVillages = setRegistry.getHolder(BuiltinStructureSets.VILLAGES);
@@ -130,6 +134,7 @@ public final class StructurePredictor {
             boolean biomePrefilter,
             List<String> whitelist,
             List<String> blacklist) {
+        if (!isOverworld(level)) return List.of();
 
         ChunkGeneratorStructureState state = level.getChunkSource().getGeneratorState();
         RandomState randomState = state.randomState();
@@ -259,6 +264,7 @@ public final class StructurePredictor {
             boolean biomePrefilter,
             List<String> whitelist,
             List<String> blacklist) {
+        if (!isOverworld(level)) return List.of();
         RegistryAccess access = level.registryAccess();
         Registry<StructureSet> setRegistry = access.registryOrThrow(Registries.STRUCTURE_SET);
 
@@ -368,6 +374,12 @@ public final class StructurePredictor {
         }
 
         return result;
+    }
+
+    private static boolean isOverworld(ServerLevel level) {
+        return level != null
+                && Level.OVERWORLD.equals(level.dimension())
+                && ConfigService.get().structurePredictionEnabled();
     }
 
     private static final class Filters {

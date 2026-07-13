@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.client.map.MapView;
 import net.shiroha233.roadweaver.client.map.data.ClientMapNotes;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
+import net.shiroha233.roadweaver.client.map.render.StructureIconRenderer;
 
 /**
  * 地图交互辅助 - 悬停高亮和提示
@@ -39,7 +40,9 @@ public final class MapInteraction {
         if (best != null && bestDist <= 64) {
             int x = view.toScreenX(best.getX(), mapX, innerPad, contentW);
             int y = view.toScreenY(best.getZ(), mapY, innerPad, contentH);
-            g.fill(x - 4, y - 4, x + 5, y + 5, 0xCCFFD54F);
+            StructureIconRenderer.renderOutline(g, x, y, 14, 0xFFFFD54F,
+                    mapX + innerPad, mapY + innerPad,
+                    mapX + mapW - innerPad, mapY + mapH - innerPad);
         }
     }
 

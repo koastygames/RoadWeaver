@@ -1,27 +1,32 @@
 /* 文件职责：管理启动阶段的初始道路生成。 */
 package net.shiroha233.roadweaver.generation;
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
-import net.shiroha233.roadweaver.features.highway.planning.HighwayPlanningService;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressSnapshot;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationStage;
+import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.planning.HighwayCellPathPlanningService;
+import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.postprocess.RoadSnapService;
+import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 import net.shiroha233.roadweaver.structures.placement.SpawnCabinPlacer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -41,15 +46,21 @@ public final class InitialGenManager {
     public static int getDone() { return done.get(); }
     public static int getGenerating() { return generating.get(); }
     public static int getFailed() { return failed.get(); }
+    public static InitialGenerationProgressSnapshot getProgressSnapshot() {
+        return InitialGenerationProgressTracker.snapshot(active);
+    }
 
     public static void begin(ServerLevel level) {
-        if (level == null) return;
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        if (!shouldRunInitialGeneration(level)) return;
 
         active = true;
         total.set(0);
         done.set(0);
         generating.set(0);
         failed.set(0);
+        InitialGenerationProgressTracker.reset();
+        InitialGenerationProgressTracker.updateConnections(0, 0, 0, 0);
 
         net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats.reset();
         net.shiroha233.roadweaver.pathfinding.cache.AccurateSamplingStats.reset();
@@ -61,90 +72,51 @@ public final class InitialGenManager {
             SpawnCabinPlacer.ensurePlaced(level);
         }
 
-        if (cfg.highway().enabled()) {
-            HighwayPlanningService.initialPlan(level);
-        } else {
-            RoadPlanningService.initialPlan(level);
-        }
+        RoadPlanningService.initialPlan(level);
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
-        if (cfg.highway().enabled()) {
-            List<StructureConnection> highways = provider.getHighwayConnections(level);
-            total.set(highways == null ? 0 : highways.size());
-        } else {
-            List<StructureConnection> conns = provider.getStructureConnections(level);
-            total.set(conns == null ? 0 : conns.size());
-        }
+        List<StructureConnection> conns = provider.getStructureConnections(level);
+        total.set(conns == null ? 0 : conns.size());
+        InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.PLANNING, "planning_initial_roads");
         update(level);
     }
 
+    public static boolean shouldRunInitialGeneration(ServerLevel level) {
+        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return false;
+        WorldDataProvider provider = WorldDataProvider.getInstance();
+        List<StructureConnection> conns = provider.getStructureConnections(level);
+        if (conns != null && !conns.isEmpty()) return false;
+        if (H2MigrationCoordinator.hasPendingLegacyData(level)) return false;
+        return !RoadShardStorage.hasAnyRoad(level);
+    }
+
     public static void blockUntilDone(ServerLevel level) {
-        if (!active) return;
-        ModConfig cfg = ConfigService.get();
+        if (!active || level == null || !Level.OVERWORLD.equals(level.dimension())) return;
         WorldDataProvider provider = WorldDataProvider.getInstance();
 
-        if (!cfg.highway().enabled()) {
-            List<StructureConnection> list = provider.getStructureConnections(level);
-            if (list == null || list.isEmpty()) {
-                active = false;
-                return;
-            }
-            List<StructureConnection> roadTasks = filterPlanned(list);
-            total.set(roadTasks.size());
-
-            if (!roadTasks.isEmpty()) {
-                Map<Long, Boolean> results = submitAndCollect(level, roadTasks, false, "Path");
-                batchUpdateConnectionStatus(provider, level, results, false);
-            }
-            snapInitialRoads(level, list);
-            flushAndFinish(level);
+        List<StructureConnection> list = provider.getStructureConnections(level);
+        if (list == null || list.isEmpty()) {
+            active = false;
+            InitialGenerationProgressTracker.finish();
             return;
         }
+        List<StructureConnection> roadTasks = filterPlanned(list);
+        total.set(roadTasks.size());
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.ROAD_GENERATION, "generating_roads");
+        InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
 
-        // Highway 模式：先生成公路
-        List<StructureConnection> highwayList = provider.getHighwayConnections(level);
-        int plannedHighwayCount = 0;
-
-        if (highwayList != null && !highwayList.isEmpty()) {
-            List<StructureConnection> highwayTasks = filterPlanned(highwayList);
-            plannedHighwayCount = highwayTasks.size();
-            total.set(plannedHighwayCount);
-
-            if (!highwayTasks.isEmpty()) {
-                Map<Long, Boolean> hwResults = submitAndCollect(level, highwayTasks, true, "Highway");
-                batchUpdateConnectionStatus(provider, level, hwResults, true);
-            }
+        if (!roadTasks.isEmpty()) {
+            Map<Long, Boolean> results = submitAndCollect(level, roadTasks);
+            batchUpdateConnectionStatus(provider, level, results);
         }
-
-        // 触发网格单元格内部路网规划
-        triggerCellPathPlanning(level, cfg);
-
-        // 生成格内路网
-        List<StructureConnection> pathList = provider.getStructureConnections(level);
-        if (pathList != null && !pathList.isEmpty()) {
-            List<StructureConnection> roadTasks = filterPlanned(pathList);
-            total.set(plannedHighwayCount + roadTasks.size());
-
-            if (!roadTasks.isEmpty()) {
-                Map<Long, Boolean> pathResults = submitAndCollect(level, roadTasks, false, "Path");
-                batchUpdateConnectionStatus(provider, level, pathResults, false);
-            }
-        }
-
-        List<StructureConnection> allConns = provider.getStructureConnections(level);
-        if (allConns == null) allConns = List.of();
-        List<StructureConnection> allHighways = provider.getHighwayConnections(level);
-        if (allHighways == null) allHighways = List.of();
-        List<StructureConnection> combined = new ArrayList<>(allConns.size() + allHighways.size());
-        combined.addAll(allConns);
-        combined.addAll(allHighways);
-        snapInitialRoads(level, combined);
-
+        snapInitialRoads(level, list);
         flushAndFinish(level);
     }
 
     private static void snapInitialRoads(ServerLevel level, List<StructureConnection> conns) {
         if (conns == null || conns.isEmpty()) return;
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.POST_PROCESSING, "snapping_roads");
         int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
         for (StructureConnection c : conns) {
@@ -169,65 +141,65 @@ public final class InitialGenManager {
     private record GenResult(long key, boolean success) {}
 
     private static Map<Long, Boolean> submitAndCollect(ServerLevel level,
-                                                       List<StructureConnection> tasks,
-                                                       boolean highway,
-                                                       String threadPrefix) {
-        int nThreads = ConfigService.get().performance().initialGenerationThreads();
-        ExecutorService executor = Executors.newFixedThreadPool(nThreads, new ThreadFactory() {
-            private final AtomicInteger count = new AtomicInteger(1);
-            @Override
-            public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, "RoadWeaver-InitialGen-" + threadPrefix + "-" + count.getAndIncrement());
-                t.setDaemon(true);
-                return t;
-            }
-        });
-
+                                                       List<StructureConnection> tasks) {
         List<Future<GenResult>> futures = new ArrayList<>();
         for (StructureConnection task : tasks) {
-            futures.add(executor.submit(() -> {
+            futures.add(ThreadPoolManager.submit(ThreadPoolManager.TaskRole.INITIAL, () -> {
                 generating.incrementAndGet();
-                boolean success = highway
-                        ? RoadGenerationService.generateHighwayTask(level, task)
-                        : RoadGenerationService.generateTask(level, task);
-                generating.decrementAndGet();
-                if (success) done.incrementAndGet(); else failed.incrementAndGet();
-                return new GenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
+                InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
+                try {
+                    boolean success = RoadGenerationService.generateTask(level, task);
+                    if (success) done.incrementAndGet(); else failed.incrementAndGet();
+                    InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
+                    return new GenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
+                } finally {
+                    generating.decrementAndGet();
+                    InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
+                }
             }));
         }
 
         Map<Long, Boolean> results = new HashMap<>();
-        for (Future<GenResult> f : futures) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
+        while (!futures.isEmpty()) {
+            pollPendingResults(futures, results);
+            futures.removeIf(Future::isDone);
+            if (futures.isEmpty()) break;
+            if (System.nanoTime() > deadline) break;
             try {
-                GenResult r = f.get();
-                if (r != null) results.put(r.key(), r.success());
-            } catch (Exception e) {
-                e.printStackTrace();
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
             }
         }
-
-        executor.shutdown();
-        try {
-            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) executor.shutdownNow();
-        } catch (InterruptedException e) {
-            executor.shutdownNow();
-            Thread.currentThread().interrupt();
+        for (Future<GenResult> future : futures) {
+            future.cancel(true);
         }
         return results;
     }
 
+    private static void pollPendingResults(List<Future<GenResult>> futures,
+                                           Map<Long, Boolean> results) {
+        for (Future<GenResult> f : futures) {
+            if (!f.isDone() || f.isCancelled()) continue;
+            try {
+                GenResult r = f.get();
+                if (r != null) results.put(r.key(), r.success());
+            } catch (Exception ignored) {}
+        }
+    }
+
     private static void batchUpdateConnectionStatus(WorldDataProvider provider,
                                                     ServerLevel level,
-                                                    Map<Long, Boolean> results,
-                                                    boolean highway) {
+                                                    Map<Long, Boolean> results) {
         if (results.isEmpty()) return;
 
-        List<StructureConnection> current = highway
-                ? provider.getHighwayConnections(level)
-                : provider.getStructureConnections(level);
+        List<StructureConnection> current = provider.getStructureConnections(level);
         if (current == null) return;
 
         List<StructureConnection> updated = new ArrayList<>(current);
+        List<StructureConnection> changedConnections = new ArrayList<>();
         boolean changed = false;
         for (int i = 0; i < updated.size(); i++) {
             StructureConnection original = updated.get(i);
@@ -235,36 +207,29 @@ public final class InitialGenManager {
             Boolean ok = results.get(k);
             if (ok == null) continue;
             ConnectionStatus newStatus = ok ? ConnectionStatus.COMPLETED : ConnectionStatus.FAILED;
-            updated.set(i, new StructureConnection(original.from(), original.to(), newStatus));
+            StructureConnection changedConnection = new StructureConnection(original.from(), original.to(), newStatus);
+            updated.set(i, changedConnection);
+            changedConnections.add(changedConnection);
             changed = true;
         }
         if (changed) {
-            if (highway) provider.setHighwayConnections(level, updated);
-            else provider.setStructureConnections(level, updated);
+            provider.setStructureConnections(level, updated);
+            for (StructureConnection changedConnection : changedConnections) {
+                MapPatchService.publishConnection(level, changedConnection);
+                if (changedConnection.status() == ConnectionStatus.COMPLETED) {
+                    MapPatchService.publishRoadForConnectionAsync(level, changedConnection);
+                }
+            }
         }
-    }
-
-    private static void triggerCellPathPlanning(ServerLevel level, ModConfig cfg) {
-        int gridBlocks = Math.max(1, cfg.highway().gridBlocks());
-        BlockPos centerPos = level.getSharedSpawnPos();
-        var server = level.getServer();
-        if (server != null) {
-            var p = server.getPlayerList().getPlayers().stream()
-                    .filter(sp -> sp != null && sp.serverLevel() == level)
-                    .findFirst().orElse(null);
-            if (p != null) centerPos = p.blockPosition();
-        }
-        int cellGx = Math.floorDiv(centerPos.getX(), gridBlocks);
-        int cellGz = Math.floorDiv(centerPos.getZ(), gridBlocks);
-        HighwayCellPathPlanningService.planCompletedCellsInRect(level,
-                cellGx * gridBlocks, cellGz * gridBlocks,
-                (cellGx + 1) * gridBlocks, (cellGz + 1) * gridBlocks);
     }
 
     private static void flushAndFinish(ServerLevel level) {
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.POST_PROCESSING, "flushing_road_data");
         RoadShardStorage.flushAll(level);
         RoadPositionQuery.clearCache(level);
         active = false;
+        InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
+        InitialGenerationProgressTracker.finish();
     }
 
     public static void update(ServerLevel level) {
@@ -272,9 +237,8 @@ public final class InitialGenManager {
 
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> conns = provider.getStructureConnections(level);
-        List<StructureConnection> highways = provider.getHighwayConnections(level);
 
-        if ((conns == null || conns.isEmpty()) && (highways == null || highways.isEmpty())) {
+        if (conns == null || conns.isEmpty()) {
             total.set(0);
             generating.set(0);
             done.set(0);
@@ -282,26 +246,14 @@ public final class InitialGenManager {
             return;
         }
 
-        int g = 0, c = 0, f = 0, t = 0;
-        if (conns != null) {
-            t += conns.size();
-            for (StructureConnection sc : conns) {
-                ConnectionStatus s = sc.status();
-                if (s == ConnectionStatus.GENERATING) g++;
-                else if (s == ConnectionStatus.COMPLETED) c++;
-                else if (s == ConnectionStatus.FAILED) f++;
-            }
+        int g = 0, c = 0, f = 0;
+        for (StructureConnection sc : conns) {
+            ConnectionStatus s = sc.status();
+            if (s == ConnectionStatus.GENERATING) g++;
+            else if (s == ConnectionStatus.COMPLETED) c++;
+            else if (s == ConnectionStatus.FAILED) f++;
         }
-        if (highways != null) {
-            t += highways.size();
-            for (StructureConnection sc : highways) {
-                ConnectionStatus s = sc.status();
-                if (s == ConnectionStatus.GENERATING) g++;
-                else if (s == ConnectionStatus.COMPLETED) c++;
-                else if (s == ConnectionStatus.FAILED) f++;
-            }
-        }
-        total.set(t);
+        total.set(conns.size());
         generating.set(g);
         done.set(c);
         failed.set(f);

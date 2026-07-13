@@ -16,8 +16,6 @@ public final class StructurePredictionConfig implements SubConfig {
     private boolean biomePrefilter = true;
     private List<String> structureWhitelist = new ArrayList<>(List.of("#minecraft:village"));
     private List<String> structureBlacklist = new ArrayList<>();
-    private List<String> dimensionWhitelist = new ArrayList<>(List.of(
-            "minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"));
     private int villageRoadOffset = RoadConstants.DEFAULT_VILLAGE_ROAD_OFFSET;
     private int otherStructureRoadOffset = RoadConstants.DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET;
 
@@ -25,10 +23,6 @@ public final class StructurePredictionConfig implements SubConfig {
     public void sanitize() {
         if (structureWhitelist == null) structureWhitelist = new ArrayList<>();
         if (structureBlacklist == null) structureBlacklist = new ArrayList<>();
-        if (dimensionWhitelist == null) {
-            dimensionWhitelist = new ArrayList<>(List.of(
-                    "minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"));
-        }
         if (predictRadiusChunks <= 0) predictRadiusChunks = RoadConstants.DEFAULT_PREDICT_RADIUS_CHUNKS;
         if (villageRoadOffset < 0) villageRoadOffset = RoadConstants.DEFAULT_VILLAGE_ROAD_OFFSET;
         if (otherStructureRoadOffset < 0) otherStructureRoadOffset = RoadConstants.DEFAULT_OTHER_STRUCTURE_ROAD_OFFSET;
@@ -43,7 +37,6 @@ public final class StructurePredictionConfig implements SubConfig {
         copy.biomePrefilter = this.biomePrefilter;
         copy.structureWhitelist = new ArrayList<>(this.structureWhitelist);
         copy.structureBlacklist = new ArrayList<>(this.structureBlacklist);
-        copy.dimensionWhitelist = new ArrayList<>(this.dimensionWhitelist);
         copy.villageRoadOffset = this.villageRoadOffset;
         copy.otherStructureRoadOffset = this.otherStructureRoadOffset;
         return copy;
@@ -63,14 +56,6 @@ public final class StructurePredictionConfig implements SubConfig {
     public void setStructureWhitelist(List<String> v) { this.structureWhitelist = v == null ? new ArrayList<>() : new ArrayList<>(v); }
     public List<String> structureBlacklist() { return structureBlacklist; }
     public void setStructureBlacklist(List<String> v) { this.structureBlacklist = v == null ? new ArrayList<>() : new ArrayList<>(v); }
-    public List<String> dimensionWhitelist() { return dimensionWhitelist; }
-    public void setDimensionWhitelist(List<String> v) { this.dimensionWhitelist = v == null ? new ArrayList<>() : new ArrayList<>(v); }
-
-    public boolean isEnabledForDimension(String dimensionId) {
-        if (!enabled || dimensionId == null || dimensionId.isEmpty()) return false;
-        return dimensionWhitelist != null && dimensionWhitelist.contains(dimensionId);
-    }
-
     public int villageRoadOffset() { return villageRoadOffset; }
     public void setVillageRoadOffset(int v) { this.villageRoadOffset = v; }
     public int otherStructureRoadOffset() { return otherStructureRoadOffset; }

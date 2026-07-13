@@ -3,11 +3,11 @@ package net.shiroha233.roadweaver.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.architectury.platform.Platform;
+import net.shiroha233.roadweaver.persistence.files.FileStorageIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -57,8 +57,8 @@ public final class ConfigService {
         Path file = baseDir.resolve(FILE_NAME);
         ensureDirectory(baseDir);
 
-        try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-            GSON.toJson(INSTANCE, writer);
+        try {
+            FileStorageIO.writeStringAtomic(file, GSON.toJson(INSTANCE));
         } catch (Exception e) {
             LOGGER.warn("配置文件写入失败: {}", file, e);
         }
