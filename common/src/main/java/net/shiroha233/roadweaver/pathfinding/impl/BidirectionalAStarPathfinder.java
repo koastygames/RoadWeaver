@@ -31,7 +31,7 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
         List<BlockPos> rawPath = searchRawPath(start, end, level, maxSteps, terrain, cfg);
         if (rawPath == null) return PathResult.failure();
         if (rawPath.isEmpty()) return PathResult.success(Collections.emptyList());
-        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.needsRefinement());
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, false);
         return segments != null ? PathResult.success(segments) : PathResult.failure();
     }
 

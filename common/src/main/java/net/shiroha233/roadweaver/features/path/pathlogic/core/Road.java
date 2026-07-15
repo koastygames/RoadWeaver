@@ -1,3 +1,4 @@
+/* 文件职责：生成单条道路并协调精确地形路径、跨度与附属结构。 */
 package net.shiroha233.roadweaver.features.path.pathlogic.core;
 
 import net.minecraft.core.BlockPos;
@@ -19,9 +20,7 @@ import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCal
 import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
@@ -76,22 +75,17 @@ public final class Road {
         
         TerrainSamplingCache cache = new TerrainSamplingCache();
         PathTerrainField terrain = null;
+        PlannedPathCache.Lease planned = PlannedPathCache.take(level, connection);
+        boolean sharedTerrain = planned != null;
         try {
-            // 优先使用规划阶段已计算好的粗路径（粗采样数据已在规划阶段释放）
-            List<BlockPos> coarsePath = CoarsePathCache.get(level, connection);
-
             PathCalculationResult pathResult;
-            if (coarsePath != null) {
-                // 粗路径已就绪，直接进入精采样
-                pathResult = RoadPathCalculator.calculateFromCoarsePath(
-                        coarsePath, rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
+            if (planned != null) {
+                terrain = planned.terrain();
+                pathResult = RoadPathCalculator.calculateFromPlannedPath(
+                        planned.path(), width, level, cache, planned.terrain());
             } else {
-                // 无缓存粗路径（如旧版兼容），退回完整两阶段寻路
-                CoarseTerrainRegion coarseRegion = CoarseTerrainRegionRegistry.acquire(level, connection);
                 pathResult = RoadPathCalculator.calculateAStarRoadPathDetailed(
-                        rawStart, rawEnd, width, level, maxSteps, cache, genConfig, coarseRegion);
-                if (coarseRegion != null) coarseRegion.dispose();
-                CoarseTerrainRegionRegistry.release(level, connection);
+                        rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
             }
 
             List<RoadSegmentPlacement> rawSegments = pathResult.segments();
@@ -101,7 +95,9 @@ public final class Road {
                     level, rawSegments, rawStart, rawEnd);
             if (segments == null || segments.size() < 5) return null;
 
-            terrain = pathResult.terrain();
+            if (pathResult.terrain() != null) {
+                terrain = pathResult.terrain();
+            }
             List<RoadSpan> spans = PathSpanExtractor.extractSpans(
                     segments, level, cache, terrain, genConfig.bridgeMinWaterDepth());
             List<Integer> targetY = computeTargetY(level, segments, spans, cache, genConfig);
@@ -111,12 +107,12 @@ public final class Road {
             RoadData rd = new RoadData(width, type, materials, slabMaterials, segments, spans, targetY, ownerA2d, ownerB2d);
             RoadShardStorage.addRoad(level, rd);
 
-            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, random, targetY);
+            RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, terrain, random, targetY);
             RoadsideVillagePrecomputer.precomputeVillages(level, segments, spans, width, cache, terrain, random, targetY);
             return rd;
         } finally {
-            if (terrain != null) terrain.dispose();
-            CoarsePathCache.remove(level, connection);
+            if (!sharedTerrain && terrain != null) terrain.dispose();
+            if (planned != null) planned.close();
             cache.clear();
         }
     }

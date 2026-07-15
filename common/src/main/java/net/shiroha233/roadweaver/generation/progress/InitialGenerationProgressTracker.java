@@ -1,3 +1,4 @@
+/* 文件职责：汇总初始道路生成期间的阶段、采样与路径进度。 */
 package net.shiroha233.roadweaver.generation.progress;
 
 import net.shiroha233.roadweaver.config.ConfigService;
@@ -31,6 +32,10 @@ public final class InitialGenerationProgressTracker {
     private static final AtomicInteger TILES_FROM_DISK = new AtomicInteger();
     private static final AtomicInteger COARSE_PATHS_TOTAL = new AtomicInteger();
     private static final AtomicInteger COARSE_PATHS_DONE = new AtomicInteger();
+    private static final AtomicLong EXACT_SAMPLES_TOTAL = new AtomicLong();
+    private static final AtomicLong EXACT_SAMPLES_DONE = new AtomicLong();
+    private static final AtomicInteger EXACT_PATHS_TOTAL = new AtomicInteger();
+    private static final AtomicInteger EXACT_PATHS_DONE = new AtomicInteger();
 
     private static final AtomicLong SAMPLES_TOTAL = new AtomicLong();
     private static final AtomicLong SAMPLES_DONE = new AtomicLong();
@@ -63,6 +68,10 @@ public final class InitialGenerationProgressTracker {
         TILES_FROM_DISK.set(0);
         COARSE_PATHS_TOTAL.set(0);
         COARSE_PATHS_DONE.set(0);
+        EXACT_SAMPLES_TOTAL.set(0L);
+        EXACT_SAMPLES_DONE.set(0L);
+        EXACT_PATHS_TOTAL.set(0);
+        EXACT_PATHS_DONE.set(0);
         SAMPLES_TOTAL.set(0L);
         SAMPLES_DONE.set(0L);
         LAST_SAMPLE_SNAPSHOT_AT.set(0L);
@@ -123,6 +132,49 @@ public final class InitialGenerationProgressTracker {
 
     public static void recordTileSampled() {
         TILES_SAMPLED.incrementAndGet();
+    }
+
+    public static void setExactSamplingPlan(long totalSamples, String operation) {
+        EXACT_SAMPLES_TOTAL.set(Math.max(0L, totalSamples));
+        EXACT_SAMPLES_DONE.set(0L);
+        SAMPLES_TOTAL.set(Math.max(0L, totalSamples));
+        SAMPLES_DONE.set(0L);
+        LAST_SAMPLE_SNAPSHOT_AT.set(0L);
+        LAST_SAMPLE_SNAPSHOT_COUNT.set(0L);
+        SAMPLES_PER_SECOND.set(0.0);
+        LAST_BATCH_SAMPLES.set(0);
+        LAST_BATCH_MILLIS.set(0L);
+        if (operation != null && !operation.isBlank()) {
+            CURRENT_OPERATION.set(operation);
+        }
+    }
+
+    public static void recordExactSampleBatch(int sampleCount,
+                                              long millis,
+                                              String backend,
+                                              String deviceName) {
+        int safeSamples = Math.max(0, sampleCount);
+        long previous = EXACT_SAMPLES_DONE.getAndUpdate(
+                done -> Math.min(EXACT_SAMPLES_TOTAL.get(), done + safeSamples));
+        int acceptedSamples = Math.toIntExact(Math.max(0L,
+                Math.min(EXACT_SAMPLES_TOTAL.get(), previous + safeSamples) - previous));
+        recordSampleBatch(backend, acceptedSamples, millis, deviceName, "");
+    }
+
+    public static void completeExactSampling() {
+        EXACT_SAMPLES_DONE.set(EXACT_SAMPLES_TOTAL.get());
+    }
+
+    public static void setExactPathPlan(int totalPaths, String operation) {
+        EXACT_PATHS_TOTAL.set(Math.max(0, totalPaths));
+        EXACT_PATHS_DONE.set(0);
+        if (operation != null && !operation.isBlank()) {
+            CURRENT_OPERATION.set(operation);
+        }
+    }
+
+    public static void recordExactPathDone() {
+        EXACT_PATHS_DONE.incrementAndGet();
     }
 
     public static void setCoarsePathPlan(int totalPaths, String operation) {
@@ -192,6 +244,8 @@ public final class InitialGenerationProgressTracker {
                 TILES_FROM_DISK.get(),
                 SAMPLES_TOTAL.get(),
                 SAMPLES_DONE.get(),
+                EXACT_PATHS_TOTAL.get(),
+                EXACT_PATHS_DONE.get(),
                 SAMPLES_PER_SECOND.get(),
                 LAST_BATCH_SAMPLES.get(),
                 LAST_BATCH_MILLIS.get(),
@@ -214,6 +268,8 @@ public final class InitialGenerationProgressTracker {
     private static int computeStagePercent(InitialGenerationStage stage) {
         return switch (stage) {
             case PLANNING -> percent(CONNECTIONS_TOTAL.get(), Math.max(1, CONNECTIONS_TOTAL.get()));
+            case EXACT_SAMPLING -> percent(EXACT_SAMPLES_DONE.get(), EXACT_SAMPLES_TOTAL.get());
+            case EXACT_PATHING -> percent(EXACT_PATHS_DONE.get(), EXACT_PATHS_TOTAL.get());
             case COARSE_SAMPLING -> percent(TILES_LOADED.get(), TILES_TOTAL.get());
             case COARSE_PATHING -> percent(COARSE_PATHS_DONE.get(), COARSE_PATHS_TOTAL.get());
             case ROAD_GENERATION -> percent(CONNECTIONS_DONE.get() + CONNECTIONS_FAILED.get(), CONNECTIONS_TOTAL.get());

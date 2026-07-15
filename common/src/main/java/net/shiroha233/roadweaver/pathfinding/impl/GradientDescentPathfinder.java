@@ -39,7 +39,7 @@ public final class GradientDescentPathfinder implements Pathfinder {
         if (rawPath == null || rawPath.isEmpty()) {
             return PathResult.failure();
         }
-        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, cfg.needsRefinement());
+        List<RoadSegmentPlacement> segments = reconstructPath(rawPath, width, level, cache, false);
         return segments != null ? PathResult.success(segments) : PathResult.failure();
     }
 

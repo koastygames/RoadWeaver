@@ -1,3 +1,4 @@
+/* 文件职责：缓存道路寻路期间的高度、水体与生物群系采样结果。 */
 package net.shiroha233.roadweaver.pathfinding.cache;
 
 import net.minecraft.core.Holder;
@@ -191,7 +192,8 @@ public final class TerrainSamplingCache {
         oceanFloorCache = new ConcurrentHashMap<>();
         biomeCache = new ConcurrentHashMap<>();
         if (fastSampler != null) fastSampler.clearCache();
-        if (accurateSampler != null) accurateSampler.clear();
+        // 精采 sampler 由维度生命周期持有，单条道路结束不能关闭共享 GPU 后端。
+        accurateSampler = null;
     }
 
     private void ensureFastSampler(ServerLevel level) {

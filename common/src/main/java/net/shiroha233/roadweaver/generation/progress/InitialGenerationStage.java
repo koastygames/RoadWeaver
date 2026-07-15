@@ -1,3 +1,4 @@
+/* 文件职责：定义初始道路生成流程的进度阶段与显示标签。 */
 package net.shiroha233.roadweaver.generation.progress;
 
 /**
@@ -5,6 +6,8 @@ package net.shiroha233.roadweaver.generation.progress;
  */
 public enum InitialGenerationStage {
     PLANNING(0, 15, "gui.roadweaver.initgen.stage.planning"),
+    EXACT_SAMPLING(15, 30, "gui.roadweaver.initgen.stage.exact_sampling"),
+    EXACT_PATHING(45, 15, "gui.roadweaver.initgen.stage.exact_pathing"),
     COARSE_SAMPLING(15, 30, "gui.roadweaver.initgen.stage.coarse_sampling"),
     COARSE_PATHING(45, 15, "gui.roadweaver.initgen.stage.coarse_pathing"),
     ROAD_GENERATION(60, 30, "gui.roadweaver.initgen.stage.road_generation"),

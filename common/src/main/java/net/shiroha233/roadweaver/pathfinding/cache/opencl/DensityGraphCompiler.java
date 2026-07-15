@@ -1,3 +1,4 @@
+/* 文件职责：将 Minecraft density function DAG 编译为 OpenCL 可执行的紧凑多根图。 */
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -6,10 +7,14 @@ import net.minecraft.util.CubicSpline;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.DensityFunctions;
+import net.minecraft.world.level.levelgen.synth.BlendedNoise;
+import net.minecraft.world.level.levelgen.synth.PerlinNoise;
+import net.minecraft.world.level.levelgen.synth.SimplexNoise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,14 +29,18 @@ public final class DensityGraphCompiler {
     private final List<Double> constants = new ArrayList<>();
     private final NoiseTableExtractor noiseTables = new NoiseTableExtractor();
     private final List<OpenCLSpline> splines = new ArrayList<>();
+    private final List<Integer> interpolatedNodes = new ArrayList<>();
+    private final boolean preserveInterpolation;
 
-    private DensityGraphCompiler() {}
+    private DensityGraphCompiler(boolean preserveInterpolation) {
+        this.preserveInterpolation = preserveInterpolation;
+    }
 
     public static DensityGraphCompileResult compile(DensityFunction root) {
         if (root == null) {
             return DensityGraphCompileResult.unsupported("density root is null");
         }
-        DensityGraphCompiler compiler = new DensityGraphCompiler();
+        DensityGraphCompiler compiler = new DensityGraphCompiler(false);
         try {
             int rootNode = compiler.compileNode(root);
             return DensityGraphCompileResult.supported(new DensityGraphProgram(
@@ -51,6 +60,40 @@ public final class DensityGraphCompiler {
                     t.getMessage(),
                     t);
             return DensityGraphCompileResult.unsupported("density graph compile failed: " + t.getClass().getSimpleName());
+        }
+    }
+
+    public static DensityGraphCompileResult compile(Map<DensityGraphRoot, DensityFunction> roots) {
+        if (roots == null || roots.isEmpty() || roots.get(DensityGraphRoot.FINAL_DENSITY) == null) {
+            return DensityGraphCompileResult.unsupported("accurate density roots are incomplete");
+        }
+        DensityGraphCompiler compiler = new DensityGraphCompiler(true);
+        try {
+            EnumMap<DensityGraphRoot, Integer> compiledRoots = new EnumMap<>(DensityGraphRoot.class);
+            for (DensityGraphRoot root : DensityGraphRoot.values()) {
+                DensityFunction function = roots.get(root);
+                if (function != null) {
+                    compiledRoots.put(root, compiler.compileNode(function));
+                }
+            }
+            int finalRoot = compiledRoots.get(DensityGraphRoot.FINAL_DENSITY);
+            return DensityGraphCompileResult.supported(new DensityGraphProgram(
+                    finalRoot,
+                    compiledRoots,
+                    compiler.interpolatedNodes,
+                    compiler.nodes,
+                    compiler.constants,
+                    compiler.noiseTables.toTables(),
+                    compiler.splines));
+        } catch (TemporaryDensityGraphException e) {
+            return DensityGraphCompileResult.retryable(e.getMessage());
+        } catch (UnsupportedDensityGraphException e) {
+            return DensityGraphCompileResult.unsupported(e.getMessage());
+        } catch (Throwable failure) {
+            LOGGER.info("OpenCL accurate density graph compile failed: error={} message={}",
+                    failure.getClass().getName(), failure.getMessage(), failure);
+            return DensityGraphCompileResult.unsupported("accurate density graph compile failed: "
+                    + failure.getClass().getSimpleName());
         }
     }
 
@@ -89,6 +132,8 @@ public final class DensityGraphCompiler {
             case "shift", "Shift" -> shift(function, DensityGraphNodeType.SHIFT);
             case "weird_scaled_sampler", "WeirdScaledSampler" -> weirdScaledSampler(function);
             case "spline", "Spline" -> spline(function);
+            case "old_blended_noise", "BlendedNoise" -> blendedNoise(function);
+            case "end_islands", "EndIslandDensityFunction" -> endIsland(function);
             default -> unsupported("unsupported density node: " + function.getClass().getName());
         };
     }
@@ -226,7 +271,27 @@ public final class DensityGraphCompiler {
         if (!(function instanceof DensityFunctions.MarkerOrMarked marker)) {
             throw new UnsupportedDensityGraphException("marker node missing wrapped function");
         }
-        return compileNode(marker.wrapped());
+        int wrapped = compileNode(marker.wrapped());
+        Object markerType = marker.type();
+        String markerName = markerType instanceof StringRepresentable named
+                ? named.getSerializedName()
+                : String.valueOf(markerType);
+        if (!preserveInterpolation || !"interpolated".equalsIgnoreCase(markerName)) {
+            return wrapped;
+        }
+        int slot = interpolatedNodes.size();
+        int node = add(new DensityGraphNode(
+                DensityGraphNodeType.INTERPOLATED,
+                wrapped,
+                -1,
+                slot,
+                -1,
+                0.0D,
+                0.0D,
+                0.0D,
+                0.0D));
+        interpolatedNodes.add(node);
+        return node;
     }
 
     private int holder(DensityFunction function) {
@@ -273,6 +338,53 @@ public final class DensityGraphCompiler {
         int child = compileNode(recordFunction(function, 0, "weird_scaled_sampler input"));
         int noiseIndex = normalNoiseIndex(DensityGraphReflection.readRecord(function, 1));
         return add(new DensityGraphNode(DensityGraphNodeType.WEIRD_SCALED_SAMPLER, child, -1, noiseIndex, mapperType, 0.0D, 0.0D, 0.0D, 0.0D));
+    }
+
+    private int blendedNoise(DensityFunction function) {
+        if (!(function instanceof BlendedNoise blendedNoise)) {
+            throw new UnsupportedDensityGraphException("blended noise node has unexpected implementation");
+        }
+        PerlinNoise minLimit = (PerlinNoise) DensityGraphReflection.read(blendedNoise, "minLimitNoise");
+        PerlinNoise maxLimit = (PerlinNoise) DensityGraphReflection.read(blendedNoise, "maxLimitNoise");
+        PerlinNoise main = (PerlinNoise) DensityGraphReflection.read(blendedNoise, "mainNoise");
+        double xzMultiplier = DensityGraphReflection.readDouble(blendedNoise, "xzMultiplier", Double.NaN);
+        double yMultiplier = DensityGraphReflection.readDouble(blendedNoise, "yMultiplier", Double.NaN);
+        double xzFactor = DensityGraphReflection.readDouble(blendedNoise, "xzFactor", Double.NaN);
+        double yFactor = DensityGraphReflection.readDouble(blendedNoise, "yFactor", Double.NaN);
+        double smearScale = DensityGraphReflection.readDouble(blendedNoise, "smearScaleMultiplier", Double.NaN);
+        if (minLimit == null || maxLimit == null || main == null
+                || Double.isNaN(xzMultiplier) || Double.isNaN(yMultiplier)
+                || Double.isNaN(xzFactor) || Double.isNaN(yFactor) || Double.isNaN(smearScale)) {
+            throw new UnsupportedDensityGraphException("blended noise node is missing runtime state");
+        }
+        int smearNode = constant(smearScale);
+        return add(new DensityGraphNode(
+                DensityGraphNodeType.BLENDED_NOISE,
+                noiseTables.perlinNoiseIndex(minLimit),
+                noiseTables.perlinNoiseIndex(maxLimit),
+                noiseTables.perlinNoiseIndex(main),
+                smearNode,
+                xzMultiplier,
+                yMultiplier,
+                xzFactor,
+                yFactor));
+    }
+
+    private int endIsland(DensityFunction function) {
+        Object simplexObject = DensityGraphReflection.read(function, "islandNoise");
+        if (!(simplexObject instanceof SimplexNoise simplexNoise)) {
+            throw new UnsupportedDensityGraphException("end island node is missing simplex noise");
+        }
+        return add(new DensityGraphNode(
+                DensityGraphNodeType.END_ISLAND,
+                -1,
+                -1,
+                noiseTables.simplexNoiseIndex(simplexNoise),
+                -1,
+                0.0D,
+                0.0D,
+                0.0D,
+                0.0D));
     }
 
     private int spline(DensityFunction function) {

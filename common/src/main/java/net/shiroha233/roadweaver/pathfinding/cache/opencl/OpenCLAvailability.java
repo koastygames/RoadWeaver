@@ -1,3 +1,4 @@
+/* 文件职责：维护当前服务器会话内 OpenCL 粗采样的可用性与回退原因。 */
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 import org.slf4j.Logger;
@@ -46,8 +47,12 @@ public final class OpenCLAvailability {
         }
     }
 
-    public static void resetForTests() {
+    public static void reset() {
         DISABLED_REASON.set(null);
         LOGGED_DISABLED.set(false);
+    }
+
+    public static void resetForTests() {
+        reset();
     }
 }

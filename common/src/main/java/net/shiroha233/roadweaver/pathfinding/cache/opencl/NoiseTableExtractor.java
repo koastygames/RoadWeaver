@@ -1,9 +1,11 @@
+/* 文件职责：从 Minecraft 噪声对象提取 OpenCL 所需的 Perlin 与 permutation 表。 */
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 import it.unimi.dsi.fastutil.doubles.DoubleList;
 import net.minecraft.world.level.levelgen.synth.ImprovedNoise;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import net.minecraft.world.level.levelgen.synth.PerlinNoise;
+import net.minecraft.world.level.levelgen.synth.SimplexNoise;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -28,6 +30,27 @@ public final class NoiseTableExtractor {
         return normalIndices.computeIfAbsent(noise, this::extractNormalNoise);
     }
 
+    int perlinNoiseIndex(PerlinNoise noise) {
+        if (noise == null) {
+            return -1;
+        }
+        return perlinIndices.computeIfAbsent(noise, this::extractPerlinNoise);
+    }
+
+    int simplexNoiseIndex(SimplexNoise noise) {
+        Object permutationObject = DensityGraphReflection.readField(noise, int[].class, 0);
+        if (!(permutationObject instanceof int[] permutation) || permutation.length < 256) {
+            throw new UnsupportedOperationException("SimplexNoise missing permutation");
+        }
+        byte[] compact = new byte[256];
+        for (int i = 0; i < compact.length; i++) {
+            compact[i] = (byte) permutation[i];
+        }
+        int index = improvedNoises.size();
+        improvedNoises.add(new OpenCLImprovedNoise(0.0D, 0.0D, 0.0D, compact));
+        return index;
+    }
+
     public OpenCLNoiseTables toTables() {
         return new OpenCLNoiseTables(normalNoises, perlinNoises, improvedNoises);
     }
@@ -47,10 +70,6 @@ public final class NoiseTableExtractor {
         int index = normalNoises.size();
         normalNoises.add(new OpenCLNormalNoise(firstIndex, secondIndex, valueFactor, noise.maxValue()));
         return index;
-    }
-
-    private int perlinNoiseIndex(PerlinNoise noise) {
-        return perlinIndices.computeIfAbsent(noise, this::extractPerlinNoise);
     }
 
     private int extractPerlinNoise(PerlinNoise noise) {

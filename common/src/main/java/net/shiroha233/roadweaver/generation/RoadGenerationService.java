@@ -1,3 +1,4 @@
+/* 文件职责：调度道路生成任务并维护规划路径缓存生命周期。 */
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
@@ -14,9 +15,8 @@ import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
 import net.shiroha233.roadweaver.map.MapPatchService;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
@@ -55,8 +55,7 @@ public final class RoadGenerationService {
         PROCESSED.clear();
         RUNNING_COUNT.set(0);
         PLAYER_LIST_CACHE.clear();
-        CoarsePathCache.clearAll();
-        CoarseTerrainRegionRegistry.clearAll();
+        PlannedPathCache.clearAll();
         CoarseTerrainTileCache.clearAll();
     }
 
@@ -68,8 +67,7 @@ public final class RoadGenerationService {
         RUNNING_COUNT.set(0);
         PLAYER_LIST_CACHE.clear();
         RoadPlanningService.resetAll();
-        CoarsePathCache.clearAll();
-        CoarseTerrainRegionRegistry.clearAll();
+        PlannedPathCache.clearAll();
         CoarseTerrainTileCache.clearAll();
         IdleRoadGenerationService.onServerStopping();
     }
@@ -130,7 +128,10 @@ public final class RoadGenerationService {
 
             if (Thread.currentThread().isInterrupted()) return false;
             ModConfig modCfg = ConfigService.get();
-            if (!modCfg.roadAppearance().roadsEnabled()) return true;
+            if (!modCfg.roadAppearance().roadsEnabled()) {
+                PlannedPathCache.discard(level, conn);
+                return true;
+            }
 
             RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
             new Road(level, conn, cfg, genCfg).generateRoad(modCfg.pathfindingCost().aStarMaxSteps());

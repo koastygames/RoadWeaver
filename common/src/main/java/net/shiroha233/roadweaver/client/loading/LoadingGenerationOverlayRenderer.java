@@ -1,3 +1,4 @@
+/* 文件职责：渲染初始道路生成阶段、设备与实时吞吐信息。 */
 package net.shiroha233.roadweaver.client.loading;
 
 import net.minecraft.client.Minecraft;
@@ -9,6 +10,7 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressSnapshot;
+import net.shiroha233.roadweaver.generation.progress.InitialGenerationStage;
 
 /**
  * 世界创建阶段的加载进度卡片。
@@ -115,22 +117,45 @@ public final class LoadingGenerationOverlayRenderer {
         drawFittedString(graphics, font, device, x, y, innerWidth, TEXT_MUTED);
 
         y += 12;
-        Component tiles = Component.translatable(
-                "gui.roadweaver.initgen.tiles",
-                snapshot.tilesLoaded(),
-                snapshot.tilesTotal(),
-                snapshot.tilesFromMemory(),
-                snapshot.tilesFromDisk(),
-                snapshot.tilesSampled());
+        Component tiles = switch (snapshot.stage()) {
+            case EXACT_SAMPLING -> Component.translatable(
+                    "gui.roadweaver.initgen.exact_batch",
+                    snapshot.lastBatchSamples(),
+                    snapshot.lastBatchMillis(),
+                    exactBatchRate(snapshot));
+            case EXACT_PATHING -> Component.translatable(
+                    "gui.roadweaver.initgen.exact_paths",
+                    snapshot.exactPathsDone(),
+                    snapshot.exactPathsTotal());
+            default -> Component.translatable(
+                    "gui.roadweaver.initgen.tiles",
+                    snapshot.tilesLoaded(),
+                    snapshot.tilesTotal(),
+                    snapshot.tilesFromMemory(),
+                    snapshot.tilesFromDisk(),
+                    snapshot.tilesSampled());
+        };
         drawFittedString(graphics, font, tiles, x, y, innerWidth, TEXT_MUTED);
 
         y += 12;
-        Component throughput = Component.translatable(
-                "gui.roadweaver.initgen.throughput",
-                snapshot.lastBatchSamples(),
-                String.format(java.util.Locale.ROOT, "%.0f", snapshot.samplesPerSecond()),
-                snapshot.initialThreads(),
-                snapshot.activeWorkers());
+        Component throughput = switch (snapshot.stage()) {
+            case EXACT_SAMPLING -> Component.translatable(
+                    "gui.roadweaver.initgen.exact_throughput",
+                    snapshot.samplesDone(),
+                    snapshot.samplesTotal(),
+                    String.format(java.util.Locale.ROOT, "%.0f", snapshot.samplesPerSecond()),
+                    exactSamplingEta(snapshot));
+            case EXACT_PATHING -> Component.translatable(
+                    "gui.roadweaver.initgen.exact_paths_remaining",
+                    Math.max(0, snapshot.exactPathsTotal() - snapshot.exactPathsDone()),
+                    snapshot.stagePercent());
+            default -> Component.translatable(
+                    "gui.roadweaver.initgen.throughput",
+                    snapshot.lastBatchSamples(),
+                    String.format(java.util.Locale.ROOT, "%.0f", snapshot.samplesPerSecond()),
+                    snapshot.initialThreads(),
+                    snapshot.activeWorkers());
+        };
         drawFittedString(graphics, font, throughput, x, y, innerWidth, TEXT_MUTED);
 
         if (showDebug) {
@@ -198,5 +223,26 @@ public final class LoadingGenerationOverlayRenderer {
             return deviceName;
         }
         return printable(snapshot.backend());
+    }
+
+    private static String exactSamplingEta(InitialGenerationProgressSnapshot snapshot) {
+        double rate = snapshot.samplesPerSecond();
+        if (rate <= 0.0) {
+            return "--";
+        }
+        long remaining = Math.max(0L, snapshot.samplesTotal() - snapshot.samplesDone());
+        long seconds = (long) Math.ceil(remaining / rate);
+        if (seconds >= 60L) {
+            return String.format(java.util.Locale.ROOT, "%d:%02d", seconds / 60L, seconds % 60L);
+        }
+        return seconds + "s";
+    }
+
+    private static String exactBatchRate(InitialGenerationProgressSnapshot snapshot) {
+        if (snapshot.lastBatchMillis() <= 0L) {
+            return "--";
+        }
+        return String.format(java.util.Locale.ROOT, "%.0f",
+                snapshot.lastBatchSamples() * 1000.0 / snapshot.lastBatchMillis());
     }
 }

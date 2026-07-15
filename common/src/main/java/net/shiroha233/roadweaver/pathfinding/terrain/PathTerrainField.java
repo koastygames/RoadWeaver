@@ -27,8 +27,15 @@ public interface PathTerrainField {
     int step();
 
     /**
+     * 当前坐标的高度、水体与生物群系数据是否来自精确采样。
+     */
+    default boolean hasAccurateSample(int x, int z) {
+        return false;
+    }
+
+    /**
      * 释放内部大数组，协助 GC 回收。默认空操作。
-     * 持有紧凑数组的实现（如 QuantizedChunkTerrainField）应覆写。
+     * 持有紧凑数组的实现应覆写。
      */
     default void dispose() {}
 

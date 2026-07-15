@@ -1,3 +1,4 @@
+/* 文件职责：协调粗路径搜索与精确高度修正的两阶段寻路流程。 */
 package net.shiroha233.roadweaver.pathfinding;
 
 import net.minecraft.core.BlockPos;
@@ -20,6 +21,14 @@ public final class TwoStagePathfindingManager {
         if (level == null || segments == null || segments.isEmpty() || accurate == null) {
             return segments;
         }
+
+        List<BlockPos> centers = new ArrayList<>(segments.size());
+        for (RoadSegmentPlacement segment : segments) {
+            if (segment != null) {
+                centers.add(segment.middlePos());
+            }
+        }
+        accurate.prefetchPositions(centers);
 
         List<RoadSegmentPlacement> out = new ArrayList<>(segments.size());
         for (RoadSegmentPlacement seg : segments) {

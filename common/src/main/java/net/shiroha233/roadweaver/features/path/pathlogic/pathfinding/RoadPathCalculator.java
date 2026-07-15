@@ -1,4 +1,4 @@
-/* 文件职责：组织普通道路两阶段寻路与最终路径段生成。 */
+/* 文件职责：组织普通道路的精确量化寻路与最终路径段生成。 */
 package net.shiroha233.roadweaver.features.path.pathlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
@@ -11,9 +11,11 @@ import net.shiroha233.roadweaver.pathfinding.PathResult;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.AccuratePathHeightResolver;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
-import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainFieldFactory;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegion;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegionSampler;
 import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
 
 import java.util.List;
@@ -33,7 +35,14 @@ public final class RoadPathCalculator {
                                                                     int maxSteps,
                                                                     TerrainSamplingCache cache,
                                                                     RoadGenerationConfig cfg) {
-        return calculateAStarRoadPathDetailed(startIn, endIn, width, level, maxSteps, cache, cfg).segments();
+        PathCalculationResult result = calculateAStarRoadPathDetailed(startIn, endIn, width, level, maxSteps, cache, cfg);
+        try {
+            return result.segments();
+        } finally {
+            if (result.terrain() != null) {
+                result.terrain().dispose();
+            }
+        }
     }
 
     public static PathCalculationResult calculateAStarRoadPathDetailed(BlockPos startIn,
@@ -43,21 +52,9 @@ public final class RoadPathCalculator {
                                                                        int maxSteps,
                                                                        TerrainSamplingCache cache,
                                                                        RoadGenerationConfig cfg) {
-        return calculateAStarRoadPathDetailed(startIn, endIn, width, level, maxSteps, cache, cfg, null);
-    }
-
-    /**
-     * 两阶段寻路：粗路径 → 精采样 → 精路径。
-     * 注意：coarseOverride 可能被多条连接共享（来自Registry），调用者负责在所有使用完成后 dispose。
-     */
-    public static PathCalculationResult calculateAStarRoadPathDetailed(BlockPos startIn,
-                                                                       BlockPos endIn,
-                                                                       int width,
-                                                                       ServerLevel level,
-                                                                       int maxSteps,
-                                                                       TerrainSamplingCache cache,
-                                                                       RoadGenerationConfig cfg,
-                                                                       PathTerrainField coarseOverride) {
+        if (startIn == null || endIn == null || level == null || cache == null || cfg == null) {
+            return PathCalculationResult.failure();
+        }
         PathfindingCostConfig pathCfg = cfg.pathfinding();
         int dGrid = pathCfg.effectiveAStarStep();
         int sx = snapToGrid(startIn.getX(), dGrid);
@@ -68,91 +65,49 @@ public final class RoadPathCalculator {
         BlockPos start = new BlockPos(sx, startIn.getY(), sz);
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
-        BlockPos startGround = new BlockPos(start.getX(), heightSampler(cache, start.getX(), start.getZ(), level), start.getZ());
-        BlockPos endGround = new BlockPos(end.getX(), heightSampler(cache, end.getX(), end.getZ(), level), end.getZ());
-
-        PathTerrainField coarseTerrain = coarseOverride != null
-                && coarseOverride.step() == dGrid
-                && coarseOverride.contains(startGround.getX(), startGround.getZ())
-                && coarseOverride.contains(endGround.getX(), endGround.getZ())
-                ? coarseOverride
-                : PathTerrainFieldFactory.cached(level, cache, dGrid);
-        List<BlockPos> coarsePath = calculateRawPath(startGround, endGround, level, maxSteps, cache, coarseTerrain, pathCfg);
-        if (coarsePath == null || coarsePath.isEmpty()) {
+        AccurateTerrainRegion terrain;
+        int margin = searchMargin(start, end);
+        try {
+            terrain = AccurateTerrainRegionSampler.sample(level, cache,
+                    Math.min(start.getX(), end.getX()) - margin,
+                    Math.min(start.getZ(), end.getZ()) - margin,
+                    Math.max(start.getX(), end.getX()) + margin,
+                    Math.max(start.getZ(), end.getZ()) + margin,
+                    dGrid);
+        } catch (RuntimeException failure) {
             return PathCalculationResult.failure();
         }
 
-        if (!pathCfg.isAccurateSampling()) {
-            return finalizePath(coarsePath, width, level, cache, coarseTerrain, pathCfg);
+        boolean handedOff = false;
+        try {
+            BlockPos startGround = new BlockPos(start.getX(), terrain.height(start.getX(), start.getZ()), start.getZ());
+            BlockPos endGround = new BlockPos(end.getX(), terrain.height(end.getX(), end.getZ()), end.getZ());
+            List<BlockPos> rawPath = calculateRawPath(startGround, endGround, level, maxSteps, cache, terrain, pathCfg);
+            if (rawPath == null || rawPath.isEmpty()) {
+                return PathCalculationResult.failure();
+            }
+            PathCalculationResult result = finalizePath(rawPath, width, level, cache, terrain);
+            handedOff = result.terrain() != null;
+            return result;
+        } finally {
+            if (!handedOff) {
+                terrain.dispose();
+            }
         }
-
-        PathTerrainField quantizedTerrain = PathTerrainFieldFactory.quantized(
-                level,
-                cache,
-                coarsePath,
-                dGrid,
-                pathCfg.quantizedSamplingChunkRadius());
-        if (quantizedTerrain == null) {
-            return finalizePath(coarsePath, width, level, cache, coarseTerrain, pathCfg);
-        }
-
-        List<BlockPos> finalRawPath = calculateRawPath(startGround, endGround, level, maxSteps, cache, quantizedTerrain, pathCfg);
-        if (finalRawPath == null || finalRawPath.isEmpty()) {
-            finalRawPath = coarsePath;
-        }
-        return finalizePath(finalRawPath, width, level, cache, quantizedTerrain, pathCfg);
     }
 
     /**
-     * 直接使用已计算好的粗路径，跳过粗路径搜索，直接进入精采样阶段。
-     * 用于规划阶段已完成粗路径搜索的场景，此时粗采样数据已释放，粗路径从缓存获取。
+     * 直接后处理规划阶段已经完成的精确路径，不再采样或重复寻路。
      */
-    public static PathCalculationResult calculateFromCoarsePath(List<BlockPos> coarsePath,
-                                                                BlockPos startIn,
-                                                                BlockPos endIn,
-                                                                int width,
-                                                                ServerLevel level,
-                                                                int maxSteps,
-                                                                TerrainSamplingCache cache,
-                                                                RoadGenerationConfig cfg) {
-        if (coarsePath == null || coarsePath.isEmpty()) {
+    public static PathCalculationResult calculateFromPlannedPath(List<BlockPos> plannedPath,
+                                                                  int width,
+                                                                  ServerLevel level,
+                                                                  TerrainSamplingCache cache,
+                                                                  AccurateTerrainRegion terrain) {
+        if (plannedPath == null || plannedPath.isEmpty() || terrain == null || terrain.isDisposed()) {
             return PathCalculationResult.failure();
         }
-
-        PathfindingCostConfig pathCfg = cfg.pathfinding();
-        int dGrid = pathCfg.effectiveAStarStep();
-
-        // 如果不需要精采样，直接用粗路径生成最终路径
-        if (!pathCfg.isAccurateSampling()) {
-            // 需要一个 fallback terrain field 用于 finalizePath
-            PathTerrainField fallback = PathTerrainFieldFactory.cached(level, cache, dGrid);
-            return finalizePath(coarsePath, width, level, cache, fallback, pathCfg);
-        }
-
-        PathTerrainField quantizedTerrain = PathTerrainFieldFactory.quantized(
-                level,
-                cache,
-                coarsePath,
-                dGrid,
-                pathCfg.quantizedSamplingChunkRadius());
-        if (quantizedTerrain == null) {
-            PathTerrainField fallback = PathTerrainFieldFactory.cached(level, cache, dGrid);
-            return finalizePath(coarsePath, width, level, cache, fallback, pathCfg);
-        }
-
-        // 精路径搜索：重新计算起点终点
-        int sx = snapToGrid(startIn.getX(), dGrid);
-        int sz = snapToGrid(startIn.getZ(), dGrid);
-        int ex = snapToGrid(endIn.getX(), dGrid);
-        int ez = snapToGrid(endIn.getZ(), dGrid);
-        BlockPos startGround = new BlockPos(sx, heightSampler(cache, sx, sz, level), sz);
-        BlockPos endGround = new BlockPos(ex, heightSampler(cache, ex, ez, level), ez);
-
-        List<BlockPos> finalRawPath = calculateRawPath(startGround, endGround, level, maxSteps, cache, quantizedTerrain, pathCfg);
-        if (finalRawPath == null || finalRawPath.isEmpty()) {
-            finalRawPath = coarsePath;
-        }
-        return finalizePath(finalRawPath, width, level, cache, quantizedTerrain, pathCfg);
+        return finalizePath(plannedPath, width, level, cache, terrain);
     }
 
     private static List<BlockPos> calculateRawPath(BlockPos startGround,
@@ -175,16 +130,12 @@ public final class RoadPathCalculator {
                                                       int width,
                                                       ServerLevel level,
                                                       TerrainSamplingCache cache,
-                                                      PathTerrainField terrain,
-                                                      PathfindingCostConfig pathCfg) {
+                                                      PathTerrainField terrain) {
         if (rawPath == null || rawPath.size() < 2) {
             return PathCalculationResult.failure();
         }
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
-        List<BlockPos> finalPath = rawPath;
-        if (pathCfg.needsRefinement()) {
-            finalPath = accurate.samplePathHeights(rawPath, 0);
-        }
+        List<BlockPos> finalPath = AccuratePathHeightResolver.resolve(rawPath, terrain, accurate);
         List<RoadSegmentPlacement> segments = PathPostProcessor.process(
                 finalPath,
                 width,
@@ -194,11 +145,15 @@ public final class RoadPathCalculator {
                 RoadConstants.DEFAULT_BRIDGE_MIN_WATER_DEPTH,
                 net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.CurveMode.CATMULL_ROM,
                 accurate);
-        return segments == null ? PathCalculationResult.failure() : new PathCalculationResult(segments, terrain);
+        if (segments == null) {
+            return PathCalculationResult.failure();
+        }
+        return new PathCalculationResult(segments, terrain);
     }
 
-    static int heightSampler(TerrainSamplingCache cache, int x, int z, ServerLevel level) {
-        return cache.height(level, x, z);
+    static int searchMargin(BlockPos start, BlockPos end) {
+        int distance = Math.abs(start.getX() - end.getX()) + Math.abs(start.getZ() - end.getZ());
+        return Math.min(RoadConstants.DEFAULT_PLAN_MAX_EDGE_LEN_BLOCKS, Math.max(512, distance));
     }
 
     public record PathCalculationResult(List<RoadSegmentPlacement> segments, PathTerrainField terrain) {

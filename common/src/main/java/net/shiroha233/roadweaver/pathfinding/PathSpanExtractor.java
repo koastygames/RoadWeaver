@@ -7,11 +7,13 @@ import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.RoadSpan;
 import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSample;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.isWaterLike;
 
@@ -47,7 +49,14 @@ public final class PathSpanExtractor {
         }
 
         AccurateHeightSampler accurate = cache.getAccurateSampler(level);
-        collectBridgeSpans(spans, centers, level, cache, terrain, accurate, bridgeMinWaterDepth);
+        List<BlockPos> missing = new ArrayList<>();
+        for (BlockPos center : centers) {
+            if (terrain == null || !terrain.hasAccurateSample(center.getX(), center.getZ())) {
+                missing.add(center);
+            }
+        }
+        Map<Long, AccurateHeightSample> samples = accurate.samplePositions(missing);
+        collectBridgeSpans(spans, centers, level, cache, terrain, accurate, samples, bridgeMinWaterDepth);
         collectTunnelSpans(spans, centers);
         return spans;
     }
@@ -58,6 +67,7 @@ public final class PathSpanExtractor {
                                            TerrainSamplingCache cache,
                                            PathTerrainField terrain,
                                            AccurateHeightSampler accurate,
+                                           Map<Long, AccurateHeightSample> samples,
                                            int bridgeMinWaterDepth) {
         int minWaterDepth = bridgeMinWaterDepth;
         boolean inWater = false;
@@ -65,7 +75,7 @@ public final class PathSpanExtractor {
 
         for (int i = 0; i < centers.size(); i++) {
             BlockPos pos = centers.get(i);
-            boolean water = isBridgeWater(level, cache, terrain, accurate, pos, minWaterDepth);
+            boolean water = isBridgeWater(level, cache, terrain, accurate, samples, pos, minWaterDepth);
 
             if (water && !inWater) {
                 inWater = true;
@@ -86,19 +96,17 @@ public final class PathSpanExtractor {
                                          TerrainSamplingCache cache,
                                          PathTerrainField terrain,
                                          AccurateHeightSampler accurate,
+                                         Map<Long, AccurateHeightSample> samples,
                                          BlockPos pos,
                                          int minWaterDepth) {
-        if (terrain != null && terrain.contains(pos.getX(), pos.getZ())) {
+        if (terrain != null && terrain.hasAccurateSample(pos.getX(), pos.getZ())) {
             return terrain.isBridgeWater(pos.getX(), pos.getZ(), minWaterDepth);
         }
-        if (!isWaterLike(cache, pos.getX(), pos.getZ(), level)) {
-            return false;
-        }
-
         int sea = level.getSeaLevel();
-        int oceanFloor = accurate.oceanFloorWg(pos.getX(), pos.getZ());
-        int surfaceY = accurate.worldSurfaceWg(pos.getX(), pos.getZ());
-        boolean biomeWater = oceanFloor < sea;
+        AccurateHeightSample sample = samples.get(AccurateHeightSample.key(pos.getX(), pos.getZ()));
+        int oceanFloor = sample != null ? sample.oceanFloorWg() : accurate.oceanFloorWg(pos.getX(), pos.getZ());
+        int surfaceY = sample != null ? sample.worldSurfaceWg() : accurate.worldSurfaceWg(pos.getX(), pos.getZ());
+        boolean biomeWater = isWaterLike(cache, pos.getX(), pos.getZ(), level) && oceanFloor < sea;
         boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
         boolean waterColumn = biomeWater || heightWater;
         int waterDepth = waterColumn ? Math.max(0, sea - oceanFloor) : 0;

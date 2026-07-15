@@ -1,3 +1,4 @@
+/* 文件职责：承载初始生成各阶段供客户端只读展示的进度快照。 */
 package net.shiroha233.roadweaver.generation.progress;
 
 /**
@@ -22,6 +23,8 @@ public record InitialGenerationProgressSnapshot(
         int tilesFromDisk,
         long samplesTotal,
         long samplesDone,
+        int exactPathsTotal,
+        int exactPathsDone,
         double samplesPerSecond,
         int lastBatchSamples,
         long lastBatchMillis,
@@ -59,6 +62,8 @@ public record InitialGenerationProgressSnapshot(
                 0,
                 0L,
                 0L,
+                0,
+                0,
                 0.0,
                 0,
                 0L,

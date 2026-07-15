@@ -1,9 +1,11 @@
+/* 文件职责：对道路路径执行精确高度修正、平滑与桥梁后处理。 */
 package net.shiroha233.roadweaver.pathfinding.impl;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSample;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.CurveMode;
 import net.shiroha233.roadweaver.pathfinding.impl.SplineHelper.Vec2d;
@@ -244,17 +246,24 @@ public final class PathPostProcessor {
                                       AccurateHeightSampler sampler) {
         int n = nodes.size();
         boolean[] mask = new boolean[n];
+        List<BlockPos> missing = new ArrayList<>();
+        for (BlockPos node : nodes) {
+            if (terrain == null || !terrain.hasAccurateSample(node.getX(), node.getZ())) {
+                missing.add(node);
+            }
+        }
+        Map<Long, AccurateHeightSample> samples = sampler.samplePositions(missing);
         for (int i = 0; i < n; i++) {
             BlockPos p = nodes.get(i);
-            if (terrain != null && terrain.contains(p.getX(), p.getZ())) {
+            if (terrain != null && terrain.hasAccurateSample(p.getX(), p.getZ())) {
                 mask[i] = terrain.isBridgeWater(p.getX(), p.getZ(), bridgeMinWaterDepth);
                 continue;
             }
-            if (!isWaterLike(cache, p.getX(), p.getZ(), level)) continue;
             int sea = level.getSeaLevel();
-            int oceanFloor = sampler.oceanFloorWg(p.getX(), p.getZ());
-            int surfaceY = sampler.worldSurfaceWg(p.getX(), p.getZ());
-            boolean biomeWater = oceanFloor < sea;
+            AccurateHeightSample sample = samples.get(AccurateHeightSample.key(p.getX(), p.getZ()));
+            int oceanFloor = sample != null ? sample.oceanFloorWg() : sampler.oceanFloorWg(p.getX(), p.getZ());
+            int surfaceY = sample != null ? sample.worldSurfaceWg() : sampler.worldSurfaceWg(p.getX(), p.getZ());
+            boolean biomeWater = isWaterLike(cache, p.getX(), p.getZ(), level) && oceanFloor < sea;
             boolean heightWater = (surfaceY <= sea + 1) && (oceanFloor < surfaceY - 1);
             int waterDepth = (biomeWater || heightWater) ? Math.max(0, sea - oceanFloor) : 0;
             mask[i] = waterDepth >= Math.max(1, bridgeMinWaterDepth);

@@ -1,3 +1,4 @@
+/* 文件职责：协调结构连接规划、区域级精确地形采样与预计算路径。 */
 package net.shiroha233.roadweaver.planning;
 
 import net.minecraft.core.BlockPos;
@@ -7,7 +8,6 @@ import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
-import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
@@ -23,10 +23,13 @@ import net.shiroha233.roadweaver.map.tile.storage.ServerMapTileStorage;
 import net.shiroha233.roadweaver.pathfinding.Pathfinder;
 import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegion;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainPngWriter;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegionSampler;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainPngWriter;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionSampler;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
@@ -113,15 +116,20 @@ public final class RoadPlanningService {
         boolean hasExistingRoads = RoadShardStorage.hasRoadInRect(level, minX, minZ, maxX, maxZ);
         if (hasExistingRoads) {
             LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minX, minZ, maxX, maxZ);
-            ensureTerrainMapTilesAsync(level, key, minX, minZ, maxX, maxZ);
         }
 
         boolean backfillPlan = hasExistingRoads && markRoadBackfillPlanTile(level, key);
         boolean shouldPlan = !alreadyPlanned || backfillPlan;
-        if (!shouldPlan) return;
+        if (!shouldPlan) {
+            ensureTerrainMapTilesAsync(level, key, minX, minZ, maxX, maxZ);
+            return;
+        }
         if (!markPlanningTile(level, key)) return;
         planRectAsync(level, minX, minZ, maxX, maxZ).whenComplete((ignored, error) -> {
             unmarkPlanningTile(level, key);
+            if (hasExistingRoads) {
+                ensureTerrainMapTilesAsync(level, key, minX, minZ, maxX, maxZ);
+            }
             if (error != null) {
                 if (backfillPlan) unmarkRoadBackfillPlanTile(level, key);
                 LOGGER.warn("动态规划 tile 失败，保留重试机会 dimension={} tile=[{},{}]", level.dimension().location(), kx, kz, error);
@@ -172,17 +180,22 @@ public final class RoadPlanningService {
         if (!TERRAIN_REPAIR_TILES.add(tileKey)) return;
         ComputeService.runAsync(ThreadPoolManager.TaskRole.COARSE, () -> {
             CoarseTerrainRegion region = null;
+            boolean completed = false;
             try {
                 ModConfig cfg = ConfigService.get();
                 int step = cfg.pathfindingCost().effectiveAStarStep();
                 region = CoarseTerrainRegionSampler.sample(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
                 CoarseTerrainPngWriter.writeTerrainTiles(level, region);
-                LOGGER.info("已补全已有道路区域地图粗地形瓦片 dimension={} min=({}, {}) max=({}, {})",
+                completed = true;
+                LOGGER.info("已补全规划区域地图回退地形瓦片 dimension={} min=({}, {}) max=({}, {})",
                         level.dimension().location(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
             } catch (RuntimeException e) {
-                LOGGER.warn("补全已有道路区域地图粗地形瓦片失败 dimension={}", level.dimension().location(), e);
+                LOGGER.warn("补全规划区域地图回退地形瓦片失败 dimension={}", level.dimension().location(), e);
             } finally {
                 if (region != null) region.dispose();
+                if (!completed) {
+                    TERRAIN_REPAIR_TILES.remove(tileKey);
+                }
             }
         });
     }
@@ -243,7 +256,7 @@ public final class RoadPlanningService {
             provider.setStructureConnections(level, merged);
             publishNewConnections(level, existing, incoming);
         }
-        prepareCoarseRegionForConnections(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
+        prepareAccurateRegionForConnections(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
     }
 
     private static void collectStructurePointsInto(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ, List<BlockPos> out, Set<Long> seenPos) {
@@ -339,10 +352,9 @@ public final class RoadPlanningService {
 
             ArrayList<StructureConnection> incoming = new ArrayList<>(filteredPrimary);
             incoming.addAll(bridges);
-            CoarseTerrainRegion region = prepareCoarseRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
-            // 粗采样已完成 → PNG+SQLite持久化 → 对所有连接执行粗路径搜索 → 释放粗采样
+            AccurateTerrainRegion region = prepareAccurateRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
             if (region != null) {
-                computeCoarsePathsAndRelease(level, region, incoming);
+                computeExactPathsAndRetain(level, region, incoming);
             }
             return new PlannedRegionResult(incoming);
         }).thenAccept((PlannedRegionResult result) -> {
@@ -407,48 +419,50 @@ public final class RoadPlanningService {
         }
     }
 
-    private static void prepareCoarseRegionForConnections(ServerLevel level,
-                                                          int minBlockX,
-                                                          int minBlockZ,
-                                                          int maxBlockX,
-                                                          int maxBlockZ,
-                                                          List<StructureConnection> incoming) {
-        CoarseTerrainRegion region = prepareCoarseRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
+    private static void prepareAccurateRegionForConnections(ServerLevel level,
+                                                            int minBlockX,
+                                                            int minBlockZ,
+                                                            int maxBlockX,
+                                                            int maxBlockZ,
+                                                            List<StructureConnection> incoming) {
+        AccurateTerrainRegion region = prepareAccurateRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
         if (region != null) {
-            // 粗采样已完成 → PNG+SQLite持久化 → 对所有连接执行粗路径搜索 → 释放粗采样
-            computeCoarsePathsAndRelease(level, region, incoming);
+            computeExactPathsAndRetain(level, region, incoming);
         }
     }
 
-    private static CoarseTerrainRegion prepareCoarseRegion(ServerLevel level,
-                                                           int minBlockX,
-                                                           int minBlockZ,
-                                                           int maxBlockX,
-                                                           int maxBlockZ,
-                                                           List<StructureConnection> incoming) {
+    private static AccurateTerrainRegion prepareAccurateRegion(ServerLevel level,
+                                                               int minBlockX,
+                                                               int minBlockZ,
+                                                               int maxBlockX,
+                                                               int maxBlockZ,
+                                                               List<StructureConnection> incoming) {
         if (level == null || incoming == null || incoming.isEmpty()) return null;
         ModConfig cfg = ConfigService.get();
         int step = cfg.pathfindingCost().effectiveAStarStep();
+        TerrainSamplingCache cache = new TerrainSamplingCache();
         try {
-            CoarseTerrainRegion region = CoarseTerrainRegionSampler.sample(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
-            CoarseTerrainPngWriter.writeTerrainTiles(level, region);
-            return region;
-        } catch (IllegalArgumentException ignored) {
+            return AccurateTerrainRegionSampler.sample(level, cache,
+                    minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
+        } catch (RuntimeException failure) {
+            LOGGER.warn("精确规划区域采样被拒绝 dimension={} min=({}, {}) max=({}, {}) reason={}",
+                    level.dimension().location(), minBlockX, minBlockZ, maxBlockX, maxBlockZ, failure.getMessage());
             return null;
+        } finally {
+            cache.clear();
         }
     }
 
     /**
-     * 对区域内所有连接执行粗路径搜索，将结果存入 CoarsePathCache，然后释放粗采样数据。
-     * 流程：粗采样(PNG+SQLite已持久化) → 所有粗路径 → CoarsePathCache → dispose region → GC
+     * 对精确量化区域内的连接预计算路径，并把区域保留到对应道路全部生成完成。
      */
-    private static void computeCoarsePathsAndRelease(ServerLevel level,
-                                                     CoarseTerrainRegion region,
-                                                     List<StructureConnection> connections) {
+    private static void computeExactPathsAndRetain(ServerLevel level,
+                                                   AccurateTerrainRegion region,
+                                                   List<StructureConnection> connections) {
         ModConfig cfg = ConfigService.get();
         int dGrid = cfg.pathfindingCost().effectiveAStarStep();
         int maxSteps = cfg.pathfindingCost().aStarMaxSteps();
-        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.COARSE_PATHING, "computing_coarse_paths");
+        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.EXACT_PATHING, "computing_accurate_paths");
         int totalPaths = 0;
         for (StructureConnection connection : connections) {
             if (connection == null) continue;
@@ -456,8 +470,9 @@ public final class RoadPlanningService {
             if (!region.contains(connection.to().getX(), connection.to().getZ())) continue;
             totalPaths++;
         }
-        InitialGenerationProgressTracker.setCoarsePathPlan(totalPaths, "computing_coarse_paths");
+        InitialGenerationProgressTracker.setExactPathPlan(totalPaths, "computing_accurate_paths");
         TerrainSamplingCache cache = new TerrainSamplingCache();
+        LinkedHashMap<StructureConnection, List<BlockPos>> plannedPaths = new LinkedHashMap<>();
         try {
             for (StructureConnection conn : connections) {
                 if (conn == null) continue;
@@ -466,33 +481,46 @@ public final class RoadPlanningService {
                 if (Thread.currentThread().isInterrupted()) break;
 
                 try {
-                    List<BlockPos> coarsePath = searchCoarsePath(level, conn, dGrid, maxSteps, cache, region);
-                    if (coarsePath != null && !coarsePath.isEmpty()) {
-                        CoarsePathCache.put(level, conn, coarsePath);
+                    List<BlockPos> path = searchExactPath(level, conn, dGrid, maxSteps, cache, region);
+                    if (path != null && !path.isEmpty()) {
+                        plannedPaths.put(conn, path);
                     }
                 } finally {
-                    InitialGenerationProgressTracker.recordCoarsePathDone();
+                    InitialGenerationProgressTracker.recordExactPathDone();
                 }
             }
         } finally {
             cache.clear();
-            // 粗采样数据已持久化到SQLite+PNG，所有粗路径已存入缓存，现在释放粗采样大数组
-            region.dispose();
+        }
+
+        boolean transferred = false;
+        try {
+            try {
+                AccurateTerrainPngWriter.writeTerrainTiles(level, region);
+            } catch (RuntimeException failure) {
+                LOGGER.warn("精确地形地图瓦片写入失败 dimension={}", level.dimension().location(), failure);
+            }
+            PlannedPathCache.register(level, region, plannedPaths);
+            transferred = true;
+        } finally {
+            if (!transferred && !region.isDisposed()) {
+                region.dispose();
+            }
         }
     }
 
-    private static List<BlockPos> searchCoarsePath(ServerLevel level,
-                                                    StructureConnection conn,
-                                                    int dGrid,
-                                                    int maxSteps,
-                                                    TerrainSamplingCache cache,
-                                                    CoarseTerrainRegion region) {
+    private static List<BlockPos> searchExactPath(ServerLevel level,
+                                                   StructureConnection conn,
+                                                   int dGrid,
+                                                   int maxSteps,
+                                                   TerrainSamplingCache cache,
+                                                   AccurateTerrainRegion region) {
         int sx = snapToGrid(conn.from().getX(), dGrid);
         int sz = snapToGrid(conn.from().getZ(), dGrid);
         int ex = snapToGrid(conn.to().getX(), dGrid);
         int ez = snapToGrid(conn.to().getZ(), dGrid);
-        int startY = cache.height(level, sx, sz);
-        int endY = cache.height(level, ex, ez);
+        int startY = region.height(sx, sz);
+        int endY = region.height(ex, ez);
         BlockPos startGround = new BlockPos(sx, startY, sz);
         BlockPos endGround = new BlockPos(ex, endY, ez);
 

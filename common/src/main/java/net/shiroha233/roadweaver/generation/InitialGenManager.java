@@ -1,4 +1,4 @@
-/* 文件职责：管理启动阶段的初始道路生成。 */
+/* 文件职责：协调首次世界加载时的道路规划、生成、进度与持久化。 */
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.server.level.ServerLevel;
@@ -25,8 +25,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -160,34 +161,26 @@ public final class InitialGenManager {
         }
 
         Map<Long, Boolean> results = new HashMap<>();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
-        while (!futures.isEmpty()) {
-            pollPendingResults(futures, results);
-            futures.removeIf(Future::isDone);
-            if (futures.isEmpty()) break;
-            if (System.nanoTime() > deadline) break;
+        for (Future<GenResult> future : futures) {
             try {
-                Thread.sleep(50);
-            } catch (InterruptedException e) {
+                GenResult result = future.get();
+                if (result != null) {
+                    results.put(result.key(), result.success());
+                }
+            } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
                 break;
+            } catch (CancellationException | ExecutionException ignored) {
             }
         }
-        for (Future<GenResult> future : futures) {
-            future.cancel(true);
+        if (Thread.currentThread().isInterrupted()) {
+            for (Future<GenResult> future : futures) {
+                if (!future.isDone()) {
+                    future.cancel(true);
+                }
+            }
         }
         return results;
-    }
-
-    private static void pollPendingResults(List<Future<GenResult>> futures,
-                                           Map<Long, Boolean> results) {
-        for (Future<GenResult> f : futures) {
-            if (!f.isDone() || f.isCancelled()) continue;
-            try {
-                GenResult r = f.get();
-                if (r != null) results.put(r.key(), r.success());
-            } catch (Exception ignored) {}
-        }
     }
 
     private static void batchUpdateConnectionStatus(WorldDataProvider provider,

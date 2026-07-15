@@ -1,3 +1,4 @@
+/* 文件职责：注册 NeoForge 服务端生命周期、维度卸载与 Tick 钩子。 */
 package net.shiroha233.roadweaver.planning.neoforge;
 
 import net.minecraft.server.level.ServerLevel;
@@ -7,6 +8,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.shiroha233.roadweaver.config.structure.StructureDiscoveryService;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
@@ -28,6 +30,7 @@ public final class ServerPlanningHooks {
         NeoForge.EVENT_BUS.addListener(ServerPlanningHooks::onServerStarted);
         NeoForge.EVENT_BUS.addListener(ServerPlanningHooks::onServerTick);
         NeoForge.EVENT_BUS.addListener(ServerPlanningHooks::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(ServerPlanningHooks::onLevelUnload);
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
@@ -83,9 +86,15 @@ public final class ServerPlanningHooks {
     private static void onServerStopping(ServerStoppingEvent event) {
         RoadGenerationService.onServerStopping();
         RoadPlanningService.resetAll();
-        CacheManager.onServerStopping(event.getServer().getAllLevels());
         ThreadPoolManager.onServerStopping();
+        CacheManager.onServerStopping(event.getServer().getAllLevels());
         SignTextService.clearPending();
         tick = 0;
+    }
+
+    private static void onLevelUnload(LevelEvent.Unload event) {
+        if (event.getLevel() instanceof ServerLevel level) {
+            CacheManager.onDimensionUnload(level);
+        }
     }
 }

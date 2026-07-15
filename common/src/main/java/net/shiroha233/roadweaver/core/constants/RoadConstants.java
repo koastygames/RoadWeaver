@@ -27,6 +27,7 @@ public final class RoadConstants {
     public static final int COARSE_REGION_MAX_RADIUS_CHUNKS = 2048;
     public static final int COARSE_REGION_MAX_TILES = 70_000;
     public static final int COARSE_REGION_MAX_SAMPLES = 1_100_000;
+    public static final int ACCURATE_REGION_MAX_SAMPLES = 1_100_000;
     public static final int COARSE_REGION_PARALLEL_MIN_SAMPLES = 16_384;
     public static final int COARSE_REGION_PARALLEL_MIN_ROWS_PER_WORKER = 64;
     public static final int COARSE_REGION_PARALLEL_MAX_THREADS = 8;
@@ -151,9 +152,6 @@ public final class RoadConstants {
     public static final int BLOCK_UPDATE_FLAG = 3;
     public static final int BELOW_DEPTH_1 = 1;
     public static final int BELOW_DEPTH_2 = 2;
-
-    public static final int DEFAULT_QUANTIZED_SAMPLING_CHUNK_RADIUS = 1;
-    public static final int QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX = 8;
 
     public static final int GRADIENT_DESCENT_STEPS_MULTIPLIER = 3;
     public static final double GRADIENT_DESCENT_SUCCESS_DISTANCE_FACTOR = 1.5;

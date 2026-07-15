@@ -1,3 +1,4 @@
+/* 文件职责：构建 Fabric 配置界面。 */
 package net.shiroha233.roadweaver.client.fabric;
 
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
@@ -514,6 +515,13 @@ public class ConfigScreenFactoryImpl {
                 .build());
 
         category.addEntry(eb
+                .startBooleanToggle(Component.translatable("config.roadweaver.opencl_accurate_sampling_enabled"), cfg.openclAccurateSamplingEnabled())
+                .setDefaultValue(def.openclAccurateSamplingEnabled())
+                .setTooltip(Component.translatable("config.roadweaver.opencl_accurate_sampling_enabled.tooltip"))
+                .setSaveConsumer(cfg::setOpenclAccurateSamplingEnabled)
+                .build());
+
+        category.addEntry(eb
                 .startEnumSelector(Component.translatable("config.roadweaver.opencl_device_preference"),
                         OpenCLDevicePreference.class, OpenCLDevicePreference.valueOf(cfg.openclDevicePreference()))
                 .setDefaultValue(OpenCLDevicePreference.valueOf(def.openclDevicePreference()))
@@ -566,23 +574,6 @@ public class ConfigScreenFactoryImpl {
                 .setTooltip(Component.translatable("config.roadweaver.a_star_max_steps.tooltip"))
                 .setMin(100).setMax(RoadConstants.ASTAR_MAX_STEPS_MAX)
                 .setSaveConsumer(cfg::setAStarMaxSteps)
-                .build());
-
-        category.addEntry(eb
-                .startIntField(Component.translatable("config.roadweaver.quantized_sampling_chunk_radius"), cfg.quantizedSamplingChunkRadius())
-                .setDefaultValue(def.quantizedSamplingChunkRadius())
-                .setTooltip(Component.translatable("config.roadweaver.quantized_sampling_chunk_radius.tooltip"))
-                .setMin(0).setMax(RoadConstants.QUANTIZED_SAMPLING_CHUNK_RADIUS_MAX)
-                .setSaveConsumer(cfg::setQuantizedSamplingChunkRadius)
-                .build());
-
-        category.addEntry(eb
-                .startEnumSelector(Component.translatable("config.roadweaver.sampling_precision"),
-                        PathfindingCostConfig.SamplingPrecision.class, cfg.samplingPrecision())
-                .setDefaultValue(def.samplingPrecision())
-                .setTooltip(Component.translatable("config.roadweaver.sampling_precision.tooltip"))
-                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.sampling_precision.option." + v.name().toLowerCase(Locale.ROOT)))
-                .setSaveConsumer(cfg::setSamplingPrecision)
                 .build());
 
         category.addEntry(eb

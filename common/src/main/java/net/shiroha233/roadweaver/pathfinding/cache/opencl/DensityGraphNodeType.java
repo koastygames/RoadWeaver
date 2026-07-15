@@ -1,3 +1,4 @@
+/* 文件职责：定义 Java density graph 与 OpenCL evaluator 共享的节点编号。 */
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 /**
@@ -27,5 +28,8 @@ public enum DensityGraphNodeType {
     SPLINE,
     WEIRD_SCALED_SAMPLER,
     CLAMP_TO_NEAREST_UNIT,
-    MARKER
+    MARKER,
+    INTERPOLATED,
+    BLENDED_NOISE,
+    END_ISLAND
 }

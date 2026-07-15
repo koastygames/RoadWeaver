@@ -1,3 +1,4 @@
+/* 文件职责：保存线程调度与 OpenCL 地形采样性能配置。 */
 package net.shiroha233.roadweaver.config.sub;
 
 import net.shiroha233.roadweaver.config.SubConfig;
@@ -14,6 +15,7 @@ public final class PerformanceConfig implements SubConfig {
     private boolean idleGenerationEnabled = false;
     private int idleThreadDutyCycle = 20;
     private boolean openclCoarseSamplingEnabled = true;
+    private boolean openclAccurateSamplingEnabled = true;
     private String openclDevicePreference = "AUTO";
     private int openclMinSamples = 1024;
     private boolean openclValidateSamples = false;
@@ -43,6 +45,7 @@ public final class PerformanceConfig implements SubConfig {
         copy.idleGenerationEnabled = this.idleGenerationEnabled;
         copy.idleThreadDutyCycle = this.idleThreadDutyCycle;
         copy.openclCoarseSamplingEnabled = this.openclCoarseSamplingEnabled;
+        copy.openclAccurateSamplingEnabled = this.openclAccurateSamplingEnabled;
         copy.openclDevicePreference = this.openclDevicePreference;
         copy.openclMinSamples = this.openclMinSamples;
         copy.openclValidateSamples = this.openclValidateSamples;
@@ -63,6 +66,8 @@ public final class PerformanceConfig implements SubConfig {
     public void setIdleThreadDutyCycle(int v) { this.idleThreadDutyCycle = Math.max(RoadConstants.DUTY_CYCLE_MIN, Math.min(RoadConstants.DUTY_CYCLE_MAX, v)); }
     public boolean openclCoarseSamplingEnabled() { return openclCoarseSamplingEnabled; }
     public void setOpenclCoarseSamplingEnabled(boolean v) { this.openclCoarseSamplingEnabled = v; }
+    public boolean openclAccurateSamplingEnabled() { return openclAccurateSamplingEnabled; }
+    public void setOpenclAccurateSamplingEnabled(boolean v) { this.openclAccurateSamplingEnabled = v; }
     public String openclDevicePreference() { return normalizeOpenCLDevicePreference(openclDevicePreference); }
     public void setOpenclDevicePreference(String v) { this.openclDevicePreference = normalizeOpenCLDevicePreference(v); }
     public int openclMinSamples() { return Math.max(0, openclMinSamples); }

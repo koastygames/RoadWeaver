@@ -1,3 +1,4 @@
+/* 文件职责：定义 density graph 的紧凑节点数据布局。 */
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 /**

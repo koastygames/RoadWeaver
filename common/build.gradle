@@ -1,3 +1,4 @@
+// 文件职责：配置 common 模块的共享源码、资源与单元测试依赖。
  architectury {
     common("fabric", "neoforge")
 }
@@ -12,6 +13,18 @@ dependencies {
 
     // H2 仅用于读取旧版世界数据，运行时由平台模块打包。
     compileOnly("com.h2database:h2:2.2.224") { transitive = false }
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testRuntimeOnly("org.lwjgl:lwjgl:3.3.3")
+    testRuntimeOnly("org.lwjgl:lwjgl-opencl:3.3.3")
+    testRuntimeOnly("org.lwjgl:lwjgl:3.3.3:natives-windows")
+    testRuntimeOnly("org.lwjgl:lwjgl:3.3.3:natives-linux")
+    testRuntimeOnly("org.lwjgl:lwjgl:3.3.3:natives-macos")
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
  
 sourceSets {

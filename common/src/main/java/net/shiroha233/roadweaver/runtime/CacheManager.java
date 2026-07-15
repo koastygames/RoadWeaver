@@ -1,14 +1,19 @@
+/* 文件职责：统一管理服务器、维度与地形采样相关缓存的生命周期。 */
 package net.shiroha233.roadweaver.runtime;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingStats;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateSamplingStats;
+import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLAccurateProgramCache;
+import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLAvailability;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLCoarseHeightBatchSampler;
+import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLRuntime;
 import net.shiroha233.roadweaver.pathfinding.cache.opencl.OpenCLWorldSupport;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarsePathCache;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionRegistry;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
@@ -35,6 +40,8 @@ public final class CacheManager {
         BridgeTemplateStructureRegistry.clearCache();
         RoadSpatialIndex.clearAllCache();
         TerrainSamplingStats.reset();
+        AccurateSamplingStats.reset();
+        OpenCLAvailability.reset();
         OpenCLCoarseHeightBatchSampler.clearProgramCache();
         OpenCLWorldSupport.clear();
         LOGGER.debug("CacheManager: 缓存已初始化");
@@ -74,10 +81,10 @@ public final class CacheManager {
         RoadPlanningService.resetAll();
         SignTextService.clearPending();
         TerrainSamplingStats.reset();
-        CoarsePathCache.clearAll();
+        AccurateHeightSampler.clearAll();
+        PlannedPathCache.clearAll();
         CoarseTerrainTileCache.clearAll();
-        CoarseTerrainRegionRegistry.clearAll();
-        OpenCLCoarseHeightBatchSampler.clearProgramCache();
+        OpenCLRuntime.closeAll();
         OpenCLWorldSupport.clear();
 
         LOGGER.debug("CacheManager: 所有缓存已清理");
@@ -87,7 +94,14 @@ public final class CacheManager {
      * 维度卸载时清理该维度关联的缓存
      */
     public static void onDimensionUnload(ServerLevel level) {
-        if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        if (level == null) return;
+        AccurateHeightSampler.clearForLevel(level);
+        try {
+            OpenCLAccurateProgramCache.clear(level.getChunkSource().getGeneratorState().randomState());
+        } catch (Throwable failure) {
+            LOGGER.debug("清理维度 {} OpenCL 精采程序失败", level.dimension().location(), failure);
+        }
+        if (!Level.OVERWORLD.equals(level.dimension())) return;
 
         try {
             SignTextService.flushPersistentFallback(level);

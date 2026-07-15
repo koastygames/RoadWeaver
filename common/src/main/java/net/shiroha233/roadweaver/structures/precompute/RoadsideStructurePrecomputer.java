@@ -1,3 +1,4 @@
+/* 文件职责：基于道路与共享精确地形预计算路边结构位置。 */
 package net.shiroha233.roadweaver.structures.precompute;
 
 import net.minecraft.core.BlockPos;
@@ -19,6 +20,8 @@ import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.RoadSpan;
 import net.shiroha233.roadweaver.core.model.SpanType;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
+import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
+import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegion;
 import net.shiroha233.roadweaver.structures.data.BiomeCategory;
 import net.shiroha233.roadweaver.structures.data.StructureScale;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
@@ -46,6 +49,7 @@ public final class RoadsideStructurePrecomputer {
                                            List<RoadSpan> spans,
                                            int width,
                                            TerrainSamplingCache cache,
+                                           PathTerrainField terrain,
                                            RandomSource random,
                                            List<Integer> targetY) {
         if (segments == null || segments.size() < RoadConstants.MIN_ROAD_SEGMENTS_FOR_STRUCTURE) {
@@ -150,7 +154,7 @@ public final class RoadsideStructurePrecomputer {
             // Calculate baseHeight based on structure definition
             int baseHeight = (targetY != null && i < targetY.size()) ?
                 targetY.get(i) :
-                getHeight(placeX, placeZ, level, cache, heightmap, useBaseHeight);
+                getHeight(placeX, placeZ, level, cache, terrain, heightmap, useBaseHeight);
 
             int placeY = baseHeight + startHeight;
 
@@ -185,7 +189,7 @@ public final class RoadsideStructurePrecomputer {
             long chunkKey = chunkPos.toLong();
             if (placedChunks.contains(chunkKey) ||
                     !structure.skipTerrainCheck() &&
-                    !checkTerrainConditions(center, sizeHint, cache, level, heightmap, useBaseHeight)) {
+                    !checkTerrainConditions(center, sizeHint, cache, terrain, level, heightmap, useBaseHeight)) {
                 LOGGER.debug("Structure {} at {} failed the terrain check", entry.id(), anchor);
                 continue;
             }
@@ -282,6 +286,7 @@ public final class RoadsideStructurePrecomputer {
         BlockPos center,
         Vec3i size,
         TerrainSamplingCache cache,
+        PathTerrainField terrain,
         ServerLevel level,
         Heightmap.Types heightmap,
         boolean useBaseHeight
@@ -289,10 +294,12 @@ public final class RoadsideStructurePrecomputer {
         int x = center.getX();
         int z = center.getZ();
 
-        int y = getHeight(x, z, level, cache, heightmap, useBaseHeight);
+        int y = getHeight(x, z, level, cache, terrain, heightmap, useBaseHeight);
 
         // Check if the center's column has water body on the surface
-        if (cache.isColumnWater(level, x, z)) {
+        if (hasAlignedTerrainSample(terrain, x, z)
+                ? terrain.isColumnWater(x, z)
+                : cache.isColumnWater(level, x, z)) {
             return false;
         }
 
@@ -301,10 +308,10 @@ public final class RoadsideStructurePrecomputer {
 
         // Calculate the slope from the center to 4 directions (-X, +X, -Z, +Z)
         int maxSlope = RoadConstants.MAX_STRUCTURE_SLOPE;
-        int y1 = getHeight(x - halfX, z, level, cache, heightmap, useBaseHeight);
-        int y2 = getHeight(x + halfX, z, level, cache, heightmap, useBaseHeight);
-        int y3 = getHeight(x, z - halfZ, level, cache, heightmap, useBaseHeight);
-        int y4 = getHeight(x, z + halfZ, level, cache, heightmap, useBaseHeight);
+        int y1 = getHeight(x - halfX, z, level, cache, terrain, heightmap, useBaseHeight);
+        int y2 = getHeight(x + halfX, z, level, cache, terrain, heightmap, useBaseHeight);
+        int y3 = getHeight(x, z - halfZ, level, cache, terrain, heightmap, useBaseHeight);
+        int y4 = getHeight(x, z + halfZ, level, cache, terrain, heightmap, useBaseHeight);
 
         //LOGGER.debug("y={} y1={} y2={} y3={} y4={}", y, y1, y2, y3, y4);
         
@@ -344,13 +351,26 @@ public final class RoadsideStructurePrecomputer {
      *                      to calculate the terrain height.
      * @return The calculated height of the coordinate.
      */
-    private static int getHeight(int x, int z, ServerLevel level, TerrainSamplingCache cache, Heightmap.Types heightmap, boolean useBaseHeight) {
+    private static int getHeight(int x,
+                                 int z,
+                                 ServerLevel level,
+                                 TerrainSamplingCache cache,
+                                 PathTerrainField terrain,
+                                 Heightmap.Types heightmap,
+                                 boolean useBaseHeight) {
+        if (hasAlignedTerrainSample(terrain, x, z)) {
+            return terrain.height(x, z);
+        }
         if (!useBaseHeight) {
             return cache.height(level, x, z);
         }
 
         ServerChunkCache chunkSource = level.getChunkSource();
         return chunkSource.getGenerator().getBaseHeight(x, z, heightmap, level, chunkSource.getGeneratorState().randomState());
+    }
+
+    static boolean hasAlignedTerrainSample(PathTerrainField terrain, int x, int z) {
+        return terrain instanceof AccurateTerrainRegion region && region.bounds().containsSample(x, z);
     }
     
     private static Rotation calculateRotation(double dirX, double dirZ, boolean leftSide, boolean faceRoad) {
