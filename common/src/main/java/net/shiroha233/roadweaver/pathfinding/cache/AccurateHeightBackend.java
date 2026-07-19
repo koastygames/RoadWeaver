@@ -63,7 +63,7 @@ public interface AccurateHeightBackend extends AutoCloseable {
     }
 
     default AccurateHeightGrid sampleGrid(AccurateHeightGridRequest request,
-                                          AccurateSamplingProgress progress) {
+                                            AccurateSamplingProgress progress) {
         ArrayList<BlockPos> positions = new ArrayList<>(request.sampleCount());
         for (int index = 0; index < request.sampleCount(); index++) {
             positions.add(new BlockPos(request.blockX(index), 0, request.blockZ(index)));
@@ -83,6 +83,20 @@ public interface AccurateHeightBackend extends AutoCloseable {
             motionBlocking[index] = sample.motionBlockingNoLeaves();
         }
         return new AccurateHeightGrid(request, worldSurface, oceanFloor, motionBlocking);
+    }
+
+    default boolean supportsAcceleratedSampling() {
+        return false;
+    }
+
+    default Map<Long, AccurateHeightSample> sampleAcceleratedPositions(Collection<BlockPos> positions,
+                                                                        AccurateSamplingProgress progress) {
+        throw new AcceleratedSamplingUnavailableException("accelerated accurate sampling is unavailable");
+    }
+
+    default AccurateHeightGrid sampleAcceleratedGrid(AccurateHeightGridRequest request,
+                                                      AccurateSamplingProgress progress) {
+        throw new AcceleratedSamplingUnavailableException("accelerated accurate sampling is unavailable");
     }
 
     String backendName();

@@ -317,15 +317,31 @@ public final class OpenCLBridge {
 
         public DeviceBuffer upload(int[] values) {
             int[] safe = values == null || values.length == 0 ? new int[]{0} : values;
-            DeviceBuffer buffer = allocate(BufferAccess.READ_ONLY, Math.multiplyExact((long) safe.length, Integer.BYTES));
-            IntBuffer host = MemoryUtil.memAllocInt(safe.length);
+            DeviceBuffer buffer = allocate(BufferAccess.READ_ONLY,
+                    Math.multiplyExact((long) safe.length, Integer.BYTES));
             try {
-                host.put(safe).flip();
-                check(CL10.clEnqueueWriteBuffer(queue, buffer.handle, true, 0L, host, null, null), "clEnqueueWriteBuffer(int)");
+                writeInts(buffer, safe);
                 return buffer;
             } catch (Throwable failure) {
                 buffer.close();
                 throw failure;
+            }
+        }
+
+        public void writeInts(DeviceBuffer buffer, int[] values) {
+            ensureOpen();
+            if (buffer == null || buffer.owner != this) {
+                throw new IllegalArgumentException("Device buffer belongs to another OpenCL session");
+            }
+            int[] safe = values == null || values.length == 0 ? new int[]{0} : values;
+            long bytes = Math.multiplyExact((long) safe.length, Integer.BYTES);
+            if (bytes > buffer.bytes) {
+                throw new IllegalArgumentException("OpenCL buffer is too small for integer upload");
+            }
+            IntBuffer host = MemoryUtil.memAllocInt(safe.length);
+            try {
+                host.put(safe).flip();
+                check(CL10.clEnqueueWriteBuffer(queue, buffer.handle, true, 0L, host, null, null), "clEnqueueWriteBuffer(int)");
             } finally {
                 MemoryUtil.memFree(host);
             }
@@ -348,6 +364,12 @@ public final class OpenCLBridge {
         }
 
         public long execute(String kernelName, List<DeviceBuffer> arguments, long workItems) {
+            try (CommandEvent event = enqueue(kernelName, arguments, workItems)) {
+                return event.awaitNanos();
+            }
+        }
+
+        public CommandEvent enqueue(String kernelName, List<DeviceBuffer> arguments, long workItems) {
             ensureOpen();
             Long kernel = kernels.get(kernelName);
             if (kernel == null) {
@@ -361,21 +383,9 @@ public final class OpenCLBridge {
                 PointerBuffer globalWorkSize = stack.mallocPointer(1);
                 PointerBuffer event = stack.mallocPointer(1);
                 globalWorkSize.put(0, Math.max(1L, workItems));
-                check(CL10.clEnqueueNDRangeKernel(queue, kernel, 1, null, globalWorkSize, null, null, event), "clEnqueueNDRangeKernel");
-                long eventHandle = event.get(0);
-                try {
-                    event.position(0);
-                    check(CL10.clWaitForEvents(event), "clWaitForEvents");
-                    LongBuffer started = stack.mallocLong(1);
-                    LongBuffer finished = stack.mallocLong(1);
-                    check(CL10.clGetEventProfilingInfo(
-                            eventHandle, CL10.CL_PROFILING_COMMAND_START, started, null), "clGetEventProfilingInfo(start)");
-                    check(CL10.clGetEventProfilingInfo(
-                            eventHandle, CL10.CL_PROFILING_COMMAND_END, finished, null), "clGetEventProfilingInfo(end)");
-                    return Math.max(0L, finished.get(0) - started.get(0));
-                } finally {
-                    OpenCLBridge.release(eventHandle, CL10::clReleaseEvent);
-                }
+                check(CL10.clEnqueueNDRangeKernel(
+                        queue, kernel, 1, null, globalWorkSize, null, null, event), "clEnqueueNDRangeKernel");
+                return new CommandEvent(this, event.get(0));
             }
         }
 
@@ -416,6 +426,45 @@ public final class OpenCLBridge {
             OpenCLBridge.release(program, CL10::clReleaseProgram);
             OpenCLBridge.release(queue, CL10::clReleaseCommandQueue);
             OpenCLBridge.release(context, CL10::clReleaseContext);
+        }
+    }
+
+    public static final class CommandEvent implements AutoCloseable {
+        private final Session owner;
+        private final long handle;
+        private final AtomicBoolean closed = new AtomicBoolean();
+        private long durationNanos = -1L;
+
+        private CommandEvent(Session owner, long handle) {
+            this.owner = owner;
+            this.handle = handle;
+        }
+
+        public synchronized long awaitNanos() {
+            if (durationNanos >= 0L) {
+                return durationNanos;
+            }
+            owner.ensureOpen();
+            try (MemoryStack stack = MemoryStack.stackPush()) {
+                PointerBuffer event = stack.mallocPointer(1);
+                event.put(0, handle);
+                check(CL10.clWaitForEvents(event), "clWaitForEvents");
+                LongBuffer started = stack.mallocLong(1);
+                LongBuffer finished = stack.mallocLong(1);
+                check(CL10.clGetEventProfilingInfo(
+                        handle, CL10.CL_PROFILING_COMMAND_START, started, null), "clGetEventProfilingInfo(start)");
+                check(CL10.clGetEventProfilingInfo(
+                        handle, CL10.CL_PROFILING_COMMAND_END, finished, null), "clGetEventProfilingInfo(end)");
+                durationNanos = Math.max(0L, finished.get(0) - started.get(0));
+                return durationNanos;
+            }
+        }
+
+        @Override
+        public void close() {
+            if (closed.compareAndSet(false, true)) {
+                OpenCLBridge.release(handle, CL10::clReleaseEvent);
+            }
         }
     }
 

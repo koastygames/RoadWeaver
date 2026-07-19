@@ -6,7 +6,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
-import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.PresetService;
 import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
@@ -20,9 +19,10 @@ import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadPathCal
 import net.shiroha233.roadweaver.pathfinding.PathSpanExtractor;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
+import net.shiroha233.roadweaver.planning.path.PlannedPathCache;
+import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideStructurePrecomputer;
 import net.shiroha233.roadweaver.structures.precompute.RoadsideVillagePrecomputer;
 
@@ -45,11 +45,6 @@ public final class Road {
         this.genConfig = genConfig;
     }
     
-    @Deprecated
-    public Road(ServerLevel level, StructureConnection connection, PathFeatureConfig config) {
-        this(level, connection, config, RoadGenerationConfig.from(ConfigService.get()));
-    }
-
     public RoadData generateRoad(int maxSteps) {
         RandomSource random = RandomSource.create();
         int width = genConfig.effectiveRoadWidth(getRandomWidth(random, featureConfig));
@@ -75,14 +70,16 @@ public final class Road {
         
         TerrainSamplingCache cache = new TerrainSamplingCache();
         PathTerrainField terrain = null;
-        PlannedPathCache.Lease planned = PlannedPathCache.take(level, connection);
-        boolean sharedTerrain = planned != null;
+        Optional<List<BlockPos>> planned = PlannedPathCache.find(
+                level,
+                connection,
+                TerrainSamplingSessions.forLevel(level).effectiveMode(),
+                genConfig.pathfinding());
         try {
             PathCalculationResult pathResult;
-            if (planned != null) {
-                terrain = planned.terrain();
+            if (planned.isPresent()) {
                 pathResult = RoadPathCalculator.calculateFromPlannedPath(
-                        planned.path(), width, level, cache, planned.terrain());
+                        planned.get(), width, level, cache);
             } else {
                 pathResult = RoadPathCalculator.calculateAStarRoadPathDetailed(
                         rawStart, rawEnd, width, level, maxSteps, cache, genConfig);
@@ -106,13 +103,13 @@ public final class Road {
 
             RoadData rd = new RoadData(width, type, materials, slabMaterials, segments, spans, targetY, ownerA2d, ownerB2d);
             RoadShardStorage.addRoad(level, rd);
+            PlannedPathCache.discard(level, connection);
 
             RoadsideStructurePrecomputer.precomputeStructures(level, segments, spans, width, cache, terrain, random, targetY);
             RoadsideVillagePrecomputer.precomputeVillages(level, segments, spans, width, cache, terrain, random, targetY);
             return rd;
         } finally {
-            if (!sharedTerrain && terrain != null) terrain.dispose();
-            if (planned != null) planned.close();
+            if (terrain != null) terrain.dispose();
             cache.clear();
         }
     }

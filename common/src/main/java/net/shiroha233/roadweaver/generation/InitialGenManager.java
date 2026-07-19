@@ -14,8 +14,7 @@ import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.persistence.RoadPositionQuery;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
-import net.shiroha233.roadweaver.planning.PlanningUtils;
+import net.shiroha233.roadweaver.planning.path.PlannedPathKey;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.postprocess.RoadSnapService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -88,7 +87,6 @@ public final class InitialGenManager {
         WorldDataProvider provider = WorldDataProvider.getInstance();
         List<StructureConnection> conns = provider.getStructureConnections(level);
         if (conns != null && !conns.isEmpty()) return false;
-        if (H2MigrationCoordinator.hasPendingLegacyData(level)) return false;
         return !RoadShardStorage.hasAnyRoad(level);
     }
 
@@ -108,7 +106,7 @@ public final class InitialGenManager {
         InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
 
         if (!roadTasks.isEmpty()) {
-            Map<Long, Boolean> results = submitAndCollect(level, roadTasks);
+            Map<PlannedPathKey, Boolean> results = submitAndCollect(level, roadTasks);
             batchUpdateConnectionStatus(provider, level, results);
         }
         snapInitialRoads(level, list);
@@ -139,9 +137,9 @@ public final class InitialGenManager {
         return out;
     }
 
-    private record GenResult(long key, boolean success) {}
+    private record GenResult(PlannedPathKey key, boolean success) {}
 
-    private static Map<Long, Boolean> submitAndCollect(ServerLevel level,
+    private static Map<PlannedPathKey, Boolean> submitAndCollect(ServerLevel level,
                                                        List<StructureConnection> tasks) {
         List<Future<GenResult>> futures = new ArrayList<>();
         for (StructureConnection task : tasks) {
@@ -152,7 +150,7 @@ public final class InitialGenManager {
                     boolean success = RoadGenerationService.generateTask(level, task);
                     if (success) done.incrementAndGet(); else failed.incrementAndGet();
                     InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
-                    return new GenResult(PlanningUtils.edgeKey(task.from(), task.to()), success);
+                    return new GenResult(PlannedPathKey.of(task), success);
                 } finally {
                     generating.decrementAndGet();
                     InitialGenerationProgressTracker.updateConnections(total.get(), generating.get(), done.get(), failed.get());
@@ -160,7 +158,7 @@ public final class InitialGenManager {
             }));
         }
 
-        Map<Long, Boolean> results = new HashMap<>();
+        Map<PlannedPathKey, Boolean> results = new HashMap<>();
         for (Future<GenResult> future : futures) {
             try {
                 GenResult result = future.get();
@@ -185,7 +183,7 @@ public final class InitialGenManager {
 
     private static void batchUpdateConnectionStatus(WorldDataProvider provider,
                                                     ServerLevel level,
-                                                    Map<Long, Boolean> results) {
+                                                    Map<PlannedPathKey, Boolean> results) {
         if (results.isEmpty()) return;
 
         List<StructureConnection> current = provider.getStructureConnections(level);
@@ -196,7 +194,7 @@ public final class InitialGenManager {
         boolean changed = false;
         for (int i = 0; i < updated.size(); i++) {
             StructureConnection original = updated.get(i);
-            long k = PlanningUtils.edgeKey(original.from(), original.to());
+            PlannedPathKey k = PlannedPathKey.of(original);
             Boolean ok = results.get(k);
             if (ok == null) continue;
             ConnectionStatus newStatus = ok ? ConnectionStatus.COMPLETED : ConnectionStatus.FAILED;

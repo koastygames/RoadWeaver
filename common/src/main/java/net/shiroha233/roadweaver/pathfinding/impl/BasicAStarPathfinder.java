@@ -64,12 +64,15 @@ public final class BasicAStarPathfinder implements Pathfinder {
         int stepsBudget = Math.max(1, maxSteps);
         ThrottleHelper.resetThrottle();
         try {
-            while (!openSet.isEmpty() && stepsBudget-- > 0) {
-                ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
+            while (stepsBudget > 0) {
                 if (Thread.currentThread().isInterrupted()) return null;
 
-                Node current = openSet.poll();
+                Node current = pollActiveOpenNode(openSet, allNodes, closed);
                 if (current == null) break;
+
+                stepsBudget--;
+                ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 if (manhattan2d(current.pos, end) < d * 2) {
                     return reconstructRawPath(current);
@@ -168,6 +171,24 @@ public final class BasicAStarPathfinder implements Pathfinder {
         double num = Math.abs((bz - az) * p.getX() - (bx - ax) * p.getZ() + bx * az - bz * ax);
         double den = Math.hypot(bx - ax, bz - az);
         return den <= 0.0 ? 0.0 : num / den;
+    }
+
+    private static boolean isActiveOpenNode(Node current, Map<BlockPos, Node> allNodes, Set<BlockPos> closed) {
+        return current != null
+                && !closed.contains(current.pos)
+                && allNodes.get(current.pos) == current;
+    }
+
+    private static Node pollActiveOpenNode(PriorityQueue<Node> openSet,
+                                           Map<BlockPos, Node> allNodes,
+                                           Set<BlockPos> closed) {
+        while (!openSet.isEmpty()) {
+            Node current = openSet.poll();
+            if (isActiveOpenNode(current, allNodes, closed)) {
+                return current;
+            }
+        }
+        return null;
     }
 
     private static final class Node {

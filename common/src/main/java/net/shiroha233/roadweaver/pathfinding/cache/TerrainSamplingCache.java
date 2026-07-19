@@ -21,7 +21,6 @@ public final class TerrainSamplingCache {
 
     private volatile FastHeightSampler fastSampler;
     private volatile AccurateHeightSampler accurateSampler;
-    private volatile boolean highPrecisionMode = false;
 
     private static long hashXZ(int x, int z) {
         return ((long) x << 32) | (z & 0xffffffffL);
@@ -35,14 +34,8 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        int h;
-        if (highPrecisionMode) {
-            ensureAccurateSampler(level);
-            h = accurateSampler.surfaceHeight(x, z);
-        } else {
-            ensureFastSampler(level);
-            h = fastSampler.sampleHeight(x, z);
-        }
+        ensureFastSampler(level);
+        int h = fastSampler.sampleHeight(x, z);
         heightCache.put(key, h);
         return h;
     }
@@ -72,14 +65,8 @@ public final class TerrainSamplingCache {
             return cached;
         }
         TerrainSamplingStats.recordCacheMiss();
-        int h;
-        if (highPrecisionMode) {
-            ensureAccurateSampler(level);
-            h = accurateSampler.oceanFloorWg(x, z);
-        } else {
-            ensureFastSampler(level);
-            h = fastSampler.sampleHeight(x, z);
-        }
+        ensureFastSampler(level);
+        int h = fastSampler.sampleHeight(x, z);
         oceanFloorCache.put(key, h);
         return h;
     }
@@ -122,10 +109,6 @@ public final class TerrainSamplingCache {
         int of = oceanFloor(level, x, z);
         int sea = level.getSeaLevel();
         int surface = height(level, x, z);
-        if (highPrecisionMode) {
-            ensureAccurateSampler(level);
-            surface = accurateSampler.worldSurfaceWg(x, z);
-        }
         boolean isWaterBiome = isWaterLike(level, x, z);
         boolean biomeWater = isWaterBiome && of < sea;
         boolean heightWater = of < surface;
@@ -135,7 +118,7 @@ public final class TerrainSamplingCache {
     }
 
     public Holder<Biome> getBiome(ServerLevel level, int x, int z) {
-        long key = hashXZ(x, z);
+        long key = hashXZ(x >> 2, z >> 2);
         Holder<Biome> cached = biomeCache.get(key);
         if (cached != null) {
             TerrainSamplingStats.recordCacheHit();
@@ -153,27 +136,6 @@ public final class TerrainSamplingCache {
     public void prewarmRegion(ServerLevel level, int minX, int minZ, int maxX, int maxZ, int step) {
         ensureFastSampler(level);
         fastSampler.prewarmRegion(minX, minZ, maxX, maxZ, step);
-    }
-
-    public void enableHighPrecision(ServerLevel level) {
-        this.highPrecisionMode = true;
-        clearPrecisionDerivedCaches();
-        ensureAccurateSampler(level);
-    }
-
-    public void disableHighPrecision() {
-        this.highPrecisionMode = false;
-        clearPrecisionDerivedCaches();
-    }
-
-    private void clearPrecisionDerivedCaches() {
-        heightCache = new ConcurrentHashMap<>();
-        oceanFloorCache = new ConcurrentHashMap<>();
-        columnWaterCache = new ConcurrentHashMap<>();
-    }
-
-    public boolean isHighPrecisionMode() {
-        return highPrecisionMode;
     }
 
     public AccurateHeightSampler getAccurateSampler(ServerLevel level) {

@@ -14,7 +14,6 @@ import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.runtime.CacheManager;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -31,7 +30,6 @@ public final class ServerPlanningHooks {
 
     public static void register() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            H2MigrationCoordinator.migrateServer(server);
             CacheManager.onServerStarted();
             ThreadPoolManager.onServerStarted(server);
             SignTextService.clearPending();

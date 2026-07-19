@@ -167,16 +167,22 @@ public final class OpenCLRuntime implements AutoCloseable {
         if (!isUsable()) {
             throw new IllegalStateException("OpenCL device session is unavailable");
         }
-        return submissionGate.submit(priority, () -> {
-            if (!isUsable()) {
-                throw new IllegalStateException("OpenCL device session became unavailable while waiting");
-            }
-            return operation.get();
-        });
+        synchronized (operationLock) {
+            return submissionGate.submit(priority, () -> {
+                if (!isUsable()) {
+                    throw new IllegalStateException("OpenCL device session became unavailable while waiting");
+                }
+                return operation.get();
+            });
+        }
     }
 
     public OpenCLBridge.DeviceBuffer upload(int[] values) {
         return session.upload(values);
+    }
+
+    public void writeInts(OpenCLBridge.DeviceBuffer buffer, int[] values) {
+        session.writeInts(buffer, values);
     }
 
     public OpenCLBridge.DeviceBuffer upload(double[] values) {
@@ -192,6 +198,15 @@ public final class OpenCLRuntime implements AutoCloseable {
             throw new IllegalStateException("OpenCL device session is unavailable");
         }
         return session.execute(kernelName, arguments, workItems);
+    }
+
+    public OpenCLBridge.CommandEvent enqueue(String kernelName,
+                                             List<OpenCLBridge.DeviceBuffer> arguments,
+                                             long workItems) {
+        if (!isUsable()) {
+            throw new IllegalStateException("OpenCL device session is unavailable");
+        }
+        return session.enqueue(kernelName, arguments, workItems);
     }
 
     public int[] readInts(OpenCLBridge.DeviceBuffer buffer, int count) {

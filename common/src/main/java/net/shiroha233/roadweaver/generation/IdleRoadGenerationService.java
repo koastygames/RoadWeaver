@@ -1,3 +1,4 @@
+/* 文件职责：在玩家空闲预算内调度并追踪延迟道路生成任务。 */
 package net.shiroha233.roadweaver.generation;
 
 import net.minecraft.core.BlockPos;
@@ -11,6 +12,7 @@ import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
+import net.shiroha233.roadweaver.planning.path.PlannedPathKey;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.postprocess.RoadSnapService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -44,8 +46,8 @@ public final class IdleRoadGenerationService {
     private static final int IDLE_CENTER_FOLLOW_STEP_CHUNKS = 8;
 
     private static final ConcurrentHashMap<UUID, IdleWindow> WINDOWS = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Long, Boolean> IDLE_OWNED = new ConcurrentHashMap<>();
-    private static final ConcurrentHashMap<Long, Boolean> IN_FLIGHT = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<PlannedPathKey, Boolean> IDLE_OWNED = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<PlannedPathKey, Boolean> IN_FLIGHT = new ConcurrentHashMap<>();
     private static final AtomicInteger RUNNING = new AtomicInteger();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
 
@@ -165,8 +167,8 @@ public final class IdleRoadGenerationService {
             StructureConnection conn = pollNearestOwnedPlanned(level, players);
             if (conn == null) break;
 
-            long key = PlanningUtils.edgeKey(conn.from(), conn.to());
-            ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT;
+            PlannedPathKey key = PlannedPathKey.of(conn);
+            ConcurrentHashMap<PlannedPathKey, Boolean> inFlight = IN_FLIGHT;
             if (inFlight.putIfAbsent(key, Boolean.TRUE) != null) continue;
             if (!updateStatus(level, conn, ConnectionStatus.GENERATING, ConnectionStatus.PLANNED)) {
                 inFlight.remove(key);
@@ -185,10 +187,10 @@ public final class IdleRoadGenerationService {
         if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        ConcurrentHashMap<PlannedPathKey, Boolean> owned = IDLE_OWNED;
         if (owned.isEmpty()) return false;
 
-        long key = PlanningUtils.edgeKey(conn.from(), conn.to());
+        PlannedPathKey key = PlannedPathKey.of(conn);
         if (!owned.containsKey(key)) return false;
         if (isInsideAnyWindow(level, conn)) return true;
 
@@ -199,12 +201,16 @@ public final class IdleRoadGenerationService {
     public static boolean isManagedByIdle(ServerLevel level, StructureConnection conn) {
         if (level == null || conn == null || !Level.OVERWORLD.equals(level.dimension())) return false;
         if (!ConfigService.get().performance().idleGenerationEnabled()) return false;
-        long key = PlanningUtils.edgeKey(conn.from(), conn.to());
+        PlannedPathKey key = PlannedPathKey.of(conn);
         if (IN_FLIGHT.containsKey(key)) return true;
         return IDLE_OWNED.containsKey(key);
     }
 
-    private static void runIdleTask(ServerLevel level, StructureConnection task, long key, int duty, long epoch) {
+    private static void runIdleTask(ServerLevel level,
+                                    StructureConnection task,
+                                    PlannedPathKey key,
+                                    int duty,
+                                    long epoch) {
         AtomicInteger running = RUNNING;
         ThreadPoolManager.resetThrottle();
         try {
@@ -235,7 +241,7 @@ public final class IdleRoadGenerationService {
         }
     }
 
-    private static void removeOwnership(ServerLevel level, long key) {
+    private static void removeOwnership(ServerLevel level, PlannedPathKey key) {
         IDLE_OWNED.remove(key);
         IN_FLIGHT.remove(key);
     }
@@ -245,11 +251,11 @@ public final class IdleRoadGenerationService {
         if (conns == null || conns.isEmpty()) return;
         if (!hasWindows(level)) return;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        ConcurrentHashMap<PlannedPathKey, Boolean> owned = IDLE_OWNED;
         for (StructureConnection c : conns) {
             if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
             if (!isInsideAnyWindow(level, c)) continue;
-            owned.putIfAbsent(PlanningUtils.edgeKey(c.from(), c.to()), Boolean.TRUE);
+            owned.putIfAbsent(PlannedPathKey.of(c), Boolean.TRUE);
         }
     }
 
@@ -257,9 +263,9 @@ public final class IdleRoadGenerationService {
         List<StructureConnection> conns = WorldDataProvider.getInstance().getStructureConnections(level);
         if (conns == null || conns.isEmpty()) return null;
 
-        ConcurrentHashMap<Long, Boolean> owned = IDLE_OWNED;
+        ConcurrentHashMap<PlannedPathKey, Boolean> owned = IDLE_OWNED;
         if (owned.isEmpty()) return null;
-        ConcurrentHashMap<Long, Boolean> inFlight = IN_FLIGHT;
+        ConcurrentHashMap<PlannedPathKey, Boolean> inFlight = IN_FLIGHT;
 
         ConcurrentHashMap<UUID, IdleWindow> perLevel = WINDOWS;
         if (perLevel.isEmpty()) return null;
@@ -276,7 +282,7 @@ public final class IdleRoadGenerationService {
 
             for (StructureConnection c : conns) {
                 if (c == null || c.status() != ConnectionStatus.PLANNED) continue;
-                long key = PlanningUtils.edgeKey(c.from(), c.to());
+                PlannedPathKey key = PlannedPathKey.of(c);
                 if (!owned.containsKey(key)) continue;
                 int mx = (c.from().getX() + c.to().getX()) >> 1;
                 int mz = (c.from().getZ() + c.to().getZ()) >> 1;

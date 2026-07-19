@@ -4,6 +4,7 @@ package net.shiroha233.roadweaver.generation.progress;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InitialGenerationProgressTrackerTest {
     @Test
@@ -39,5 +40,22 @@ class InitialGenerationProgressTrackerTest {
         assertEquals(25, snapshot.stagePercent());
         assertEquals(4, snapshot.exactPathsTotal());
         assertEquals(1, snapshot.exactPathsDone());
+    }
+
+    @Test
+    void retrySamplingDoesNotMoveOverallProgressBackwards() {
+        InitialGenerationProgressTracker.reset();
+        InitialGenerationProgressTracker.enterStage(
+                InitialGenerationStage.EXACT_PATHING, "computing_corridor_paths");
+        InitialGenerationProgressTracker.setExactPathPlan(2, "computing_corridor_paths");
+        InitialGenerationProgressTracker.recordExactPathDone();
+        int beforeRetry = InitialGenerationProgressTracker.snapshot(true).overallPercent();
+
+        InitialGenerationProgressTracker.enterStage(
+                InitialGenerationStage.EXACT_SAMPLING, "sampling_accurate_corridors");
+        InitialGenerationProgressTracker.setExactSamplingPlan(100, "sampling_accurate_corridors");
+        int duringRetry = InitialGenerationProgressTracker.snapshot(true).overallPercent();
+
+        assertTrue(duringRetry >= beforeRetry);
     }
 }

@@ -15,7 +15,6 @@ import net.shiroha233.roadweaver.features.path.decoration.text.SignTextService;
 import net.shiroha233.roadweaver.generation.IdleRoadGenerationService;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.RoadGenerationService;
-import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.runtime.CacheManager;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
@@ -35,7 +34,6 @@ public final class ServerPlanningHooks {
 
     private static void onServerStarted(ServerStartedEvent event) {
         tick = 0;
-        H2MigrationCoordinator.migrateServer(event.getServer());
         CacheManager.onServerStarted();
         ThreadPoolManager.onServerStarted(event.getServer());
         SignTextService.clearPending();

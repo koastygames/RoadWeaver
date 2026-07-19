@@ -75,18 +75,22 @@ public final class PotentialFieldPathfinder implements Pathfinder {
         int stepsBudget = Math.max(5000, maxSteps * RoadConstants.POTENTIAL_FIELD_STEPS_MULTIPLIER);
         ThrottleHelper.resetThrottle();
         try {
-            while (!openSet.isEmpty() && stepsBudget-- > 0) {
-                ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
+            while (stepsBudget > 0) {
                 if (Thread.currentThread().isInterrupted()) return null;
 
-                Node current = openSet.poll();
+                Node current = pollActiveOpenNode(openSet, allNodes, closed);
                 if (current == null) break;
+
+                stepsBudget--;
+                ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 if (manhattan2d(current.pos, end) < (int) (d * RoadConstants.POTENTIAL_FIELD_SUCCESS_DISTANCE_FACTOR)) {
                     return reconstructRawPath(current);
                 }
 
                 closed.add(current.pos);
+                allNodes.remove(current.pos);
 
                 double goalDx = end.getX() - current.pos.getX();
                 double goalDz = end.getZ() - current.pos.getZ();
@@ -223,6 +227,24 @@ public final class PotentialFieldPathfinder implements Pathfinder {
         double dx = a.getX() - b.getX();
         double dz = a.getZ() - b.getZ();
         return Math.sqrt(dx * dx + dz * dz) * cfg.heuristicWeight() * RoadConstants.POTENTIAL_FIELD_HEURISTIC_DAMPING;
+    }
+
+    private static boolean isActiveOpenNode(Node current, Map<BlockPos, Node> allNodes, Set<BlockPos> closed) {
+        return current != null
+                && !closed.contains(current.pos)
+                && allNodes.get(current.pos) == current;
+    }
+
+    private static Node pollActiveOpenNode(PriorityQueue<Node> openSet,
+                                           Map<BlockPos, Node> allNodes,
+                                           Set<BlockPos> closed) {
+        while (!openSet.isEmpty()) {
+            Node current = openSet.poll();
+            if (isActiveOpenNode(current, allNodes, closed)) {
+                return current;
+            }
+        }
+        return null;
     }
 
     private static final class Node {

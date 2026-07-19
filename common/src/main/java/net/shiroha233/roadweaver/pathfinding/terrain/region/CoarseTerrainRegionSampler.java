@@ -1,8 +1,7 @@
+/* 文件职责：按固定地形瓦片并行构建规划区域的粗采样视图。 */
 package net.shiroha233.roadweaver.pathfinding.terrain.region;
 
 import net.minecraft.server.level.ServerLevel;
-import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressTracker;
-import net.shiroha233.roadweaver.generation.progress.InitialGenerationStage;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import org.slf4j.Logger;
@@ -40,9 +39,23 @@ public final class CoarseTerrainRegionSampler {
                                              int maxBlockX,
                                              int maxBlockZ,
                                              int step) {
+        return sample(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step,
+                CoarseTerrainSamplingProgress.NONE);
+    }
+
+    public static CoarseTerrainRegion sample(ServerLevel level,
+                                             int minBlockX,
+                                             int minBlockZ,
+                                             int maxBlockX,
+                                             int maxBlockZ,
+                                             int step,
+                                             CoarseTerrainSamplingProgress progress) {
         if (level == null) {
             throw new IllegalArgumentException("level must not be null");
         }
+        CoarseTerrainSamplingProgress progressSink = progress == null
+                ? CoarseTerrainSamplingProgress.NONE
+                : progress;
         int safeStep = Math.max(RoadConstants.ASTAR_STEP_MIN, step);
         CoarseRegionBounds bounds = CoarseRegionBounds.aligned(
                 level.dimension().location(), minBlockX, minBlockZ, maxBlockX, maxBlockZ, safeStep);
@@ -50,23 +63,24 @@ public final class CoarseTerrainRegionSampler {
         if (keys.size() > RoadConstants.COARSE_REGION_MAX_TILES) {
             throw new IllegalArgumentException("coarse region tile count too large: " + keys.size());
         }
-        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.COARSE_SAMPLING, "sampling_coarse_tiles");
-        InitialGenerationProgressTracker.setTilePlan(keys.size(), bounds.sampleCount(), "sampling_coarse_tiles");
+        progressSink.onPlan(keys.size(), bounds.sampleCount());
         logRegionLoad(bounds, keys.size());
 
-        Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles = loadTiles(level, keys);
+        Map<CoarseTerrainTileKey, CoarseTerrainTile> tiles = loadTiles(level, keys, progressSink);
         if (tiles.isEmpty()) {
             throw new IllegalArgumentException("coarse region has no terrain tiles");
         }
         return new CoarseTerrainRegion(bounds, level.getSeaLevel(), tiles);
     }
 
-    private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTiles(ServerLevel level, List<CoarseTerrainTileKey> keys) {
+    private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTiles(ServerLevel level,
+                                                                          List<CoarseTerrainTileKey> keys,
+                                                                          CoarseTerrainSamplingProgress progress) {
         int parallelism = resolveTileLoadParallelism(keys.size());
         if (parallelism <= 1) {
-            return loadTilesSequentially(level, keys);
+            return loadTilesSequentially(level, keys, progress);
         }
-        return loadTilesInParallel(level, keys, parallelism);
+        return loadTilesInParallel(level, keys, parallelism, progress);
     }
 
     private static void logRegionLoad(CoarseRegionBounds bounds, int tileCount) {
@@ -105,22 +119,25 @@ public final class CoarseTerrainRegionSampler {
     }
 
     private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTilesSequentially(ServerLevel level,
-                                                                                     List<CoarseTerrainTileKey> keys) {
+                                                                                     List<CoarseTerrainTileKey> keys,
+                                                                                     CoarseTerrainSamplingProgress progress) {
         HashMap<CoarseTerrainTileKey, CoarseTerrainTile> out = new HashMap<>();
+        int completed = 0;
         for (CoarseTerrainTileKey key : keys) {
             if (Thread.currentThread().isInterrupted()) return out;
             CoarseTerrainTile tile = CoarseTerrainTileCache.getOrLoad(level, key);
             if (tile != null) {
                 out.put(key, tile);
-                InitialGenerationProgressTracker.recordTileLoaded();
             }
+            progress.onTileCompleted(++completed, keys.size());
         }
         return out;
     }
 
     private static Map<CoarseTerrainTileKey, CoarseTerrainTile> loadTilesInParallel(ServerLevel level,
                                                                                    List<CoarseTerrainTileKey> keys,
-                                                                                   int parallelism) {
+                                                                                   int parallelism,
+                                                                                   CoarseTerrainSamplingProgress progress) {
         HashMap<CoarseTerrainTileKey, CoarseTerrainTile> out = new HashMap<>();
         ExecutorCompletionService<TileLoadResult> completion = new ExecutorCompletionService<>(tileExecutor(parallelism));
 
@@ -138,7 +155,6 @@ public final class CoarseTerrainRegionSampler {
                 TileLoadResult result = future.get();
                 if (result != null && result.tile() != null) {
                     out.put(result.key(), result.tile());
-                    InitialGenerationProgressTracker.recordTileLoaded();
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -146,6 +162,7 @@ public final class CoarseTerrainRegionSampler {
             } catch (ExecutionException ignored) {
             } finally {
                 completed++;
+                progress.onTileCompleted(completed, keys.size());
                 if (submitted < keys.size()) {
                     submitLoad(completion, level, keys.get(submitted++));
                 }

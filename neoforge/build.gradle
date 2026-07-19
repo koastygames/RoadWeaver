@@ -30,7 +30,6 @@ loom {
 configurations {
     common
     shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
-    shadowSqlite
     shadowLwjglNatives
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
@@ -40,20 +39,11 @@ configurations {
 shadowJar {
     exclude "architectury.common.json"
     exclude "fabric.mod.json"
-    configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite,
-                      project.configurations.shadowLwjglNatives]
+    configurations = [project.configurations.shadowCommon, project.configurations.shadowLwjglNatives]
     archiveClassifier.set("dev-shadow")
-
-    relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
     
     // 排除不需要的文件
     exclude 'META-INF/versions/**'
-    exclude 'org/h2/util/SourceCompiler*'
-    exclude 'org/h2/tools/**'
-    exclude 'org/h2/server/**'
-    exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
-    exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
-    exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
     
     // 强制更新 META-INF/services 里的类名
     mergeServiceFiles()
@@ -181,11 +171,6 @@ dependencies {
     shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-linux-arm64") { transitive = false }
     shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos") { transitive = false }
     shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos-arm64") { transitive = false }
-
-    // H2 - 只用于旧数据迁移，生产包中重定位避免与其他模组冲突。
-    compileOnly("com.h2database:h2:2.2.224") { transitive = false }
-    forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
-    shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
 
     forgeRuntimeLibrary("org.apache.lucene:lucene-core:8.11.2") { transitive = false }
     forgeRuntimeLibrary("org.apache.lucene:lucene-analyzers-common:8.11.2") { transitive = false }

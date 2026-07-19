@@ -27,6 +27,7 @@ public final class RoadConstants {
     public static final int COARSE_REGION_MAX_RADIUS_CHUNKS = 2048;
     public static final int COARSE_REGION_MAX_TILES = 70_000;
     public static final int COARSE_REGION_MAX_SAMPLES = 1_100_000;
+    public static final int MANUAL_MAP_SAMPLING_MAX_COARSE_TILES = 1_024;
     public static final int ACCURATE_REGION_MAX_SAMPLES = 1_100_000;
     public static final int COARSE_REGION_PARALLEL_MIN_SAMPLES = 16_384;
     public static final int COARSE_REGION_PARALLEL_MIN_ROWS_PER_WORKER = 64;

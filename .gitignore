@@ -92,3 +92,5 @@ doc/FIX.md
 AGENT.md
 /tools
 /minecraft-sources
+/.gradle-temp
+CONTEXT.md

@@ -1,3 +1,4 @@
+/* 文件职责：查询地图覆盖层中的结构与道路几何数据。 */
 package net.shiroha233.roadweaver.map.tile.query;
 
 import net.minecraft.core.BlockPos;
@@ -8,7 +9,6 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
-import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 
@@ -28,10 +28,6 @@ public final class OverlayTileQueryService {
         }
 
         boolean overworld = Level.OVERWORLD.equals(level.dimension());
-        if (overworld) {
-            LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
-        }
-
         ModConfig cfg = ConfigService.get();
         boolean allowPredicted = cfg != null
                 && cfg.structurePrediction().enabled()

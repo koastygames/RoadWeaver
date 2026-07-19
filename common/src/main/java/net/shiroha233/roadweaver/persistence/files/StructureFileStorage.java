@@ -1,3 +1,4 @@
+/* 文件职责：持久化结构位置、来源和道路连接状态。 */
 package net.shiroha233.roadweaver.persistence.files;
 
 import com.google.gson.Gson;
@@ -7,8 +8,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.planning.path.PlannedPathKey;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
-import net.shiroha233.roadweaver.persistence.sqlite.LegacyH2Importer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -289,27 +290,6 @@ public final class StructureFileStorage {
         return normalize(fileState != null ? fileState : new StateData());
     }
 
-    public static synchronized int importLegacyState(ServerLevel level) {
-        if (level == null) return 0;
-        LegacyH2Importer.LegacyStructureState legacyState = LegacyH2Importer.loadStructureState(level);
-        if (!legacyState.hasContent()) return 0;
-        StateData state = state(level);
-        int before = state.structureLocations.structureInfos().size();
-        for (StructureInfo info : legacyState.structureLocations().structureInfos()) {
-            if (info == null || info.pos() == null) continue;
-            int source = legacyState.structureSources().getOrDefault(posKey(info.pos()), SOURCE_MANUAL);
-            putStructure(state, info, source);
-        }
-        mergeConnections(state.connections, legacyState.connections());
-        state.plannedTileKeys.addAll(legacyState.plannedTileKeys());
-        legacyState.plannedTileCenters().forEach(state.plannedTileCenters::putIfAbsent);
-        legacyState.structureSources().forEach(state.structureSources::putIfAbsent);
-        legacyState.meta().forEach(state.meta::putIfAbsent);
-        legacyState.scanTiles().forEach(state.scanTiles::putIfAbsent);
-        save(level, state);
-        return Math.max(0, state.structureLocations.structureInfos().size() - before);
-    }
-
     private static StateData readFileState(ServerLevel level) {
         try {
             Path path = statePath(level);
@@ -433,13 +413,13 @@ public final class StructureFileStorage {
 
     private static void mergeConnections(List<StructureConnection> target, List<StructureConnection> incoming) {
         if (incoming == null || incoming.isEmpty()) return;
-        LinkedHashMap<Long, StructureConnection> merged = new LinkedHashMap<>();
+        LinkedHashMap<PlannedPathKey, StructureConnection> merged = new LinkedHashMap<>();
         for (StructureConnection connection : target) {
-            if (validConnection(connection)) merged.put(edgeKey(connection), connection);
+            if (validConnection(connection)) merged.put(PlannedPathKey.of(connection), connection);
         }
         for (StructureConnection connection : incoming) {
             if (!validConnection(connection)) continue;
-            long key = edgeKey(connection);
+            PlannedPathKey key = PlannedPathKey.of(connection);
             StructureConnection previous = merged.get(key);
             if (previous == null || statusPriority(connection.status()) >= statusPriority(previous.status())) {
                 merged.put(key, connection);
@@ -461,14 +441,6 @@ public final class StructureFileStorage {
             case PLANNED -> 2;
             case FAILED -> 1;
         };
-    }
-
-    private static long edgeKey(StructureConnection connection) {
-        long from = posKey(connection.from());
-        long to = posKey(connection.to());
-        long lo = Math.min(from, to);
-        long hi = Math.max(from, to);
-        return (hi << 1) ^ lo;
     }
 
     private static void save(ServerLevel level, StateData state) {

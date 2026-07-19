@@ -7,16 +7,15 @@ import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
 import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
-import net.shiroha233.roadweaver.pathfinding.PathResult;
-import net.shiroha233.roadweaver.pathfinding.Pathfinder;
-import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSampler;
 import net.shiroha233.roadweaver.pathfinding.cache.AccuratePathHeightResolver;
 import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
 import net.shiroha233.roadweaver.pathfinding.terrain.PathTerrainField;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegion;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegionSampler;
 import net.shiroha233.roadweaver.pathfinding.impl.PathPostProcessor;
+import net.shiroha233.roadweaver.core.model.ConnectionStatus;
+import net.shiroha233.roadweaver.core.model.StructureConnection;
+import net.shiroha233.roadweaver.planning.terrain.RoadTerrainPlanningPipeline;
+import net.shiroha233.roadweaver.planning.terrain.RoadTerrainPlanningPort;
 
 import java.util.List;
 
@@ -26,6 +25,8 @@ import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.snapT
  * 道路路径计算器
  */
 public final class RoadPathCalculator {
+    private static final RoadTerrainPlanningPipeline TERRAIN_PLANNING = new RoadTerrainPlanningPipeline();
+
     private RoadPathCalculator() {}
 
     public static List<RoadSegmentPlacement> calculateAStarRoadPath(BlockPos startIn,
@@ -55,7 +56,9 @@ public final class RoadPathCalculator {
         if (startIn == null || endIn == null || level == null || cache == null || cfg == null) {
             return PathCalculationResult.failure();
         }
-        PathfindingCostConfig pathCfg = cfg.pathfinding();
+        PathfindingCostConfig pathCfg = cfg.pathfinding().snapshot();
+        pathCfg.setAStarMaxSteps(maxSteps);
+        pathCfg.sanitize();
         int dGrid = pathCfg.effectiveAStarStep();
         int sx = snapToGrid(startIn.getX(), dGrid);
         int sz = snapToGrid(startIn.getZ(), dGrid);
@@ -65,35 +68,27 @@ public final class RoadPathCalculator {
         BlockPos start = new BlockPos(sx, startIn.getY(), sz);
         BlockPos end = new BlockPos(ex, endIn.getY(), ez);
 
-        AccurateTerrainRegion terrain;
         int margin = searchMargin(start, end);
+        StructureConnection connection = new StructureConnection(start, end, ConnectionStatus.PLANNED);
+        RoadTerrainPlanningPort.Result planned;
         try {
-            terrain = AccurateTerrainRegionSampler.sample(level, cache,
-                    Math.min(start.getX(), end.getX()) - margin,
-                    Math.min(start.getZ(), end.getZ()) - margin,
-                    Math.max(start.getX(), end.getX()) + margin,
-                    Math.max(start.getZ(), end.getZ()) + margin,
-                    dGrid);
+            planned = TERRAIN_PLANNING.plan(new RoadTerrainPlanningPort.Request(
+                    level,
+                    new RoadTerrainPlanningPort.Bounds(
+                            Math.min(start.getX(), end.getX()) - margin,
+                            Math.min(start.getZ(), end.getZ()) - margin,
+                            Math.max(start.getX(), end.getX()) + margin,
+                            Math.max(start.getZ(), end.getZ()) + margin),
+                    List.of(connection),
+                    pathCfg));
         } catch (RuntimeException failure) {
             return PathCalculationResult.failure();
         }
-
-        boolean handedOff = false;
-        try {
-            BlockPos startGround = new BlockPos(start.getX(), terrain.height(start.getX(), start.getZ()), start.getZ());
-            BlockPos endGround = new BlockPos(end.getX(), terrain.height(end.getX(), end.getZ()), end.getZ());
-            List<BlockPos> rawPath = calculateRawPath(startGround, endGround, level, maxSteps, cache, terrain, pathCfg);
-            if (rawPath == null || rawPath.isEmpty()) {
-                return PathCalculationResult.failure();
-            }
-            PathCalculationResult result = finalizePath(rawPath, width, level, cache, terrain);
-            handedOff = result.terrain() != null;
-            return result;
-        } finally {
-            if (!handedOff) {
-                terrain.dispose();
-            }
+        List<BlockPos> rawPath = planned.paths().get(connection);
+        if (rawPath == null || rawPath.isEmpty()) {
+            return PathCalculationResult.failure();
         }
+        return finalizePath(rawPath, width, level, cache, null);
     }
 
     /**
@@ -102,28 +97,11 @@ public final class RoadPathCalculator {
     public static PathCalculationResult calculateFromPlannedPath(List<BlockPos> plannedPath,
                                                                   int width,
                                                                   ServerLevel level,
-                                                                  TerrainSamplingCache cache,
-                                                                  AccurateTerrainRegion terrain) {
-        if (plannedPath == null || plannedPath.isEmpty() || terrain == null || terrain.isDisposed()) {
+                                                                  TerrainSamplingCache cache) {
+        if (plannedPath == null || plannedPath.isEmpty()) {
             return PathCalculationResult.failure();
         }
-        return finalizePath(plannedPath, width, level, cache, terrain);
-    }
-
-    private static List<BlockPos> calculateRawPath(BlockPos startGround,
-                                                   BlockPos endGround,
-                                                   ServerLevel level,
-                                                   int maxSteps,
-                                                   TerrainSamplingCache cache,
-                                                   PathTerrainField terrain,
-                                                   PathfindingCostConfig pathCfg) {
-        var algo = pathCfg.pathfindingAlgorithm();
-        Pathfinder pathfinder = PathfinderFactory.create(algo);
-        PathResult result = pathfinder.findRawPath(startGround, endGround, level, maxSteps, cache, terrain, pathCfg);
-        if (!result.success() || !result.hasRawPath()) {
-            return null;
-        }
-        return result.rawPath();
+        return finalizePath(plannedPath, width, level, cache, null);
     }
 
     private static PathCalculationResult finalizePath(List<BlockPos> rawPath,

@@ -1,9 +1,9 @@
+/* 文件职责：持久化粗采样地形瓦片，并保留既有瓦片路径读取能力。 */
 package net.shiroha233.roadweaver.persistence.files;
 
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTile;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileKey;
-import net.shiroha233.roadweaver.persistence.sqlite.LegacyH2Importer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +14,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
@@ -33,26 +32,6 @@ public final class CoarseTerrainTileFileStorage {
         CoarseTerrainTile tile = readFile(level, key);
         if (tile != null) return tile;
         return null;
-    }
-
-    public static synchronized int importLegacyTile(ServerLevel level, CoarseTerrainTileKey key) {
-        if (level == null || key == null) return 0;
-        CoarseTerrainTile legacy = LegacyH2Importer.loadTerrainTile(level, key);
-        if (legacy != null) {
-            saveTile(level, legacy);
-            return 1;
-        }
-        return 0;
-    }
-
-    public static synchronized int importLegacyTiles(ServerLevel level) {
-        if (level == null) return 0;
-        int imported = 0;
-        List<CoarseTerrainTileKey> keys = LegacyH2Importer.loadTerrainTileKeys(level);
-        for (CoarseTerrainTileKey key : keys) {
-            imported += importLegacyTile(level, key);
-        }
-        return imported;
     }
 
     public static void saveTile(ServerLevel level, CoarseTerrainTile tile) {

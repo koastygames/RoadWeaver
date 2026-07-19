@@ -1,3 +1,4 @@
+/* 文件职责：集中定义道路地图界面的颜色、尺寸与样式常量。 */
 package net.shiroha233.roadweaver.client.map;
 
 /**
@@ -65,8 +66,15 @@ public final class MapTheme {
 
     // 工具栏按钮 - 浮动半透明
     public static final int TOOLBAR_BUTTON_BG = 0x60202020;
+    public static final int TOOLBAR_BUTTON_DISABLED_BG = 0x40101010;
+    public static final int TOOLBAR_BUTTON_DISABLED_TEXT = 0xFF777777;
     public static final int TOOLBAR_BUTTON_GAP = 4;
     public static final int TOOLBAR_BUTTON_HEIGHT = 16;
+
+    // 主动地图采样叠加层
+    public static final int COLOR_MAP_SAMPLING_FRAME = 0xFFFFC857;
+    public static final int COLOR_MAP_SAMPLING_TEXT = 0xFFFFFFFF;
+    public static final int MAP_SAMPLING_LABEL_BG = 0xD0101010;
 
     // 图例 - 浮动半透明背景
     public static final int LEGEND_BG = 0x60101010;

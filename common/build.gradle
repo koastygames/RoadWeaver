@@ -11,9 +11,6 @@ dependencies {
     // LWJGL OpenCL - 编译时依赖，运行时 native 由平台模块提供
     compileOnly("org.lwjgl:lwjgl-opencl:3.3.3")
 
-    // H2 仅用于读取旧版世界数据，运行时由平台模块打包。
-    compileOnly("com.h2database:h2:2.2.224") { transitive = false }
-
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("org.lwjgl:lwjgl:3.3.3")

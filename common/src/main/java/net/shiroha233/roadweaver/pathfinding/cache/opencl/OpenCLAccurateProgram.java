@@ -47,6 +47,7 @@ final class OpenCLAccurateProgram implements AutoCloseable {
     private final int defaultFluidMask;
     private final int lavaMask;
     private final IdentityHashMap<OpenCLRuntime, OpenCLDensityProgramBuffers> buffers = new IdentityHashMap<>();
+    private final IdentityHashMap<OpenCLRuntime, OpenCLAccurateWorkspace> workspaces = new IdentityHashMap<>();
     private boolean closed;
 
     private OpenCLAccurateProgram(DensityGraphProgram graph,
@@ -352,50 +353,67 @@ final class OpenCLAccurateProgram implements AutoCloseable {
         long outputBytes = Math.multiplyExact((long) columnWorkItems, Integer.BYTES);
 
         OpenCLDensityProgramBuffers graphBuffers = buffers(runtime);
-        try (OpenCLBridge.DeviceBuffer paramsBuffer = runtime.upload(params);
-                  OpenCLBridge.DeviceBuffer chunksBuffer = runtime.upload(aquiferPlan.chunkCoordinates());
-                  OpenCLBridge.DeviceBuffer columnsBuffer = runtime.upload(columnReferences);
-                  OpenCLBridge.DeviceBuffer latticeReferencesBuffer = runtime.upload(latticePlan.references());
-                  OpenCLBridge.DeviceBuffer aquiferPositionsBuffer = runtime.upload(aquiferPlan.positions());
-                  OpenCLBridge.DeviceBuffer aquiferPointIndicesBuffer = runtime.upload(aquiferPlan.chunkPointIndices());
-                  OpenCLBridge.DeviceBuffer preliminaryPositionsBuffer = runtime.upload(aquiferPlan.preliminaryCoordinates());
-                  OpenCLBridge.DeviceBuffer pointPreliminaryIndicesBuffer = runtime.upload(aquiferPlan.pointPreliminaryIndices());
-                 OpenCLBridge.DeviceBuffer interpolatedNodesBuffer = runtime.upload(toIntArray(graph.interpolatedNodes()));
-                 OpenCLBridge.DeviceBuffer latticeBuffer = runtime.allocate(OpenCLBridge.BufferAccess.READ_WRITE, latticeBytes);
-                 OpenCLBridge.DeviceBuffer preliminarySurfaceBuffer = runtime.allocate(
-                         OpenCLBridge.BufferAccess.READ_WRITE, preliminarySurfaceBytes);
-                 OpenCLBridge.DeviceBuffer aquiferStatusBuffer = runtime.allocate(OpenCLBridge.BufferAccess.READ_WRITE, aquiferStatusBytes);
-                 OpenCLBridge.DeviceBuffer scratchBuffer = runtime.allocate(OpenCLBridge.BufferAccess.READ_WRITE, scratchBytes);
-                 OpenCLBridge.DeviceBuffer worldSurfaceBuffer = runtime.allocate(OpenCLBridge.BufferAccess.READ_WRITE, outputBytes);
-                 OpenCLBridge.DeviceBuffer oceanFloorBuffer = runtime.allocate(OpenCLBridge.BufferAccess.READ_WRITE, outputBytes);
-                 OpenCLBridge.DeviceBuffer motionBlockingBuffer = runtime.allocate(OpenCLBridge.BufferAccess.READ_WRITE, outputBytes)) {
+        OpenCLAccurateWorkspace.BatchBuffers batchBuffers = workspace(runtime).prepare(
+                runtime,
+                params,
+                aquiferPlan.chunkCoordinates(),
+                columnReferences,
+                latticePlan.references(),
+                aquiferPlan.positions(),
+                aquiferPlan.chunkPointIndices(),
+                aquiferPlan.preliminaryCoordinates(),
+                aquiferPlan.pointPreliminaryIndices(),
+                latticeBytes,
+                preliminarySurfaceBytes,
+                aquiferStatusBytes,
+                scratchBytes,
+                outputBytes);
+        OpenCLBridge.DeviceBuffer paramsBuffer = batchBuffers.params();
+        OpenCLBridge.DeviceBuffer chunksBuffer = batchBuffers.chunks();
+        OpenCLBridge.DeviceBuffer columnsBuffer = batchBuffers.columns();
+        OpenCLBridge.DeviceBuffer latticeReferencesBuffer = batchBuffers.latticeReferences();
+        OpenCLBridge.DeviceBuffer aquiferPositionsBuffer = batchBuffers.aquiferPositions();
+        OpenCLBridge.DeviceBuffer aquiferPointIndicesBuffer = batchBuffers.aquiferPointIndices();
+        OpenCLBridge.DeviceBuffer preliminaryPositionsBuffer = batchBuffers.preliminaryPositions();
+        OpenCLBridge.DeviceBuffer pointPreliminaryIndicesBuffer = batchBuffers.pointPreliminaryIndices();
+        OpenCLBridge.DeviceBuffer latticeBuffer = batchBuffers.lattice();
+        OpenCLBridge.DeviceBuffer preliminarySurfaceBuffer = batchBuffers.preliminarySurface();
+        OpenCLBridge.DeviceBuffer aquiferStatusBuffer = batchBuffers.aquiferStatus();
+        OpenCLBridge.DeviceBuffer scratchBuffer = batchBuffers.scratch();
+        OpenCLBridge.DeviceBuffer worldSurfaceBuffer = batchBuffers.worldSurface();
+        OpenCLBridge.DeviceBuffer oceanFloorBuffer = batchBuffers.oceanFloor();
+        OpenCLBridge.DeviceBuffer motionBlockingBuffer = batchBuffers.motionBlocking();
 
-                long kernelNanos = 0L;
-                long latticeKernelNanos = 0L;
-                long preliminaryKernelNanos = 0L;
-                long aquiferKernelNanos = 0L;
-                long heightKernelNanos;
+        ArrayList<OpenCLBridge.CommandEvent> events = new ArrayList<>(6);
+        ArrayList<OpenCLBridge.CommandEvent> latticeEvents = new ArrayList<>(1);
+        ArrayList<OpenCLBridge.CommandEvent> preliminaryEvents = new ArrayList<>(2);
+        ArrayList<OpenCLBridge.CommandEvent> aquiferEvents = new ArrayList<>(1);
+        ArrayList<OpenCLBridge.CommandEvent> heightEvents = new ArrayList<>(2);
+        try {
                 if (latticeWorkItems > 0) {
                     ArrayList<OpenCLBridge.DeviceBuffer> arguments = new ArrayList<>(20);
                     arguments.add(paramsBuffer);
                     arguments.add(chunksBuffer);
                     arguments.add(latticeReferencesBuffer);
                     arguments.addAll(graphBuffers.arguments());
-                    arguments.add(interpolatedNodesBuffer);
+                    arguments.add(graphBuffers.interpolatedNodes());
                     arguments.add(latticeBuffer);
                     arguments.add(scratchBuffer);
-                    latticeKernelNanos = runtime.execute(
+                    OpenCLBridge.CommandEvent event = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_LATTICE_KERNEL, arguments, latticeWorkItems);
-                    kernelNanos += latticeKernelNanos;
+                    events.add(event);
+                    latticeEvents.add(event);
                 }
                 if (preliminaryWorkItems > 0) {
                     ArrayList<OpenCLBridge.DeviceBuffer> initArguments = new ArrayList<>(2);
                     initArguments.add(paramsBuffer);
                     initArguments.add(preliminarySurfaceBuffer);
-                    preliminaryKernelNanos = runtime.execute(
+                    OpenCLBridge.CommandEvent initEvent = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_PRELIMINARY_INIT_KERNEL,
                             initArguments,
                             preliminaryPointCount);
+                    events.add(initEvent);
+                    preliminaryEvents.add(initEvent);
 
                     ArrayList<OpenCLBridge.DeviceBuffer> arguments = new ArrayList<>(19);
                     arguments.add(paramsBuffer);
@@ -403,9 +421,10 @@ final class OpenCLAccurateProgram implements AutoCloseable {
                     arguments.addAll(graphBuffers.arguments());
                     arguments.add(scratchBuffer);
                     arguments.add(preliminarySurfaceBuffer);
-                    preliminaryKernelNanos += runtime.execute(
+                    OpenCLBridge.CommandEvent preliminaryEvent = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_PRELIMINARY_KERNEL, arguments, preliminaryWorkItems);
-                    kernelNanos += preliminaryKernelNanos;
+                    events.add(preliminaryEvent);
+                    preliminaryEvents.add(preliminaryEvent);
                 }
                 if (aquiferWorkItems > 0) {
                     ArrayList<OpenCLBridge.DeviceBuffer> arguments = new ArrayList<>(21);
@@ -415,13 +434,14 @@ final class OpenCLAccurateProgram implements AutoCloseable {
                     arguments.add(pointPreliminaryIndicesBuffer);
                     arguments.add(preliminarySurfaceBuffer);
                     arguments.addAll(graphBuffers.arguments());
-                    arguments.add(interpolatedNodesBuffer);
+                    arguments.add(graphBuffers.interpolatedNodes());
                     arguments.add(latticeBuffer);
                     arguments.add(aquiferStatusBuffer);
                     arguments.add(scratchBuffer);
-                    aquiferKernelNanos = runtime.execute(
+                    OpenCLBridge.CommandEvent event = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_AQUIFER_KERNEL, arguments, aquiferWorkItems);
-                    kernelNanos += aquiferKernelNanos;
+                    events.add(event);
+                    aquiferEvents.add(event);
                 }
 
                 if (parallelHeight) {
@@ -430,8 +450,10 @@ final class OpenCLAccurateProgram implements AutoCloseable {
                     initArguments.add(worldSurfaceBuffer);
                     initArguments.add(oceanFloorBuffer);
                     initArguments.add(motionBlockingBuffer);
-                    heightKernelNanos = runtime.execute(
+                    OpenCLBridge.CommandEvent initEvent = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_HEIGHT_INIT_KERNEL, initArguments, columnWorkItems);
+                    events.add(initEvent);
+                    heightEvents.add(initEvent);
 
                     ArrayList<OpenCLBridge.DeviceBuffer> arguments = new ArrayList<>(27);
                     arguments.add(paramsBuffer);
@@ -446,10 +468,12 @@ final class OpenCLAccurateProgram implements AutoCloseable {
                     arguments.add(worldSurfaceBuffer);
                     arguments.add(oceanFloorBuffer);
                     arguments.add(motionBlockingBuffer);
-                    heightKernelNanos += runtime.execute(
+                    OpenCLBridge.CommandEvent parallelEvent = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_HEIGHT_PARALLEL_KERNEL,
                             arguments,
                             parallelHeightWorkItems);
+                    events.add(parallelEvent);
+                    heightEvents.add(parallelEvent);
                 } else {
                     ArrayList<OpenCLBridge.DeviceBuffer> arguments = new ArrayList<>(27);
                     arguments.add(paramsBuffer);
@@ -458,25 +482,42 @@ final class OpenCLAccurateProgram implements AutoCloseable {
                     arguments.add(aquiferPositionsBuffer);
                     arguments.add(aquiferPointIndicesBuffer);
                     arguments.addAll(graphBuffers.arguments());
-                    arguments.add(interpolatedNodesBuffer);
+                    arguments.add(graphBuffers.interpolatedNodes());
                     arguments.add(latticeBuffer);
                     arguments.add(aquiferStatusBuffer);
                     arguments.add(scratchBuffer);
                     arguments.add(worldSurfaceBuffer);
                     arguments.add(oceanFloorBuffer);
                     arguments.add(motionBlockingBuffer);
-                    heightKernelNanos = runtime.execute(
+                    OpenCLBridge.CommandEvent event = runtime.enqueue(
                             OpenCLRuntime.ACCURATE_HEIGHT_KERNEL, arguments, columnWorkItems);
+                    events.add(event);
+                    heightEvents.add(event);
                 }
-                kernelNanos += heightKernelNanos;
-                AccurateSamplingStats.recordGpuKernelStages(
-                        latticeKernelNanos, preliminaryKernelNanos, aquiferKernelNanos, heightKernelNanos);
 
                 int[] worldSurface = runtime.readInts(worldSurfaceBuffer, columnWorkItems);
                 int[] oceanFloor = runtime.readInts(oceanFloorBuffer, columnWorkItems);
                 int[] motionBlocking = runtime.readInts(motionBlockingBuffer, columnWorkItems);
+                long latticeKernelNanos = awaitEvents(latticeEvents);
+                long preliminaryKernelNanos = awaitEvents(preliminaryEvents);
+                long aquiferKernelNanos = awaitEvents(aquiferEvents);
+                long heightKernelNanos = awaitEvents(heightEvents);
+                long kernelNanos = latticeKernelNanos + preliminaryKernelNanos
+                        + aquiferKernelNanos + heightKernelNanos;
+                AccurateSamplingStats.recordGpuKernelStages(
+                        latticeKernelNanos, preliminaryKernelNanos, aquiferKernelNanos, heightKernelNanos);
                 return new HeightColumns(worldSurface, oceanFloor, motionBlocking, kernelNanos);
+        } finally {
+            events.forEach(OpenCLBridge.CommandEvent::close);
         }
+    }
+
+    private static long awaitEvents(List<OpenCLBridge.CommandEvent> events) {
+        long nanos = 0L;
+        for (OpenCLBridge.CommandEvent event : events) {
+            nanos += event.awaitNanos();
+        }
+        return nanos;
     }
 
     private static void reportProgress(AccurateSamplingProgress progress, AccurateSamplingProgress.Batch batch) {
@@ -581,6 +622,13 @@ final class OpenCLAccurateProgram implements AutoCloseable {
         return buffers.computeIfAbsent(runtime, key -> OpenCLDensityProgramBuffers.upload(key, payload));
     }
 
+    private synchronized OpenCLAccurateWorkspace workspace(OpenCLRuntime runtime) {
+        if (closed) {
+            throw new IllegalStateException("accurate OpenCL program is closed");
+        }
+        return workspaces.computeIfAbsent(runtime, ignored -> new OpenCLAccurateWorkspace());
+    }
+
     private static AquiferPositionPlanner.Plan emptyAquiferPlan(List<Long> chunkKeys) {
         int[] coordinates = new int[Math.multiplyExact(chunkKeys.size(), 2)];
         for (int i = 0; i < chunkKeys.size(); i++) {
@@ -607,14 +655,6 @@ final class OpenCLAccurateProgram implements AutoCloseable {
                     Arrays.copyOfRange(worldSurface, from, to),
                     Arrays.copyOfRange(oceanFloor, from, to),
                     Arrays.copyOfRange(motionBlocking, from, to)));
-        }
-        return result;
-    }
-
-    private static int[] toIntArray(List<Integer> values) {
-        int[] result = new int[values.size()];
-        for (int i = 0; i < values.size(); i++) {
-            result[i] = values.get(i);
         }
         return result;
     }
@@ -676,6 +716,7 @@ final class OpenCLAccurateProgram implements AutoCloseable {
     @Override
     public void close() {
         Map<OpenCLRuntime, OpenCLDensityProgramBuffers> closing;
+        Map<OpenCLRuntime, OpenCLAccurateWorkspace> closingWorkspaces;
         synchronized (this) {
             if (closed) {
                 return;
@@ -683,8 +724,15 @@ final class OpenCLAccurateProgram implements AutoCloseable {
             closed = true;
             closing = new IdentityHashMap<>(buffers);
             buffers.clear();
+            closingWorkspaces = new IdentityHashMap<>(workspaces);
+            workspaces.clear();
         }
         for (Map.Entry<OpenCLRuntime, OpenCLDensityProgramBuffers> entry : closing.entrySet()) {
+            synchronized (entry.getKey().operationLock()) {
+                entry.getValue().close();
+            }
+        }
+        for (Map.Entry<OpenCLRuntime, OpenCLAccurateWorkspace> entry : closingWorkspaces.entrySet()) {
             synchronized (entry.getKey().operationLock()) {
                 entry.getValue().close();
             }

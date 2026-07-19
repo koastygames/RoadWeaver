@@ -73,15 +73,19 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
         int stepsBudget = Math.max(1, maxSteps);
         ThrottleHelper.resetThrottle();
         try {
-            while (!openF.isEmpty() && !openB.isEmpty() && stepsBudget-- > 0) {
+            while (stepsBudget > 0) {
+                if (Thread.currentThread().isInterrupted()) return null;
+
+                Node peekF = peekActiveOpenNode(openF, nodesF, closedF);
+                Node peekB = peekActiveOpenNode(openB, nodesB, closedB);
+                if (peekF == null || peekB == null) break;
+
+                stepsBudget--;
                 ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
                 if (Thread.currentThread().isInterrupted()) return null;
 
-                Node peekF = openF.peek(), peekB = openB.peek();
                 boolean expandForward;
-                if (peekF == null) expandForward = false;
-                else if (peekB == null) expandForward = true;
-                else expandForward = peekF.f <= peekB.f;
+                expandForward = peekF.f <= peekB.f;
 
                 Meet meet;
                 if (expandForward) {
@@ -111,8 +115,7 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
                                boolean isForward, BlockPos from, BlockPos to,
                                PathTerrainField terrain,
                                int[][] offsets, int d, PathfindingCostConfig cfg) {
-        if (open.isEmpty()) return null;
-        Node current = open.poll();
+        Node current = pollActiveOpenNode(open, nodesThis, closedThis);
         if (current == null) return null;
         closedThis.add(current.pos);
 
@@ -207,6 +210,37 @@ public final class BidirectionalAStarPathfinder implements Pathfinder {
         double num = Math.abs((bz - az) * p.getX() - (bx - ax) * p.getZ() + bx * az - bz * ax);
         double den = Math.hypot(bx - ax, bz - az);
         return den <= 0.0 ? 0.0 : num / den;
+    }
+
+    private static boolean isActiveOpenNode(Node current, Map<BlockPos, Node> nodesThis, Set<BlockPos> closedThis) {
+        return current != null
+                && !closedThis.contains(current.pos)
+                && nodesThis.get(current.pos) == current;
+    }
+
+    private static Node peekActiveOpenNode(PriorityQueue<Node> open,
+                                           Map<BlockPos, Node> nodesThis,
+                                           Set<BlockPos> closedThis) {
+        while (!open.isEmpty()) {
+            Node current = open.peek();
+            if (isActiveOpenNode(current, nodesThis, closedThis)) {
+                return current;
+            }
+            open.poll();
+        }
+        return null;
+    }
+
+    private static Node pollActiveOpenNode(PriorityQueue<Node> open,
+                                           Map<BlockPos, Node> nodesThis,
+                                           Set<BlockPos> closedThis) {
+        while (!open.isEmpty()) {
+            Node current = open.poll();
+            if (isActiveOpenNode(current, nodesThis, closedThis)) {
+                return current;
+            }
+        }
+        return null;
     }
 
     private static final class Node {

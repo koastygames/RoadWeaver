@@ -1,4 +1,4 @@
-/* 文件职责：协调结构连接规划、区域级精确地形采样与预计算路径。 */
+/* 文件职责：协调结构发现、连接拓扑规划与道路地形规划用例。 */
 package net.shiroha233.roadweaver.planning;
 
 import net.minecraft.core.BlockPos;
@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
-import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
@@ -20,22 +19,21 @@ import net.shiroha233.roadweaver.map.tile.core.MapTileLayer;
 import net.shiroha233.roadweaver.map.tile.core.MapTileRect;
 import net.shiroha233.roadweaver.map.tile.core.MapTileScheme;
 import net.shiroha233.roadweaver.map.tile.storage.ServerMapTileStorage;
-import net.shiroha233.roadweaver.pathfinding.Pathfinder;
-import net.shiroha233.roadweaver.pathfinding.PathfinderFactory;
-import net.shiroha233.roadweaver.pathfinding.cache.TerrainSamplingCache;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegion;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainPngWriter;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.AccurateTerrainRegionSampler;
+import net.shiroha233.roadweaver.map.tile.storage.AccurateTerrainMapFingerprintGuard;
+import net.shiroha233.roadweaver.map.tile.backfill.AccurateTerrainTileBackfillService;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainPngWriter;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegion;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainRegionSampler;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
-import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 import net.shiroha233.roadweaver.persistence.files.StructureFileStorage;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
-import net.shiroha233.roadweaver.persistence.sqlite.H2MigrationCoordinator;
+import net.shiroha233.roadweaver.config.sub.TerrainSamplingMode;
 import net.shiroha233.roadweaver.planning.impl.KNNPlanner;
+import net.shiroha233.roadweaver.planning.path.PlannedPathCache;
+import net.shiroha233.roadweaver.planning.path.PlannedPathKey;
+import net.shiroha233.roadweaver.planning.terrain.RoadTerrainPlanningPipeline;
+import net.shiroha233.roadweaver.planning.terrain.RoadTerrainPlanningPort;
+import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -46,8 +44,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static net.shiroha233.roadweaver.pathfinding.impl.PathfindingHelper.snapToGrid;
-
 /**
  * 道路规划服务
  */
@@ -55,9 +51,10 @@ public final class RoadPlanningService {
     private RoadPlanningService() {}
 
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
-    private static final Set<Long> TERRAIN_REPAIR_TILES = ConcurrentHashMap.newKeySet();
+    private static final Set<TerrainRepairKey> TERRAIN_REPAIR_TILES = ConcurrentHashMap.newKeySet();
     private static final Set<Long> ROAD_BACKFILL_PLAN_TILES = ConcurrentHashMap.newKeySet();
     private static final Set<Long> PLANNING_TILES = ConcurrentHashMap.newKeySet();
+    private static final RoadTerrainPlanningPipeline TERRAIN_PLANNING = new RoadTerrainPlanningPipeline();
 
     private static void prunePlannedIfTooLarge(Level level) {
         WorldDataProvider provider = WorldDataProvider.getInstance();
@@ -79,6 +76,8 @@ public final class RoadPlanningService {
 
     public static void initialPlan(ServerLevel level) {
         if (level == null || !Level.OVERWORLD.equals(level.dimension())) return;
+        ServerMapTileStorage.migrateLegacyTerrainTiles(level);
+        AccurateTerrainMapFingerprintGuard.ensure(level);
         InitialGenerationProgressTracker.enterStage(InitialGenerationStage.PLANNING, "discovering_structures");
         ModConfig cfg = ConfigService.get();
         int radiusChunks = Math.max(1, cfg.planning().initialPlanRadiusChunks());
@@ -98,7 +97,6 @@ public final class RoadPlanningService {
         if (!Level.OVERWORLD.equals(level.dimension())) return;
         ModConfig cfg = ConfigService.get();
         if (!cfg.planning().dynamicPlanEnabled()) return;
-        if (H2MigrationCoordinator.hasPendingLegacyData(level)) return;
         int radiusChunks = Math.max(1, cfg.planning().dynamicPlanRadiusChunks());
         int stride = Math.max(1, cfg.planning().dynamicPlanStrideChunks());
         int tile = Math.max(RoadConstants.PLAN_TILE_MIN, Math.min(RoadConstants.PLAN_TILE_MAX, stride));
@@ -114,10 +112,6 @@ public final class RoadPlanningService {
         WorldDataProvider provider0 = WorldDataProvider.getInstance();
         boolean alreadyPlanned = provider0.getPlannedTileKeys(level).contains(key);
         boolean hasExistingRoads = RoadShardStorage.hasRoadInRect(level, minX, minZ, maxX, maxZ);
-        if (hasExistingRoads) {
-            LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minX, minZ, maxX, maxZ);
-        }
-
         boolean backfillPlan = hasExistingRoads && markRoadBackfillPlanTile(level, key);
         boolean shouldPlan = !alreadyPlanned || backfillPlan;
         if (!shouldPlan) {
@@ -172,35 +166,53 @@ public final class RoadPlanningService {
                                                    int minBlockZ,
                                                    int maxBlockX,
                                                    int maxBlockZ) {
-        if (TERRAIN_REPAIR_TILES.contains(tileKey)) return;
-        if (hasCompleteTerrainTiles(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
-            TERRAIN_REPAIR_TILES.add(tileKey);
+        TerrainSamplingMode effectiveMode = TerrainSamplingSessions.forLevel(level).effectiveMode();
+        if (effectiveMode == TerrainSamplingMode.LEGACY_DIRECT) {
             return;
         }
-        if (!TERRAIN_REPAIR_TILES.add(tileKey)) return;
-        ComputeService.runAsync(ThreadPoolManager.TaskRole.COARSE, () -> {
+        MapTileLayer layer = effectiveMode == TerrainSamplingMode.FULL_REGION
+                ? MapTileLayer.TERRAIN_ACCURATE
+                : MapTileLayer.TERRAIN_COARSE;
+        TerrainRepairKey repairKey = new TerrainRepairKey(tileKey, layer);
+        if (TERRAIN_REPAIR_TILES.contains(repairKey)) return;
+        if (hasCompleteTerrainTiles(level, layer, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+            TERRAIN_REPAIR_TILES.add(repairKey);
+            return;
+        }
+        if (!TERRAIN_REPAIR_TILES.add(repairKey)) return;
+        ComputeService.runAsync(ThreadPoolManager.TaskRole.MAP, () -> {
             CoarseTerrainRegion region = null;
             boolean completed = false;
             try {
                 ModConfig cfg = ConfigService.get();
                 int step = cfg.pathfindingCost().effectiveAStarStep();
-                region = CoarseTerrainRegionSampler.sample(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
-                CoarseTerrainPngWriter.writeTerrainTiles(level, region);
-                completed = true;
-                LOGGER.info("已补全规划区域地图回退地形瓦片 dimension={} min=({}, {}) max=({}, {})",
-                        level.dimension().location(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+                if (layer == MapTileLayer.TERRAIN_ACCURATE) {
+                    completed = AccurateTerrainTileBackfillService.backfillMissing(
+                            level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
+                } else {
+                    region = CoarseTerrainRegionSampler.sample(
+                            level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
+                    CoarseTerrainPngWriter.writeTerrainTiles(level, region);
+                    completed = true;
+                }
+                if (completed) {
+                    LOGGER.info("已补全规划区域地图瓦片 dimension={} layer={} min=({}, {}) max=({}, {})",
+                            level.dimension().location(), layer, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
+                }
             } catch (RuntimeException e) {
-                LOGGER.warn("补全规划区域地图回退地形瓦片失败 dimension={}", level.dimension().location(), e);
+                LOGGER.warn("补全规划区域地图瓦片失败 dimension={} layer={}",
+                        level.dimension().location(), layer, e);
             } finally {
                 if (region != null) region.dispose();
                 if (!completed) {
-                    TERRAIN_REPAIR_TILES.remove(tileKey);
+                    TERRAIN_REPAIR_TILES.remove(repairKey);
                 }
             }
         });
     }
 
     private static boolean hasCompleteTerrainTiles(ServerLevel level,
+                                                   MapTileLayer layer,
                                                    int minBlockX,
                                                    int minBlockZ,
                                                    int maxBlockX,
@@ -208,7 +220,15 @@ public final class RoadPlanningService {
         for (int zoom = MapTileScheme.MIN_ZOOM; zoom <= MapTileScheme.MAX_ZOOM; zoom++) {
             MapTileRect rect = MapTileScheme.tileRectForBlockRect(zoom, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
             for (MapTileCoord coord : rect.coords()) {
-                if (!ServerMapTileStorage.exists(level, MapTileLayer.TERRAIN, coord)) return false;
+                int intersectionMinX = Math.max(minBlockX, MapTileScheme.tileMinBlockX(coord));
+                int intersectionMinZ = Math.max(minBlockZ, MapTileScheme.tileMinBlockZ(coord));
+                int intersectionMaxX = Math.min(maxBlockX, MapTileScheme.tileMaxBlockX(coord));
+                int intersectionMaxZ = Math.min(maxBlockZ, MapTileScheme.tileMaxBlockZ(coord));
+                if (!ServerMapTileStorage.hasCoverage(
+                        level, layer, coord,
+                        intersectionMinX, intersectionMinZ, intersectionMaxX, intersectionMaxZ)) {
+                    return false;
+                }
             }
         }
         return true;
@@ -256,7 +276,7 @@ public final class RoadPlanningService {
             provider.setStructureConnections(level, merged);
             publishNewConnections(level, existing, incoming);
         }
-        prepareAccurateRegionForConnections(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
+        planRoadTerrain(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
     }
 
     private static void collectStructurePointsInto(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ, List<BlockPos> out, Set<Long> seenPos) {
@@ -320,12 +340,12 @@ public final class RoadPlanningService {
             if (points.size() < 2) return new PlannedRegionResult(List.of());
 
             ArrayList<StructureConnection> existingInRect = new ArrayList<>();
-            HashSet<Long> existingEdgeKeys = new HashSet<>();
+            HashSet<PlannedPathKey> existingEdgeKeys = new HashSet<>();
             for (StructureConnection c : existingSnapshot) {
                 if (inRect2d(c.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ) &&
                         inRect2d(c.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
                     existingInRect.add(c);
-                    existingEdgeKeys.add(PlanningUtils.edgeKey(c.from(), c.to()));
+                    existingEdgeKeys.add(PlannedPathKey.of(c));
                 }
             }
 
@@ -336,8 +356,7 @@ public final class RoadPlanningService {
 
             ArrayList<StructureConnection> filteredPrimary = new ArrayList<>();
             for (StructureConnection c : primaryEdges) {
-                long ek = PlanningUtils.edgeKey(c.from(), c.to());
-                if (!existingEdgeKeys.contains(ek)) filteredPrimary.add(c);
+                if (!existingEdgeKeys.contains(PlannedPathKey.of(c))) filteredPrimary.add(c);
             }
 
             ArrayList<StructureConnection> base = new ArrayList<>(existingInRect);
@@ -352,10 +371,7 @@ public final class RoadPlanningService {
 
             ArrayList<StructureConnection> incoming = new ArrayList<>(filteredPrimary);
             incoming.addAll(bridges);
-            AccurateTerrainRegion region = prepareAccurateRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
-            if (region != null) {
-                computeExactPathsAndRetain(level, region, incoming);
-            }
+            planRoadTerrain(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
             return new PlannedRegionResult(incoming);
         }).thenAccept((PlannedRegionResult result) -> {
             if (result == null || result.incoming().isEmpty()) return;
@@ -382,17 +398,17 @@ public final class RoadPlanningService {
     }
 
     private static List<StructureConnection> mergeConnections(List<StructureConnection> existing, List<StructureConnection> incoming) {
-        HashSet<Long> seen = new HashSet<>();
+        HashSet<PlannedPathKey> seen = new HashSet<>();
         ArrayList<StructureConnection> out = new ArrayList<>();
         if (existing != null) {
             for (StructureConnection c : existing) {
-                long k = PlanningUtils.edgeKey(c.from(), c.to());
-                if (seen.add(k)) out.add(c);
+                if (seen.add(PlannedPathKey.of(c))) out.add(c);
             }
         }
         for (StructureConnection c : incoming) {
-            long k = PlanningUtils.edgeKey(c.from(), c.to());
-            if (seen.add(k)) out.add(new StructureConnection(c.from(), c.to(), ConnectionStatus.PLANNED));
+            if (seen.add(PlannedPathKey.of(c))) {
+                out.add(new StructureConnection(c.from(), c.to(), ConnectionStatus.PLANNED));
+            }
         }
         return out;
     }
@@ -401,138 +417,42 @@ public final class RoadPlanningService {
                                               List<StructureConnection> existing,
                                               List<StructureConnection> incoming) {
         if (level == null || incoming == null || incoming.isEmpty()) return;
-        HashSet<Long> existingKeys = new HashSet<>();
+        HashSet<PlannedPathKey> existingKeys = new HashSet<>();
         if (existing != null) {
             for (StructureConnection connection : existing) {
                 if (connection != null) {
-                    existingKeys.add(PlanningUtils.edgeKey(connection.from(), connection.to()));
+                    existingKeys.add(PlannedPathKey.of(connection));
                 }
             }
         }
         for (StructureConnection connection : incoming) {
             if (connection == null) continue;
-            long key = PlanningUtils.edgeKey(connection.from(), connection.to());
-            if (existingKeys.add(key)) {
+            if (existingKeys.add(PlannedPathKey.of(connection))) {
                 MapPatchService.publishConnection(level,
                         new StructureConnection(connection.from(), connection.to(), ConnectionStatus.PLANNED));
             }
         }
     }
 
-    private static void prepareAccurateRegionForConnections(ServerLevel level,
-                                                            int minBlockX,
-                                                            int minBlockZ,
-                                                            int maxBlockX,
-                                                            int maxBlockZ,
-                                                            List<StructureConnection> incoming) {
-        AccurateTerrainRegion region = prepareAccurateRegion(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, incoming);
-        if (region != null) {
-            computeExactPathsAndRetain(level, region, incoming);
+    private static void planRoadTerrain(ServerLevel level,
+                                        int minBlockX,
+                                        int minBlockZ,
+                                        int maxBlockX,
+                                        int maxBlockZ,
+                                        List<StructureConnection> connections) {
+        if (level == null || connections == null || connections.isEmpty()) return;
+        ModConfig config = ConfigService.get();
+        TerrainSamplingMode mode = config.planning().terrainSamplingMode();
+        if (mode == null || mode == TerrainSamplingMode.LEGACY_DIRECT) {
+            return;
         }
-    }
-
-    private static AccurateTerrainRegion prepareAccurateRegion(ServerLevel level,
-                                                               int minBlockX,
-                                                               int minBlockZ,
-                                                               int maxBlockX,
-                                                               int maxBlockZ,
-                                                               List<StructureConnection> incoming) {
-        if (level == null || incoming == null || incoming.isEmpty()) return null;
-        ModConfig cfg = ConfigService.get();
-        int step = cfg.pathfindingCost().effectiveAStarStep();
-        TerrainSamplingCache cache = new TerrainSamplingCache();
-        try {
-            return AccurateTerrainRegionSampler.sample(level, cache,
-                    minBlockX, minBlockZ, maxBlockX, maxBlockZ, step);
-        } catch (RuntimeException failure) {
-            LOGGER.warn("精确规划区域采样被拒绝 dimension={} min=({}, {}) max=({}, {}) reason={}",
-                    level.dimension().location(), minBlockX, minBlockZ, maxBlockX, maxBlockZ, failure.getMessage());
-            return null;
-        } finally {
-            cache.clear();
-        }
-    }
-
-    /**
-     * 对精确量化区域内的连接预计算路径，并把区域保留到对应道路全部生成完成。
-     */
-    private static void computeExactPathsAndRetain(ServerLevel level,
-                                                   AccurateTerrainRegion region,
-                                                   List<StructureConnection> connections) {
-        ModConfig cfg = ConfigService.get();
-        int dGrid = cfg.pathfindingCost().effectiveAStarStep();
-        int maxSteps = cfg.pathfindingCost().aStarMaxSteps();
-        InitialGenerationProgressTracker.enterStage(InitialGenerationStage.EXACT_PATHING, "computing_accurate_paths");
-        int totalPaths = 0;
-        for (StructureConnection connection : connections) {
-            if (connection == null) continue;
-            if (!region.contains(connection.from().getX(), connection.from().getZ())) continue;
-            if (!region.contains(connection.to().getX(), connection.to().getZ())) continue;
-            totalPaths++;
-        }
-        InitialGenerationProgressTracker.setExactPathPlan(totalPaths, "computing_accurate_paths");
-        TerrainSamplingCache cache = new TerrainSamplingCache();
-        LinkedHashMap<StructureConnection, List<BlockPos>> plannedPaths = new LinkedHashMap<>();
-        try {
-            for (StructureConnection conn : connections) {
-                if (conn == null) continue;
-                if (!region.contains(conn.from().getX(), conn.from().getZ())) continue;
-                if (!region.contains(conn.to().getX(), conn.to().getZ())) continue;
-                if (Thread.currentThread().isInterrupted()) break;
-
-                try {
-                    List<BlockPos> path = searchExactPath(level, conn, dGrid, maxSteps, cache, region);
-                    if (path != null && !path.isEmpty()) {
-                        plannedPaths.put(conn, path);
-                    }
-                } finally {
-                    InitialGenerationProgressTracker.recordExactPathDone();
-                }
-            }
-        } finally {
-            cache.clear();
-        }
-
-        boolean transferred = false;
-        try {
-            try {
-                AccurateTerrainPngWriter.writeTerrainTiles(level, region);
-            } catch (RuntimeException failure) {
-                LOGGER.warn("精确地形地图瓦片写入失败 dimension={}", level.dimension().location(), failure);
-            }
-            PlannedPathCache.register(level, region, plannedPaths);
-            transferred = true;
-        } finally {
-            if (!transferred && !region.isDisposed()) {
-                region.dispose();
-            }
-        }
-    }
-
-    private static List<BlockPos> searchExactPath(ServerLevel level,
-                                                   StructureConnection conn,
-                                                   int dGrid,
-                                                   int maxSteps,
-                                                   TerrainSamplingCache cache,
-                                                   AccurateTerrainRegion region) {
-        int sx = snapToGrid(conn.from().getX(), dGrid);
-        int sz = snapToGrid(conn.from().getZ(), dGrid);
-        int ex = snapToGrid(conn.to().getX(), dGrid);
-        int ez = snapToGrid(conn.to().getZ(), dGrid);
-        int startY = region.height(sx, sz);
-        int endY = region.height(ex, ez);
-        BlockPos startGround = new BlockPos(sx, startY, sz);
-        BlockPos endGround = new BlockPos(ex, endY, ez);
-
-        if (!region.contains(startGround.getX(), startGround.getZ())) return null;
-        if (!region.contains(endGround.getX(), endGround.getZ())) return null;
-
-        PathfindingCostConfig pathCfg = ConfigService.get().pathfindingCost();
-        var algo = pathCfg.pathfindingAlgorithm();
-        Pathfinder pathfinder = PathfinderFactory.create(algo);
-        var result = pathfinder.findRawPath(startGround, endGround, level, maxSteps, cache, region, pathCfg);
-        if (!result.success() || !result.hasRawPath()) return null;
-        return result.rawPath();
+        RoadTerrainPlanningPort.Request request = new RoadTerrainPlanningPort.Request(
+                level,
+                new RoadTerrainPlanningPort.Bounds(minBlockX, minBlockZ, maxBlockX, maxBlockZ),
+                connections,
+                config.pathfindingCost());
+        RoadTerrainPlanningPort.Result result = TERRAIN_PLANNING.plan(request);
+        PlannedPathCache.register(level, result.mode(), config.pathfindingCost(), result.paths());
     }
 
     private static ArrayList<BlockPos> collectComponentPoints(List<BlockPos> seed,
@@ -607,4 +527,6 @@ public final class RoadPlanningService {
         ROAD_BACKFILL_PLAN_TILES.clear();
         PLANNING_TILES.clear();
     }
+
+    private record TerrainRepairKey(long tileKey, MapTileLayer layer) {}
 }

@@ -1,10 +1,10 @@
+/* 文件职责：按区块持久化道路标牌待写文本。 */
 package net.shiroha233.roadweaver.persistence.files;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ChunkPos;
-import net.shiroha233.roadweaver.persistence.sqlite.LegacyH2Importer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,10 +28,6 @@ public final class SignTextFileStorage {
     private static final String CATEGORY = "sign_texts";
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final String FILE_SUFFIX = ".json";
-    private static final String SQL_QUERY_BY_CHUNK =
-            "SELECT id, x, y, z, sign_type, payload FROM pending_sign_texts WHERE chunk_x = ? AND chunk_z = ? ORDER BY id LIMIT ?";
-    private static final String SQL_DELETE_BY_ID = "DELETE FROM pending_sign_texts WHERE id = ?";
-
     public static final int TYPE_DISTANCE = 0;
     public static final int TYPE_SEA_QUESTION = 1;
 
@@ -60,23 +56,6 @@ public final class SignTextFileStorage {
         List<PendingSignText> chunk = loadChunk(level, chunkKey);
         if (chunk.size() <= limit) return new ArrayList<>(chunk);
         return new ArrayList<>(chunk.subList(0, limit));
-    }
-
-    public static synchronized int importLegacySignTexts(ServerLevel level) {
-        if (!isOverworld(level)) return 0;
-        int imported = 0;
-        Map<Long, List<PendingSignWrite>> byChunk = new HashMap<>();
-        for (LegacyH2Importer.LegacyPendingSignText row : LegacyH2Importer.loadPendingSignTexts(level)) {
-            BlockPos pos = row.pos();
-            long chunkKey = ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4);
-            byChunk.computeIfAbsent(chunkKey, k -> new ArrayList<>())
-                    .add(new PendingSignWrite(pos, row.signType(), row.payload()));
-            imported++;
-        }
-        for (var entry : byChunk.entrySet()) {
-            upsertBatch(level, entry.getValue());
-        }
-        return imported;
     }
 
     public static synchronized void deleteByIds(ServerLevel level, List<Long> ids) {

@@ -11,13 +11,17 @@ import java.util.List;
  */
 final class OpenCLDensityProgramBuffers implements AutoCloseable {
     private final List<OpenCLBridge.DeviceBuffer> arguments;
+    private final OpenCLBridge.DeviceBuffer interpolatedNodes;
 
-    private OpenCLDensityProgramBuffers(List<OpenCLBridge.DeviceBuffer> arguments) {
+    private OpenCLDensityProgramBuffers(List<OpenCLBridge.DeviceBuffer> arguments,
+                                        OpenCLBridge.DeviceBuffer interpolatedNodes) {
         this.arguments = List.copyOf(arguments);
+        this.interpolatedNodes = interpolatedNodes;
     }
 
     static OpenCLDensityProgramBuffers upload(OpenCLRuntime runtime, OpenCLDensityProgramPayload payload) {
         ArrayList<OpenCLBridge.DeviceBuffer> buffers = new ArrayList<>(14);
+        OpenCLBridge.DeviceBuffer interpolatedNodes = null;
         try {
             buffers.add(runtime.upload(payload.nodeInts()));
             buffers.add(runtime.upload(payload.nodeValues()));
@@ -33,9 +37,13 @@ final class OpenCLDensityProgramBuffers implements AutoCloseable {
             buffers.add(runtime.upload(payload.splineLocations()));
             buffers.add(runtime.upload(payload.splineValueNodes()));
             buffers.add(runtime.upload(payload.splineDerivatives()));
-            return new OpenCLDensityProgramBuffers(buffers);
+            interpolatedNodes = runtime.upload(payload.interpolatedNodes());
+            return new OpenCLDensityProgramBuffers(buffers, interpolatedNodes);
         } catch (Throwable failure) {
             buffers.forEach(OpenCLBridge.DeviceBuffer::close);
+            if (interpolatedNodes != null) {
+                interpolatedNodes.close();
+            }
             throw failure;
         }
     }
@@ -44,8 +52,13 @@ final class OpenCLDensityProgramBuffers implements AutoCloseable {
         return arguments;
     }
 
+    OpenCLBridge.DeviceBuffer interpolatedNodes() {
+        return interpolatedNodes;
+    }
+
     @Override
     public void close() {
         arguments.forEach(OpenCLBridge.DeviceBuffer::close);
+        interpolatedNodes.close();
     }
 }

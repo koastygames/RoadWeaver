@@ -22,7 +22,8 @@ record OpenCLDensityProgramPayload(
         int[] splineInts,
         double[] splineLocations,
         int[] splineValueNodes,
-        double[] splineDerivatives
+        double[] splineDerivatives,
+        int[] interpolatedNodes
 ) {
     static OpenCLDensityProgramPayload from(DensityGraphProgram program) {
         int nodeCount = program.nodes().size();
@@ -125,7 +126,8 @@ record OpenCLDensityProgramPayload(
                 splineInts,
                 toDoubleArray(splineLocationValues),
                 toIntArray(splineValueNodeValues),
-                toDoubleArray(splineDerivativeValues));
+                toDoubleArray(splineDerivativeValues),
+                toIntArray(program.interpolatedNodes()));
     }
 
     private static int[] nodeUsageMasks(DensityGraphProgram program) {

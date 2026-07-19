@@ -78,18 +78,22 @@ public final class GradientDescentPathfinder implements Pathfinder {
         int stepsBudget = Math.max(5000, maxSteps * RoadConstants.GRADIENT_DESCENT_STEPS_MULTIPLIER);
         ThrottleHelper.resetThrottle();
         try {
-            while (!openSet.isEmpty() && stepsBudget-- > 0) {
-                ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
+            while (stepsBudget > 0) {
                 if (Thread.currentThread().isInterrupted()) return null;
 
-                Node current = openSet.poll();
+                Node current = pollActiveOpenNode(openSet, allNodes, closed);
                 if (current == null) break;
+
+                stepsBudget--;
+                ThrottleHelper.throttle(RoadConstants.DEFAULT_DUTY_CYCLE);
+                if (Thread.currentThread().isInterrupted()) return null;
 
                 if (manhattan2d(current.pos, end) < (int) (d * RoadConstants.GRADIENT_DESCENT_SUCCESS_DISTANCE_FACTOR)) {
                     return reconstructRawPath(current);
                 }
 
                 closed.add(current.pos);
+                allNodes.remove(current.pos);
 
                 for (int[] off : offsets) {
                     BlockPos nxz = current.pos.offset(off[0], 0, off[1]);
@@ -182,6 +186,24 @@ public final class GradientDescentPathfinder implements Pathfinder {
         double dx = a.getX() - b.getX();
         double dz = a.getZ() - b.getZ();
         return Math.sqrt(dx * dx + dz * dz) * cfg.heuristicWeight();
+    }
+
+    private static boolean isActiveOpenNode(Node current, Map<BlockPos, Node> allNodes, Set<BlockPos> closed) {
+        return current != null
+                && !closed.contains(current.pos)
+                && allNodes.get(current.pos) == current;
+    }
+
+    private static Node pollActiveOpenNode(PriorityQueue<Node> openSet,
+                                           Map<BlockPos, Node> allNodes,
+                                           Set<BlockPos> closed) {
+        while (!openSet.isEmpty()) {
+            Node current = openSet.poll();
+            if (isActiveOpenNode(current, allNodes, closed)) {
+                return current;
+            }
+        }
+        return null;
     }
 
     private static final class Node {

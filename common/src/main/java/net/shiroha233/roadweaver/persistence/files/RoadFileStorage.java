@@ -1,3 +1,4 @@
+/* 文件职责：以现有世界文件路径持久化道路索引与道路 NBT 数据。 */
 package net.shiroha233.roadweaver.persistence.files;
 
 import com.google.gson.Gson;
@@ -11,7 +12,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
-import net.shiroha233.roadweaver.persistence.sqlite.LegacyH2Importer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 道路文件存储：索引 JSON + 每条道路一个 NBT 文件。
@@ -84,7 +85,7 @@ public final class RoadFileStorage {
                 for (RoadEntry entry : index.roads) {
                     if (!intersects(entry, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) continue;
                     RoadData road = readRoadFile(root.resolve(ROAD_DIR).resolve(entry.file));
-                    if (road != null) merged.putIfAbsent(fingerprint(road), road);
+                    if (road != null) merged.putIfAbsent(computeFingerprint(road), road);
                 }
                 return new ArrayList<>(merged.values());
             } catch (IOException e) {
@@ -92,6 +93,12 @@ public final class RoadFileStorage {
                 return List.of();
             }
         }
+    }
+
+    public static CompletableFuture<List<RoadData>> queryRectAsync(ServerLevel level,
+                                                                    int minBlockX, int minBlockZ,
+                                                                    int maxBlockX, int maxBlockZ) {
+        return CompletableFuture.supplyAsync(() -> queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ));
     }
 
     public static List<RoadData> loadAll(ServerLevel level) {
@@ -104,7 +111,7 @@ public final class RoadFileStorage {
                 LinkedHashMap<Long, RoadData> merged = new LinkedHashMap<>();
                 for (RoadEntry entry : index.roads) {
                     RoadData road = readRoadFile(root.resolve(ROAD_DIR).resolve(entry.file));
-                    if (road != null) merged.putIfAbsent(fingerprint(road), road);
+                    if (road != null) merged.putIfAbsent(computeFingerprint(road), road);
                 }
                 return new ArrayList<>(merged.values());
             } catch (IOException e) {
@@ -129,17 +136,6 @@ public final class RoadFileStorage {
             }
             return null;
         }
-    }
-
-    public static synchronized int importLegacyRoads(ServerLevel level) {
-        if (!isOverworld(level)) return 0;
-        ArrayList<RoadData> roads = new ArrayList<>();
-        for (RoadData road : LegacyH2Importer.loadRoads(level)) {
-            if (road == null) continue;
-            roads.add(road);
-            addRoad(level, road);
-        }
-        return roads.size();
     }
 
     public static void deleteRoad(ServerLevel level, long fingerprint) {
@@ -254,7 +250,7 @@ public final class RoadFileStorage {
 
     private static RoadEntry toEntry(ServerLevel level, RoadData road) {
         RoadEntry entry = new RoadEntry();
-        entry.fingerprint = fingerprint(road);
+        entry.fingerprint = computeFingerprint(road);
         entry.width = road.width();
         entry.roadType = road.roadType();
         entry.file = Long.toUnsignedString(entry.fingerprint) + ".nbt";
@@ -333,7 +329,7 @@ public final class RoadFileStorage {
         }
     }
 
-    private static long fingerprint(RoadData road) {
+    public static long computeFingerprint(RoadData road) {
         if (road == null || road.roadSegmentList() == null || road.roadSegmentList().isEmpty()) return 0L;
         BlockPos a = firstPos(road);
         BlockPos b = lastPos(road);

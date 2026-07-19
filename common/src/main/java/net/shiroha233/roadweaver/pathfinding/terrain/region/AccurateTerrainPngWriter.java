@@ -1,41 +1,64 @@
-/* 文件职责：把区域级精确量化地形直接渲染为服务器地图瓦片。 */
+/* 文件职责：将精确 terrain 采样结果写入 accurate terrain 瓦片目录。 */
 package net.shiroha233.roadweaver.pathfinding.terrain.region;
 
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.map.tile.core.MapTileCoord;
 import net.shiroha233.roadweaver.map.tile.core.MapTileLayer;
-import net.shiroha233.roadweaver.map.tile.core.MapTileRect;
 import net.shiroha233.roadweaver.map.tile.core.MapTileScheme;
 import net.shiroha233.roadweaver.map.tile.render.HeightShader;
 import net.shiroha233.roadweaver.map.tile.render.TerrainTilePalette;
 import net.shiroha233.roadweaver.map.tile.storage.ServerMapTileStorage;
+import net.shiroha233.roadweaver.map.tile.storage.TerrainTileWritePlan;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * 精确地形区域地图瓦片写入器。
  */
 public final class AccurateTerrainPngWriter {
+    private static final MapTileLayer TARGET_LAYER = MapTileLayer.TERRAIN_ACCURATE;
+
     private AccurateTerrainPngWriter() {}
 
     public static void writeTerrainTiles(ServerLevel level, AccurateTerrainRegion region) {
+        writeTerrainTiles(level, region, TerrainPngWriteProgress.NONE);
+    }
+
+    public static void writeTerrainTiles(ServerLevel level,
+                                         AccurateTerrainRegion region,
+                                         TerrainPngWriteProgress progress) {
         if (level == null || region == null || region.isDisposed()) {
             return;
         }
+        TerrainPngWriteProgress progressSink = progress == null ? TerrainPngWriteProgress.NONE : progress;
         AccurateRegionBounds bounds = region.bounds();
-        for (int zoom = MapTileScheme.MIN_ZOOM; zoom <= MapTileScheme.MAX_ZOOM; zoom++) {
-            MapTileRect rect = MapTileScheme.tileRectForBlockRect(
-                    zoom, bounds.minX(), bounds.minZ(), bounds.maxX(), bounds.maxZ());
-            for (MapTileCoord coord : rect.coords()) {
-                synchronized (tileLock(level, coord)) {
-                    ServerMapTileStorage.writePng(level, MapTileLayer.TERRAIN, coord,
-                            renderTile(level, region, coord));
-                }
-            }
+        List<MapTileCoord> missingTiles = TerrainTileWritePlan.missingTiles(
+                level,
+                TARGET_LAYER,
+                bounds.minX(),
+                bounds.minZ(),
+                bounds.maxX(),
+                bounds.maxZ());
+        long totalTiles = missingTiles.size();
+        long completedTiles = 0L;
+        for (MapTileCoord coord : missingTiles) {
+            writeTerrainTile(level, region, coord);
+            progressSink.onTileCompleted(++completedTiles, totalTiles);
+        }
+    }
+
+    public static void writeTerrainTile(ServerLevel level,
+                                        AccurateTerrainRegion region,
+                                        MapTileCoord coord) {
+        if (level == null || region == null || region.isDisposed() || coord == null) return;
+        synchronized (tileLock(level, coord)) {
+            ServerMapTileStorage.writePng(level, TARGET_LAYER, coord,
+                    renderTile(level, region, coord));
         }
     }
 
@@ -73,12 +96,12 @@ public final class AccurateTerrainPngWriter {
     }
 
     private static Object tileLock(ServerLevel level, MapTileCoord coord) {
-        return ServerMapTileStorage.path(level, MapTileLayer.TERRAIN, coord)
+        return ServerMapTileStorage.path(level, TARGET_LAYER, coord)
                 .toAbsolutePath().normalize().toString().intern();
     }
 
     private static BufferedImage loadExistingTile(ServerLevel level, MapTileCoord coord) {
-        Path path = ServerMapTileStorage.path(level, MapTileLayer.TERRAIN, coord);
+        Path path = ServerMapTileStorage.path(level, TARGET_LAYER, coord);
         if (Files.exists(path)) {
             try {
                 BufferedImage image = ImageIO.read(path.toFile());

@@ -11,15 +11,17 @@ import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
+import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.pathlogic.core.Road;
 import net.shiroha233.roadweaver.map.MapPatchService;
 import net.shiroha233.roadweaver.pathfinding.terrain.region.CoarseTerrainTileCache;
-import net.shiroha233.roadweaver.pathfinding.terrain.region.PlannedPathCache;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
 import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
+import net.shiroha233.roadweaver.planning.path.PlannedPathCache;
+import net.shiroha233.roadweaver.planning.path.PlannedPathKey;
 import net.shiroha233.roadweaver.postprocess.RoadSnapService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
@@ -36,7 +38,7 @@ public final class RoadGenerationService {
     private RoadGenerationService() {}
 
     private static final ConcurrentLinkedQueue<StructureConnection> QUEUE = new ConcurrentLinkedQueue<>();
-    private static final ConcurrentHashMap<Long, Boolean> PROCESSED = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<PlannedPathKey, Boolean> PROCESSED = new ConcurrentHashMap<>();
     private static final AtomicInteger RUNNING_COUNT = new AtomicInteger();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
     private static final CachedPlayerList PLAYER_LIST_CACHE = new CachedPlayerList();
@@ -134,8 +136,9 @@ public final class RoadGenerationService {
             }
 
             RoadGenerationConfig genCfg = RoadGenerationConfig.from(modCfg);
-            new Road(level, conn, cfg, genCfg).generateRoad(modCfg.pathfindingCost().aStarMaxSteps());
-            return true;
+            RoadData generated = new Road(level, conn, cfg, genCfg)
+                    .generateRoad(modCfg.pathfindingCost().aStarMaxSteps());
+            return generated != null;
         } catch (Throwable t) {
             return false;
         }
@@ -204,8 +207,7 @@ public final class RoadGenerationService {
     }
 
     private static void removeProcessed(ServerLevel level, StructureConnection conn) {
-        long k = PlanningUtils.edgeKey(conn.from(), conn.to());
-        PROCESSED.remove(k);
+        PROCESSED.remove(PlannedPathKey.of(conn));
     }
 
     // ==================== 队列刷新 ====================
@@ -216,7 +218,7 @@ public final class RoadGenerationService {
         if (list == null) return;
 
         ConcurrentLinkedQueue<StructureConnection> q = QUEUE;
-        ConcurrentHashMap<Long, Boolean> proc = PROCESSED;
+        ConcurrentHashMap<PlannedPathKey, Boolean> proc = PROCESSED;
 
         for (StructureConnection c : list) {
             if (c.status() != ConnectionStatus.PLANNED && c.status() != ConnectionStatus.GENERATING) continue;
@@ -228,7 +230,7 @@ public final class RoadGenerationService {
                     && IdleRoadGenerationService.isManagedByIdle(level, c)) {
                 continue;
             }
-            long key = PlanningUtils.edgeKey(c.from(), c.to());
+            PlannedPathKey key = PlannedPathKey.of(c);
             if (proc.putIfAbsent(key, Boolean.TRUE) == null) {
                 q.add(c);
             }

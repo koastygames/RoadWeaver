@@ -1,4 +1,4 @@
-/* 文件职责：执行 OpenCL 精确高度批次、逐程序校验并在失败时回退 CPU。 */
+/* 文件职责：执行 OpenCL 精确高度批次、逐程序校验与可选的严格 GPU-only 调用。 */
 package net.shiroha233.roadweaver.pathfinding.cache.opencl;
 
 import net.minecraft.core.BlockPos;
@@ -14,6 +14,7 @@ import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightGridRequest;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateHeightSample;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateSamplingStats;
 import net.shiroha233.roadweaver.pathfinding.cache.AccurateSamplingProgress;
+import net.shiroha233.roadweaver.pathfinding.cache.AcceleratedSamplingUnavailableException;
 import net.shiroha233.roadweaver.pathfinding.cache.CpuAccurateHeightBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 /**
  * 精确高度 OpenCL 后端。
@@ -226,13 +228,94 @@ public final class OpenCLAccurateHeightBackend implements AccurateHeightBackend 
     }
 
     @Override
+    public boolean supportsAcceleratedSampling() {
+        return programState.supported() && runtime.isUsable();
+    }
+
+    @Override
+    public Map<Long, AccurateHeightSample> sampleAcceleratedPositions(Collection<BlockPos> positions,
+                                                                       AccurateSamplingProgress progress) {
+        if (positions == null || positions.isEmpty()) return Map.of();
+        ensureAcceleratedAvailable();
+        AccurateSamplingProgress sink = progress == null ? AccurateSamplingProgress.NONE : progress;
+        OpenCLAccurateProgramCache.ValidationMode validationMode =
+                programState.acquireValidation(validateEveryBatch());
+        boolean validationCompleted = false;
+        try {
+            ensureAcceleratedAvailable();
+            Map<Long, AccurateHeightSample> gpu = programState.program().samplePositions(runtime, positions, sink);
+            if (validationMode != OpenCLAccurateProgramCache.ValidationMode.NONE) {
+                validationCompleted = true;
+                if (!validatePositionHeights(positions, gpu)) {
+                    throw new AcceleratedSamplingUnavailableException(programState.unsupportedReason());
+                }
+            }
+            return gpu;
+        } catch (CancellationException | AcceleratedSamplingUnavailableException expected) {
+            throw expected;
+        } catch (Throwable failure) {
+            throw acceleratedFailure(failure);
+        } finally {
+            programState.finishValidation(validationMode, validationCompleted);
+        }
+    }
+
+    @Override
+    public AccurateHeightGrid sampleAcceleratedGrid(AccurateHeightGridRequest request,
+                                                     AccurateSamplingProgress progress) {
+        ensureAcceleratedAvailable();
+        AccurateSamplingProgress sink = progress == null ? AccurateSamplingProgress.NONE : progress;
+        OpenCLAccurateProgramCache.ValidationMode validationMode =
+                programState.acquireValidation(validateEveryBatch());
+        boolean validationCompleted = false;
+        try {
+            ensureAcceleratedAvailable();
+            AccurateHeightGrid gpu = programState.program().sampleGrid(runtime, request, sink);
+            if (validationMode != OpenCLAccurateProgramCache.ValidationMode.NONE) {
+                validationCompleted = true;
+                if (!validateGridHeights(request, gpu)) {
+                    throw new AcceleratedSamplingUnavailableException(programState.unsupportedReason());
+                }
+            }
+            return gpu;
+        } catch (CancellationException | AcceleratedSamplingUnavailableException expected) {
+            throw expected;
+        } catch (Throwable failure) {
+            throw acceleratedFailure(failure);
+        } finally {
+            programState.finishValidation(validationMode, validationCompleted);
+        }
+    }
+
+    @Override
     public String backendName() {
-        return programState.supported() ? "OPENCL_ACCURATE" : "CPU";
+        return supportsAcceleratedSampling() ? "OPENCL_ACCURATE" : "CPU";
     }
 
     @Override
     public String deviceName() {
-        return runtime.deviceName();
+        return supportsAcceleratedSampling() ? runtime.deviceName() : "CPU";
+    }
+
+    private void ensureAcceleratedAvailable() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("accelerated accurate sampling interrupted");
+        }
+        if (!programState.supported()) {
+            throw new AcceleratedSamplingUnavailableException(programState.unsupportedReason());
+        }
+        if (!runtime.isUsable()) {
+            throw new AcceleratedSamplingUnavailableException("OpenCL device session unavailable");
+        }
+    }
+
+    private AcceleratedSamplingUnavailableException acceleratedFailure(Throwable failure) {
+        String reason = "OpenCL accurate sampling failed: " + failure.getClass().getSimpleName()
+                + (failure.getMessage() == null ? "" : ": " + failure.getMessage());
+        if (programState.supported()) runtime.invalidate(failure);
+        AccurateSamplingStats.recordFallback(reason);
+        LOGGER.warn("{}; full-region CPU fallback is disabled", reason, failure);
+        return new AcceleratedSamplingUnavailableException(reason, failure);
     }
 
     @Override

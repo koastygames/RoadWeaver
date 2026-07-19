@@ -1,10 +1,12 @@
+/* 文件职责：定义地图瓦片图层及其物理目录名称。 */
 package net.shiroha233.roadweaver.map.tile.core;
 
 /**
- * 瓦片图层类型。
+ * 地图瓦片图层类型。
  */
 public enum MapTileLayer {
-    TERRAIN("terrain_v2"),
+    TERRAIN_COARSE("terrain_coarse"),
+    TERRAIN_ACCURATE("terrain_accurate"),
     OVERLAY("overlay");
 
     private final String folderName;
@@ -15,5 +17,9 @@ public enum MapTileLayer {
 
     public String folderName() {
         return folderName;
+    }
+
+    public boolean isTerrainLayer() {
+        return this == TERRAIN_COARSE || this == TERRAIN_ACCURATE;
     }
 }

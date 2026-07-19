@@ -19,6 +19,7 @@ public final class InitialGenerationProgressTracker {
 
     private static final AtomicReference<InitialGenerationStage> STAGE = new AtomicReference<>(InitialGenerationStage.FINISHED);
     private static final AtomicLong STARTED_AT = new AtomicLong(0L);
+    private static final AtomicInteger OVERALL_PERCENT_FLOOR = new AtomicInteger();
 
     private static final AtomicInteger CONNECTIONS_TOTAL = new AtomicInteger();
     private static final AtomicInteger CONNECTIONS_GENERATING = new AtomicInteger();
@@ -57,6 +58,7 @@ public final class InitialGenerationProgressTracker {
     public static void reset() {
         STARTED_AT.set(System.currentTimeMillis());
         STAGE.set(InitialGenerationStage.PLANNING);
+        OVERALL_PERCENT_FLOOR.set(0);
         CONNECTIONS_TOTAL.set(0);
         CONNECTIONS_GENERATING.set(0);
         CONNECTIONS_DONE.set(0);
@@ -90,6 +92,7 @@ public final class InitialGenerationProgressTracker {
 
     public static void finish() {
         STAGE.set(InitialGenerationStage.FINISHED);
+        OVERALL_PERCENT_FLOOR.set(100);
         CURRENT_OPERATION.set("finished");
         ACTIVE_WORKERS.set(0);
     }
@@ -222,7 +225,10 @@ public final class InitialGenerationProgressTracker {
     public static InitialGenerationProgressSnapshot snapshot(boolean active) {
         InitialGenerationStage stage = STAGE.get();
         int stagePercent = computeStagePercent(stage);
-        int overallPercent = computeOverallPercent(stage, stagePercent, active);
+        int computedOverallPercent = computeOverallPercent(stage, stagePercent, active);
+        int overallPercent = active
+                ? OVERALL_PERCENT_FLOOR.accumulateAndGet(computedOverallPercent, Math::max)
+                : 100;
         long startedAt = STARTED_AT.get();
         long elapsed = startedAt == 0L ? 0L : Math.max(0L, System.currentTimeMillis() - startedAt);
         return new InitialGenerationProgressSnapshot(

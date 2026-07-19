@@ -10,7 +10,6 @@ architectury {
 configurations {
 	common
 	shadowCommon
-	shadowSqlite
 	shadowLwjglNatives
 	compileClasspath.extendsFrom common
 	runtimeClasspath.extendsFrom common
@@ -61,9 +60,6 @@ dependencies {
 	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos") { transitive = false }
 	shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos-arm64") { transitive = false }
 
-	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
-	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
-	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
 }
 
 processResources {
@@ -76,19 +72,10 @@ processResources {
 
 shadowJar {
 	exclude "architectury.common.json"
-	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite,
-	                  project.configurations.shadowLwjglNatives]
+	configurations = [project.configurations.shadowCommon, project.configurations.shadowLwjglNatives]
 	archiveClassifier.set("dev-shadow")
 
-	relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
-
 	exclude 'META-INF/versions/**'
-	exclude 'org/h2/util/SourceCompiler*'
-	exclude 'org/h2/tools/**'
-	exclude 'org/h2/server/**'
-	exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
-	exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
-	exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
 	mergeServiceFiles()
 	exclude 'module-info.class'
 }

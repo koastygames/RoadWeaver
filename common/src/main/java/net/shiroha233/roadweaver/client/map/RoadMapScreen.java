@@ -1,3 +1,4 @@
+/* 文件职责：呈现道路地图并同步单机世界的有效地形图层。 */
 package net.shiroha233.roadweaver.client.map;
 
 import net.minecraft.client.Minecraft;
@@ -20,6 +21,8 @@ import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
 import net.shiroha233.roadweaver.client.map.render.MapHudRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapOverlayRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapRenderers;
+import net.shiroha233.roadweaver.client.map.render.MapSamplingNoticeOverlayRenderer;
+import net.shiroha233.roadweaver.client.map.render.MapSamplingOverlayRenderer;
 import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 import net.shiroha233.roadweaver.client.map.tile.SingleplayerTerrainTileManager;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
@@ -28,7 +31,14 @@ import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
+import net.shiroha233.roadweaver.map.tile.core.MapTileLayer;
+import net.shiroha233.roadweaver.map.tile.sampling.MapSamplingBounds;
+import net.shiroha233.roadweaver.map.tile.sampling.MapSamplingSnapshot;
+import net.shiroha233.roadweaver.map.tile.sampling.MapTerrainSamplingService;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
+import net.shiroha233.roadweaver.config.sub.TerrainSamplingMode;
+import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessionSnapshot;
+import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
 import net.shiroha233.roadweaver.util.ComputeService;
 
 import java.util.ArrayList;
@@ -39,6 +49,7 @@ import java.util.concurrent.CompletableFuture;
  * 道路地图界面
  */
 public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
+    private static final long MAP_SAMPLING_NOTICE_DURATION_MS = 4_000L;
     
     // 翻译键
     private static final Component MENU_TELEPORT = Component.translatable("gui.roadweaver.map.menu.teleport");
@@ -58,6 +69,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private final MapInputHandler inputHandler;
     private final ContextMenu contextMenu = new ContextMenu();
     private final SingleplayerTerrainTileManager terrainTiles = new SingleplayerTerrainTileManager();
+    private final MapTerrainSamplingService mapSampling = new MapTerrainSamplingService();
+    private MapSamplingSnapshot.Stage observedSamplingStage = MapSamplingSnapshot.Stage.IDLE;
+    private Component mapSamplingNotice;
+    private long mapSamplingNoticeExpiresAtMs;
     
     // 布局
     private int mapX, mapY, mapW, mapH;
@@ -83,6 +98,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             snapshotStore = MapSnapshotCache.store(currentDimensionId);
             this.snapshot = snapshotStore.snapshot();
         }
+        syncTerrainLayer(mc);
         computeMapRect();
         inputHandler.updateLayout(mapX, mapY, mapW, mapH, 0);
         
@@ -123,7 +139,17 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         int bottom = this.height;
 
         Minecraft mc = this.minecraft;
+        TerrainSamplingSessionSnapshot samplingSession = syncTerrainLayer(mc);
         MapViewportController.requestTerrainTiles(mc, terrainTiles, view, contentW, contentH);
+        ServerLevel samplingLevel = MapViewportController.resolveSingleplayerLevel(mc);
+        MapSamplingSnapshot mapSamplingSnapshot = mapSampling.snapshot();
+        handleSamplingTransition(mapSamplingSnapshot);
+        MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(
+                this.font,
+                mapH,
+                state.isManualMode(),
+                mapSampling.isAvailable(samplingLevel),
+                mapSamplingSnapshot);
 
         g.fill(0, 0, this.width, this.height, MapTheme.COLOR_BACKGROUND);
         g.enableScissor(left, top, right, bottom);
@@ -163,6 +189,26 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
                 left, top, right, bottom);
 
+        MapSamplingOverlayRenderer.render(
+                g,
+                this.font,
+                view,
+                mapSamplingSnapshot,
+                contentW,
+                contentH,
+                left,
+                top,
+                right,
+                bottom);
+        MapSamplingNoticeOverlayRenderer.render(
+                g,
+                this.font,
+                currentMapSamplingNotice(),
+                left,
+                top,
+                right,
+                bottom);
+
         MapOverlayRenderer.renderManualModePreview(g, snapshot, view, inputHandler,
                 state.hasSelection() ? state.getSelectedA() : null,
                 mouseX, mouseY, contentW, contentH,
@@ -170,7 +216,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 computePointSize() * 2 + 4,
                 computeThickness());
 
-        if (!contextMenu.isOpen()) {
+        if (!contextMenu.isOpen() && !toolbar.contains(mouseX, mouseY)) {
             MapInteraction.renderHoverHighlight(g, snapshot, view, 0, 0, mapW, mapH,
                     0, mouseX, mouseY);
         }
@@ -184,14 +230,15 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         int legendStartY = 8;
         MapHudRenderer.renderLegendWithBackground(g, this.font, legendRight, legendStartY, snapshot);
 
-        MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(this.font, mapH, state.isManualMode());
         MapHudRenderer.renderToolbarButtons(g, this.font, toolbar, mouseX, mouseY);
         MapHudRenderer.renderLoadingStatus(g, this.font, toolbar, loadSession);
+        MapHudRenderer.renderSamplingStatus(g, this.font, toolbar, samplingSession, loadSession != null);
 
-        if (!contextMenu.isOpen()) {
+        if (!contextMenu.isOpen() && !toolbar.contains(mouseX, mouseY)) {
             MapInteraction.renderHoverTooltip(g, this.font, snapshot, view, 0, 0, mapW, mapH,
                     0, mouseX, mouseY);
         }
+        MapHudRenderer.renderToolbarTooltip(g, this.font, toolbar, mouseX, mouseY);
 
         if (state.isZoomDebounceReady()) {
             state.clearZoomDebounce();
@@ -218,12 +265,22 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             }
         }
         
-        MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(this.font, mapH, state.isManualMode());
+        ServerLevel samplingLevel = MapViewportController.resolveSingleplayerLevel(this.minecraft);
+        MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(
+                this.font,
+                mapH,
+                state.isManualMode(),
+                mapSampling.isAvailable(samplingLevel),
+                mapSampling.snapshot());
 
         // 工具栏按钮
         if (button == 0) {
             if (toolbar.configButton().contains(mouseX, mouseY)) {
                 onOpenConfig();
+                return true;
+            }
+            if (toolbar.sampleButton().contains(mouseX, mouseY)) {
+                startMapSampling(samplingLevel);
                 return true;
             }
             if (toolbar.manualButton().contains(mouseX, mouseY)) {
@@ -388,6 +445,51 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         onRequestView();
     }
 
+    private void startMapSampling(ServerLevel level) {
+        MapViewportController.RequestRect rect = MapViewportController.currentRequestRect(view);
+        MapTerrainSamplingService.StartResult result = mapSampling.start(
+                level,
+                new MapSamplingBounds(rect.minX(), rect.minZ(), rect.maxX(), rect.maxZ()));
+        Component message = switch (result) {
+            case STARTED -> Component.translatable("gui.roadweaver.map.sample.started");
+            case ALREADY_RUNNING -> Component.translatable("gui.roadweaver.map.sample.running");
+            case WORLD_UNAVAILABLE -> Component.translatable("gui.roadweaver.map.sample.singleplayer_only");
+            case MODE_UNAVAILABLE -> Component.translatable("gui.roadweaver.map.sample.mode_unavailable");
+            case RANGE_TOO_LARGE -> Component.translatable("gui.roadweaver.map.sample.range_too_large");
+            case SUBMISSION_FAILED -> Component.translatable("gui.roadweaver.map.sample.failed");
+        };
+        notifyMapSampling(message);
+    }
+
+    private void handleSamplingTransition(MapSamplingSnapshot current) {
+        if (current == null || current.stage() == observedSamplingStage) return;
+        observedSamplingStage = current.stage();
+        if (current.stage() == MapSamplingSnapshot.Stage.COMPLETED) {
+            terrainTiles.clear();
+            notifyMapSampling(Component.translatable("gui.roadweaver.map.sample.completed"));
+        } else if (current.stage() == MapSamplingSnapshot.Stage.FAILED) {
+            notifyMapSampling(Component.translatable("gui.roadweaver.map.sample.failed"));
+        }
+    }
+
+    private void notifyMapSampling(Component message) {
+        if (message == null) return;
+        mapSamplingNotice = message;
+        mapSamplingNoticeExpiresAtMs = System.currentTimeMillis() + MAP_SAMPLING_NOTICE_DURATION_MS;
+        if (this.minecraft != null && this.minecraft.player != null) {
+            this.minecraft.player.displayClientMessage(message, true);
+        }
+    }
+
+    private Component currentMapSamplingNotice() {
+        if (mapSamplingNotice == null) return null;
+        if (System.currentTimeMillis() < mapSamplingNoticeExpiresAtMs) {
+            return mapSamplingNotice;
+        }
+        mapSamplingNotice = null;
+        return null;
+    }
+
     public void acceptSnapshot(int requestSeq, ResourceLocation dimensionId, MapSnapshot snapshot) {
         acceptSnapshotPart(requestSeq, dimensionId, MapLoadPhase.CONNECTIONS, 0, snapshot);
     }
@@ -533,6 +635,17 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         }
         ServerPlayer serverPlayer = server.getPlayerList().getPlayer(mc.player.getUUID());
         return serverPlayer == null || MapAccessService.canOpenMap(serverPlayer);
+    }
+
+    private TerrainSamplingSessionSnapshot syncTerrainLayer(Minecraft minecraft) {
+        if (minecraft == null) return null;
+        ServerLevel level = MapViewportController.resolveSingleplayerLevel(minecraft);
+        if (level == null) return null;
+        TerrainSamplingSessionSnapshot session = TerrainSamplingSessions.forLevel(level).snapshot();
+        terrainTiles.selectTerrainLayer(session.effectiveMode() == TerrainSamplingMode.FULL_REGION
+                ? MapTileLayer.TERRAIN_ACCURATE
+                : MapTileLayer.TERRAIN_COARSE);
+        return session;
     }
 
     private void denyMapAccessAndClose() {

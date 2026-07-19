@@ -1,10 +1,10 @@
+/* 文件职责：汇总结构、连接与道路数据，生成地图快照。 */
 package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
-import net.shiroha233.roadweaver.persistence.LegacyRoadDataRepairService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +23,6 @@ public final class MapDataCollector {
     public static final int INCREMENTAL_RESPONSE_COUNT = 3;
 
     public static MapSnapshot build(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<StructureConnection> connections = MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<List<BlockPos>> roads = MapRoadCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
@@ -35,7 +34,6 @@ public final class MapDataCollector {
                                                        int minBlockZ,
                                                        int maxBlockX,
                                                        int maxBlockZ) {
-        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         MapStructureCollector.Result structureResult = MapStructureCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<BlockPos> structures = limitList(structureResult.structures(), MAX_SNAPSHOT_STRUCTURES);
         return new MapSnapshot(
@@ -50,7 +48,6 @@ public final class MapDataCollector {
                                                   int minBlockZ,
                                                   int maxBlockX,
                                                   int maxBlockZ) {
-        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<List<BlockPos>> roads = MapRoadCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         return new MapSnapshot(List.of(), List.of(), List.of(), limitRoadPolylines(roads));
     }
@@ -60,13 +57,8 @@ public final class MapDataCollector {
                                                         int minBlockZ,
                                                         int maxBlockX,
                                                         int maxBlockZ) {
-        ensureLegacyRoadMetadata(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         List<StructureConnection> connections = MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         return new MapSnapshot(List.of(), limitList(connections, MAX_SNAPSHOT_CONNECTIONS), List.of(), List.of());
-    }
-
-    private static void ensureLegacyRoadMetadata(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
-        LegacyRoadDataRepairService.repairRoadMetadataInRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ);
     }
 
     private static MapSnapshot composeSnapshot(MapStructureCollector.Result structureResult,

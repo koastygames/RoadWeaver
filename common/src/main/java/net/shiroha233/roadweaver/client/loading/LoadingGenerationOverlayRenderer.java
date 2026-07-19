@@ -5,12 +5,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import net.shiroha233.roadweaver.client.tips.LoadingTipsRenderer;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.generation.InitialGenManager;
 import net.shiroha233.roadweaver.generation.progress.InitialGenerationProgressSnapshot;
 import net.shiroha233.roadweaver.generation.progress.InitialGenerationStage;
+import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessionSnapshot;
+import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
+import net.shiroha233.roadweaver.config.sub.TerrainSamplingMode;
+
+import java.util.Locale;
 
 /**
  * 世界创建阶段的加载进度卡片。
@@ -57,10 +65,14 @@ public final class LoadingGenerationOverlayRenderer {
         int sw = mc.getWindow().getGuiScaledWidth();
         int sh = mc.getWindow().getGuiScaledHeight();
 
-        boolean showFallback = snapshot.fallbackReason() != null && !snapshot.fallbackReason().isBlank();
+        TerrainSamplingSessionSnapshot samplingSession = samplingSession(mc, config);
+        String fallbackReason = samplingSession.hasFallbackReason()
+                ? samplingSession.fallbackReason()
+                : snapshot.fallbackReason();
+        boolean showFallback = fallbackReason != null && !fallbackReason.isBlank();
         boolean showDebug = snapshot.stage() == net.shiroha233.roadweaver.generation.progress.InitialGenerationStage.ROAD_GENERATION
                 || snapshot.stage() == net.shiroha233.roadweaver.generation.progress.InitialGenerationStage.POST_PROCESSING;
-        int contentLines = 8 // title+overall+stage+summary+device+tiles+throughput+padding bottom
+        int contentLines = 9 // title+overall+stage+summary+mode+device+tiles+throughput+padding bottom
                 + (showDebug ? 2 : 0)
                 + (showFallback ? 1 : 0);
         int cardHeight = 10 + contentLines * 12 + 10; // padding top + lines * lineHeight + padding bottom
@@ -107,6 +119,13 @@ public final class LoadingGenerationOverlayRenderer {
                 snapshot.connectionsDone(),
                 snapshot.connectionsFailed());
         drawFittedString(graphics, font, summary, x, y, innerWidth, TEXT_SECONDARY);
+
+        y += 12;
+        Component samplingModes = Component.translatable(
+                "gui.roadweaver.initgen.sampling_modes",
+                samplingModeLabel(samplingSession.configuredMode()),
+                samplingModeLabel(samplingSession.effectiveMode()));
+        drawFittedString(graphics, font, samplingModes, x, y, innerWidth, TEXT_MUTED);
 
         y += 12;
         Component device = Component.translatable(
@@ -178,9 +197,25 @@ public final class LoadingGenerationOverlayRenderer {
 
         if (showFallback) {
             y += 12;
-            Component fallback = Component.translatable("gui.roadweaver.initgen.fallback", snapshot.fallbackReason());
+            Component fallback = Component.translatable("gui.roadweaver.initgen.fallback", fallbackReason);
             drawFittedString(graphics, font, fallback, x, y, innerWidth, 0xFFFFB86B);
         }
+    }
+
+    private static TerrainSamplingSessionSnapshot samplingSession(Minecraft minecraft, ModConfig config) {
+        MinecraftServer server = minecraft.getSingleplayerServer();
+        if (server != null) {
+            ServerLevel level = server.getLevel(Level.OVERWORLD);
+            if (level != null) return TerrainSamplingSessions.forLevel(level).snapshot();
+        }
+        var configured = config == null ? null : config.planning().terrainSamplingMode();
+        return new TerrainSamplingSessionSnapshot(configured, configured, "", "", "");
+    }
+
+    private static Component samplingModeLabel(TerrainSamplingMode mode) {
+        return Component.translatable(
+                "config.roadweaver.terrain_sampling_mode.option."
+                        + mode.name().toLowerCase(Locale.ROOT));
     }
 
     private static void drawBar(GuiGraphics graphics, int x, int y, int width, int height, int percent, int fillColor) {

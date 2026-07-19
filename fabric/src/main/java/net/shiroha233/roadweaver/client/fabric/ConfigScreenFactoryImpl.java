@@ -460,6 +460,17 @@ public class ConfigScreenFactoryImpl {
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable("config.roadweaver.category.gen_performance"));
         PerformanceConfig cfg = conf.performance();
         PerformanceConfig def = defaultConf.performance();
+        PlanningConfig planning = conf.planning();
+        PlanningConfig planningDef = defaultConf.planning();
+
+        category.addEntry(eb
+                .startEnumSelector(Component.translatable("config.roadweaver.terrain_sampling_mode"),
+                        TerrainSamplingMode.class, planning.terrainSamplingMode())
+                .setDefaultValue(planningDef.terrainSamplingMode())
+                .setTooltip(Component.translatable("config.roadweaver.terrain_sampling_mode.tooltip"))
+                .setEnumNameProvider(v -> Component.translatable("config.roadweaver.terrain_sampling_mode.option." + v.name().toLowerCase(Locale.ROOT)))
+                .setSaveConsumer(planning::setTerrainSamplingMode)
+                .build());
 
         category.addEntry(eb
                 .startIntField(Component.translatable("config.roadweaver.initial_generation_threads"), cfg.initialGenerationThreads())
