@@ -25,6 +25,7 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapNetworkPayloads;
+import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.concurrent.CompletableFuture;
@@ -43,11 +44,13 @@ public final class MapNetworkNeoForge {
         registrar.playToServer(MapNetworkPayloads.REQ_RECT, MapNetworkPayloads.MapRequestRectPayload.CODEC, MapNetworkNeoForge::handleRequestRect);
         registrar.playToServer(MapNetworkPayloads.TP_REQ, MapNetworkPayloads.MapTeleportPayload.CODEC, MapNetworkNeoForge::handleTeleportRequest);
         registrar.playToServer(MapNetworkPayloads.MAN_REQ, MapNetworkPayloads.MapManualConnectPayload.CODEC, MapNetworkNeoForge::handleManualConnect);
+        registrar.playToServer(MapNetworkPayloads.SEARCH_REQ, MapNetworkPayloads.MapSearchRequestPayload.CODEC, MapNetworkNeoForge::handleSearchRequest);
 
         registrar.playToClient(MapNetworkPayloads.SNAP, MapNetworkPayloads.MapSnapshotPayload.CODEC, MapNetworkNeoForge::handleSnapshot);
         registrar.playToClient(MapNetworkPayloads.PATCH, MapNetworkPayloads.MapPatchPayload.CODEC, MapNetworkNeoForge::handlePatch);
         registrar.playToClient(MapNetworkPayloads.TP_ACK, MapNetworkPayloads.MapTeleportAckPayload.CODEC, MapNetworkNeoForge::handleTeleportAck);
         registrar.playToClient(MapNetworkPayloads.ACCESS_SYNC, MapNetworkPayloads.MapAccessSyncPayload.CODEC, MapNetworkNeoForge::handleAccessSync);
+        registrar.playToClient(MapNetworkPayloads.SEARCH_RESP, MapNetworkPayloads.MapSearchResponsePayload.CODEC, MapNetworkNeoForge::handleSearchResponse);
     }
 
     private static void handleRequestRect(MapNetworkPayloads.MapRequestRectPayload payload, IPayloadContext context) {
@@ -135,6 +138,51 @@ public final class MapNetworkNeoForge {
         context.enqueueWork(() -> ClientMapAccessGuard.applyServerState(Minecraft.getInstance(), payload.allowed()));
     }
 
+    private static void handleSearchRequest(MapNetworkPayloads.MapSearchRequestPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) return;
+            if (!MapAccessService.canOpenMap(player)) {
+                PacketDistributor.sendToPlayer(player, new MapNetworkPayloads.MapSearchResponsePayload(
+                        payload.requestSeq(), payload.dimension(), false, java.util.List.of()));
+                return;
+            }
+            ServerLevel level = player.serverLevel();
+            if (!level.dimension().location().equals(payload.dimension())
+                    || !MapStructureSearchService.tryBeginRequest(player.getUUID())) {
+                PacketDistributor.sendToPlayer(player, new MapNetworkPayloads.MapSearchResponsePayload(
+                        payload.requestSeq(), payload.dimension(), false, java.util.List.of()));
+                return;
+            }
+            try {
+                CompletableFuture
+                        .supplyAsync(() -> MapStructureSearchService.search(level, payload.query()),
+                                ThreadPoolManager.roleExecutor(ThreadPoolManager.TaskRole.MAP))
+                        .handle((results, failure) -> {
+                            MapStructureSearchService.finishRequest(player.getUUID());
+                            return new MapNetworkPayloads.MapSearchResponsePayload(
+                                    payload.requestSeq(), payload.dimension(), failure == null,
+                                    failure == null ? results : java.util.List.of());
+                        })
+                        .thenAccept(reply -> level.getServer().execute(() -> {
+                            if (!player.isRemoved()) PacketDistributor.sendToPlayer(player, reply);
+                        }));
+            } catch (RuntimeException submissionFailure) {
+                MapStructureSearchService.finishRequest(player.getUUID());
+                PacketDistributor.sendToPlayer(player, new MapNetworkPayloads.MapSearchResponsePayload(
+                        payload.requestSeq(), payload.dimension(), false, java.util.List.of()));
+            }
+        });
+    }
+
+    private static void handleSearchResponse(MapNetworkPayloads.MapSearchResponsePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft.screen instanceof RoadMapScreen screen) {
+                screen.acceptSearchResults(payload.requestSeq(), payload.dimension(), payload.success(), payload.results());
+            }
+        });
+    }
+
     private static void handleManualConnect(MapNetworkPayloads.MapManualConnectPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) return;
@@ -179,6 +227,10 @@ public final class MapNetworkNeoForge {
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         PacketDistributor.sendToServer(new MapNetworkPayloads.MapManualConnectPayload(
                 new BlockPos(ax, 0, az), new BlockPos(bx, 0, bz)));
+    }
+
+    public static void requestSearch(int requestSeq, ResourceLocation dimensionId, String query) {
+        PacketDistributor.sendToServer(new MapNetworkPayloads.MapSearchRequestPayload(requestSeq, dimensionId, query));
     }
 
     public static void broadcastPatch(ServerPlayer player, ResourceLocation dimensionId, MapSnapshotPatch patch) {

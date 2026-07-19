@@ -6,6 +6,7 @@ import net.shiroha233.roadweaver.client.map.MapViewportController;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.map.search.MapStructureSource;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -21,6 +22,7 @@ import java.util.Map;
 public final class MapSnapshotStore {
     private final LinkedHashMap<Long, BlockPos> structuresByPos = new LinkedHashMap<>();
     private final LinkedHashMap<Long, String> structureNamesByPos = new LinkedHashMap<>();
+    private final LinkedHashMap<Long, Integer> structureSourcesByPos = new LinkedHashMap<>();
     private final LinkedHashMap<ConnectionKey, StructureConnection> connectionsByKey = new LinkedHashMap<>();
     private final LinkedHashMap<Long, List<BlockPos>> roadsByKey = new LinkedHashMap<>();
     private final EnumMap<MapLoadPhase, List<MapViewportController.RequestRect>> loadedRects = new EnumMap<>(MapLoadPhase.class);
@@ -46,7 +48,7 @@ public final class MapSnapshotStore {
 
     public synchronized void apply(MapSnapshotPatch patch) {
         if (patch == null) return;
-        mergeStructureInfos(patch.structures());
+        mergeStructureInfos(patch.structures(), patch.structureSources());
         replaceConnections(patch.connections());
         mergeRoadPatches(patch.roads());
         for (MapSnapshotPatch.LoadedRect loadedRect : patch.loadedRects()) {
@@ -67,14 +69,19 @@ public final class MapSnapshotStore {
         ArrayList<BlockPos> structures = new ArrayList<>(structuresByPos.values());
         ArrayList<StructureConnection> connections = new ArrayList<>(connectionsByKey.values());
         ArrayList<StructureInfo> infos = new ArrayList<>(structureNamesByPos.size());
+        LinkedHashMap<BlockPos, Integer> sources = new LinkedHashMap<>();
         for (Map.Entry<Long, String> entry : structureNamesByPos.entrySet()) {
             BlockPos pos = structuresByPos.get(entry.getKey());
             if (pos != null && entry.getValue() != null && !entry.getValue().isBlank()) {
                 infos.add(new StructureInfo(pos, entry.getValue()));
             }
         }
+        for (Map.Entry<Long, BlockPos> entry : structuresByPos.entrySet()) {
+            Integer source = structureSourcesByPos.get(entry.getKey());
+            if (source != null) sources.put(entry.getValue(), source);
+        }
         ArrayList<List<BlockPos>> roads = new ArrayList<>(roadsByKey.values());
-        return new MapSnapshot(structures, connections, infos, roads);
+        return new MapSnapshot(structures, connections, infos, roads, sources);
     }
 
     public synchronized List<MapViewportController.RequestRect> loadedRects(MapLoadPhase phase) {
@@ -92,6 +99,26 @@ public final class MapSnapshotStore {
             next.addAll(MapViewportController.subtract(rect, dirtyRect));
         }
         loadedRects.put(phase, next);
+    }
+
+    public synchronized void clearRect(MapLoadPhase phase, MapViewportController.RequestRect rect) {
+        if (phase == null || rect == null) return;
+        invalidate(phase, rect);
+        switch (phase) {
+            case STRUCTURES -> {
+                var iterator = structuresByPos.entrySet().iterator();
+                while (iterator.hasNext()) {
+                    Map.Entry<Long, BlockPos> entry = iterator.next();
+                    if (inside(entry.getValue(), rect)) {
+                        iterator.remove();
+                        structureNamesByPos.remove(entry.getKey());
+                        structureSourcesByPos.remove(entry.getKey());
+                    }
+                }
+            }
+            case CONNECTIONS -> connectionsByKey.entrySet().removeIf(entry -> intersects(entry.getValue(), rect));
+            case ROADS -> roadsByKey.entrySet().removeIf(entry -> intersects(entry.getValue(), rect));
+        }
     }
 
     public synchronized void invalidateAllLoadedRects() {
@@ -112,18 +139,23 @@ public final class MapSnapshotStore {
             BlockPos normalized = normalize(pos);
             long key = posKey(normalized);
             structuresByPos.putIfAbsent(key, normalized);
+            mergeStructureSource(key, snapshot.structureSource(pos));
             String name = snapshot.structureName(pos);
             mergeStructureName(key, name);
         }
     }
 
-    private void mergeStructureInfos(List<StructureInfo> infos) {
+    private void mergeStructureInfos(List<StructureInfo> infos, Map<BlockPos, Integer> sources) {
         if (infos == null || infos.isEmpty()) return;
         for (StructureInfo info : infos) {
             if (info == null || info.pos() == null) continue;
             BlockPos normalized = normalize(info.pos());
             long key = posKey(normalized);
             structuresByPos.putIfAbsent(key, normalized);
+            int source = sources == null
+                    ? MapStructureSource.UNKNOWN.id()
+                    : sources.getOrDefault(normalized, MapStructureSource.UNKNOWN.id());
+            mergeStructureSource(key, source);
             String name = info.structureId();
             mergeStructureName(key, name);
         }
@@ -135,6 +167,13 @@ public final class MapSnapshotStore {
         if (previous == null || previous.isBlank()
                 || (!StructureInfo.isKnownId(previous) && StructureInfo.isKnownId(name))) {
             structureNamesByPos.put(key, name);
+        }
+    }
+
+    private void mergeStructureSource(long key, int source) {
+        Integer previous = structureSourcesByPos.get(key);
+        if (previous == null || source != MapStructureSource.UNKNOWN.id()) {
+            structureSourcesByPos.put(key, source);
         }
     }
 
@@ -168,6 +207,7 @@ public final class MapSnapshotStore {
         if (pos == null) return;
         BlockPos normalized = normalize(pos);
         structuresByPos.putIfAbsent(posKey(normalized), normalized);
+        structureSourcesByPos.putIfAbsent(posKey(normalized), MapStructureSource.UNKNOWN.id());
     }
 
     private void mergeRoads(List<List<BlockPos>> roads) {
@@ -229,6 +269,41 @@ public final class MapSnapshotStore {
             case PLANNED -> 2;
             case FAILED -> 1;
         };
+    }
+
+    private static boolean inside(BlockPos pos, MapViewportController.RequestRect rect) {
+        return pos != null
+                && pos.getX() >= rect.minX() && pos.getX() <= rect.maxX()
+                && pos.getZ() >= rect.minZ() && pos.getZ() <= rect.maxZ();
+    }
+
+    private static boolean intersects(StructureConnection connection, MapViewportController.RequestRect rect) {
+        if (connection == null || connection.from() == null || connection.to() == null) return false;
+        int minX = Math.min(connection.from().getX(), connection.to().getX());
+        int maxX = Math.max(connection.from().getX(), connection.to().getX());
+        int minZ = Math.min(connection.from().getZ(), connection.to().getZ());
+        int maxZ = Math.max(connection.from().getZ(), connection.to().getZ());
+        return maxX >= rect.minX() && minX <= rect.maxX()
+                && maxZ >= rect.minZ() && minZ <= rect.maxZ();
+    }
+
+    private static boolean intersects(List<BlockPos> road, MapViewportController.RequestRect rect) {
+        if (road == null || road.isEmpty()) return false;
+        for (BlockPos pos : road) {
+            if (inside(pos, rect)) return true;
+        }
+        for (int i = 1; i < road.size(); i++) {
+            BlockPos previous = road.get(i - 1);
+            BlockPos current = road.get(i);
+            if (previous == null || current == null) continue;
+            int minX = Math.min(previous.getX(), current.getX());
+            int maxX = Math.max(previous.getX(), current.getX());
+            int minZ = Math.min(previous.getZ(), current.getZ());
+            int maxZ = Math.max(previous.getZ(), current.getZ());
+            if (maxX >= rect.minX() && minX <= rect.maxX()
+                    && maxZ >= rect.minZ() && minZ <= rect.maxZ()) return true;
+        }
+        return false;
     }
 
     private record ConnectionKey(long a, long b) {

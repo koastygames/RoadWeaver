@@ -64,7 +64,34 @@ public final class MapTheme {
     public static final int PLAYER_ARROW_BASE_LEN = 6;
     public static final int PLAYER_ARROW_HALF_WIDTH = 4;
 
-    // 工具栏按钮 - 浮动半透明
+    // 底部 Dock - 半透明深色玻璃
+    public static final int DOCK_BG = 0xD9151A24;
+    public static final int DOCK_HIGHLIGHT = 0x243D4A5E;
+    public static final int DOCK_SHADOW = 0x70000000;
+    public static final int DOCK_HOVER = 0x244B6078;
+    public static final int DOCK_ACTIVE = 0xD93A78B8;
+    public static final int DOCK_DISABLED_ACTIVE = 0x60252B34;
+    public static final int DOCK_ICON = 0xFFE7EEF6;
+    public static final int DOCK_ICON_HOVER = 0xFFFFFFFF;
+    public static final int DOCK_ICON_ACTIVE = 0xFFFFFFFF;
+    public static final int DOCK_ICON_DISABLED = 0xFF77808B;
+    public static final int DOCK_INDICATOR = 0xFF8BD8FF;
+    public static final int DOCK_PROGRESS_TRACK = 0x604A596B;
+    public static final int DOCK_PROGRESS = 0xFF8BD8FF;
+
+    // 右侧工作区面板
+    public static final int PANEL_BG = 0xE0151A24;
+    public static final int PANEL_HIGHLIGHT = 0x244B6078;
+    public static final int PANEL_SHADOW = 0x70000000;
+    public static final int PANEL_CONTROL_BG = 0x403D5064;
+    public static final int PANEL_TAB_ACTIVE = 0xD93A78B8;
+    public static final int PANEL_CLOSE_HOVER = 0xA04A2930;
+    public static final int PANEL_TEXT = 0xFFE7EEF6;
+    public static final int PANEL_MUTED = 0xFF9AA8B8;
+    public static final int PANEL_CHECKBOX = 0x704F5A6A;
+    public static final int PANEL_CHECKED = 0xFF3A78B8;
+
+    // 旧版文字按钮颜色，供兼容组件使用
     public static final int TOOLBAR_BUTTON_BG = 0x60202020;
     public static final int TOOLBAR_BUTTON_DISABLED_BG = 0x40101010;
     public static final int TOOLBAR_BUTTON_DISABLED_TEXT = 0xFF777777;

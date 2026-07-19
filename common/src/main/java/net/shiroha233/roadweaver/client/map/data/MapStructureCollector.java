@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * 结构点快照收集。
@@ -20,7 +22,7 @@ import java.util.List;
 public final class MapStructureCollector {
     private MapStructureCollector() {}
 
-    public record Result(List<BlockPos> structures, List<StructureInfo> infos) {}
+    public record Result(List<BlockPos> structures, List<StructureInfo> infos, Map<BlockPos, Integer> sources) {}
 
     public static Result collect(ServerLevel level, int minBlockX, int minBlockZ, int maxBlockX, int maxBlockZ) {
         ModConfig cfg = ConfigService.get();
@@ -31,24 +33,30 @@ public final class MapStructureCollector {
                 ? new int[]{StructureFileStorage.SOURCE_MANUAL, StructureFileStorage.SOURCE_PREDICTED}
                 : new int[]{StructureFileStorage.SOURCE_MANUAL};
 
-        List<StructureInfo> cached = StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ, sources);
+        StructureFileStorage.StructureSnapshot storageSnapshot = StructureFileStorage.getStructureSnapshot(level);
+        List<StructureInfo> cached = new ArrayList<>();
         HashMap<Long, StructureInfo> bestInfoByPos = new HashMap<>();
         HashMap<Long, StructureInfo> identityByPos = new HashMap<>();
         HashSet<BlockPos> structuresSet = new HashSet<>();
-        for (StructureInfo info : StructureFileStorage.queryRect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
+        LinkedHashMap<BlockPos, Integer> sourcesByPos = new LinkedHashMap<>();
+        for (StructureInfo info : storageSnapshot.locations().structureInfos()) {
+            if (!inside(info, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) continue;
             mergeBestStructureInfo(identityByPos, info);
+            if (containsSource(sources, storageSnapshot.sourceAt(info.pos()))) cached.add(info);
         }
         for (StructureInfo info : cached) {
             if (info == null || info.pos() == null) continue;
             mergeBestStructureInfo(bestInfoByPos, info);
             BlockPos p = info.pos();
-            structuresSet.add(new BlockPos(p.getX(), 0, p.getZ()));
+            BlockPos normalized = new BlockPos(p.getX(), 0, p.getZ());
+            structuresSet.add(normalized);
+            sourcesByPos.put(normalized, storageSnapshot.sourceAt(p));
         }
         for (StructureConnection connection : MapConnectionCollector.collect(level, minBlockX, minBlockZ, maxBlockX, maxBlockZ)) {
             addConnectionEndpoint(bestInfoByPos, identityByPos, structuresSet, connection.from(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
             addConnectionEndpoint(bestInfoByPos, identityByPos, structuresSet, connection.to(), minBlockX, minBlockZ, maxBlockX, maxBlockZ);
         }
-        return new Result(new ArrayList<>(structuresSet), new ArrayList<>(bestInfoByPos.values()));
+        return new Result(new ArrayList<>(structuresSet), new ArrayList<>(bestInfoByPos.values()), sourcesByPos);
     }
 
     private static void addConnectionEndpoint(java.util.Map<Long, StructureInfo> infos,
@@ -86,5 +94,20 @@ public final class MapStructureCollector {
         if (!StructureInfo.isKnownId(prevId) && StructureInfo.isKnownId(nextId)) {
             out.put(key, new StructureInfo(new BlockPos(x, 0, z), nextId));
         }
+    }
+
+    private static boolean inside(StructureInfo info, int minX, int minZ, int maxX, int maxZ) {
+        if (info == null || info.pos() == null) return false;
+        int x = info.pos().getX();
+        int z = info.pos().getZ();
+        return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
+    }
+
+    private static boolean containsSource(int[] sources, int source) {
+        if (sources == null || sources.length == 0) return true;
+        for (int candidate : sources) {
+            if (candidate == source) return true;
+        }
+        return false;
     }
 }

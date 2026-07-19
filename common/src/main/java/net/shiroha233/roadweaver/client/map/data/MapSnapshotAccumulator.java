@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.map.search.MapStructureSource;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,6 +17,7 @@ import java.util.Map;
 public final class MapSnapshotAccumulator {
     private final LinkedHashMap<Long, BlockPos> structuresByPos = new LinkedHashMap<>();
     private final LinkedHashMap<Long, String> structureNamesByPos = new LinkedHashMap<>();
+    private final LinkedHashMap<Long, Integer> structureSourcesByPos = new LinkedHashMap<>();
     private final LinkedHashMap<ConnectionKey, StructureConnection> connectionsByKey = new LinkedHashMap<>();
     private final LinkedHashMap<Long, List<BlockPos>> roadsByKey = new LinkedHashMap<>();
 
@@ -30,14 +32,19 @@ public final class MapSnapshotAccumulator {
         ArrayList<BlockPos> structures = new ArrayList<>(structuresByPos.values());
         ArrayList<StructureConnection> connections = new ArrayList<>(connectionsByKey.values());
         ArrayList<StructureInfo> infos = new ArrayList<>(structureNamesByPos.size());
+        java.util.Map<BlockPos, Integer> sources = new java.util.HashMap<>();
         for (Map.Entry<Long, String> entry : structureNamesByPos.entrySet()) {
             BlockPos pos = structuresByPos.get(entry.getKey());
             if (pos != null && entry.getValue() != null && !entry.getValue().isBlank()) {
                 infos.add(new StructureInfo(pos, entry.getValue()));
             }
         }
+        for (Map.Entry<Long, BlockPos> entry : structuresByPos.entrySet()) {
+            Integer source = structureSourcesByPos.get(entry.getKey());
+            if (source != null) sources.put(entry.getValue(), source);
+        }
         ArrayList<List<BlockPos>> roads = new ArrayList<>(roadsByKey.values());
-        return new MapSnapshot(structures, connections, infos, roads);
+        return new MapSnapshot(structures, connections, infos, roads, sources);
     }
 
     private void mergeStructures(MapSnapshot snapshot) {
@@ -45,6 +52,7 @@ public final class MapSnapshotAccumulator {
             if (pos == null) continue;
             long key = posKey(pos);
             structuresByPos.putIfAbsent(key, normalize(pos));
+            structureSourcesByPos.putIfAbsent(key, snapshot.structureSource(pos));
             String name = snapshot.structureName(pos);
             mergeStructureName(key, name);
         }

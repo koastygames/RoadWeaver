@@ -16,7 +16,9 @@ import net.shiroha233.roadweaver.planning.PlanningUtils;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 地图局部更新发布服务。
@@ -26,8 +28,10 @@ public final class MapPatchService {
 
     public static void publishConnection(ServerLevel level, StructureConnection connection) {
         if (!isOverworld(level) || connection == null) return;
+        List<StructureInfo> endpointInfos = collectEndpointInfos(level, connection);
         MapSnapshotPatch patch = new MapSnapshotPatch(
-                collectEndpointInfos(level, connection),
+                endpointInfos,
+                collectSources(level, endpointInfos),
                 List.of(normalize(connection)),
                 List.of(),
                 List.of());
@@ -42,7 +46,7 @@ public final class MapPatchService {
             normalized.add(new StructureInfo(normalize(info.pos()), info.structureId()));
         }
         if (normalized.isEmpty()) return;
-        broadcast(level, new MapSnapshotPatch(normalized, List.of(), List.of(), List.of()));
+        broadcast(level, new MapSnapshotPatch(normalized, collectSources(level, normalized), List.of(), List.of(), List.of()));
     }
 
     public static void publishConnectionStatus(ServerLevel level, StructureConnection connection, ConnectionStatus status) {
@@ -85,7 +89,7 @@ public final class MapPatchService {
             }
         }
         if (roadPatches.isEmpty()) return MapSnapshotPatch.empty();
-        return new MapSnapshotPatch(List.of(), List.of(), roadPatches, List.of());
+        return new MapSnapshotPatch(List.of(), Map.of(), List.of(), roadPatches, List.of());
     }
 
     private static List<BlockPos> toPolyline(RoadData road) {
@@ -157,5 +161,17 @@ public final class MapPatchService {
 
     private static boolean isOverworld(ServerLevel level) {
         return level != null && Level.OVERWORLD.equals(level.dimension());
+    }
+
+    private static Map<BlockPos, Integer> collectSources(ServerLevel level, List<StructureInfo> structures) {
+        if (level == null || structures == null || structures.isEmpty()) return Map.of();
+        StructureFileStorage.StructureSnapshot snapshot = StructureFileStorage.getStructureSnapshot(level);
+        LinkedHashMap<BlockPos, Integer> sources = new LinkedHashMap<>();
+        for (StructureInfo info : structures) {
+            if (info == null || info.pos() == null) continue;
+            BlockPos pos = normalize(info.pos());
+            sources.put(pos, snapshot.sourceAt(pos));
+        }
+        return sources;
     }
 }

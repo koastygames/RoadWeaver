@@ -31,4 +31,9 @@ public final class ClientNetBridge {
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         throw new AssertionError();
     }
+
+    @ExpectPlatform
+    public static void requestSearch(int requestSeq, ResourceLocation dimensionId, String query) {
+        throw new AssertionError();
+    }
 }

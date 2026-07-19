@@ -27,4 +27,8 @@ public final class ClientNetBridgeImpl {
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         MapNetworkFabric.requestManualConnect(ax, az, bx, bz);
     }
+
+    public static void requestSearch(int requestSeq, ResourceLocation dimensionId, String query) {
+        MapNetworkFabric.requestSearch(requestSeq, dimensionId, query);
+    }
 }

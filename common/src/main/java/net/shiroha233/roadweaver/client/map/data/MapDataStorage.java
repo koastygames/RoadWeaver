@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +31,8 @@ public final class MapDataStorage {
         public Map<String, String> aliases = new HashMap<>();
         public Map<String, List<String>> notes = new HashMap<>();
     }
+
+    public record DimensionPos(ResourceLocation dimension, BlockPos pos) {}
 
     private static Path getDataRoot() {
         return Minecraft.getInstance().gameDirectory.toPath().resolve(DATA_DIR);
@@ -102,6 +105,24 @@ public final class MapDataStorage {
                 Integer.parseInt(parts[2])
             );
         } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public static String dimensionPosToKey(ResourceLocation dimension, BlockPos pos) {
+        if (dimension == null || pos == null) return null;
+        return dimension + "|" + posToKey(pos);
+    }
+
+    public static DimensionPos keyToDimensionPos(String key) {
+        if (key == null) return null;
+        int separator = key.indexOf('|');
+        if (separator <= 0 || separator >= key.length() - 1) return null;
+        try {
+            ResourceLocation dimension = ResourceLocation.parse(key.substring(0, separator));
+            BlockPos pos = keyToPos(key.substring(separator + 1));
+            return pos == null ? null : new DimensionPos(dimension, pos);
+        } catch (RuntimeException invalidKey) {
             return null;
         }
     }

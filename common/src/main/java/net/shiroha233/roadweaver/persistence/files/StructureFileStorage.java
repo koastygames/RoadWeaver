@@ -51,6 +51,19 @@ public final class StructureFileStorage {
         Map<Long, Long> scanTiles = new HashMap<>();
     }
 
+    public record StructureSnapshot(StructureLocationData locations, Map<Long, Integer> sources) {
+        public StructureSnapshot {
+            locations = locations == null
+                    ? new StructureLocationData(new ArrayList<>(), new ArrayList<>())
+                    : new StructureLocationData(locations.structureLocations(), locations.structureInfos());
+            sources = sources == null ? Map.of() : Map.copyOf(sources);
+        }
+
+        public int sourceAt(BlockPos pos) {
+            return pos == null ? -1 : sources.getOrDefault(posKey(pos), SOURCE_PREDICTED);
+        }
+    }
+
     public static synchronized StructureLocationData getStructureLocations(ServerLevel level) {
         StructureLocationData data = state(level).structureLocations;
         return new StructureLocationData(data.structureLocations(), data.structureInfos());
@@ -125,6 +138,17 @@ public final class StructureFileStorage {
             if (filter.contains(source)) out.add(info);
         }
         return out;
+    }
+
+    public static synchronized StructureSnapshot getStructureSnapshot(ServerLevel level) {
+        if (level == null) return new StructureSnapshot(null, Map.of());
+        StateData state = state(level);
+        return new StructureSnapshot(state.structureLocations, state.structureSources);
+    }
+
+    public static synchronized int sourceAt(ServerLevel level, BlockPos pos) {
+        if (level == null || pos == null) return -1;
+        return getStructureSnapshot(level).sourceAt(pos);
     }
 
     public static synchronized void ensurePolicy(ServerLevel level, String policyHash) {

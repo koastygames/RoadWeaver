@@ -1,5 +1,6 @@
 package net.shiroha233.roadweaver.network;
 
+import io.netty.handler.codec.DecoderException;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.shiroha233.roadweaver.client.map.MapLoadPhase;
@@ -9,9 +10,12 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.map.search.MapStructureSource;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 地图快照编解码器
@@ -35,6 +39,7 @@ public final class MapSnapshotCodec {
             if (has) {
                 buf.writeUtf(name);
             }
+            buf.writeVarInt(s.structureSource(p) + 1);
         }
         
         buf.writeVarInt(conns.size());
@@ -55,35 +60,40 @@ public final class MapSnapshotCodec {
     }
 
     public static MapSnapshot read(FriendlyByteBuf buf) {
-        int sc = buf.readVarInt();
+        int sc = readCount(buf, 2048, "structures");
         List<BlockPos> structures = new ArrayList<>(sc);
         for (int i = 0; i < sc; i++) {
             structures.add(buf.readBlockPos());
         }
         
         List<StructureInfo> infos = new ArrayList<>(sc);
+        Map<BlockPos, Integer> sourceBuilder = new HashMap<>();
         for (int i = 0; i < sc; i++) {
             boolean has = buf.readBoolean();
             if (has) {
-                String id = buf.readUtf();
+                String id = buf.readUtf(256);
                 infos.add(new StructureInfo(structures.get(i), id));
             }
+            sourceBuilder.put(structures.get(i), buf.readVarInt() - 1);
         }
         
-        int cc = buf.readVarInt();
+        int cc = readCount(buf, 4096, "connections");
         List<StructureConnection> conns = new ArrayList<>(cc);
         for (int i = 0; i < cc; i++) {
             BlockPos a = buf.readBlockPos();
             BlockPos b = buf.readBlockPos();
             int ord = buf.readVarInt();
-            ConnectionStatus st = ConnectionStatus.values()[ord];
+            ConnectionStatus[] statuses = ConnectionStatus.values();
+            ConnectionStatus st = ord >= 0 && ord < statuses.length ? statuses[ord] : ConnectionStatus.FAILED;
             conns.add(new StructureConnection(a, b, st));
         }
         
-        int rp = buf.readVarInt();
+        int rp = readCount(buf, 4096, "road polylines");
         List<List<BlockPos>> roads = new ArrayList<>(rp);
+        int remainingRoadPoints = 262144;
         for (int i = 0; i < rp; i++) {
-            int pc = buf.readVarInt();
+            int pc = readCount(buf, remainingRoadPoints, "road points");
+            remainingRoadPoints -= pc;
             List<BlockPos> poly = new ArrayList<>(pc);
             for (int j = 0; j < pc; j++) {
                 poly.add(buf.readBlockPos());
@@ -91,7 +101,7 @@ public final class MapSnapshotCodec {
             roads.add(poly);
         }
 
-        return new MapSnapshot(structures, conns, infos, roads);
+        return new MapSnapshot(structures, conns, infos, roads, sourceBuilder);
     }
 
     public static void writePatch(FriendlyByteBuf buf, MapSnapshotPatch patch) {
@@ -103,6 +113,7 @@ public final class MapSnapshotCodec {
             String id = info.structureId();
             buf.writeBoolean(id != null);
             if (id != null) buf.writeUtf(id);
+            buf.writeVarInt(patch.structureSources().getOrDefault(info.pos(), MapStructureSource.UNKNOWN.id()) + 1);
         }
 
         buf.writeVarInt(patch.connections().size());
@@ -133,29 +144,36 @@ public final class MapSnapshotCodec {
     }
 
     public static MapSnapshotPatch readPatch(FriendlyByteBuf buf) {
-        int sc = buf.readVarInt();
+        int sc = readCount(buf, 2048, "patch structures");
         List<StructureInfo> structures = new ArrayList<>(sc);
+        Map<BlockPos, Integer> structureSources = new HashMap<>();
         for (int i = 0; i < sc; i++) {
             BlockPos pos = buf.readBlockPos();
             boolean hasId = buf.readBoolean();
-            String id = hasId ? buf.readUtf() : "unknown";
+            String id = hasId ? buf.readUtf(256) : "unknown";
             structures.add(new StructureInfo(pos, id));
+            structureSources.put(pos, buf.readVarInt() - 1);
         }
 
-        int cc = buf.readVarInt();
+        int cc = readCount(buf, 4096, "patch connections");
         List<StructureConnection> connections = new ArrayList<>(cc);
         for (int i = 0; i < cc; i++) {
             BlockPos from = buf.readBlockPos();
             BlockPos to = buf.readBlockPos();
-            ConnectionStatus status = ConnectionStatus.values()[buf.readVarInt()];
+            int ordinal = buf.readVarInt();
+            ConnectionStatus[] statuses = ConnectionStatus.values();
+            if (ordinal < 0 || ordinal >= statuses.length) throw new DecoderException("invalid connection status: " + ordinal);
+            ConnectionStatus status = statuses[ordinal];
             connections.add(new StructureConnection(from, to, status));
         }
 
-        int rc = buf.readVarInt();
+        int rc = readCount(buf, 4096, "patch roads");
         List<MapSnapshotPatch.RoadPolylinePatch> roads = new ArrayList<>(rc);
+        int remainingRoadPoints = 262144;
         for (int i = 0; i < rc; i++) {
             long key = buf.readLong();
-            int pc = buf.readVarInt();
+            int pc = readCount(buf, remainingRoadPoints, "patch road points");
+            remainingRoadPoints -= pc;
             ArrayList<BlockPos> points = new ArrayList<>(pc);
             for (int j = 0; j < pc; j++) {
                 points.add(buf.readBlockPos());
@@ -163,7 +181,7 @@ public final class MapSnapshotCodec {
             roads.add(new MapSnapshotPatch.RoadPolylinePatch(key, points));
         }
 
-        int lc = buf.readVarInt();
+        int lc = readCount(buf, 1024, "loaded rects");
         List<MapSnapshotPatch.LoadedRect> loadedRects = new ArrayList<>(lc);
         for (int i = 0; i < lc; i++) {
             MapLoadPhase phase = MapLoadPhase.valueOf(buf.readUtf());
@@ -176,6 +194,14 @@ public final class MapSnapshotCodec {
                     new MapViewportController.RequestRect(minX, minZ, maxX, maxZ)));
         }
 
-        return new MapSnapshotPatch(structures, connections, roads, loadedRects);
+        return new MapSnapshotPatch(structures, structureSources, connections, roads, loadedRects);
+    }
+
+    private static int readCount(FriendlyByteBuf buf, int max, String label) {
+        int count = buf.readVarInt();
+        if (count < 0 || count > max) {
+            throw new DecoderException(label + " count out of range: " + count);
+        }
+        return count;
     }
 }

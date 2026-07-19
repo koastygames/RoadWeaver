@@ -59,21 +59,7 @@ public final class MapInputHandler {
         return true;
     }
 
-    public boolean mouseClicked(double mouseX, double mouseY, int button, 
-                                MapSnapshot snapshot,
-                                int configBtnX, int configBtnY, int configBtnW, int configBtnH,
-                                int manualBtnX, int manualBtnY, int manualBtnW, int manualBtnH) {
-        
-        if (button == 0 && insideRect(mouseX, mouseY, configBtnX, configBtnY, configBtnW, configBtnH)) {
-            callbacks.onOpenConfig();
-            return true;
-        }
-
-        if (button == 0 && insideRect(mouseX, mouseY, manualBtnX, manualBtnY, manualBtnW, manualBtnH)) {
-            state.toggleManualMode();
-            return true;
-        }
-
+    public boolean mouseClicked(double mouseX, double mouseY, int button, MapSnapshot snapshot) {
         if (state.isContextMenuOpen()) {
             state.closeContextMenu();
         }
@@ -216,10 +202,6 @@ public final class MapInputHandler {
     public boolean insideMap(double x, double y) {
         return x >= mapX + innerPad && x <= mapX + mapW - innerPad 
             && y >= mapY + innerPad && y <= mapY + mapH - innerPad;
-    }
-
-    private boolean insideRect(double x, double y, int rx, int ry, int rw, int rh) {
-        return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh;
     }
 
     public BlockPos findNearestStructure(MapSnapshot snapshot, double mouseX, double mouseY) {

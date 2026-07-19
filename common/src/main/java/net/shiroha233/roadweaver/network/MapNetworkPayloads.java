@@ -1,5 +1,6 @@
 package net.shiroha233.roadweaver.network;
 
+import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
@@ -9,6 +10,11 @@ import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.client.map.MapLoadPhase;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
+import net.shiroha233.roadweaver.map.search.MapSearchResult;
+import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MapNetworkPayloads {
     public static final CustomPacketPayload.Type<MapRequestRectPayload> REQ_RECT = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_request_rect"));
@@ -18,6 +24,8 @@ public class MapNetworkPayloads {
     public static final CustomPacketPayload.Type<MapTeleportAckPayload> TP_ACK = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
     public static final CustomPacketPayload.Type<MapManualConnectPayload> MAN_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
     public static final CustomPacketPayload.Type<MapAccessSyncPayload> ACCESS_SYNC = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_access_sync"));
+    public static final CustomPacketPayload.Type<MapSearchRequestPayload> SEARCH_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_search_request"));
+    public static final CustomPacketPayload.Type<MapSearchResponsePayload> SEARCH_RESP = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_search_response"));
 
     public record MapRequestRectPayload(int requestSeq,
                                         ResourceLocation dimension,
@@ -123,5 +131,67 @@ public class MapNetworkPayloads {
             MapAccessSyncPayload::new
         );
         @Override public Type<MapAccessSyncPayload> type() { return ACCESS_SYNC; }
+    }
+
+    public record MapSearchRequestPayload(int requestSeq,
+                                          ResourceLocation dimension,
+                                          String query) implements CustomPacketPayload {
+        public static final StreamCodec<FriendlyByteBuf, MapSearchRequestPayload> CODEC = StreamCodec.of(
+                (buf, value) -> {
+                    buf.writeVarInt(value.requestSeq);
+                    buf.writeResourceLocation(value.dimension);
+                    buf.writeUtf(value.query, MapStructureSearchService.MAX_QUERY_LENGTH);
+                },
+                buf -> new MapSearchRequestPayload(
+                        buf.readVarInt(),
+                        buf.readResourceLocation(),
+                        buf.readUtf(MapStructureSearchService.MAX_QUERY_LENGTH))
+        );
+
+        @Override public Type<MapSearchRequestPayload> type() { return SEARCH_REQ; }
+    }
+
+    public record MapSearchResponsePayload(int requestSeq,
+                                           ResourceLocation dimension,
+                                           boolean success,
+                                           List<MapSearchResult> results) implements CustomPacketPayload {
+        public MapSearchResponsePayload {
+            results = results == null ? List.of() : List.copyOf(results);
+        }
+
+        public static final StreamCodec<FriendlyByteBuf, MapSearchResponsePayload> CODEC = StreamCodec.of(
+                (buf, value) -> {
+                    buf.writeVarInt(value.requestSeq);
+                    buf.writeResourceLocation(value.dimension);
+                    buf.writeBoolean(value.success);
+                    int count = Math.min(value.results.size(), MapStructureSearchService.MAX_RESULTS);
+                    buf.writeVarInt(count);
+                    for (int i = 0; i < count; i++) {
+                        MapSearchResult result = value.results.get(i);
+                        buf.writeBlockPos(result.pos());
+                        buf.writeUtf(result.structureId(), 256);
+                        buf.writeVarInt(result.source() + 1);
+                    }
+                },
+                buf -> {
+                    int requestSeq = buf.readVarInt();
+                    ResourceLocation dimension = buf.readResourceLocation();
+                    boolean success = buf.readBoolean();
+                    int count = buf.readVarInt();
+                    if (count < 0 || count > MapStructureSearchService.MAX_RESULTS) {
+                        throw new DecoderException("search result count out of range: " + count);
+                    }
+                    ArrayList<MapSearchResult> results = new ArrayList<>(count);
+                    for (int i = 0; i < count; i++) {
+                        results.add(new MapSearchResult(
+                                buf.readBlockPos(),
+                                buf.readUtf(256),
+                                buf.readVarInt() - 1));
+                    }
+                    return new MapSearchResponsePayload(requestSeq, dimension, success, results);
+                }
+        );
+
+        @Override public Type<MapSearchResponsePayload> type() { return SEARCH_RESP; }
     }
 }

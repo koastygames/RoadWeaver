@@ -3,6 +3,7 @@ package net.shiroha233.roadweaver.client.map;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -18,7 +19,10 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotStore;
 import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
+import net.shiroha233.roadweaver.client.map.data.MapFilterState;
 import net.shiroha233.roadweaver.client.map.render.MapHudRenderer;
+import net.shiroha233.roadweaver.client.map.render.MapDockAction;
+import net.shiroha233.roadweaver.client.map.render.MapDockRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapOverlayRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapRenderers;
 import net.shiroha233.roadweaver.client.map.render.MapSamplingNoticeOverlayRenderer;
@@ -26,6 +30,7 @@ import net.shiroha233.roadweaver.client.map.render.MapSamplingOverlayRenderer;
 import net.shiroha233.roadweaver.client.map.render.RenderUtils;
 import net.shiroha233.roadweaver.client.map.tile.SingleplayerTerrainTileManager;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
+import net.shiroha233.roadweaver.client.map.ui.MapWorkspacePanel;
 import net.shiroha233.roadweaver.client.map.ui.NoteEditScreen;
 import net.shiroha233.roadweaver.client.map.ui.SimpleTextInputScreen;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
@@ -36,14 +41,20 @@ import net.shiroha233.roadweaver.map.tile.sampling.MapSamplingBounds;
 import net.shiroha233.roadweaver.map.tile.sampling.MapSamplingSnapshot;
 import net.shiroha233.roadweaver.map.tile.sampling.MapTerrainSamplingService;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
+import net.shiroha233.roadweaver.map.search.MapSearchResult;
+import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
 import net.shiroha233.roadweaver.config.sub.TerrainSamplingMode;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessionSnapshot;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
 import net.shiroha233.roadweaver.util.ComputeService;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+
+import org.lwjgl.glfw.GLFW;
 
 /**
  * 道路地图界面
@@ -68,11 +79,28 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private final MapView view = new MapView();
     private final MapInputHandler inputHandler;
     private final ContextMenu contextMenu = new ContextMenu();
+    private final MapWorkspacePanel workspacePanel = new MapWorkspacePanel();
+    private final MapFilterState filterState = new MapFilterState();
     private final SingleplayerTerrainTileManager terrainTiles = new SingleplayerTerrainTileManager();
     private final MapTerrainSamplingService mapSampling = new MapTerrainSamplingService();
     private MapSamplingSnapshot.Stage observedSamplingStage = MapSamplingSnapshot.Stage.IDLE;
     private Component mapSamplingNotice;
     private long mapSamplingNoticeExpiresAtMs;
+
+    private MapDockRenderer.DockLayout dockLayout;
+    private EditBox searchBox;
+    private String searchQuery = "";
+    private List<MapSearchResult> searchResults = List.of();
+    private boolean searchLoading;
+    private boolean searchFailed;
+    private int searchRequestSeq;
+    private long searchDeadlineMs;
+    private long searchStartedAtMs;
+    private String pendingSearchQuery = "";
+    private String submittedSearchQuery = "";
+    private MapSnapshot filteredSnapshot;
+    private int filteredSnapshotRevision = -1;
+    private MapSnapshot filteredSnapshotSource;
     
     // 布局
     private int mapX, mapY, mapW, mapH;
@@ -87,6 +115,15 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     @Override
     protected void init() {
         super.init();
+        searchBox = new EditBox(this.font, 0, 0, 1, 18,
+                Component.translatable("gui.roadweaver.map.panel.search.input"));
+        searchBox.setMaxLength(MapStructureSearchService.MAX_QUERY_LENGTH);
+        searchBox.setBordered(false);
+        searchBox.setTextColor(MapTheme.PANEL_TEXT);
+        searchBox.setTextColorUneditable(MapTheme.PANEL_MUTED);
+        searchBox.setHint(Component.translatable("gui.roadweaver.map.panel.search.hint"));
+        searchBox.setValue(searchQuery);
+        searchBox.setResponder(this::onSearchQueryChanged);
         if (!hasMapOpenPermission()) {
             denyMapAccessAndClose();
             return;
@@ -132,36 +169,35 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         int contentW = mapW;
         int contentH = mapH;
         view.lockAspect(contentW, contentH);
-
         int left = 0;
         int top = 0;
         int right = this.width;
         int bottom = this.height;
-
         Minecraft mc = this.minecraft;
         TerrainSamplingSessionSnapshot samplingSession = syncTerrainLayer(mc);
         MapViewportController.requestTerrainTiles(mc, terrainTiles, view, contentW, contentH);
         ServerLevel samplingLevel = MapViewportController.resolveSingleplayerLevel(mc);
         MapSamplingSnapshot mapSamplingSnapshot = mapSampling.snapshot();
         handleSamplingTransition(mapSamplingSnapshot);
+        processSearchDebounce();
+        MapSnapshot visibleSnapshot = visibleSnapshot();
+        dockLayout = MapDockRenderer.layout(this.width, this.height);
+        workspacePanel.setMousePosition(mouseX, mouseY);
+
         MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(
                 this.font,
                 mapH,
                 state.isManualMode(),
                 mapSampling.isAvailable(samplingLevel),
                 mapSamplingSnapshot);
-
         g.fill(0, 0, this.width, this.height, MapTheme.COLOR_BACKGROUND);
         g.enableScissor(left, top, right, bottom);
-
-        // 渲染低精度地形瓦片
         terrainTiles.render(g, this.minecraft, view, left, top, contentW, contentH);
         MapRenderers.renderGrid(g, this.font, 0, 0, mapW, mapH, 0,
                 view.getMinX(), view.getMaxX(), view.getMinZ(), view.getMaxZ(),
                 MapTheme.COLOR_GRID, MapTheme.GRID_TARGET_PX, MapTheme.COLOR_TEXT);
-
         int thickness = computeThickness();
-        MapRenderers.renderRoadPolylines(g, snapshot.roadPolylines(),
+        MapRenderers.renderRoadPolylines(g, visibleSnapshot.roadPolylines(),
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
                 v -> view.toScreenX(v, 0, 0, contentW),
                 v -> view.toScreenY(v, 0, 0, contentH),
@@ -170,15 +206,15 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 left, top, right, bottom,
                 Math.max(1, Math.round(16 / Math.max(0.1f, (float) view.pxPerBlockX(contentW)))));
         MapRenderers.renderStructures(g, this.font,
-                snapshot.structures(),
-                snapshot::structureName,
+                visibleSnapshot.structures(),
+                visibleSnapshot::structureName,
                 v -> view.toScreenX(v, 0, 0, contentW),
                 v -> view.toScreenY(v, 0, 0, contentH),
                 (x, z) -> view.isInViewWorld(x, z),
                 Math.max(MapTheme.STRUCTURE_MARKER_SIZE, computePointSize()),
                 left, top, right, bottom);
-        List<StructureConnection> connForLines = new ArrayList<>(snapshot.connections());
-        boolean hasDetailedRoadPolylines = !snapshot.roadPolylines().isEmpty();
+        List<StructureConnection> connForLines = new ArrayList<>(visibleSnapshot.connections());
+        boolean hasDetailedRoadPolylines = !visibleSnapshot.roadPolylines().isEmpty();
         connForLines.removeIf(c -> hasDetailedRoadPolylines && c.status() == ConnectionStatus.COMPLETED);
         MapRenderers.renderConnections(g, connForLines,
                 (x1, z1, x2, z2) -> view.segmentInViewWorld(x1, z1, x2, z2),
@@ -188,7 +224,6 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
                 MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
                 left, top, right, bottom);
-
         MapSamplingOverlayRenderer.render(
                 g,
                 this.font,
@@ -208,43 +243,50 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 top,
                 right,
                 bottom);
-
-        MapOverlayRenderer.renderManualModePreview(g, snapshot, view, inputHandler,
+        MapOverlayRenderer.renderManualModePreview(g, visibleSnapshot, view, inputHandler,
                 state.hasSelection() ? state.getSelectedA() : null,
                 mouseX, mouseY, contentW, contentH,
                 left, top, right, bottom,
                 computePointSize() * 2 + 4,
                 computeThickness());
-
-        if (!contextMenu.isOpen() && !toolbar.contains(mouseX, mouseY)) {
-            MapInteraction.renderHoverHighlight(g, snapshot, view, 0, 0, mapW, mapH,
+        if (!contextMenu.isOpen() && !dockLayout.contains(mouseX, mouseY) && !workspacePanel.contains(mouseX, mouseY)) {
+            MapInteraction.renderHoverHighlight(g, visibleSnapshot, view, 0, 0, mapW, mapH,
                     0, mouseX, mouseY);
         }
-
         MapOverlayRenderer.renderPlayer(g, this.minecraft, inputHandler, view,
                 contentW, contentH, left, top, right, bottom);
-
         g.disableScissor();
-
         int legendRight = mapW - 8;
         int legendStartY = 8;
-        MapHudRenderer.renderLegendWithBackground(g, this.font, legendRight, legendStartY, snapshot);
-
-        MapHudRenderer.renderToolbarButtons(g, this.font, toolbar, mouseX, mouseY);
+        MapHudRenderer.renderLegendWithBackground(g, this.font, legendRight, legendStartY, visibleSnapshot);
         MapHudRenderer.renderLoadingStatus(g, this.font, toolbar, loadSession);
         MapHudRenderer.renderSamplingStatus(g, this.font, toolbar, samplingSession, loadSession != null);
-
-        if (!contextMenu.isOpen() && !toolbar.contains(mouseX, mouseY)) {
-            MapInteraction.renderHoverTooltip(g, this.font, snapshot, view, 0, 0, mapW, mapH,
+        if (!contextMenu.isOpen() && !dockLayout.contains(mouseX, mouseY) && !workspacePanel.contains(mouseX, mouseY)) {
+            MapInteraction.renderHoverTooltip(g, this.font, visibleSnapshot, view, 0, 0, mapW, mapH,
                     0, mouseX, mouseY);
         }
-        MapHudRenderer.renderToolbarTooltip(g, this.font, toolbar, mouseX, mouseY);
-
         if (state.isZoomDebounceReady()) {
             state.clearZoomDebounce();
             onRequestView();
         }
 
+        workspacePanel.render(g, this.font, this.width, this.height,
+                snapshot, filterState, searchResults, searchLoading, searchFailed);
+        renderSearchBox(g, mouseX, mouseY, partialTick);
+
+        EnumSet<MapDockAction> activeActions = EnumSet.noneOf(MapDockAction.class);
+        if (workspacePanel.isTab(MapWorkspacePanel.Tab.SEARCH)) activeActions.add(MapDockAction.SEARCH);
+        if (workspacePanel.isTab(MapWorkspacePanel.Tab.FILTER)) activeActions.add(MapDockAction.FILTER);
+        if (loadSession != null) activeActions.add(MapDockAction.REFRESH);
+        if (mapSamplingSnapshot.active()) activeActions.add(MapDockAction.SAMPLE);
+        if (state.isManualMode()) activeActions.add(MapDockAction.MANUAL_CONNECT);
+        EnumSet<MapDockAction> disabledActions = EnumSet.noneOf(MapDockAction.class);
+        if (!mapSampling.isAvailable(samplingLevel) || mapSamplingSnapshot.active()) {
+            disabledActions.add(MapDockAction.SAMPLE);
+        }
+        int samplePercent = mapSamplingSnapshot.active() ? mapSamplingSnapshot.percent() : -1;
+        MapDockRenderer.render(g, this.font, dockLayout, mouseX, mouseY,
+                activeActions, disabledActions, samplePercent);
         contextMenu.render(g, this.font, mouseX, mouseY, this.width, this.height);
     }
 
@@ -252,58 +294,59 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (dockLayout != null && dockLayout.contains(mouseX, mouseY)) return true;
+        if (workspacePanel.contains(mouseX, mouseY)) {
+            workspacePanel.scroll(scrollY);
+            return true;
+        }
         return inputHandler.mouseScrolled(mouseX, mouseY, scrollY)
                || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // 右键菜单点击
         if (contextMenu.isOpen()) {
             if (contextMenu.mouseClicked(mouseX, mouseY, button)) {
                 return true;
             }
         }
-        
-        ServerLevel samplingLevel = MapViewportController.resolveSingleplayerLevel(this.minecraft);
-        MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(
-                this.font,
-                mapH,
-                state.isManualMode(),
-                mapSampling.isAvailable(samplingLevel),
-                mapSampling.snapshot());
 
-        // 工具栏按钮
-        if (button == 0) {
-            if (toolbar.configButton().contains(mouseX, mouseY)) {
-                onOpenConfig();
-                return true;
-            }
-            if (toolbar.sampleButton().contains(mouseX, mouseY)) {
-                startMapSampling(samplingLevel);
-                return true;
-            }
-            if (toolbar.manualButton().contains(mouseX, mouseY)) {
-                state.toggleManualMode();
-                return true;
-            }
+        if (dockLayout == null) dockLayout = MapDockRenderer.layout(this.width, this.height);
+        MapDockAction dockAction = dockLayout.hit(mouseX, mouseY);
+        if (button == 0 && dockAction != null) {
+            handleDockAction(dockAction);
+            return true;
         }
-        
-        // 右键打开菜单
+
+        MapSnapshot visibleSnapshot = visibleSnapshot();
+        if (workspacePanel.contains(mouseX, mouseY)) {
+            MapWorkspacePanel.Hit hit = workspacePanel.hit(mouseX, mouseY, snapshot, filterState, searchResults);
+            handleWorkspaceHit(hit, mouseX, mouseY, button);
+            return true;
+        }
+
+        if (workspacePanel.isOpen()) {
+            workspacePanel.close();
+            if (searchBox != null) searchBox.setFocused(false);
+        }
+
         if (button == 1 && inputHandler.insideMap(mouseX, mouseY)) {
-            BlockPos target = inputHandler.findNearestStructure(snapshot, mouseX, mouseY);
+            BlockPos target = inputHandler.findNearestStructure(visibleSnapshot, mouseX, mouseY);
             if (target != null) {
                 openContextMenuFor(target, (int) mouseX, (int) mouseY);
                 return true;
             }
         }
-        
-        // 委托给输入处理器
-        return inputHandler.mouseClicked(mouseX, mouseY, button, snapshot,
-                toolbar.configButton().x(), toolbar.configButton().y(),
-                toolbar.configButton().width(), toolbar.configButton().height(),
-                toolbar.manualButton().x(), toolbar.manualButton().y(),
-                toolbar.manualButton().width(), toolbar.manualButton().height())
+
+        if (button == 0 && !state.isManualMode() && inputHandler.insideMap(mouseX, mouseY)) {
+            BlockPos target = inputHandler.findNearestStructure(visibleSnapshot, mouseX, mouseY);
+            if (target != null) {
+                workspacePanel.openDetails(target);
+                return true;
+            }
+        }
+
+        return inputHandler.mouseClicked(mouseX, mouseY, button, visibleSnapshot)
                || super.mouseClicked(mouseX, mouseY, button);
     }
 
@@ -321,8 +364,222 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (workspacePanel.isTab(MapWorkspacePanel.Tab.SEARCH) && searchBox != null && searchBox.isFocused()) {
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                submitSearchNow();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                searchBox.setFocused(false);
+                workspacePanel.close();
+                return true;
+            }
+            searchBox.keyPressed(keyCode, scanCode, modifiers);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_ESCAPE && workspacePanel.isOpen()) {
+            workspacePanel.close();
+            return true;
+        }
         return inputHandler.keyPressed(keyCode, scanCode, modifiers, this.minecraft)
                || super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char codePoint, int modifiers) {
+        if (workspacePanel.isTab(MapWorkspacePanel.Tab.SEARCH)
+                && searchBox != null
+                && searchBox.isFocused()
+                && searchBox.charTyped(codePoint, modifiers)) {
+            return true;
+        }
+        return super.charTyped(codePoint, modifiers);
+    }
+
+    private void handleDockAction(MapDockAction action) {
+        switch (action) {
+            case SEARCH -> {
+                if (workspacePanel.isTab(MapWorkspacePanel.Tab.SEARCH)) {
+                    workspacePanel.close();
+                    if (searchBox != null) searchBox.setFocused(false);
+                } else {
+                    workspacePanel.openSearch();
+                    if (searchBox != null) searchBox.setFocused(true);
+                }
+            }
+            case FILTER -> {
+                if (workspacePanel.isTab(MapWorkspacePanel.Tab.FILTER)) {
+                    workspacePanel.close();
+                } else {
+                    workspacePanel.openFilter();
+                }
+                if (searchBox != null) searchBox.setFocused(false);
+            }
+            case REFRESH -> refreshCurrentView();
+            case SAMPLE -> {
+                ServerLevel level = MapViewportController.resolveSingleplayerLevel(this.minecraft);
+                if (mapSampling.isAvailable(level) && !mapSampling.snapshot().active()) {
+                    startMapSampling(level);
+                }
+            }
+            case MANUAL_CONNECT -> {
+                state.toggleManualMode();
+                workspacePanel.close();
+                if (searchBox != null) searchBox.setFocused(false);
+            }
+            case CONFIG -> onOpenConfig();
+            case CLOSE -> onCloseScreen();
+        }
+    }
+
+    private void handleWorkspaceHit(MapWorkspacePanel.Hit hit,
+                                    double mouseX,
+                                    double mouseY,
+                                    int button) {
+        if (button != 0 || hit == null) return;
+        switch (hit.kind()) {
+            case CLOSE -> {
+                workspacePanel.close();
+                if (searchBox != null) searchBox.setFocused(false);
+            }
+            case SEARCH_TAB -> {
+                workspacePanel.openSearch();
+                if (searchBox != null) searchBox.setFocused(true);
+            }
+            case FILTER_TAB -> {
+                workspacePanel.openFilter();
+                if (searchBox != null) searchBox.setFocused(false);
+            }
+            case DETAILS_TAB -> {
+                if (workspacePanel.selectedStructure() != null) {
+                    workspacePanel.openDetails(workspacePanel.selectedStructure());
+                }
+                if (searchBox != null) searchBox.setFocused(false);
+            }
+            case SEARCH_FIELD -> {
+                if (searchBox != null) searchBox.mouseClicked(mouseX, mouseY, button);
+            }
+            case SEARCH_RESULT -> selectSearchResult((MapSearchResult) hit.value());
+            case STATUS_FILTER -> {
+                filterState.toggleStatus((ConnectionStatus) hit.value());
+                invalidateFilteredSnapshot();
+            }
+            case SOURCE_FILTER -> {
+                filterState.toggleSource((net.shiroha233.roadweaver.map.search.MapStructureSource) hit.value());
+                invalidateFilteredSnapshot();
+            }
+            case TYPE_FILTER -> {
+                filterState.toggleType((String) hit.value(), filterState.availableTypes(snapshot));
+                invalidateFilteredSnapshot();
+            }
+            case RESET_FILTER -> {
+                filterState.reset();
+                invalidateFilteredSnapshot();
+            }
+            case DETAIL_TELEPORT -> {
+                if (hit.value() instanceof BlockPos pos) onTeleportTo(pos);
+            }
+            case DETAIL_ALIAS -> {
+                if (hit.value() instanceof BlockPos pos) openAliasDialog(pos);
+            }
+            case DETAIL_NOTE -> {
+                if (hit.value() instanceof BlockPos pos) openNoteEditor(pos);
+            }
+            case NONE -> {
+            }
+        }
+    }
+
+    private void renderSearchBox(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (!workspacePanel.isTab(MapWorkspacePanel.Tab.SEARCH) || searchBox == null) return;
+        var rect = workspacePanel.searchField();
+        if (rect == null) return;
+        MapDockRenderer.fillRounded(graphics, rect.x(), rect.y(), rect.width(), rect.height(), 6, MapTheme.PANEL_CONTROL_BG);
+        searchBox.setX(rect.x() + 8);
+        searchBox.setY(rect.y() + 3);
+        searchBox.setWidth(Math.max(20, rect.width() - 16));
+        searchBox.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    private void onSearchQueryChanged(String value) {
+        searchQuery = value == null ? "" : value;
+        pendingSearchQuery = searchQuery.trim();
+        searchFailed = false;
+        searchLoading = false;
+        searchStartedAtMs = 0L;
+        searchResults = ClientMapNotes.searchAliases(pendingSearchQuery, MapStructureSearchService.MAX_RESULTS);
+        if (pendingSearchQuery.isEmpty()) {
+            searchLoading = false;
+            searchDeadlineMs = 0L;
+            return;
+        }
+        searchDeadlineMs = System.currentTimeMillis() + 250L;
+    }
+
+    private void processSearchDebounce() {
+        long now = System.currentTimeMillis();
+        if (searchLoading && searchStartedAtMs > 0L && now - searchStartedAtMs > 8_000L) {
+            searchLoading = false;
+            searchFailed = true;
+            searchStartedAtMs = 0L;
+            searchRequestSeq++;
+        }
+        if (searchDeadlineMs <= 0L || now < searchDeadlineMs) return;
+        submitSearchNow();
+    }
+
+    private void submitSearchNow() {
+        String query = searchQuery.trim();
+        searchDeadlineMs = 0L;
+        if (query.isEmpty() || currentDimensionId == null) {
+            searchLoading = false;
+            searchResults = List.of();
+            return;
+        }
+        submittedSearchQuery = query;
+        searchLoading = true;
+        searchFailed = false;
+        searchStartedAtMs = System.currentTimeMillis();
+        int requestSeq = ++searchRequestSeq;
+        ClientNetBridge.requestSearch(requestSeq, currentDimensionId, query);
+    }
+
+    private void selectSearchResult(MapSearchResult result) {
+        if (result == null) return;
+        BlockPos pos = result.pos();
+        view.centerOn(pos.getX(), pos.getZ(), mapW, mapH);
+        workspacePanel.openDetails(pos);
+        if (searchBox != null) searchBox.setFocused(false);
+        onRequestView();
+    }
+
+    private void refreshCurrentView() {
+        MapViewportController.RequestRect rect = MapViewportController.currentRequestRect(view);
+        for (MapLoadPhase phase : MapLoadPhase.values()) {
+            snapshotStore.clearRect(phase, rect);
+        }
+        snapshot = snapshotStore.snapshot();
+        invalidateFilteredSnapshot();
+        MapSnapshotCache.put(currentDimensionId, snapshot);
+        loadSession = null;
+        onRequestView();
+    }
+
+    private MapSnapshot visibleSnapshot() {
+        if (filteredSnapshot == null
+                || filteredSnapshotSource != snapshot
+                || filteredSnapshotRevision != filterState.revision()) {
+            filteredSnapshot = filterState.apply(snapshot);
+            filteredSnapshotSource = snapshot;
+            filteredSnapshotRevision = filterState.revision();
+        }
+        return filteredSnapshot;
+    }
+
+    private void invalidateFilteredSnapshot() {
+        filteredSnapshot = null;
+        filteredSnapshotSource = null;
+        filteredSnapshotRevision = -1;
     }
 
     // ========== 回调实现 ==========
@@ -502,6 +759,32 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         MapSnapshotCache.put(dimensionId, this.snapshot);
     }
 
+    public void acceptSearchResults(int requestSeq,
+                                    ResourceLocation dimensionId,
+                                    boolean success,
+                                    List<MapSearchResult> serverResults) {
+        if (requestSeq != searchRequestSeq || dimensionId == null || !dimensionId.equals(currentDimensionId)) return;
+        if (!submittedSearchQuery.equals(searchQuery.trim())) return;
+        searchLoading = false;
+        searchStartedAtMs = 0L;
+        searchFailed = !success;
+        if (!success) return;
+
+        java.util.LinkedHashMap<Long, MapSearchResult> merged = new java.util.LinkedHashMap<>();
+        for (MapSearchResult local : ClientMapNotes.searchAliases(searchQuery, MapStructureSearchService.MAX_RESULTS)) {
+            merged.put(searchResultKey(local.pos()), local);
+        }
+        if (serverResults != null) {
+            for (MapSearchResult result : serverResults) {
+                if (result == null || result.pos() == null) continue;
+                if (!merged.containsKey(searchResultKey(result.pos()))
+                        && merged.size() >= MapStructureSearchService.MAX_RESULTS) break;
+                merged.put(searchResultKey(result.pos()), result);
+            }
+        }
+        searchResults = List.copyOf(merged.values());
+    }
+
     public void acceptSnapshotPart(int requestSeq,
                                    ResourceLocation dimensionId,
                                    MapLoadPhase phase,
@@ -646,6 +929,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 ? MapTileLayer.TERRAIN_ACCURATE
                 : MapTileLayer.TERRAIN_COARSE);
         return session;
+    }
+
+    private static long searchResultKey(BlockPos pos) {
+        return (((long) pos.getX()) << 32) ^ (pos.getZ() & 0xffffffffL);
     }
 
     private void denyMapAccessAndClose() {

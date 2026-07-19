@@ -1,6 +1,10 @@
 package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
+import net.shiroha233.roadweaver.map.search.MapSearchResult;
+import net.shiroha233.roadweaver.map.search.MapStructureSource;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -13,8 +17,8 @@ public final class ClientMapNotes {
 
     private static String currentWorldId = null;
 
-    private static final Map<BlockPos, String> aliases = new HashMap<>();
-    private static final Map<BlockPos, List<String>> notes = new HashMap<>();
+    private static final Map<MapDataStorage.DimensionPos, String> aliases = new HashMap<>();
+    private static final Map<MapDataStorage.DimensionPos, List<String>> notes = new HashMap<>();
 
     private static boolean dirty = false;
 
@@ -35,12 +39,12 @@ public final class ClientMapNotes {
 
         MapDataStorage.NotesData data = MapDataStorage.loadNotes();
         for (Map.Entry<String, String> e : data.aliases.entrySet()) {
-            BlockPos pos = MapDataStorage.keyToPos(e.getKey());
-            if (pos != null) aliases.put(pos, e.getValue());
+            MapDataStorage.DimensionPos key = MapDataStorage.keyToDimensionPos(e.getKey());
+            if (key != null) aliases.put(key, e.getValue());
         }
         for (Map.Entry<String, List<String>> e : data.notes.entrySet()) {
-            BlockPos pos = MapDataStorage.keyToPos(e.getKey());
-            if (pos != null) notes.put(pos, new ArrayList<>(e.getValue()));
+            MapDataStorage.DimensionPos key = MapDataStorage.keyToDimensionPos(e.getKey());
+            if (key != null) notes.put(key, new ArrayList<>(e.getValue()));
         }
     }
 
@@ -56,11 +60,11 @@ public final class ClientMapNotes {
 
     public static void saveToFile() {
         MapDataStorage.NotesData data = new MapDataStorage.NotesData();
-        for (Map.Entry<BlockPos, String> e : aliases.entrySet()) {
-            data.aliases.put(MapDataStorage.posToKey(e.getKey()), e.getValue());
+        for (Map.Entry<MapDataStorage.DimensionPos, String> e : aliases.entrySet()) {
+            data.aliases.put(MapDataStorage.dimensionPosToKey(e.getKey().dimension(), e.getKey().pos()), e.getValue());
         }
-        for (Map.Entry<BlockPos, List<String>> e : notes.entrySet()) {
-            data.notes.put(MapDataStorage.posToKey(e.getKey()), e.getValue());
+        for (Map.Entry<MapDataStorage.DimensionPos, List<String>> e : notes.entrySet()) {
+            data.notes.put(MapDataStorage.dimensionPosToKey(e.getKey().dimension(), e.getKey().pos()), e.getValue());
         }
         MapDataStorage.saveNotes(data);
         dirty = false;
@@ -68,59 +72,95 @@ public final class ClientMapNotes {
 
     @Nullable
     public static String getAlias(BlockPos pos) {
-        return aliases.get(pos);
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        return key == null ? null : aliases.get(key);
     }
 
     public static void setAlias(BlockPos pos, String alias) {
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        if (key == null) return;
         if (alias == null || alias.isBlank()) {
-            if (aliases.remove(pos) != null) {
+            if (aliases.remove(key) != null) {
                 dirty = true;
                 saveToFile();
             }
         } else {
-            aliases.put(pos, alias);
+            aliases.put(key, alias);
             dirty = true;
             saveToFile();
         }
     }
 
     public static boolean hasAlias(BlockPos pos) {
-        return aliases.containsKey(pos);
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        return key != null && aliases.containsKey(key);
+    }
+
+    public static List<MapSearchResult> searchAliases(String query, int limit) {
+        if (query == null || query.isBlank() || limit <= 0) return List.of();
+        String normalized = query.trim().toLowerCase(Locale.ROOT);
+        ArrayList<MapSearchResult> results = new ArrayList<>();
+        ResourceLocation dimension = currentDimension();
+        for (Map.Entry<MapDataStorage.DimensionPos, String> entry : aliases.entrySet()) {
+            if (dimension == null || !dimension.equals(entry.getKey().dimension())) continue;
+            String alias = entry.getValue();
+            if (alias == null || !alias.toLowerCase(Locale.ROOT).contains(normalized)) continue;
+            results.add(new MapSearchResult(entry.getKey().pos(), alias, MapStructureSource.UNKNOWN.id()));
+            if (results.size() >= limit) break;
+        }
+        return List.copyOf(results);
     }
 
     public static List<String> getNotes(BlockPos pos) {
-        return notes.getOrDefault(pos, List.of());
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        return key == null ? List.of() : notes.getOrDefault(key, List.of());
     }
 
     public static void addNote(BlockPos pos, String note) {
         if (note == null || note.isBlank()) return;
-        notes.computeIfAbsent(pos, k -> new ArrayList<>()).add(note);
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        if (key == null) return;
+        notes.computeIfAbsent(key, k -> new ArrayList<>()).add(note);
         dirty = true;
         saveToFile();
     }
 
     public static void clearNotes(BlockPos pos) {
-        if (notes.remove(pos) != null) {
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        if (key != null && notes.remove(key) != null) {
             dirty = true;
             saveToFile();
         }
     }
 
     public static void setNotes(BlockPos pos, List<String> noteList) {
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        if (key == null) return;
         if (noteList == null || noteList.isEmpty()) {
-            if (notes.remove(pos) != null) {
+            if (notes.remove(key) != null) {
                 dirty = true;
                 saveToFile();
             }
         } else {
-            notes.put(pos, new ArrayList<>(noteList));
+            notes.put(key, new ArrayList<>(noteList));
             dirty = true;
             saveToFile();
         }
     }
 
     public static boolean hasNotes(BlockPos pos) {
-        List<String> n = notes.get(pos);
+        MapDataStorage.DimensionPos key = currentKey(pos);
+        List<String> n = key == null ? null : notes.get(key);
         return n != null && !n.isEmpty();
+    }
+
+    private static MapDataStorage.DimensionPos currentKey(BlockPos pos) {
+        ResourceLocation dimension = currentDimension();
+        return dimension == null || pos == null ? null : new MapDataStorage.DimensionPos(dimension, pos);
+    }
+
+    private static ResourceLocation currentDimension() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft == null || minecraft.level == null ? null : minecraft.level.dimension().location();
     }
 }

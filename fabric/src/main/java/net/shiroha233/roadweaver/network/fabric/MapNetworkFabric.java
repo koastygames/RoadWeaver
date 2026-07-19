@@ -20,6 +20,7 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapNetworkPayloads;
+import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 
 import java.util.concurrent.CompletableFuture;
@@ -36,11 +37,13 @@ public final class MapNetworkFabric {
         PayloadTypeRegistry.playC2S().register(MapNetworkPayloads.REQ_RECT, MapNetworkPayloads.MapRequestRectPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(MapNetworkPayloads.TP_REQ, MapNetworkPayloads.MapTeleportPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(MapNetworkPayloads.MAN_REQ, MapNetworkPayloads.MapManualConnectPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(MapNetworkPayloads.SEARCH_REQ, MapNetworkPayloads.MapSearchRequestPayload.CODEC);
 
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.SNAP, MapNetworkPayloads.MapSnapshotPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.PATCH, MapNetworkPayloads.MapPatchPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.TP_ACK, MapNetworkPayloads.MapTeleportAckPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.ACCESS_SYNC, MapNetworkPayloads.MapAccessSyncPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.SEARCH_RESP, MapNetworkPayloads.MapSearchResponsePayload.CODEC);
 
         payloadTypesRegistered = true;
     }
@@ -87,6 +90,40 @@ public final class MapNetworkFabric {
                     RoadNetworkApi.ensureConnection(player.serverLevel(), payload.from(), payload.to());
                 })
         );
+
+        ServerPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.SEARCH_REQ, (payload, context) -> {
+            ServerPlayer player = context.player();
+            if (!MapAccessService.canOpenMap(player)) {
+                context.server().execute(() -> ServerPlayNetworking.send(player,
+                        new MapNetworkPayloads.MapSearchResponsePayload(payload.requestSeq(), payload.dimension(), false, java.util.List.of())));
+                return;
+            }
+            var level = player.serverLevel();
+            if (!level.dimension().location().equals(payload.dimension())
+                    || !MapStructureSearchService.tryBeginRequest(player.getUUID())) {
+                context.server().execute(() -> ServerPlayNetworking.send(player,
+                        new MapNetworkPayloads.MapSearchResponsePayload(payload.requestSeq(), payload.dimension(), false, java.util.List.of())));
+                return;
+            }
+            try {
+                CompletableFuture
+                        .supplyAsync(() -> MapStructureSearchService.search(level, payload.query()),
+                                ThreadPoolManager.roleExecutor(ThreadPoolManager.TaskRole.MAP))
+                        .handle((results, failure) -> {
+                            MapStructureSearchService.finishRequest(player.getUUID());
+                            return new MapNetworkPayloads.MapSearchResponsePayload(
+                                    payload.requestSeq(), payload.dimension(), failure == null,
+                                    failure == null ? results : java.util.List.of());
+                        })
+                        .thenAccept(reply -> context.server().execute(() -> {
+                            if (!player.isRemoved()) ServerPlayNetworking.send(player, reply);
+                        }));
+            } catch (RuntimeException submissionFailure) {
+                MapStructureSearchService.finishRequest(player.getUUID());
+                context.server().execute(() -> ServerPlayNetworking.send(player,
+                        new MapNetworkPayloads.MapSearchResponsePayload(payload.requestSeq(), payload.dimension(), false, java.util.List.of())));
+            }
+        });
     }
 
     public static void registerClientReceivers() {
@@ -124,6 +161,14 @@ public final class MapNetworkFabric {
 
         ClientPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.ACCESS_SYNC, (payload, context) ->
                 context.client().execute(() -> ClientMapAccessGuard.applyServerState(context.client(), payload.allowed()))
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.SEARCH_RESP, (payload, context) ->
+                context.client().execute(() -> {
+                    if (context.client().screen instanceof RoadMapScreen screen) {
+                        screen.acceptSearchResults(payload.requestSeq(), payload.dimension(), payload.success(), payload.results());
+                    }
+                })
         );
     }
 
@@ -180,6 +225,10 @@ public final class MapNetworkFabric {
     public static void requestManualConnect(int ax, int az, int bx, int bz) {
         ClientPlayNetworking.send(new MapNetworkPayloads.MapManualConnectPayload(
                 new BlockPos(ax, 0, az), new BlockPos(bx, 0, bz)));
+    }
+
+    public static void requestSearch(int requestSeq, ResourceLocation dimensionId, String query) {
+        ClientPlayNetworking.send(new MapNetworkPayloads.MapSearchRequestPayload(requestSeq, dimensionId, query));
     }
 
     public static void broadcastPatch(ServerPlayer player, ResourceLocation dimensionId, MapSnapshotPatch patch) {

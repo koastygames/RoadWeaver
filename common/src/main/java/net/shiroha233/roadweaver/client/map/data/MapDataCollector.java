@@ -40,7 +40,8 @@ public final class MapDataCollector {
                 structures,
                 List.of(),
                 matchingStructureInfos(structures, structureResult.infos()),
-                List.of());
+                List.of(),
+                structureResult.sources());
     }
 
     public static MapSnapshot buildRoadsSnapshot(ServerLevel level,
@@ -69,7 +70,8 @@ public final class MapDataCollector {
                 structures,
                 limitList(connections, MAX_SNAPSHOT_CONNECTIONS),
                 matchingStructureInfos(structures, structureResult.infos()),
-                limitRoadPolylines(roads));
+                limitRoadPolylines(roads),
+                structureResult.sources());
     }
 
     private static List<StructureInfo> matchingStructureInfos(List<BlockPos> structures, List<StructureInfo> infos) {

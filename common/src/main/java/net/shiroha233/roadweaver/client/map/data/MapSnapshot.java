@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureInfo;
+import net.shiroha233.roadweaver.map.search.MapStructureSource;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,6 +19,7 @@ public class MapSnapshot {
     private final List<BlockPos> structures;
     private final List<StructureConnection> connections;
     private final Map<BlockPos, String> structureNames;
+    private final Map<BlockPos, Integer> structureSources;
     private final List<List<BlockPos>> roadPolylines;
 
     private final int minX;
@@ -29,13 +31,34 @@ public class MapSnapshot {
                        List<StructureConnection> connections,
                        List<StructureInfo> structureInfos,
                        List<List<BlockPos>> roadPolylines) {
+        this(structures, connections, structureInfos, roadPolylines, Map.of());
+    }
+
+    public MapSnapshot(List<BlockPos> structures,
+                       List<StructureConnection> connections,
+                       List<StructureInfo> structureInfos,
+                       List<List<BlockPos>> roadPolylines,
+                       Map<BlockPos, Integer> structureSources) {
         this.structures = Collections.unmodifiableList(new ArrayList<>(structures != null ? structures : List.of()));
         this.connections = Collections.unmodifiableList(new ArrayList<>(connections != null ? connections : List.of()));
         Map<BlockPos, String> nm = new HashMap<>();
         if (structureInfos != null) {
-            for (StructureInfo info : structureInfos) nm.put(info.pos(), info.structureId());
+            for (StructureInfo info : structureInfos) {
+                if (info != null && info.pos() != null) {
+                    nm.put(normalize(info.pos()), info.structureId());
+                }
+            }
         }
         this.structureNames = Collections.unmodifiableMap(nm);
+        Map<BlockPos, Integer> src = new HashMap<>();
+        if (structureSources != null) {
+            for (Map.Entry<BlockPos, Integer> entry : structureSources.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    src.put(normalize(entry.getKey()), entry.getValue());
+                }
+            }
+        }
+        this.structureSources = Collections.unmodifiableMap(src);
         List<List<BlockPos>> rp = new ArrayList<>();
         if (roadPolylines != null) {
             for (List<BlockPos> pl : roadPolylines) rp.add(Collections.unmodifiableList(new ArrayList<>(pl)));
@@ -83,7 +106,13 @@ public class MapSnapshot {
 
     public List<BlockPos> structures() { return structures; }
     public List<StructureConnection> connections() { return connections; }
-    public String structureName(BlockPos pos) { return structureNames.get(pos); }
+    public String structureName(BlockPos pos) { return structureNames.get(normalize(pos)); }
+    public int structureSource(BlockPos pos) {
+        return structureSources.getOrDefault(normalize(pos), MapStructureSource.UNKNOWN.id());
+    }
+    public MapStructureSource structureSourceType(BlockPos pos) {
+        return MapStructureSource.fromId(structureSource(pos));
+    }
     public List<List<BlockPos>> roadPolylines() { return roadPolylines; }
 
     public int minX() { return minX; }
@@ -108,5 +137,9 @@ public class MapSnapshot {
 
     public static MapSnapshot empty() {
         return new MapSnapshot(List.of(), List.of(), List.of(), List.of());
+    }
+
+    private static BlockPos normalize(BlockPos pos) {
+        return pos == null ? BlockPos.ZERO : new BlockPos(pos.getX(), 0, pos.getZ());
     }
 }
