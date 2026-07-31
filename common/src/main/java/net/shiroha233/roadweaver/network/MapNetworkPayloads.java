@@ -1,3 +1,4 @@
+/* 文件职责：定义道路地图客户端与服务端之间的网络载荷。 */
 package net.shiroha233.roadweaver.network;
 
 import io.netty.handler.codec.DecoderException;
@@ -12,14 +13,18 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.map.search.MapSearchResult;
 import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingBounds;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MapNetworkPayloads {
+    private static final int MAX_AUTOMATIC_PLANNING_SAMPLING_REGIONS = 256;
+
     public static final CustomPacketPayload.Type<MapRequestRectPayload> REQ_RECT = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_request_rect"));
     public static final CustomPacketPayload.Type<MapSnapshotPayload> SNAP = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_snapshot"));
     public static final CustomPacketPayload.Type<MapPatchPayload> PATCH = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_patch"));
+    public static final CustomPacketPayload.Type<MapAutomaticPlanningSamplingPayload> AUTO_PLANNING_SAMPLING = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_automatic_planning_sampling"));
     public static final CustomPacketPayload.Type<MapTeleportPayload> TP_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport"));
     public static final CustomPacketPayload.Type<MapTeleportAckPayload> TP_ACK = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_teleport_ack"));
     public static final CustomPacketPayload.Type<MapManualConnectPayload> MAN_REQ = new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath("roadweaver", "map_manual_connect"));
@@ -64,7 +69,21 @@ public class MapNetworkPayloads {
                                      ResourceLocation dimension,
                                      MapLoadPhase phase,
                                      int responseIndex,
-                                     MapSnapshot snapshot) implements CustomPacketPayload {
+                                     MapSnapshot snapshot,
+                                     List<AutomaticPlanningSamplingBounds> automaticPlanningSamplingBounds) implements CustomPacketPayload {
+        public MapSnapshotPayload {
+            automaticPlanningSamplingBounds = immutableAutomaticPlanningSamplingBounds(
+                    automaticPlanningSamplingBounds);
+        }
+
+        public MapSnapshotPayload(int requestSeq,
+                                  ResourceLocation dimension,
+                                  MapLoadPhase phase,
+                                  int responseIndex,
+                                  MapSnapshot snapshot) {
+            this(requestSeq, dimension, phase, responseIndex, snapshot, List.of());
+        }
+
         public static final StreamCodec<FriendlyByteBuf, MapSnapshotPayload> CODEC = StreamCodec.of(
             (buf, val) -> {
                 buf.writeVarInt(val.requestSeq);
@@ -72,13 +91,15 @@ public class MapNetworkPayloads {
                 buf.writeUtf(val.phase.name());
                 buf.writeVarInt(val.responseIndex);
                 MapSnapshotCodec.write(buf, val.snapshot);
+                writeAutomaticPlanningSamplingBounds(buf, val.automaticPlanningSamplingBounds);
             },
             buf -> new MapSnapshotPayload(
                 buf.readVarInt(),
                 buf.readResourceLocation(),
                 MapLoadPhase.valueOf(buf.readUtf()),
                 buf.readVarInt(),
-                MapSnapshotCodec.read(buf)
+                MapSnapshotCodec.read(buf),
+                readAutomaticPlanningSamplingBounds(buf)
             )
         );
         @Override public Type<MapSnapshotPayload> type() { return SNAP; }
@@ -93,6 +114,26 @@ public class MapNetworkPayloads {
             buf -> new MapPatchPayload(buf.readResourceLocation(), MapSnapshotCodec.readPatch(buf))
         );
         @Override public Type<MapPatchPayload> type() { return PATCH; }
+    }
+
+    public record MapAutomaticPlanningSamplingPayload(
+            ResourceLocation dimension,
+            List<AutomaticPlanningSamplingBounds> bounds) implements CustomPacketPayload {
+        public MapAutomaticPlanningSamplingPayload {
+            bounds = immutableAutomaticPlanningSamplingBounds(bounds);
+        }
+
+        public static final StreamCodec<FriendlyByteBuf, MapAutomaticPlanningSamplingPayload> CODEC = StreamCodec.of(
+                (buf, value) -> {
+                    buf.writeResourceLocation(value.dimension);
+                    writeAutomaticPlanningSamplingBounds(buf, value.bounds);
+                },
+                buf -> new MapAutomaticPlanningSamplingPayload(
+                        buf.readResourceLocation(),
+                        readAutomaticPlanningSamplingBounds(buf))
+        );
+
+        @Override public Type<MapAutomaticPlanningSamplingPayload> type() { return AUTO_PLANNING_SAMPLING; }
     }
 
     public record MapTeleportPayload(int x, int y, int z) implements CustomPacketPayload {
@@ -193,5 +234,51 @@ public class MapNetworkPayloads {
         );
 
         @Override public Type<MapSearchResponsePayload> type() { return SEARCH_RESP; }
+    }
+
+    private static void writeAutomaticPlanningSamplingBounds(
+            FriendlyByteBuf buf,
+            List<AutomaticPlanningSamplingBounds> bounds) {
+        List<AutomaticPlanningSamplingBounds> safeBounds = immutableAutomaticPlanningSamplingBounds(bounds);
+        buf.writeVarInt(safeBounds.size());
+        for (AutomaticPlanningSamplingBounds bound : safeBounds) {
+            buf.writeInt(bound.minX());
+            buf.writeInt(bound.minZ());
+            buf.writeInt(bound.maxX());
+            buf.writeInt(bound.maxZ());
+        }
+    }
+
+    private static List<AutomaticPlanningSamplingBounds> readAutomaticPlanningSamplingBounds(FriendlyByteBuf buf) {
+        int count = buf.readVarInt();
+        if (count < 0 || count > MAX_AUTOMATIC_PLANNING_SAMPLING_REGIONS) {
+            throw new DecoderException("automatic planning sampling region count out of range: " + count);
+        }
+        ArrayList<AutomaticPlanningSamplingBounds> bounds = new ArrayList<>(count);
+        for (int index = 0; index < count; index++) {
+            bounds.add(new AutomaticPlanningSamplingBounds(
+                    buf.readInt(),
+                    buf.readInt(),
+                    buf.readInt(),
+                    buf.readInt()));
+        }
+        return List.copyOf(bounds);
+    }
+
+    private static List<AutomaticPlanningSamplingBounds> immutableAutomaticPlanningSamplingBounds(
+            List<AutomaticPlanningSamplingBounds> bounds) {
+        if (bounds == null || bounds.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<AutomaticPlanningSamplingBounds> copy = new ArrayList<>(bounds.size());
+        for (AutomaticPlanningSamplingBounds bound : bounds) {
+            if (bound != null) {
+                copy.add(bound);
+            }
+        }
+        if (copy.size() > MAX_AUTOMATIC_PLANNING_SAMPLING_REGIONS) {
+            return List.copyOf(copy.subList(0, MAX_AUTOMATIC_PLANNING_SAMPLING_REGIONS));
+        }
+        return List.copyOf(copy);
     }
 }

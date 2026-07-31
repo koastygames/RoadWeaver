@@ -32,10 +32,43 @@ public final class MapSamplingOverlayRenderer {
         if (snapshot == null || !snapshot.active() || snapshot.bounds() == null) return;
 
         MapSamplingBounds bounds = snapshot.bounds();
-        int rawX0 = view.toScreenX(bounds.minX(), 0, 0, contentWidth);
-        int rawY0 = view.toScreenY(bounds.minZ(), 0, 0, contentHeight);
-        int rawX1 = view.toScreenX(bounds.maxX(), 0, 0, contentWidth);
-        int rawY1 = view.toScreenY(bounds.maxZ(), 0, 0, contentHeight);
+        renderBounds(
+                graphics,
+                font,
+                view,
+                bounds.minX(),
+                bounds.minZ(),
+                bounds.maxX(),
+                bounds.maxZ(),
+                Component.translatable("gui.roadweaver.map.sample.progress", snapshot.percent()),
+                contentWidth,
+                contentHeight,
+                left,
+                top,
+                right,
+                bottom);
+    }
+
+    static void renderBounds(GuiGraphics graphics,
+                             Font font,
+                             MapView view,
+                             int minBlockX,
+                             int minBlockZ,
+                             int maxBlockX,
+                             int maxBlockZ,
+                             Component label,
+                             int contentWidth,
+                             int contentHeight,
+                             int left,
+                             int top,
+                             int right,
+                             int bottom) {
+        if (graphics == null || font == null || view == null || label == null) return;
+
+        int rawX0 = view.toScreenX(minBlockX, 0, 0, contentWidth);
+        int rawY0 = view.toScreenY(minBlockZ, 0, 0, contentHeight);
+        int rawX1 = view.toScreenX(maxBlockX, 0, 0, contentWidth);
+        int rawY1 = view.toScreenY(maxBlockZ, 0, 0, contentHeight);
         int minX = Math.min(rawX0, rawX1);
         int minY = Math.min(rawY0, rawY1);
         int maxX = Math.max(rawX0, rawX1);
@@ -47,7 +80,7 @@ public final class MapSamplingOverlayRenderer {
         int x1 = clamp(maxX, left, right - 1);
         int y1 = clamp(maxY, top, bottom - 1);
         drawFrame(graphics, x0, y0, x1, y1);
-        drawProgressLabel(graphics, font, snapshot.percent(), x0, y0, x1, y1, left, top, right, bottom);
+        drawLabel(graphics, font, label, x0, y0, x1, y1, left, top, right, bottom);
     }
 
     private static void drawFrame(GuiGraphics graphics, int x0, int y0, int x1, int y1) {
@@ -63,18 +96,17 @@ public final class MapSamplingOverlayRenderer {
                 MapTheme.COLOR_MAP_SAMPLING_FRAME);
     }
 
-    private static void drawProgressLabel(GuiGraphics graphics,
-                                          Font font,
-                                          int percent,
-                                          int x0,
-                                          int y0,
-                                          int x1,
-                                          int y1,
-                                          int left,
-                                          int top,
-                                          int right,
-                                          int bottom) {
-        Component label = Component.translatable("gui.roadweaver.map.sample.progress", percent);
+    private static void drawLabel(GuiGraphics graphics,
+                                  Font font,
+                                  Component label,
+                                  int x0,
+                                  int y0,
+                                  int x1,
+                                  int y1,
+                                  int left,
+                                  int top,
+                                  int right,
+                                  int bottom) {
         int labelWidth = font.width(label);
         int boxWidth = labelWidth + LABEL_PADDING_X * 2;
         int boxHeight = font.lineHeight + LABEL_PADDING_Y * 2;

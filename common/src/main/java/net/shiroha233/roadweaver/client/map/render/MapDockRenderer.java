@@ -14,6 +14,8 @@ import java.util.Set;
 
 public final class MapDockRenderer {
     private static final MapDockAction[] ACTIONS = MapDockAction.values();
+    private static final int SCREEN_EDGE_MARGIN = 6;
+    private static final int BOTTOM_MARGIN = 12;
 
     private MapDockRenderer() {}
 
@@ -41,18 +43,22 @@ public final class MapDockRenderer {
     }
 
     public static DockLayout layout(int screenWidth, int screenHeight) {
-        int cell = screenWidth >= 720 ? 36 : screenWidth >= 480 ? 32 : 28;
-        int gap = Math.max(2, cell / 8);
-        int horizontalPadding = Math.max(7, cell / 4);
+        int cell = screenWidth >= 720 ? 30 : screenWidth >= 480 ? 28 : 24;
+        int gap = Math.max(2, cell / 10);
+        int horizontalPadding = Math.max(5, cell / 5);
         int outerHeight = cell + horizontalPadding * 2;
         int width = horizontalPadding * 2 + ACTIONS.length * cell + (ACTIONS.length - 1) * gap;
-        if (width > screenWidth - 12) {
-            cell = Math.max(24, (screenWidth - 12 - horizontalPadding * 2 - (ACTIONS.length - 1) * gap) / ACTIONS.length);
+        int availableWidth = Math.max(ACTIONS.length, screenWidth - SCREEN_EDGE_MARGIN * 2);
+        if (width > availableWidth) {
+            gap = 2;
+            horizontalPadding = 4;
+            cell = Math.max(8,
+                    (availableWidth - horizontalPadding * 2 - (ACTIONS.length - 1) * gap) / ACTIONS.length);
             outerHeight = cell + horizontalPadding * 2;
             width = horizontalPadding * 2 + ACTIONS.length * cell + (ACTIONS.length - 1) * gap;
         }
-        int x = Math.max(6, (screenWidth - width) / 2);
-        int y = Math.max(6, screenHeight - outerHeight - 16);
+        int x = Math.max(SCREEN_EDGE_MARGIN, (screenWidth - width) / 2);
+        int y = Math.max(SCREEN_EDGE_MARGIN, screenHeight - outerHeight - BOTTOM_MARGIN);
         Rect bounds = new Rect(x, y, width, outerHeight);
         EnumMap<MapDockAction, Rect> buttons = new EnumMap<>(MapDockAction.class);
         int buttonX = x + horizontalPadding;
@@ -76,10 +82,10 @@ public final class MapDockRenderer {
         int y = layout.bounds().y();
         int w = layout.bounds().width();
         int h = layout.bounds().height();
-        fillRounded(graphics, x + 2, y + 3, w, h, 12, MapTheme.DOCK_SHADOW);
-        fillRounded(graphics, x, y, w, h, 12, MapTheme.DOCK_BG);
-        fillRounded(graphics, x + 1, y + 1, w - 2, h - 2, 11, MapTheme.DOCK_HIGHLIGHT);
-        fillRounded(graphics, x + 2, y + 2, w - 4, h - 4, 10, MapTheme.DOCK_BG);
+        fillRounded(graphics, x + 2, y + 3, w, h, 10, MapTheme.DOCK_SHADOW);
+        fillRounded(graphics, x, y, w, h, 10, MapTheme.DOCK_BG);
+        fillRounded(graphics, x + 1, y + 1, w - 2, h - 2, 9, MapTheme.DOCK_HIGHLIGHT);
+        fillRounded(graphics, x + 2, y + 2, w - 4, h - 4, 8, MapTheme.DOCK_BG);
 
         Set<MapDockAction> activeActions = active == null ? EnumSet.noneOf(MapDockAction.class) : active;
         Set<MapDockAction> disabledActions = disabled == null ? EnumSet.noneOf(MapDockAction.class) : disabled;
@@ -90,7 +96,7 @@ public final class MapDockRenderer {
             boolean isActive = activeActions.contains(action);
             if (isActive || hovered) {
                 int bg = isDisabled ? MapTheme.DOCK_DISABLED_ACTIVE : isActive ? MapTheme.DOCK_ACTIVE : MapTheme.DOCK_HOVER;
-                fillRounded(graphics, button.x(), button.y(), button.width(), button.height(), 9, bg);
+                fillRounded(graphics, button.x(), button.y(), button.width(), button.height(), 7, bg);
             }
             int color = isDisabled ? MapTheme.DOCK_ICON_DISABLED
                     : isActive ? MapTheme.DOCK_ICON_ACTIVE
@@ -106,9 +112,9 @@ public final class MapDockRenderer {
                 renderProgress(graphics, button, samplePercent);
             }
             if (isActive) {
-                graphics.fill(button.x() + button.width() / 2 - 4,
+                graphics.fill(button.x() + button.width() / 2 - 3,
                         button.bottom() - 3,
-                        button.x() + button.width() / 2 + 4,
+                        button.x() + button.width() / 2 + 3,
                         button.bottom() - 2,
                         MapTheme.DOCK_INDICATOR);
             }
@@ -122,11 +128,11 @@ public final class MapDockRenderer {
     }
 
     private static void renderProgress(GuiGraphics graphics, Rect button, int percent) {
-        int width = Math.max(4, button.width() - 12);
+        int width = Math.max(4, button.width() - 10);
         int filled = Math.max(1, Math.round(width * Math.max(0, Math.min(100, percent)) / 100.0f));
-        int y = button.bottom() - 5;
-        graphics.fill(button.x() + 6, y, button.x() + 6 + width, y + 2, MapTheme.DOCK_PROGRESS_TRACK);
-        graphics.fill(button.x() + 6, y, button.x() + 6 + filled, y + 2, MapTheme.DOCK_PROGRESS);
+        int y = button.bottom() - 4;
+        graphics.fill(button.x() + 5, y, button.x() + 5 + width, y + 2, MapTheme.DOCK_PROGRESS_TRACK);
+        graphics.fill(button.x() + 5, y, button.x() + 5 + filled, y + 2, MapTheme.DOCK_PROGRESS);
     }
 
     public static void fillRounded(GuiGraphics graphics, int x, int y, int width, int height, int radius, int color) {

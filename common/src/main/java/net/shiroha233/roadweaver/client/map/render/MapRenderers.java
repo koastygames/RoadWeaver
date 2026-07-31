@@ -1,10 +1,10 @@
+/* 文件职责：集中绘制地图网格、结构、道路与玩家标记。 */
 package net.shiroha233.roadweaver.client.map.render;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 import net.shiroha233.roadweaver.core.model.StructureConnection;
@@ -134,64 +134,6 @@ public final class MapRenderers {
                 }
             }
         }
-    }
-
-    public static void renderLegend(GuiGraphics g,
-                                    Font font,
-                                    int rightBound,
-                                    int startY,
-                                    int gap,
-                                    int colorText,
-                                    int colorStruct,
-                                    int colorPlanned,
-                                    int colorGenerating,
-                                    int colorCompleted,
-                                    int colorFailed,
-                                    int structuresCount,
-                                    int plannedCount,
-                                    int generatingCount,
-                                    int completedCount,
-                                    int failedCount) {
-        int y = startY;
-        Component l1 = Component.translatable("gui.roadweaver.map.legend.structures").append(": ").append(Integer.toString(structuresCount));
-        int w1 = font.width(l1);
-        int x1 = rightBound - w1;
-        int sr = x1 - gap;
-        g.fill(sr - 5, y + 1, sr, y + 6, colorStruct);
-        g.drawString(font, l1, x1, y, colorText, false);
-
-        y += 16;
-        Component l2 = Component.translatable("gui.roadweaver.map.legend.planned").append(": ").append(Integer.toString(plannedCount));
-        int w2 = font.width(l2);
-        int x2 = rightBound - w2;
-        sr = x2 - gap;
-        g.fill(sr - 28, y + 2, sr, y + 7, colorPlanned);
-        g.drawString(font, l2, x2, y, colorText, false);
-
-        y += 16;
-        Component l3 = Component.translatable("gui.roadweaver.map.legend.generating").append(": ").append(Integer.toString(generatingCount));
-        int w3 = font.width(l3);
-        int x3 = rightBound - w3;
-        sr = x3 - gap;
-        int cy = y + 4;
-        RenderUtils.drawThickDashedLine(g, sr - 28, cy, sr, cy, colorGenerating, 5, 8, 6, sr - 28, y + 1, sr, y + 8);
-        g.drawString(font, l3, x3, y, colorText, false);
-
-        y += 16;
-        Component l4 = Component.translatable("gui.roadweaver.map.legend.completed").append(": ").append(Integer.toString(completedCount));
-        int w4 = font.width(l4);
-        int x4 = rightBound - w4;
-        sr = x4 - gap;
-        g.fill(sr - 28, y + 2, sr, y + 7, colorCompleted);
-        g.drawString(font, l4, x4, y, colorText, false);
-
-        y += 16;
-        Component l5 = Component.translatable("gui.roadweaver.map.legend.failed").append(": ").append(Integer.toString(failedCount));
-        int w5 = font.width(l5);
-        int x5 = rightBound - w5;
-        sr = x5 - gap;
-        g.fill(sr - 28, y + 2, sr, y + 7, colorFailed);
-        g.drawString(font, l5, x5, y, colorText, false);
     }
 
     public static void drawPlayerAvatar(GuiGraphics g,

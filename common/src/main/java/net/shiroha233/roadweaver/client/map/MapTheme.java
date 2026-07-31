@@ -91,20 +91,13 @@ public final class MapTheme {
     public static final int PANEL_CHECKBOX = 0x704F5A6A;
     public static final int PANEL_CHECKED = 0xFF3A78B8;
 
-    // 旧版文字按钮颜色，供兼容组件使用
-    public static final int TOOLBAR_BUTTON_BG = 0x60202020;
-    public static final int TOOLBAR_BUTTON_DISABLED_BG = 0x40101010;
-    public static final int TOOLBAR_BUTTON_DISABLED_TEXT = 0xFF777777;
-    public static final int TOOLBAR_BUTTON_GAP = 4;
-    public static final int TOOLBAR_BUTTON_HEIGHT = 16;
+    // 顶部 HUD 安全边距
+    public static final int HUD_TOP_MARGIN = 12;
 
     // 主动地图采样叠加层
     public static final int COLOR_MAP_SAMPLING_FRAME = 0xFFFFC857;
     public static final int COLOR_MAP_SAMPLING_TEXT = 0xFFFFFFFF;
     public static final int MAP_SAMPLING_LABEL_BG = 0xD0101010;
-
-    // 图例 - 浮动半透明背景
-    public static final int LEGEND_BG = 0x60101010;
 
     // 动画与防抖
     public static final long ZOOM_DEBOUNCE_MS = 500;

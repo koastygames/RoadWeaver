@@ -18,16 +18,18 @@ import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotStore;
+import net.shiroha233.roadweaver.client.map.data.MapAutomaticPlanningSamplingCache;
 import net.shiroha233.roadweaver.client.map.interaction.MapInteraction;
 import net.shiroha233.roadweaver.client.map.data.MapFilterState;
-import net.shiroha233.roadweaver.client.map.render.MapHudRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapDockAction;
 import net.shiroha233.roadweaver.client.map.render.MapDockRenderer;
+import net.shiroha233.roadweaver.client.map.render.MapAutomaticPlanningSamplingOverlayRenderer;
+import net.shiroha233.roadweaver.client.map.render.MapLegendRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapOverlayRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapRenderers;
 import net.shiroha233.roadweaver.client.map.render.MapSamplingNoticeOverlayRenderer;
 import net.shiroha233.roadweaver.client.map.render.MapSamplingOverlayRenderer;
-import net.shiroha233.roadweaver.client.map.render.RenderUtils;
+import net.shiroha233.roadweaver.client.map.render.MapStatusRenderer;
 import net.shiroha233.roadweaver.client.map.tile.SingleplayerTerrainTileManager;
 import net.shiroha233.roadweaver.client.map.ui.ContextMenu;
 import net.shiroha233.roadweaver.client.map.ui.MapWorkspacePanel;
@@ -46,6 +48,8 @@ import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
 import net.shiroha233.roadweaver.config.sub.TerrainSamplingMode;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessionSnapshot;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingActivities;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingBounds;
 import net.shiroha233.roadweaver.util.ComputeService;
 
 import java.util.ArrayList;
@@ -61,6 +65,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     private static final long MAP_SAMPLING_NOTICE_DURATION_MS = 4_000L;
+    private static final int WORKSPACE_DOCK_GAP = 8;
     
     // 翻译键
     private static final Component MENU_TELEPORT = Component.translatable("gui.roadweaver.map.menu.teleport");
@@ -178,18 +183,14 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         MapViewportController.requestTerrainTiles(mc, terrainTiles, view, contentW, contentH);
         ServerLevel samplingLevel = MapViewportController.resolveSingleplayerLevel(mc);
         MapSamplingSnapshot mapSamplingSnapshot = mapSampling.snapshot();
+        List<AutomaticPlanningSamplingBounds> automaticPlanningSamplingBounds =
+                activeAutomaticPlanningSamplingBounds(samplingLevel);
         handleSamplingTransition(mapSamplingSnapshot);
         processSearchDebounce();
         MapSnapshot visibleSnapshot = visibleSnapshot();
         dockLayout = MapDockRenderer.layout(this.width, this.height);
+        int workspaceBottom = workspaceBottomLimit(dockLayout);
         workspacePanel.setMousePosition(mouseX, mouseY);
-
-        MapHudRenderer.ToolbarLayout toolbar = MapHudRenderer.buildToolbar(
-                this.font,
-                mapH,
-                state.isManualMode(),
-                mapSampling.isAvailable(samplingLevel),
-                mapSamplingSnapshot);
         g.fill(0, 0, this.width, this.height, MapTheme.COLOR_BACKGROUND);
         g.enableScissor(left, top, right, bottom);
         terrainTiles.render(g, this.minecraft, view, left, top, contentW, contentH);
@@ -224,6 +225,17 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 MapTheme.COLOR_PLANNED, MapTheme.COLOR_GENERATING,
                 MapTheme.COLOR_COMPLETED, MapTheme.COLOR_FAILED,
                 left, top, right, bottom);
+        MapAutomaticPlanningSamplingOverlayRenderer.render(
+                g,
+                this.font,
+                view,
+                automaticPlanningSamplingBounds,
+                contentW,
+                contentH,
+                left,
+                top,
+                right,
+                bottom);
         MapSamplingOverlayRenderer.render(
                 g,
                 this.font,
@@ -249,19 +261,23 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 left, top, right, bottom,
                 computePointSize() * 2 + 4,
                 computeThickness());
-        if (!contextMenu.isOpen() && !dockLayout.contains(mouseX, mouseY) && !workspacePanel.contains(mouseX, mouseY)) {
+        if (!contextMenu.isOpen()
+                && !dockLayout.contains(mouseX, mouseY)
+                && !workspacePanel.contains(mouseX, mouseY, this.width, this.height, workspaceBottom)) {
             MapInteraction.renderHoverHighlight(g, visibleSnapshot, view, 0, 0, mapW, mapH,
                     0, mouseX, mouseY);
         }
         MapOverlayRenderer.renderPlayer(g, this.minecraft, inputHandler, view,
                 contentW, contentH, left, top, right, bottom);
         g.disableScissor();
-        int legendRight = mapW - 8;
-        int legendStartY = 8;
-        MapHudRenderer.renderLegendWithBackground(g, this.font, legendRight, legendStartY, visibleSnapshot);
-        MapHudRenderer.renderLoadingStatus(g, this.font, toolbar, loadSession);
-        MapHudRenderer.renderSamplingStatus(g, this.font, toolbar, samplingSession, loadSession != null);
-        if (!contextMenu.isOpen() && !dockLayout.contains(mouseX, mouseY) && !workspacePanel.contains(mouseX, mouseY)) {
+        int statusRight = workspacePanel.leftEdge(this.width, this.height, workspaceBottom);
+        if (!workspacePanel.isOpen()) {
+            MapLegendRenderer.render(g, this.font, this.width, visibleSnapshot);
+        }
+        MapStatusRenderer.render(g, this.font, this.width, statusRight, loadSession, samplingSession);
+        if (!contextMenu.isOpen()
+                && !dockLayout.contains(mouseX, mouseY)
+                && !workspacePanel.contains(mouseX, mouseY, this.width, this.height, workspaceBottom)) {
             MapInteraction.renderHoverTooltip(g, this.font, visibleSnapshot, view, 0, 0, mapW, mapH,
                     0, mouseX, mouseY);
         }
@@ -270,7 +286,7 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             onRequestView();
         }
 
-        workspacePanel.render(g, this.font, this.width, this.height,
+        workspacePanel.render(g, this.font, this.width, this.height, workspaceBottom,
                 snapshot, filterState, searchResults, searchLoading, searchFailed);
         renderSearchBox(g, mouseX, mouseY, partialTick);
 
@@ -294,8 +310,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
     
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (dockLayout != null && dockLayout.contains(mouseX, mouseY)) return true;
-        if (workspacePanel.contains(mouseX, mouseY)) {
+        dockLayout = MapDockRenderer.layout(this.width, this.height);
+        int workspaceBottom = workspaceBottomLimit(dockLayout);
+        if (dockLayout.contains(mouseX, mouseY)) return true;
+        if (workspacePanel.contains(mouseX, mouseY, this.width, this.height, workspaceBottom)) {
             workspacePanel.scroll(scrollY);
             return true;
         }
@@ -311,7 +329,8 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
             }
         }
 
-        if (dockLayout == null) dockLayout = MapDockRenderer.layout(this.width, this.height);
+        dockLayout = MapDockRenderer.layout(this.width, this.height);
+        int workspaceBottom = workspaceBottomLimit(dockLayout);
         MapDockAction dockAction = dockLayout.hit(mouseX, mouseY);
         if (button == 0 && dockAction != null) {
             handleDockAction(dockAction);
@@ -319,8 +338,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         }
 
         MapSnapshot visibleSnapshot = visibleSnapshot();
-        if (workspacePanel.contains(mouseX, mouseY)) {
-            MapWorkspacePanel.Hit hit = workspacePanel.hit(mouseX, mouseY, snapshot, filterState, searchResults);
+        if (workspacePanel.contains(mouseX, mouseY, this.width, this.height, workspaceBottom)) {
+            MapWorkspacePanel.Hit hit = workspacePanel.hit(
+                    mouseX, mouseY, this.width, this.height, workspaceBottom,
+                    snapshot, filterState, searchResults);
             handleWorkspaceHit(hit, mouseX, mouseY, button);
             return true;
         }
@@ -494,10 +515,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         if (!workspacePanel.isTab(MapWorkspacePanel.Tab.SEARCH) || searchBox == null) return;
         var rect = workspacePanel.searchField();
         if (rect == null) return;
-        MapDockRenderer.fillRounded(graphics, rect.x(), rect.y(), rect.width(), rect.height(), 6, MapTheme.PANEL_CONTROL_BG);
-        searchBox.setX(rect.x() + 8);
-        searchBox.setY(rect.y() + 3);
-        searchBox.setWidth(Math.max(20, rect.width() - 16));
+        MapDockRenderer.fillRounded(graphics, rect.x(), rect.y(), rect.width(), rect.height(), 5, MapTheme.PANEL_CONTROL_BG);
+        searchBox.setX(rect.x() + 6);
+        searchBox.setY(rect.y() + 1);
+        searchBox.setWidth(Math.max(20, rect.width() - 12));
         searchBox.render(graphics, mouseX, mouseY, partialTick);
     }
 
@@ -865,6 +886,10 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         mapH = this.height;
     }
 
+    private static int workspaceBottomLimit(MapDockRenderer.DockLayout layout) {
+        return Math.max(1, layout.bounds().y() - WORKSPACE_DOCK_GAP);
+    }
+
     private int computeThickness() {
         int contentW = mapW;
         int contentH = mapH;
@@ -929,6 +954,13 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
                 ? MapTileLayer.TERRAIN_ACCURATE
                 : MapTileLayer.TERRAIN_COARSE);
         return session;
+    }
+
+    private List<AutomaticPlanningSamplingBounds> activeAutomaticPlanningSamplingBounds(ServerLevel level) {
+        if (level != null) {
+            return AutomaticPlanningSamplingActivities.snapshot(level);
+        }
+        return MapAutomaticPlanningSamplingCache.snapshot(currentDimensionId);
     }
 
     private static long searchResultKey(BlockPos pos) {

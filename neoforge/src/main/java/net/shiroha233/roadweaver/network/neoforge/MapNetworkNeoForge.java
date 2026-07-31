@@ -1,3 +1,4 @@
+/* 文件职责：实现 NeoForge 平台道路地图的请求、快照与增量状态网络通信。 */
 package net.shiroha233.roadweaver.network.neoforge;
 
 import net.minecraft.client.Minecraft;
@@ -23,11 +24,15 @@ import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
+import net.shiroha233.roadweaver.client.map.data.MapAutomaticPlanningSamplingCache;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapNetworkPayloads;
 import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingActivities;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingBounds;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** NeoForge 平台网络通信实现。 */
@@ -48,6 +53,7 @@ public final class MapNetworkNeoForge {
 
         registrar.playToClient(MapNetworkPayloads.SNAP, MapNetworkPayloads.MapSnapshotPayload.CODEC, MapNetworkNeoForge::handleSnapshot);
         registrar.playToClient(MapNetworkPayloads.PATCH, MapNetworkPayloads.MapPatchPayload.CODEC, MapNetworkNeoForge::handlePatch);
+        registrar.playToClient(MapNetworkPayloads.AUTO_PLANNING_SAMPLING, MapNetworkPayloads.MapAutomaticPlanningSamplingPayload.CODEC, MapNetworkNeoForge::handleAutomaticPlanningSampling);
         registrar.playToClient(MapNetworkPayloads.TP_ACK, MapNetworkPayloads.MapTeleportAckPayload.CODEC, MapNetworkNeoForge::handleTeleportAck);
         registrar.playToClient(MapNetworkPayloads.ACCESS_SYNC, MapNetworkPayloads.MapAccessSyncPayload.CODEC, MapNetworkNeoForge::handleAccessSync);
         registrar.playToClient(MapNetworkPayloads.SEARCH_RESP, MapNetworkPayloads.MapSearchResponsePayload.CODEC, MapNetworkNeoForge::handleSearchResponse);
@@ -70,7 +76,8 @@ public final class MapNetworkNeoForge {
                                 level.dimension().location(),
                                 payload.phase(),
                                 payload.responseIndex(),
-                                snapshot
+                                snapshot,
+                                AutomaticPlanningSamplingActivities.snapshot(level)
                         );
                     }, ThreadPoolManager.roleExecutor(ThreadPoolManager.TaskRole.MAP))
                     .thenAccept(reply -> player.serverLevel().getServer().execute(() -> {
@@ -82,6 +89,9 @@ public final class MapNetworkNeoForge {
     private static void handleSnapshot(MapNetworkPayloads.MapSnapshotPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             Minecraft minecraft = Minecraft.getInstance();
+            MapAutomaticPlanningSamplingCache.replace(
+                    payload.dimension(),
+                    payload.automaticPlanningSamplingBounds());
             if (minecraft.screen instanceof RoadMapScreen screen) {
                 screen.acceptSnapshotPart(payload.requestSeq(), payload.dimension(), payload.phase(), payload.responseIndex(), payload.snapshot());
             }
@@ -136,6 +146,14 @@ public final class MapNetworkNeoForge {
 
     private static void handleAccessSync(MapNetworkPayloads.MapAccessSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientMapAccessGuard.applyServerState(Minecraft.getInstance(), payload.allowed()));
+    }
+
+    private static void handleAutomaticPlanningSampling(
+            MapNetworkPayloads.MapAutomaticPlanningSamplingPayload payload,
+            IPayloadContext context) {
+        context.enqueueWork(() -> MapAutomaticPlanningSamplingCache.replace(
+                payload.dimension(),
+                payload.bounds()));
     }
 
     private static void handleSearchRequest(MapNetworkPayloads.MapSearchRequestPayload payload, IPayloadContext context) {
@@ -236,6 +254,14 @@ public final class MapNetworkNeoForge {
     public static void broadcastPatch(ServerPlayer player, ResourceLocation dimensionId, MapSnapshotPatch patch) {
         if (player == null || dimensionId == null || patch == null || patch.isEmpty()) return;
         PacketDistributor.sendToPlayer(player, new MapNetworkPayloads.MapPatchPayload(dimensionId, patch));
+    }
+
+    public static void broadcastAutomaticPlanningSampling(ServerPlayer player,
+                                                          ResourceLocation dimensionId,
+                                                          List<AutomaticPlanningSamplingBounds> bounds) {
+        if (player == null || dimensionId == null) return;
+        PacketDistributor.sendToPlayer(player,
+                new MapNetworkPayloads.MapAutomaticPlanningSamplingPayload(dimensionId, bounds));
     }
 
     public static void syncMapAccess(ServerPlayer player) {

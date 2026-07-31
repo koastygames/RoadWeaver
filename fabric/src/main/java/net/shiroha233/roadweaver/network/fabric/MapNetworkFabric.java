@@ -1,3 +1,4 @@
+/* 文件职责：实现 Fabric 平台道路地图的请求、快照与增量状态网络通信。 */
 package net.shiroha233.roadweaver.network.fabric;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -18,11 +19,15 @@ import net.shiroha233.roadweaver.client.map.data.MapDataCollector;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotCache;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshotPatch;
+import net.shiroha233.roadweaver.client.map.data.MapAutomaticPlanningSamplingCache;
 import net.shiroha233.roadweaver.map.permission.MapAccessService;
 import net.shiroha233.roadweaver.network.MapNetworkPayloads;
 import net.shiroha233.roadweaver.map.search.MapStructureSearchService;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingActivities;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingBounds;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Fabric 平台网络通信实现。 */
@@ -41,6 +46,7 @@ public final class MapNetworkFabric {
 
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.SNAP, MapNetworkPayloads.MapSnapshotPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.PATCH, MapNetworkPayloads.MapPatchPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.AUTO_PLANNING_SAMPLING, MapNetworkPayloads.MapAutomaticPlanningSamplingPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.TP_ACK, MapNetworkPayloads.MapTeleportAckPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.ACCESS_SYNC, MapNetworkPayloads.MapAccessSyncPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(MapNetworkPayloads.SEARCH_RESP, MapNetworkPayloads.MapSearchResponsePayload.CODEC);
@@ -67,7 +73,8 @@ public final class MapNetworkFabric {
                                 level.dimension().location(),
                                 payload.phase(),
                                 payload.responseIndex(),
-                                snapshot
+                                snapshot,
+                                AutomaticPlanningSamplingActivities.snapshot(level)
                         );
                     }, ThreadPoolManager.roleExecutor(ThreadPoolManager.TaskRole.MAP))
                     .thenAccept(reply -> context.server().execute(() -> {
@@ -131,6 +138,9 @@ public final class MapNetworkFabric {
 
         ClientPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.SNAP, (payload, context) ->
                 context.client().execute(() -> {
+                    MapAutomaticPlanningSamplingCache.replace(
+                            payload.dimension(),
+                            payload.automaticPlanningSamplingBounds());
                     if (context.client().screen instanceof RoadMapScreen screen) {
                         screen.acceptSnapshotPart(payload.requestSeq(), payload.dimension(), payload.phase(), payload.responseIndex(), payload.snapshot());
                     }
@@ -161,6 +171,12 @@ public final class MapNetworkFabric {
 
         ClientPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.ACCESS_SYNC, (payload, context) ->
                 context.client().execute(() -> ClientMapAccessGuard.applyServerState(context.client(), payload.allowed()))
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.AUTO_PLANNING_SAMPLING, (payload, context) ->
+                context.client().execute(() -> MapAutomaticPlanningSamplingCache.replace(
+                        payload.dimension(),
+                        payload.bounds()))
         );
 
         ClientPlayNetworking.registerGlobalReceiver(MapNetworkPayloads.SEARCH_RESP, (payload, context) ->
@@ -234,6 +250,14 @@ public final class MapNetworkFabric {
     public static void broadcastPatch(ServerPlayer player, ResourceLocation dimensionId, MapSnapshotPatch patch) {
         if (player == null || dimensionId == null || patch == null || patch.isEmpty()) return;
         ServerPlayNetworking.send(player, new MapNetworkPayloads.MapPatchPayload(dimensionId, patch));
+    }
+
+    public static void broadcastAutomaticPlanningSampling(ServerPlayer player,
+                                                          ResourceLocation dimensionId,
+                                                          List<AutomaticPlanningSamplingBounds> bounds) {
+        if (player == null || dimensionId == null) return;
+        ServerPlayNetworking.send(player,
+                new MapNetworkPayloads.MapAutomaticPlanningSamplingPayload(dimensionId, bounds));
     }
 
     public static void syncMapAccess(ServerPlayer player) {

@@ -1,3 +1,4 @@
+/* 文件职责：按存档隔离缓存地图快照，并统一清理地图运行态缓存。 */
 package net.shiroha233.roadweaver.client.map.data;
 
 import net.minecraft.resources.ResourceLocation;
@@ -102,12 +103,16 @@ public final class MapSnapshotCache {
         CLEAR_SEQ.incrementAndGet();
         BY_WORLD.clear();
         STORES_BY_WORLD.clear();
+        MapAutomaticPlanningSamplingCache.clear();
     }
 
     public static void clearWorld(String worldId) {
         if (worldId == null) return;
         BY_WORLD.remove(worldId);
         STORES_BY_WORLD.remove(worldId);
+        if (worldId.equals(currentWorldId)) {
+            MapAutomaticPlanningSamplingCache.clear();
+        }
     }
 
     private static void clearCurrentWorld() {
@@ -116,6 +121,7 @@ public final class MapSnapshotCache {
             BY_WORLD.remove(wid);
             STORES_BY_WORLD.remove(wid);
         }
+        MapAutomaticPlanningSamplingCache.clear();
     }
 }
 

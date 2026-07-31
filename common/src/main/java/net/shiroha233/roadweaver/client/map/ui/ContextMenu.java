@@ -1,3 +1,4 @@
+/* 文件职责：布局、绘制并处理地图右键菜单交互。 */
 package net.shiroha233.roadweaver.client.map.ui;
 
 import net.minecraft.client.gui.Font;
@@ -12,9 +13,10 @@ import java.util.List;
  * 通用右键菜单组件
  */
 public final class ContextMenu {
-    public static final int PADDING = 6;
-    public static final int ITEM_HEIGHT = 16;
-    public static final int SEPARATOR_HEIGHT = 8;
+    private static final int PADDING_X = MapTheme.MENU_PADDING_X;
+    private static final int PADDING_Y = MapTheme.MENU_PADDING_Y;
+    private static final int ITEM_HEIGHT = MapTheme.MENU_ITEM_HEIGHT;
+    private static final int SEPARATOR_HEIGHT = 6;
 
     public record Item(Component label, Runnable action, boolean enabled, boolean isSeparator) {
         public static Item of(Component label, Runnable action) {
@@ -65,7 +67,7 @@ public final class ContextMenu {
 
     public void layout(Font font, int screenW, int screenH) {
         int w = 0;
-        int h = PADDING * 2;
+        int h = PADDING_Y * 2;
         for (Item it : items) {
             if (it.isSeparator()) {
                 h += SEPARATOR_HEIGHT;
@@ -74,7 +76,7 @@ public final class ContextMenu {
                 h += ITEM_HEIGHT;
             }
         }
-        w += PADDING * 2 + 12;
+        w += PADDING_X * 2 + 8;
         Rect raw = new Rect(anchorX + 4, anchorY, w, h);
         this.bounds = raw.clampToScreen(screenW, screenH, 4);
     }
@@ -94,7 +96,7 @@ public final class ContextMenu {
         
         updateHoverIndex(mouseX, mouseY);
         
-        int ty = y + PADDING;
+        int ty = y + PADDING_Y;
         for (int i = 0; i < items.size(); i++) {
             Item it = items.get(i);
             if (it.isSeparator()) {
@@ -106,7 +108,8 @@ public final class ContextMenu {
                     g.fill(x + 2, ty, x + w - 2, ty + ITEM_HEIGHT, MapTheme.MENU_HOVER);
                 }
                 int textColor = it.enabled() ? MapTheme.MENU_TEXT : 0xFF808080;
-                g.drawString(font, it.label(), x + PADDING, ty + (ITEM_HEIGHT - font.lineHeight) / 2, textColor, false);
+                g.drawString(font, it.label(), x + PADDING_X,
+                        ty + (ITEM_HEIGHT - font.lineHeight) / 2, textColor, false);
                 ty += ITEM_HEIGHT;
             }
         }
@@ -116,7 +119,7 @@ public final class ContextMenu {
         hoverIndex = -1;
         if (bounds == null || !bounds.contains(mouseX, mouseY)) return;
         
-        int y = bounds.y() + PADDING;
+        int y = bounds.y() + PADDING_Y;
         for (int i = 0; i < items.size(); i++) {
             Item it = items.get(i);
             int itemH = it.isSeparator() ? SEPARATOR_HEIGHT : ITEM_HEIGHT;

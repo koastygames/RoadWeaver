@@ -33,7 +33,10 @@ import net.shiroha233.roadweaver.planning.path.PlannedPathCache;
 import net.shiroha233.roadweaver.planning.path.PlannedPathKey;
 import net.shiroha233.roadweaver.planning.terrain.RoadTerrainPlanningPipeline;
 import net.shiroha233.roadweaver.planning.terrain.RoadTerrainPlanningPort;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingActivities;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingBounds;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
+import net.shiroha233.roadweaver.network.ServerMapPlanningActivityBridge;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
 import net.shiroha233.roadweaver.search.StructureIndexService;
 import net.shiroha233.roadweaver.util.ComputeService;
@@ -119,19 +122,39 @@ public final class RoadPlanningService {
             return;
         }
         if (!markPlanningTile(level, key)) return;
-        planRectAsync(level, minX, minZ, maxX, maxZ).whenComplete((ignored, error) -> {
+        AutomaticPlanningSamplingActivities.Activity samplingActivity = beginDynamicPlanningSampling(
+                level,
+                minX,
+                minZ,
+                maxX,
+                maxZ,
+                cfg.planning().terrainSamplingMode());
+        try {
+            planRectAsync(level, minX, minZ, maxX, maxZ).whenComplete((ignored, error) -> {
+                try {
+                    unmarkPlanningTile(level, key);
+                    if (hasExistingRoads) {
+                        ensureTerrainMapTilesAsync(level, key, minX, minZ, maxX, maxZ);
+                    }
+                    if (error != null) {
+                        if (backfillPlan) unmarkRoadBackfillPlanTile(level, key);
+                        LOGGER.warn("动态规划 tile 失败，保留重试机会 dimension={} tile=[{},{}]", level.dimension().location(), kx, kz, error);
+                        return;
+                    }
+                    markPlannedTile(level, key, pcx, pcz);
+                    prunePlannedIfTooLarge(level);
+                } finally {
+                    finishDynamicPlanningSampling(level, samplingActivity);
+                }
+            });
+        } catch (RuntimeException submissionFailure) {
             unmarkPlanningTile(level, key);
-            if (hasExistingRoads) {
-                ensureTerrainMapTilesAsync(level, key, minX, minZ, maxX, maxZ);
+            if (backfillPlan) {
+                unmarkRoadBackfillPlanTile(level, key);
             }
-            if (error != null) {
-                if (backfillPlan) unmarkRoadBackfillPlanTile(level, key);
-                LOGGER.warn("动态规划 tile 失败，保留重试机会 dimension={} tile=[{},{}]", level.dimension().location(), kx, kz, error);
-                return;
-            }
-            markPlannedTile(level, key, pcx, pcz);
-            prunePlannedIfTooLarge(level);
-        });
+            finishDynamicPlanningSampling(level, samplingActivity);
+            throw submissionFailure;
+        }
     }
 
     private static boolean markRoadBackfillPlanTile(ServerLevel level, long tileKey) {
@@ -148,6 +171,43 @@ public final class RoadPlanningService {
 
     private static void unmarkPlanningTile(ServerLevel level, long tileKey) {
         PLANNING_TILES.remove(tileKey);
+    }
+
+    private static AutomaticPlanningSamplingActivities.Activity beginDynamicPlanningSampling(
+            ServerLevel level,
+            int minBlockX,
+            int minBlockZ,
+            int maxBlockX,
+            int maxBlockZ,
+            TerrainSamplingMode mode) {
+        if (mode == null || mode == TerrainSamplingMode.LEGACY_DIRECT) {
+            return null;
+        }
+        AutomaticPlanningSamplingActivities.Activity activity = AutomaticPlanningSamplingActivities.begin(
+                level,
+                new AutomaticPlanningSamplingBounds(minBlockX, minBlockZ, maxBlockX, maxBlockZ));
+        publishDynamicPlanningSampling(level);
+        return activity;
+    }
+
+    private static void finishDynamicPlanningSampling(ServerLevel level,
+                                                       AutomaticPlanningSamplingActivities.Activity activity) {
+        if (activity == null) {
+            return;
+        }
+        activity.close();
+        publishDynamicPlanningSampling(level);
+    }
+
+    private static void publishDynamicPlanningSampling(ServerLevel level) {
+        if (level == null) {
+            return;
+        }
+        try {
+            ServerMapPlanningActivityBridge.broadcast(level);
+        } catch (RuntimeException failure) {
+            LOGGER.debug("自动规划采样范围同步失败 dimension={}", level.dimension().location(), failure);
+        }
     }
 
     private static void markPlannedTile(ServerLevel level, long tileKey, int centerChunkX, int centerChunkZ) {
@@ -526,6 +586,7 @@ public final class RoadPlanningService {
         TERRAIN_REPAIR_TILES.clear();
         ROAD_BACKFILL_PLAN_TILES.clear();
         PLANNING_TILES.clear();
+        AutomaticPlanningSamplingActivities.clearAll();
     }
 
     private record TerrainRepairKey(long tileKey, MapTileLayer layer) {}

@@ -16,10 +16,7 @@ import net.shiroha233.roadweaver.map.search.MapSearchResult;
 import net.shiroha233.roadweaver.map.search.MapStructureSource;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.EnumSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -54,11 +51,19 @@ public final class MapWorkspacePanel {
         }
     }
 
-    private static final int PANEL_MARGIN = 14;
-    private static final int PANEL_MIN_WIDTH = 292;
-    private static final int PANEL_MAX_WIDTH = 380;
-    private static final int PANEL_PADDING = 14;
-    private static final int ROW_HEIGHT = 36;
+    private static final int PANEL_MARGIN = 12;
+    private static final int PANEL_MIN_WIDTH = 244;
+    private static final int PANEL_MAX_WIDTH = 320;
+    private static final int PANEL_MIN_HEIGHT = 180;
+    private static final float PANEL_WIDTH_RATIO = 0.24f;
+    private static final float PANEL_HEIGHT_RATIO = 0.84f;
+    private static final int PANEL_PADDING = 12;
+    private static final int SEARCH_ROW_HEIGHT = 30;
+    private static final int SEARCH_ROW_GAP = 4;
+    private static final int FILTER_ROW_HEIGHT = 20;
+    private static final int FILTER_ROW_GAP = 2;
+    private static final int FILTER_GROUP_GAP = 10;
+    private static final int DETAILS_BUTTON_HEIGHT = 20;
 
     private boolean open;
     private Tab tab = Tab.SEARCH;
@@ -75,8 +80,6 @@ public final class MapWorkspacePanel {
     private final List<Rect> detailButtons = new ArrayList<>();
     private int scrollOffset;
     private int maxScrollOffset;
-    private int screenWidth;
-    private int screenHeight;
 
     public void openSearch() {
         open = true;
@@ -118,13 +121,21 @@ public final class MapWorkspacePanel {
         return searchField;
     }
 
-    public boolean contains(double mouseX, double mouseY) {
-        return open && bounds != null && bounds.contains(mouseX, mouseY);
+    public int leftEdge(int screenWidth, int screenHeight, int unobstructedBottom) {
+        return open ? panelBounds(screenWidth, screenHeight, unobstructedBottom).x() : screenWidth;
+    }
+
+    public boolean contains(double mouseX, double mouseY,
+                            int screenWidth, int screenHeight, int unobstructedBottom) {
+        return open && panelBounds(screenWidth, screenHeight, unobstructedBottom).contains(mouseX, mouseY);
     }
 
     public void scroll(double delta) {
         if (!open || tab == Tab.DETAILS) return;
-        int amount = delta > 0 ? -ROW_HEIGHT : ROW_HEIGHT;
+        int rowStride = tab == Tab.SEARCH
+                ? SEARCH_ROW_HEIGHT + SEARCH_ROW_GAP
+                : FILTER_ROW_HEIGHT + FILTER_ROW_GAP;
+        int amount = delta > 0 ? -rowStride : rowStride;
         scrollOffset = Math.max(0, Math.min(maxScrollOffset, scrollOffset + amount));
     }
 
@@ -132,36 +143,37 @@ public final class MapWorkspacePanel {
                        Font font,
                        int screenWidth,
                        int screenHeight,
+                       int unobstructedBottom,
                        MapSnapshot snapshot,
                        MapFilterState filterState,
                        List<MapSearchResult> searchResults,
                        boolean searchLoading,
                        boolean searchFailed) {
         if (!open) return;
-        layout(screenWidth, screenHeight, snapshot, filterState, searchResults);
+        layout(screenWidth, screenHeight, unobstructedBottom, snapshot, filterState, searchResults);
         int x = bounds.x();
         int y = bounds.y();
         int w = bounds.width();
         int h = bounds.height();
 
-        MapDockRenderer.fillRounded(graphics, x + 3, y + 4, w, h, 12, MapTheme.PANEL_SHADOW);
-        MapDockRenderer.fillRounded(graphics, x, y, w, h, 12, MapTheme.PANEL_BG);
-        MapDockRenderer.fillRounded(graphics, x + 1, y + 1, w - 2, h - 2, 11, MapTheme.PANEL_HIGHLIGHT);
-        MapDockRenderer.fillRounded(graphics, x + 2, y + 2, w - 4, h - 4, 10, MapTheme.PANEL_BG);
+        MapDockRenderer.fillRounded(graphics, x + 3, y + 4, w, h, 10, MapTheme.PANEL_SHADOW);
+        MapDockRenderer.fillRounded(graphics, x, y, w, h, 10, MapTheme.PANEL_BG);
+        MapDockRenderer.fillRounded(graphics, x + 1, y + 1, w - 2, h - 2, 9, MapTheme.PANEL_HIGHLIGHT);
+        MapDockRenderer.fillRounded(graphics, x + 2, y + 2, w - 4, h - 4, 8, MapTheme.PANEL_BG);
 
         Component title = Component.translatable(tabTitleKey(tab));
-        graphics.drawString(font, title, x + PANEL_PADDING, y + 12, MapTheme.PANEL_TEXT, false);
-        MapDockRenderer.fillRounded(graphics, closeButton.x(), closeButton.y(), closeButton.width(), closeButton.height(), 7,
+        graphics.drawString(font, title, x + PANEL_PADDING, y + 10, MapTheme.PANEL_TEXT, false);
+        MapDockRenderer.fillRounded(graphics, closeButton.x(), closeButton.y(), closeButton.width(), closeButton.height(), 6,
                 closeButton.contains(lastMouseX, lastMouseY) ? MapTheme.PANEL_CLOSE_HOVER : MapTheme.PANEL_CONTROL_BG);
         net.shiroha233.roadweaver.client.map.render.MapIconRenderer.render(
                 graphics, MapDockAction.CLOSE,
                 closeButton.x() + closeButton.width() / 2,
                 closeButton.y() + closeButton.height() / 2,
                 MapTheme.PANEL_TEXT,
-                13);
+                12);
 
         renderTabs(graphics, font, x, y);
-        graphics.enableScissor(bounds.x(), bounds.y() + 58, bounds.right(), bounds.bottom() - 10);
+        graphics.enableScissor(bounds.x(), bounds.y() + 49, bounds.right(), bounds.bottom() - 8);
         switch (tab) {
             case SEARCH -> renderSearch(graphics, font, searchResults, searchLoading, searchFailed);
             case FILTER -> renderFilter(graphics, font, snapshot, filterState);
@@ -183,11 +195,14 @@ public final class MapWorkspacePanel {
 
     public Hit hit(double mouseX,
                    double mouseY,
+                   int screenWidth,
+                   int screenHeight,
+                   int unobstructedBottom,
                    MapSnapshot snapshot,
                    MapFilterState filterState,
                    List<MapSearchResult> searchResults) {
         if (!open) return Hit.none();
-        layout(screenWidth, screenHeight, snapshot, filterState, searchResults);
+        layout(screenWidth, screenHeight, unobstructedBottom, snapshot, filterState, searchResults);
         if (closeButton.contains(mouseX, mouseY)) return new Hit(HitKind.CLOSE, null);
         for (Map.Entry<Tab, Rect> entry : tabButtons.entrySet()) {
             if (entry.getValue().contains(mouseX, mouseY)) {
@@ -227,99 +242,121 @@ public final class MapWorkspacePanel {
                 return new Hit(HitKind.DETAIL_NOTE, selectedStructure);
             }
         }
-        return contains(mouseX, mouseY) ? new Hit(HitKind.NONE, null) : Hit.none();
+        return bounds.contains(mouseX, mouseY) ? new Hit(HitKind.NONE, null) : Hit.none();
     }
 
     private void layout(int screenWidth,
                         int screenHeight,
+                        int unobstructedBottom,
                         MapSnapshot snapshot,
                         MapFilterState filterState,
                         List<MapSearchResult> searchResults) {
-        this.screenWidth = screenWidth;
-        this.screenHeight = screenHeight;
-        int width = Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, Math.round(screenWidth * 0.29f)));
-        width = Math.min(width, Math.max(180, screenWidth - 16));
-        int x = Math.max(8, screenWidth - width - PANEL_MARGIN);
-        int y = PANEL_MARGIN;
-        int height = Math.max(180, screenHeight - PANEL_MARGIN * 2);
-        bounds = new Rect(x, y, width, height);
-        closeButton = new Rect(x + width - 42, y + 7, 28, 28);
+        bounds = panelBounds(screenWidth, screenHeight, unobstructedBottom);
+        int x = bounds.x();
+        int y = bounds.y();
+        int width = bounds.width();
+        closeButton = new Rect(x + width - 36, y + 6, 24, 24);
         tabButtons.clear();
-        int tabY = y + 38;
+        int tabY = y + 32;
         int tabWidth = (width - PANEL_PADDING * 2) / 3;
         int tabX = x + PANEL_PADDING;
         for (Tab value : Tab.values()) {
-            tabButtons.put(value, new Rect(tabX, tabY, tabWidth, 24));
+            tabButtons.put(value, new Rect(tabX, tabY, tabWidth, 20));
             tabX += tabWidth;
         }
 
-        searchField = new Rect(x + PANEL_PADDING, y + 70, width - PANEL_PADDING * 2, 22);
-        searchViewport = new Rect(x + PANEL_PADDING, searchField.bottom() + 8,
-                width - PANEL_PADDING * 2, Math.max(1, bounds.bottom() - searchField.bottom() - 20));
-        resetFilterButton = new Rect(x + PANEL_PADDING, bounds.bottom() - 38, width - PANEL_PADDING * 2, 22);
-        filterViewport = new Rect(x + PANEL_PADDING, y + 70,
-                width - PANEL_PADDING * 2, Math.max(1, resetFilterButton.y() - y - 78));
+        searchField = new Rect(x + PANEL_PADDING, y + 58, width - PANEL_PADDING * 2, 20);
+        searchViewport = new Rect(x + PANEL_PADDING, searchField.bottom() + 6,
+                width - PANEL_PADDING * 2, Math.max(1, bounds.bottom() - searchField.bottom() - 16));
+        resetFilterButton = new Rect(x + PANEL_PADDING, bounds.bottom() - 32,
+                width - PANEL_PADDING * 2, 20);
+        int filterY = y + 58;
+        filterViewport = new Rect(x + PANEL_PADDING, filterY,
+                width - PANEL_PADDING * 2, Math.max(1, resetFilterButton.y() - filterY - 8));
         searchRows.clear();
         filterRows.clear();
         detailButtons.clear();
         if (tab == Tab.SEARCH) {
             int resultCount = searchResults == null ? 0 : searchResults.size();
-            int contentHeight = resultCount == 0 ? 0 : resultCount * (ROW_HEIGHT + 4) - 4;
+            int contentHeight = resultCount == 0
+                    ? 0
+                    : resultCount * (SEARCH_ROW_HEIGHT + SEARCH_ROW_GAP) - SEARCH_ROW_GAP;
             maxScrollOffset = Math.max(0, contentHeight - searchViewport.height());
             scrollOffset = Math.min(scrollOffset, maxScrollOffset);
             int rowY = searchViewport.y() - scrollOffset;
             if (searchResults != null) {
                 for (int i = 0; i < searchResults.size(); i++) {
-                    Rect row = new Rect(x + PANEL_PADDING, rowY, width - PANEL_PADDING * 2, ROW_HEIGHT);
+                    Rect row = new Rect(x + PANEL_PADDING, rowY,
+                            width - PANEL_PADDING * 2, SEARCH_ROW_HEIGHT);
                     if (intersects(row, searchViewport)) searchRows.add(new SearchRow(row, i));
-                    rowY += ROW_HEIGHT + 4;
+                    rowY += SEARCH_ROW_HEIGHT + SEARCH_ROW_GAP;
                 }
             }
         } else if (tab == Tab.FILTER) {
             Set<String> types = filterState == null ? Set.of() : filterState.availableTypes(snapshot);
-            int contentHeight = ConnectionStatus.values().length * 24
-                    + MapStructureSource.values().length * 24
-                    + types.size() * 24 + 24;
+            int rowStride = FILTER_ROW_HEIGHT + FILTER_ROW_GAP;
+            int contentHeight = (ConnectionStatus.values().length
+                    + MapStructureSource.values().length
+                    + types.size()) * rowStride + FILTER_GROUP_GAP * 2;
             maxScrollOffset = Math.max(0, contentHeight - filterViewport.height());
             scrollOffset = Math.min(scrollOffset, maxScrollOffset);
             int rowY = filterViewport.y() - scrollOffset;
             for (ConnectionStatus status : ConnectionStatus.values()) {
-                Rect row = new Rect(x + PANEL_PADDING, rowY, width - PANEL_PADDING * 2, 22);
+                Rect row = new Rect(x + PANEL_PADDING, rowY,
+                        width - PANEL_PADDING * 2, FILTER_ROW_HEIGHT);
                 if (intersects(row, filterViewport)) filterRows.add(new FilterRow(row, HitKind.STATUS_FILTER, status));
-                rowY += 24;
+                rowY += rowStride;
             }
-            rowY += 12;
+            rowY += FILTER_GROUP_GAP;
             for (MapStructureSource source : MapStructureSource.values()) {
-                Rect row = new Rect(x + PANEL_PADDING, rowY, width - PANEL_PADDING * 2, 22);
+                Rect row = new Rect(x + PANEL_PADDING, rowY,
+                        width - PANEL_PADDING * 2, FILTER_ROW_HEIGHT);
                 if (intersects(row, filterViewport)) filterRows.add(new FilterRow(row, HitKind.SOURCE_FILTER, source));
-                rowY += 24;
+                rowY += rowStride;
             }
-            rowY += 12;
+            rowY += FILTER_GROUP_GAP;
             for (String type : types.stream().sorted().toList()) {
-                Rect row = new Rect(x + PANEL_PADDING, rowY, width - PANEL_PADDING * 2, 22);
+                Rect row = new Rect(x + PANEL_PADDING, rowY,
+                        width - PANEL_PADDING * 2, FILTER_ROW_HEIGHT);
                 if (intersects(row, filterViewport)) filterRows.add(new FilterRow(row, HitKind.TYPE_FILTER, type));
-                rowY += 24;
+                rowY += rowStride;
             }
         } else {
             maxScrollOffset = 0;
-            int buttonY = y + 182;
+            int buttonY = Math.min(y + 152,
+                    bounds.bottom() - PANEL_PADDING - DETAILS_BUTTON_HEIGHT);
             int buttonWidth = (width - PANEL_PADDING * 2 - 8) / 3;
             for (int i = 0; i < 3; i++) {
-                detailButtons.add(new Rect(x + PANEL_PADDING + i * (buttonWidth + 4), buttonY, buttonWidth, 24));
+                detailButtons.add(new Rect(x + PANEL_PADDING + i * (buttonWidth + 4),
+                        buttonY, buttonWidth, DETAILS_BUTTON_HEIGHT));
             }
         }
+    }
+
+    static Rect panelBounds(int screenWidth, int screenHeight, int unobstructedBottom) {
+        int availableWidth = Math.max(1, screenWidth - PANEL_MARGIN * 2);
+        int preferredWidth = Math.round(screenWidth * PANEL_WIDTH_RATIO);
+        int width = Math.min(availableWidth,
+                Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, preferredWidth)));
+        int x = Math.max(0, screenWidth - width - PANEL_MARGIN);
+
+        int bottom = Math.max(PANEL_MARGIN + 1,
+                Math.min(screenHeight - PANEL_MARGIN, unobstructedBottom));
+        int availableHeight = Math.max(1, bottom - PANEL_MARGIN);
+        int preferredHeight = Math.max(PANEL_MIN_HEIGHT, Math.round(screenHeight * PANEL_HEIGHT_RATIO));
+        int height = Math.min(availableHeight, preferredHeight);
+        return new Rect(x, PANEL_MARGIN, width, height);
     }
 
     private void renderTabs(GuiGraphics graphics, Font font, int x, int y) {
         for (Map.Entry<Tab, Rect> entry : tabButtons.entrySet()) {
             Rect rect = entry.getValue();
             boolean selected = entry.getKey() == tab;
-            MapDockRenderer.fillRounded(graphics, rect.x(), rect.y(), rect.width(), rect.height(), 6,
+            MapDockRenderer.fillRounded(graphics, rect.x(), rect.y(), rect.width(), rect.height(), 5,
                     selected ? MapTheme.PANEL_TAB_ACTIVE : MapTheme.PANEL_CONTROL_BG);
-            Component label = Component.translatable(tabTitleKey(entry.getKey()));
-            int textX = rect.x() + (rect.width() - font.width(label)) / 2;
-            graphics.drawString(font, label, textX, rect.y() + 7,
-                    selected ? MapTheme.PANEL_TEXT : MapTheme.PANEL_MUTED, false);
+            Component label = fitLabel(font, Component.translatable(tabTitleKey(entry.getKey())), rect.width() - 8);
+            drawCentered(graphics, font, label, rect,
+                    selected ? MapTheme.PANEL_TEXT : MapTheme.PANEL_MUTED);
         }
     }
 
@@ -349,13 +386,13 @@ public final class MapWorkspacePanel {
             MapSearchResult result = results.get(searchRow.resultIndex());
             Rect row = searchRow.bounds();
             boolean hovered = row.contains(lastMouseX, lastMouseY);
-            if (hovered) MapDockRenderer.fillRounded(graphics, row.x(), row.y(), row.width(), row.height(), 6, MapTheme.PANEL_CONTROL_BG);
+            if (hovered) MapDockRenderer.fillRounded(graphics, row.x(), row.y(), row.width(), row.height(), 5, MapTheme.PANEL_CONTROL_BG);
             String alias = ClientMapNotes.getAlias(result.pos());
             String primary = alias != null && !alias.isBlank() ? alias : result.structureId();
             String secondary = result.structureId() + "  " + result.pos().getX() + ", " + result.pos().getZ();
-            graphics.drawString(font, font.plainSubstrByWidth(primary, row.width() - 16), row.x() + 8, row.y() + 6,
+            graphics.drawString(font, font.plainSubstrByWidth(primary, row.width() - 12), row.x() + 6, row.y() + 4,
                     MapTheme.PANEL_TEXT, false);
-            graphics.drawString(font, font.plainSubstrByWidth(secondary, row.width() - 16), row.x() + 8, row.y() + 20,
+            graphics.drawString(font, font.plainSubstrByWidth(secondary, row.width() - 12), row.x() + 6, row.y() + 16,
                     MapTheme.PANEL_MUTED, false);
         }
         graphics.disableScissor();
@@ -370,7 +407,7 @@ public final class MapWorkspacePanel {
                 case TYPE_FILTER -> filterState != null && filterState.isTypeSelected((String) row.value(), filterState.availableTypes(snapshot));
                 default -> false;
             };
-            drawCheckbox(graphics, row.bounds().x() + 2, row.bounds().y() + 5, checked);
+            drawCheckbox(graphics, row.bounds().x() + 2, row.bounds().y() + 4, checked);
             Component label = switch (row.kind()) {
                 case STATUS_FILTER -> Component.translatable("gui.roadweaver.map.filter.status." + ((ConnectionStatus) row.value()).name().toLowerCase());
                 case SOURCE_FILTER -> Component.translatable("gui.roadweaver.map.filter.source." + ((MapStructureSource) row.value()).name().toLowerCase());
@@ -378,18 +415,18 @@ public final class MapWorkspacePanel {
                 default -> Component.empty();
             };
             graphics.drawString(font, font.plainSubstrByWidth(label.getString(), row.bounds().width() - 28),
-                    row.bounds().x() + 18, row.bounds().y() + 6, MapTheme.PANEL_TEXT, false);
+                    row.bounds().x() + 18, row.bounds().y() + 5, MapTheme.PANEL_TEXT, false);
         }
         graphics.disableScissor();
         MapDockRenderer.fillRounded(graphics, resetFilterButton.x(), resetFilterButton.y(),
-                resetFilterButton.width(), resetFilterButton.height(), 6, MapTheme.PANEL_CONTROL_BG);
+                resetFilterButton.width(), resetFilterButton.height(), 5, MapTheme.PANEL_CONTROL_BG);
         drawCentered(graphics, font, Component.translatable("gui.roadweaver.map.panel.filter.reset"),
                 resetFilterButton, MapTheme.PANEL_TEXT);
     }
 
     private void renderDetails(GuiGraphics graphics, Font font, MapSnapshot snapshot) {
         int x = bounds.x() + PANEL_PADDING;
-        int y = bounds.y() + 74;
+        int y = bounds.y() + 62;
         if (selectedStructure == null) {
             graphics.drawString(font, Component.translatable("gui.roadweaver.map.panel.details.empty"), x, y, MapTheme.PANEL_MUTED, false);
             return;
@@ -399,13 +436,13 @@ public final class MapWorkspacePanel {
         String primary = alias != null && !alias.isBlank() ? alias : name != null ? name : "unknown";
         graphics.drawString(font, font.plainSubstrByWidth(primary, bounds.width() - PANEL_PADDING * 2), x, y, MapTheme.PANEL_TEXT, false);
         graphics.drawString(font, Component.translatable("gui.roadweaver.map.coord", selectedStructure.getX(), selectedStructure.getZ()),
-                x, y + 20, MapTheme.PANEL_MUTED, false);
+                x, y + 17, MapTheme.PANEL_MUTED, false);
         if (name != null && alias != null && !alias.equals(name)) {
-            graphics.drawString(font, font.plainSubstrByWidth(name, bounds.width() - PANEL_PADDING * 2), x, y + 38, MapTheme.PANEL_MUTED, false);
+            graphics.drawString(font, font.plainSubstrByWidth(name, bounds.width() - PANEL_PADDING * 2), x, y + 33, MapTheme.PANEL_MUTED, false);
         }
         for (int i = 0; i < detailButtons.size(); i++) {
             Rect button = detailButtons.get(i);
-            MapDockRenderer.fillRounded(graphics, button.x(), button.y(), button.width(), button.height(), 6, MapTheme.PANEL_CONTROL_BG);
+            MapDockRenderer.fillRounded(graphics, button.x(), button.y(), button.width(), button.height(), 5, MapTheme.PANEL_CONTROL_BG);
             Component label = Component.translatable(switch (i) {
                 case 0 -> "gui.roadweaver.map.panel.details.teleport";
                 case 1 -> "gui.roadweaver.map.panel.details.alias";
@@ -421,6 +458,17 @@ public final class MapWorkspacePanel {
             graphics.fill(x + 3, y + 5, x + 5, y + 9, MapTheme.PANEL_TEXT);
             graphics.fill(x + 5, y + 7, x + 10, y + 9, MapTheme.PANEL_TEXT);
         }
+    }
+
+    private static Component fitLabel(Font font, Component label, int maxWidth) {
+        if (font.width(label) <= maxWidth) return label;
+        String suffix = "...";
+        int suffixWidth = font.width(suffix);
+        if (suffixWidth >= maxWidth) {
+            return Component.literal(font.plainSubstrByWidth(label.getString(), Math.max(0, maxWidth)));
+        }
+        String prefix = font.plainSubstrByWidth(label.getString(), maxWidth - suffixWidth);
+        return Component.literal(prefix + suffix);
     }
 
     private static void drawCentered(GuiGraphics graphics, Font font, Component text, Rect rect, int color) {

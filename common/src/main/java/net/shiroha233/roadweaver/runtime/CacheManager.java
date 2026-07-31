@@ -17,6 +17,7 @@ import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import net.shiroha233.roadweaver.planning.RoadPlanningService;
 import net.shiroha233.roadweaver.planning.path.PlannedPathCache;
+import net.shiroha233.roadweaver.planning.terrain.AutomaticPlanningSamplingActivities;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
 import net.shiroha233.roadweaver.structures.precompute.PendingRoadsideVillageStorage;
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
@@ -46,6 +47,7 @@ public final class CacheManager {
         OpenCLCoarseHeightBatchSampler.clearProgramCache();
         OpenCLWorldSupport.clear();
         TerrainSamplingSessions.clearAll();
+        AutomaticPlanningSamplingActivities.clearAll();
         LOGGER.debug("CacheManager: 缓存已初始化");
     }
 
@@ -100,6 +102,7 @@ public final class CacheManager {
         if (level == null) return;
 
         TerrainSamplingSessions.clear(level);
+        AutomaticPlanningSamplingActivities.clear(level);
         AccurateHeightSampler.clearForLevel(level);
         PlannedPathCache.clear(level);
         try {
