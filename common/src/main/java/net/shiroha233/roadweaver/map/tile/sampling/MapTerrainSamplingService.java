@@ -22,10 +22,12 @@ import net.shiroha233.roadweaver.pathfinding.terrain.region.TerrainPngWriteProgr
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessionSnapshot;
 import net.shiroha233.roadweaver.planning.terrain.TerrainSamplingSessions;
 import net.shiroha233.roadweaver.runtime.ThreadPoolManager;
+import net.shiroha233.roadweaver.search.StructureIndexService;
 import net.shiroha233.roadweaver.util.ComputeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -35,9 +37,20 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class MapTerrainSamplingService {
     private static final Logger LOGGER = LoggerFactory.getLogger("roadweaver");
     private static final int TERRAIN_SAMPLING_PERCENT = 70;
+    private static final int STRUCTURE_QUERY_PERCENT = 10;
+    private static final int PNG_WRITING_PERCENT = 100 - TERRAIN_SAMPLING_PERCENT - STRUCTURE_QUERY_PERCENT;
 
     private final AtomicReference<MapSamplingSnapshot> snapshot =
             new AtomicReference<>(MapSamplingSnapshot.idle());
+    private final MapStructureSamplingPort structureSampling;
+
+    public MapTerrainSamplingService() {
+        this(MapTerrainSamplingService::queryStructures);
+    }
+
+    MapTerrainSamplingService(MapStructureSamplingPort structureSampling) {
+        this.structureSampling = Objects.requireNonNull(structureSampling, "structureSampling");
+    }
 
     public MapSamplingSnapshot snapshot() {
         return snapshot.get();
@@ -139,6 +152,8 @@ public final class MapTerrainSamplingService {
                 throw new IllegalStateException("Unsupported map sampling plan: " + plan.getClass().getName());
             }
             ensureActiveEpoch(epoch);
+            queryStructures(level, visibleBounds, epoch);
+            ensureActiveEpoch(epoch);
             publish(MapSamplingSnapshot.Stage.COMPLETED, visibleBounds, 100);
         } catch (CancellationException cancelled) {
             publish(MapSamplingSnapshot.Stage.FAILED, visibleBounds, snapshot.get().percent());
@@ -225,11 +240,28 @@ public final class MapTerrainSamplingService {
                 bounds,
                 weightedPercent(completed, total,
                         TERRAIN_SAMPLING_PERCENT,
-                        100 - TERRAIN_SAMPLING_PERCENT));
+                        PNG_WRITING_PERCENT));
     }
 
     private void beginPngWrite(MapSamplingBounds bounds) {
         publish(MapSamplingSnapshot.Stage.WRITING_PNG, bounds, TERRAIN_SAMPLING_PERCENT);
+    }
+
+    private void queryStructures(ServerLevel level,
+                                 MapSamplingBounds bounds,
+                                 long epoch) {
+        ensureActiveEpoch(epoch);
+        publish(MapSamplingSnapshot.Stage.QUERYING_STRUCTURES,
+                bounds,
+                TERRAIN_SAMPLING_PERCENT + PNG_WRITING_PERCENT);
+        structureSampling.query(level, bounds);
+    }
+
+    private static void queryStructures(ServerLevel level, MapSamplingBounds bounds) {
+        if (level == null || bounds == null) return;
+        StructureIndexService.predictAndVerifyInRect(
+                level,
+                bounds.minX(), bounds.minZ(), bounds.maxX(), bounds.maxZ());
     }
 
     private void publish(MapSamplingSnapshot.Stage stage,

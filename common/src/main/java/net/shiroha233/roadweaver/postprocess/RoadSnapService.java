@@ -7,8 +7,8 @@ import net.shiroha233.roadweaver.core.constants.RoadConstants;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.core.model.RoadSpan;
-import net.shiroha233.roadweaver.persistence.RoadSpatialIndex;
-import net.shiroha233.roadweaver.persistence.files.RoadFileStorage;
+import net.shiroha233.roadweaver.persistence.RoadReplacement;
+import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ public final class RoadSnapService {
     public static void snapAllRoads(ServerLevel level, int minX, int minZ, int maxX, int maxZ) {
         if (level == null) return;
         int margin = SPLIT_THRESHOLD;
-        List<RoadData> roads = RoadFileStorage.queryRect(level,
+        List<RoadData> roads = RoadShardStorage.queryRect(level,
                 minX - margin, minZ - margin, maxX + margin, maxZ + margin);
         if (roads == null || roads.size() < 2) return;
         snapRoadList(level, roads);
@@ -47,7 +47,7 @@ public final class RoadSnapService {
         int maxX = Math.max(from.getX(), to.getX());
         int maxZ = Math.max(from.getZ(), to.getZ());
         int margin = SPLIT_THRESHOLD * 2;
-        List<RoadData> roads = RoadFileStorage.queryRect(level,
+        List<RoadData> roads = RoadShardStorage.queryRect(level,
                 minX - margin, minZ - margin, maxX + margin, maxZ + margin);
         if (roads == null || roads.size() < 2) return;
         snapRoadList(level, roads);
@@ -63,7 +63,7 @@ public final class RoadSnapService {
         int maxZ = Math.max(from.getZ(), to.getZ());
         int margin = SPLIT_THRESHOLD * 2;
 
-        return RoadFileStorage.queryRectAsync(level,
+        return RoadShardStorage.queryRectAsync(level,
                 minX - margin, minZ - margin, maxX + margin, maxZ + margin)
                 .thenAcceptAsync(roads -> {
                     if (roads == null || roads.size() < 2) return;
@@ -72,9 +72,9 @@ public final class RoadSnapService {
     }
 
     private static void snapRoadList(ServerLevel level, List<RoadData> roads) {
-        List<long[]> fingerprints = new ArrayList<>(roads.size());
-        for (RoadData rd : roads) {
-            fingerprints.add(new long[]{RoadFileStorage.computeFingerprint(rd)});
+        long[] fingerprints = new long[roads.size()];
+        for (int i = 0; i < roads.size(); i++) {
+            fingerprints[i] = RoadShardStorage.computeFingerprint(roads.get(i));
         }
 
         boolean[] modified = new boolean[roads.size()];
@@ -108,19 +108,20 @@ public final class RoadSnapService {
             }
         }
 
+        List<RoadReplacement> replacements = new ArrayList<>();
         for (int i = 0; i < current.length; i++) {
-            if (!modified[i]) continue;
-            long oldFp = fingerprints.get(i)[0];
+            if (modified[i]) {
+                replacements.add(new RoadReplacement(fingerprints[i], current[i]));
+            }
+        }
+        if (!replacements.isEmpty()) {
             try {
-                RoadFileStorage.replaceRoad(level, oldFp, current[i]);
+                RoadShardStorage.replaceRoads(level, replacements);
             } catch (Exception e) {
-                LOGGER.error("吸附后更新道路失败", e);
+                LOGGER.error("吸附后批量更新道路失败", e);
             }
         }
 
-        if (hasAnyModified(modified)) {
-            RoadSpatialIndex.clearCache(level);
-        }
     }
 
     private static RoadData trySnap(RoadData primary, SegmentGrid primaryGrid, RoadData secondary) {
@@ -436,11 +437,6 @@ public final class RoadSnapService {
 
     private static long gridKey(int gx, int gz) {
         return (((long) gx) << 32) | (gz & 0xFFFFFFFFL);
-    }
-
-    private static boolean hasAnyModified(boolean[] modified) {
-        for (boolean b : modified) if (b) return true;
-        return false;
     }
 
     private record TruncateResult(List<RoadSegmentPlacement> segments, List<Integer> targetY) {}

@@ -20,13 +20,16 @@ public record MapSamplingSnapshot(Stage stage, MapSamplingBounds bounds, int per
     }
 
     public boolean active() {
-        return stage == Stage.SAMPLING_TERRAIN || stage == Stage.WRITING_PNG;
+        return stage == Stage.SAMPLING_TERRAIN
+                || stage == Stage.WRITING_PNG
+                || stage == Stage.QUERYING_STRUCTURES;
     }
 
     public enum Stage {
         IDLE,
         SAMPLING_TERRAIN,
         WRITING_PNG,
+        QUERYING_STRUCTURES,
         COMPLETED,
         FAILED
     }

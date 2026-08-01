@@ -25,6 +25,8 @@ class MapSamplingSnapshotTest {
                 MapSamplingSnapshot.Stage.SAMPLING_TERRAIN, BOUNDS, 20).active());
         assertTrue(new MapSamplingSnapshot(
                 MapSamplingSnapshot.Stage.WRITING_PNG, BOUNDS, 80).active());
+        assertTrue(new MapSamplingSnapshot(
+                MapSamplingSnapshot.Stage.QUERYING_STRUCTURES, BOUNDS, 90).active());
         assertFalse(new MapSamplingSnapshot(
                 MapSamplingSnapshot.Stage.COMPLETED, BOUNDS, 100).active());
         assertFalse(MapSamplingSnapshot.idle().active());

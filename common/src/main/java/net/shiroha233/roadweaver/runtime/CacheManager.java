@@ -23,6 +23,7 @@ import net.shiroha233.roadweaver.structures.precompute.PendingRoadsideVillageSto
 import net.shiroha233.roadweaver.structures.precompute.PendingStructureStorage;
 import net.shiroha233.roadweaver.structures.registry.BridgeTemplateStructureRegistry;
 import net.shiroha233.roadweaver.structures.registry.RoadsideStructureRegistry;
+import net.shiroha233.roadweaver.worldgen.road.RoadWorldgenPlanCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +49,7 @@ public final class CacheManager {
         OpenCLWorldSupport.clear();
         TerrainSamplingSessions.clearAll();
         AutomaticPlanningSamplingActivities.clearAll();
+        RoadWorldgenPlanCache.clearAll();
         LOGGER.debug("CacheManager: 缓存已初始化");
     }
 
@@ -76,6 +78,7 @@ public final class CacheManager {
         }
 
         RoadShardStorage.shutdown();
+        RoadWorldgenPlanCache.clearAll();
 
         RoadsideStructureRegistry.clearCache();
         BridgeTemplateStructureRegistry.clearCache();
@@ -105,6 +108,7 @@ public final class CacheManager {
         AutomaticPlanningSamplingActivities.clear(level);
         AccurateHeightSampler.clearForLevel(level);
         PlannedPathCache.clear(level);
+        RoadWorldgenPlanCache.clear(level);
         try {
             OpenCLAccurateProgramCache.clear(level.getChunkSource().getGeneratorState().randomState());
         } catch (Throwable failure) {

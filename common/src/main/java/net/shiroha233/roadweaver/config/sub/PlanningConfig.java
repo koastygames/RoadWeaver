@@ -19,7 +19,7 @@ public final class PlanningConfig implements SubConfig {
     private int dynamicPlanRadiusChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_RADIUS_CHUNKS;
     private int dynamicPlanStrideChunks = RoadConstants.DEFAULT_DYNAMIC_PLAN_STRIDE_CHUNKS;
     private PlanningAlgorithm planningAlgorithm = PlanningAlgorithm.RNG;
-    private TerrainSamplingMode terrainSamplingMode = TerrainSamplingMode.LEGACY_DIRECT;
+    private TerrainSamplingMode terrainSamplingMode = TerrainSamplingMode.COARSE_CORRIDOR;
 
     @Override
     public void sanitize() {
@@ -36,7 +36,7 @@ public final class PlanningConfig implements SubConfig {
         }
         dynamicPlanStrideChunks = Math.min(RoadConstants.PLAN_TILE_MAX, dynamicPlanStrideChunks);
         if (planningAlgorithm == null) planningAlgorithm = PlanningAlgorithm.RNG;
-        if (terrainSamplingMode == null) terrainSamplingMode = TerrainSamplingMode.LEGACY_DIRECT;
+        if (terrainSamplingMode == null) terrainSamplingMode = TerrainSamplingMode.COARSE_CORRIDOR;
     }
 
     @Override

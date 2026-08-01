@@ -1,3 +1,4 @@
+/* 文件职责：在 Fabric 植被 Feature 入口复用道路占用查询并缓存特征分类。 */
 package net.shiroha233.roadweaver.mixin.fabric;
 
 import net.minecraft.core.BlockPos;
@@ -27,6 +28,9 @@ public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F ex
     @Shadow @Final public F feature;
     @Shadow @Final public FC config;
 
+    @Unique
+    private volatile Boolean roadweaver$treeLike;
+
     /**
      * 拦截 ConfiguredFeature.place() 方法
      * 这是所有 Feature 生成的入口点，包括 C2ME 优化后的调用
@@ -51,17 +55,21 @@ public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F ex
      */
     @Unique
     private boolean roadweaver$isTreeLikeFeature() {
+        Boolean cached = this.roadweaver$treeLike;
+        if (cached != null) return cached;
         if (this.feature == null) return false;
         
         String featureClassName = this.feature.getClass().getName().toLowerCase();
         
         // 排除已有专门 Mixin 的原版类（避免重复检查）
         if (roadweaver$isVanillaTreeFeature(featureClassName)) {
+            this.roadweaver$treeLike = false;
             return false;
         }
         
         // 检查 Feature 类名
         if (roadweaver$containsTreeKeyword(featureClassName)) {
+            this.roadweaver$treeLike = true;
             return true;
         }
         
@@ -69,10 +77,12 @@ public class GenericVegetationFeatureMixin<FC extends FeatureConfiguration, F ex
         if (this.config != null) {
             String configName = this.config.getClass().getName().toLowerCase();
             if (roadweaver$containsTreeKeyword(configName)) {
+                this.roadweaver$treeLike = true;
                 return true;
             }
         }
         
+        this.roadweaver$treeLike = false;
         return false;
     }
 

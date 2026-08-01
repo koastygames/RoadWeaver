@@ -1,3 +1,4 @@
+/* 文件职责：在 Fabric 主世界生物群系的表层阶段注册道路收尾 Feature。 */
 package net.shiroha233.roadweaver.features.config;
 
 import net.fabricmc.fabric.api.biome.v1.BiomeModifications;
@@ -28,7 +29,7 @@ public final class RoadFeatureRegistry {
                 Registries.PLACED_FEATURE,
                 ResourceLocation.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature_placed"));
         BiomeModifications.addFeature(
-                BiomeSelectors.all(),
+                BiomeSelectors.foundInOverworld(),
                 GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
                 placedKey);
     }

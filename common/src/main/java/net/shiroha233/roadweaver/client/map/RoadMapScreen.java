@@ -744,10 +744,22 @@ public class RoadMapScreen extends Screen implements MapInputHandler.Callbacks {
         observedSamplingStage = current.stage();
         if (current.stage() == MapSamplingSnapshot.Stage.COMPLETED) {
             terrainTiles.clear();
+            refreshStructuresAfterSampling(current.bounds());
             notifyMapSampling(Component.translatable("gui.roadweaver.map.sample.completed"));
         } else if (current.stage() == MapSamplingSnapshot.Stage.FAILED) {
             notifyMapSampling(Component.translatable("gui.roadweaver.map.sample.failed"));
         }
+    }
+
+    private void refreshStructuresAfterSampling(MapSamplingBounds bounds) {
+        if (bounds == null || currentDimensionId == null) return;
+        MapViewportController.RequestRect sampledRect = new MapViewportController.RequestRect(
+                bounds.minX(), bounds.minZ(), bounds.maxX(), bounds.maxZ());
+        snapshotStore.clearRect(MapLoadPhase.STRUCTURES, sampledRect);
+        snapshot = snapshotStore.snapshot();
+        invalidateFilteredSnapshot();
+        MapSnapshotCache.put(currentDimensionId, snapshot);
+        onRequestView();
     }
 
     private void notifyMapSampling(Component message) {

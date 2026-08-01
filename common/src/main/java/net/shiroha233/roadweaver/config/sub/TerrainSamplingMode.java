@@ -11,7 +11,7 @@ public enum TerrainSamplingMode {
     LEGACY_DIRECT,
 
     /**
-     * 先使用粗区域地形，再只对走廊与路径附近做精确补采。
+     * 使用与原版 preliminary surface 同源的粗地形高度场直接规划，不重复构造 NoiseChunk。
      */
     COARSE_CORRIDOR,
 

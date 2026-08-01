@@ -9,10 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 class PlanningConfigTest {
 
     @Test
-    void defaultsToLegacyDirectMode() {
+    void defaultsToCoarseCorridorMode() {
         PlanningConfig config = new PlanningConfig();
 
-        assertEquals(TerrainSamplingMode.LEGACY_DIRECT, config.terrainSamplingMode());
+        assertEquals(TerrainSamplingMode.COARSE_CORRIDOR, config.terrainSamplingMode());
     }
 
     @Test
@@ -21,7 +21,7 @@ class PlanningConfigTest {
         config.setTerrainSamplingMode(null);
 
         config.sanitize();
-        assertEquals(TerrainSamplingMode.LEGACY_DIRECT, config.terrainSamplingMode());
+        assertEquals(TerrainSamplingMode.COARSE_CORRIDOR, config.terrainSamplingMode());
 
         config.setTerrainSamplingMode(TerrainSamplingMode.FULL_REGION);
         PlanningConfig snapshot = config.snapshot();

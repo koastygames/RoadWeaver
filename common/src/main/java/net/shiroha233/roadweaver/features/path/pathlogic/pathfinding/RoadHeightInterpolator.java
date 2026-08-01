@@ -1,3 +1,4 @@
+/* 文件职责：在道路中心线局部窗口内插值路面高度，避免铺路热路径扫描整条道路。 */
 package net.shiroha233.roadweaver.features.path.pathlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
@@ -24,20 +25,43 @@ public final class RoadHeightInterpolator {
             return targetY[0];
         }
         
-        ProjectionResult proj = findNearestProjection(x, z, centers);
+        ProjectionResult proj = findNearestProjection(x, z, centers, 0, n - 2);
         return interpolateY(proj.segmentIndex, proj.t, targetY);
+    }
+
+    public static int getInterpolatedYNear(int x,
+                                           int z,
+                                           List<BlockPos> centers,
+                                           int[] targetY,
+                                           int segmentIndex,
+                                           int radius) {
+        if (centers == null || centers.isEmpty() || targetY == null || targetY.length == 0) {
+            return 64;
+        }
+        int size = Math.min(centers.size(), targetY.length);
+        if (size == 1) return targetY[0];
+        if (size != centers.size() || size != targetY.length) return targetY[0];
+
+        int searchRadius = Math.max(1, radius);
+        int anchor = Math.max(0, Math.min(size - 2, segmentIndex));
+        int start = Math.max(0, anchor - searchRadius);
+        int end = Math.min(size - 2, anchor + searchRadius);
+        ProjectionResult projection = findNearestProjection(x, z, centers, start, end);
+        return interpolateY(projection.segmentIndex, projection.t, targetY);
     }
 
     private record ProjectionResult(int segmentIndex, double t, double distSq) {}
 
-    private static ProjectionResult findNearestProjection(int x, int z, List<BlockPos> centers) {
-        int n = centers.size();
-        
-        int bestSegment = 0;
+    private static ProjectionResult findNearestProjection(int x,
+                                                          int z,
+                                                          List<BlockPos> centers,
+                                                          int searchStart,
+                                                          int searchEnd) {
+        int bestSegment = searchStart;
         double bestT = 0.0;
         double bestDistSq = Double.MAX_VALUE;
         
-        for (int i = 0; i < n - 1; i++) {
+        for (int i = searchStart; i <= searchEnd; i++) {
             BlockPos a = centers.get(i);
             BlockPos b = centers.get(i + 1);
             
@@ -86,47 +110,25 @@ public final class RoadHeightInterpolator {
         if (positions == null || positions.isEmpty()) {
             return new int[0];
         }
+        if (centers == null || targetY == null || centers.size() < 2 || centers.size() != targetY.length) {
+            return new int[positions.size()];
+        }
         
         int[] results = new int[positions.size()];
         int n = centers.size();
 
         int extendedRadius = 20;
-        int searchStart = Math.max(0, segmentIndex - extendedRadius);
-        int searchEnd = Math.min(n - 2, segmentIndex + extendedRadius);
+        int anchor = Math.max(0, Math.min(n - 2, segmentIndex));
+        int searchStart = Math.max(0, anchor - extendedRadius);
+        int searchEnd = Math.min(n - 2, anchor + extendedRadius);
 
         for (int i = 0; i < positions.size(); i++) {
             BlockPos pos = positions.get(i);
             int x = pos.getX();
             int z = pos.getZ();
 
-            int bestSeg = segmentIndex;
-            double bestT = 0.5;
-            double bestDistSq = Double.MAX_VALUE;
-            
-            for (int seg = searchStart; seg <= searchEnd; seg++) {
-                BlockPos a = centers.get(seg);
-                BlockPos b = centers.get(seg + 1);
-                
-                double ax = a.getX(), az = a.getZ();
-                double bx = b.getX(), bz = b.getZ();
-                double dx = bx - ax, dz = bz - az;
-                double lenSq = dx * dx + dz * dz;
-                
-                double t = (lenSq < 1e-9) ? 0.0 
-                    : Math.max(0.0, Math.min(1.0, ((x - ax) * dx + (z - az) * dz) / lenSq));
-                
-                double projX = ax + t * dx;
-                double projZ = az + t * dz;
-                double distSq = (x - projX) * (x - projX) + (z - projZ) * (z - projZ);
-                
-                if (distSq < bestDistSq) {
-                    bestDistSq = distSq;
-                    bestSeg = seg;
-                    bestT = t;
-                }
-            }
-            
-            results[i] = interpolateY(bestSeg, bestT, targetY);
+            ProjectionResult projection = findNearestProjection(x, z, centers, searchStart, searchEnd);
+            results[i] = interpolateY(projection.segmentIndex, projection.t, targetY);
         }
         
         return results;

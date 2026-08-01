@@ -31,7 +31,9 @@ import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.HeightProfi
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BuoyBuilder;
 import net.shiroha233.roadweaver.features.path.pathlogic.bridge.BuoyMarkerPlanner;
 import net.shiroha233.roadweaver.features.path.decoration.system.SkippedBridgeBankSignPlanner;
-import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.worldgen.road.RoadChunkPlan;
+import net.shiroha233.roadweaver.worldgen.road.RoadChunkSlice;
+import net.shiroha233.roadweaver.worldgen.road.RoadWorldgenPlanCache;
 
 import java.util.*;
 
@@ -55,13 +57,8 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             return false;
 
         ChunkPos currentChunk = new ChunkPos(ctx.origin());
-        int minX = currentChunk.getMinBlockX();
-        int minZ = currentChunk.getMinBlockZ();
-        int maxX = currentChunk.getMaxBlockX();
-        int maxZ = currentChunk.getMaxBlockZ();
-        
-        List<RoadData> roadDataList = RoadShardStorage.queryRect(server, minX, minZ, maxX, maxZ);
-        if (roadDataList == null || roadDataList.isEmpty())
+        RoadChunkPlan plan = RoadWorldgenPlanCache.get(server, currentChunk, cfg);
+        if (plan.slices().isEmpty())
             return false;
 
         RandomSource random = ctx.random();
@@ -69,20 +66,20 @@ public class PathFeature extends Feature<PathFeatureConfig> {
 
         Set<BlockPos> processedMiddle = new HashSet<>();
         Set<Decoration> decorations = new HashSet<>();
-        
-        for (RoadData data : roadDataList) {
-            processRoadDataInChunk(world, server, currentChunk, data, processedMiddle, decorations, random, cfg,
+
+        for (RoadChunkSlice slice : plan.slices()) {
+            processRoadSlice(world, server, currentChunk, slice, processedMiddle, decorations, random, cfg,
                     averagingRadius);
         }
-        
+
         DecorationExecutor.tryPlaceDecorations(decorations);
         return true;
     }
 
-    private static void processRoadDataInChunk(WorldGenLevel world,
+    private static void processRoadSlice(WorldGenLevel world,
             ServerLevel server,
             ChunkPos currentChunk,
-            RoadData data,
+            RoadChunkSlice slice,
             Set<BlockPos> processedMiddle,
             Set<Decoration> decorations,
             RandomSource random,
@@ -92,6 +89,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             return;
         }
 
+        RoadData data = slice.road();
         boolean bridgeEnabled = cfg.bridgeEnabled();
         int roadType = data.roadType();
         if (roadType != 0 && roadType != 1) {
@@ -148,18 +146,20 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         }
 
         int deckY = server.getSeaLevel() + cfg.bridgeDeckClearance();
-        int segmentIndex = 0;
         BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
         
-        for (int i = 2; i < segments.size() - 2; i++) {
-            BlockPos middle = middlePositions.get(i);
-            if (!processedMiddle.add(middle))
+        for (int localIndex = 0; localIndex < slice.segmentCount(); localIndex++) {
+            int i = slice.segmentIndexAt(localIndex);
+            if (i < 2 || i >= segments.size() - 2) {
                 continue;
-            segmentIndex++;
+            }
+            BlockPos middle = middlePositions.get(i);
+            int segmentIndex = i - 1;
             if (segmentIndex < 8 || segmentIndex > segments.size() - 8)
                 continue;
-            ChunkPos middleChunk = new ChunkPos(middle);
-            if (!middleChunk.equals(currentChunk))
+            if (!contains(currentChunk, middle))
+                continue;
+            if (!processedMiddle.add(middle))
                 continue;
 
             BlockPos prev = middlePositions.get(i - 2);
@@ -237,5 +237,10 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                         (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL));
             }
         }
+    }
+
+    private static boolean contains(ChunkPos chunkPos, BlockPos pos) {
+        return pos.getX() >= chunkPos.getMinBlockX() && pos.getX() <= chunkPos.getMaxBlockX()
+                && pos.getZ() >= chunkPos.getMinBlockZ() && pos.getZ() <= chunkPos.getMaxBlockZ();
     }
 }
