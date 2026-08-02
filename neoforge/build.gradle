@@ -1,3 +1,4 @@
+/* 文件职责：配置 NeoForge 平台的编译、运行与发布依赖。 */
 plugins {
 	id 'com.gradleup.shadow' version '8.3.6'
 }
@@ -30,7 +31,7 @@ loom {
 configurations {
     common
     shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
-    shadowLwjglNatives
+    shadowLwjglOpenCl
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
     developmentNeoForge.extendsFrom common
@@ -39,7 +40,7 @@ configurations {
 shadowJar {
     exclude "architectury.common.json"
     exclude "fabric.mod.json"
-    configurations = [project.configurations.shadowCommon, project.configurations.shadowLwjglNatives]
+    configurations = [project.configurations.shadowCommon, project.configurations.shadowLwjglOpenCl]
     archiveClassifier.set("dev-shadow")
     
     // 排除不需要的文件
@@ -55,6 +56,37 @@ shadowJar {
 remapJar {
 	inputFile.set shadowJar.archiveFile
 	dependsOn shadowJar
+}
+
+tasks.register('verifyLwjglPackaging') {
+    description = 'Verifies that only the OpenCL binding is embedded and the LWJGL core remains external.'
+    group = 'verification'
+    dependsOn remapJar
+
+    doLast {
+        def artifact = remapJar.archiveFile.get().asFile
+        def entryNames = []
+        new java.util.zip.ZipFile(artifact).withCloseable { zip ->
+            zip.entries().each { entryNames.add(it.name) }
+        }
+
+        def embeddedOpenCl = entryNames.contains('org/lwjgl/opencl/CL.class')
+        def embeddedLwjglCore = entryNames.any {
+            it.startsWith('org/lwjgl/') &&
+                    !it.startsWith('org/lwjgl/opencl/') &&
+                    it.endsWith('.class')
+        }
+        def bundledLwjglModule = entryNames.any {
+            it.startsWith('META-INF/jars/lwjgl') && it.endsWith('.jar')
+        }
+        if (!embeddedOpenCl || embeddedLwjglCore || bundledLwjglModule) {
+            throw new GradleException('NeoForge artifact has an invalid LWJGL package layout')
+        }
+    }
+}
+
+tasks.named('check').configure {
+    dependsOn tasks.named('verifyLwjglPackaging')
 }
 
 jar {
@@ -159,18 +191,12 @@ dependencies {
         modRuntimeOnly "maven.modrinth:R0bDWFAW:${project.touhou_little_maid_neoforge_version}"
     }
 
-    // LWJGL OpenCL - GPU 加速粗采样
-    // Minecraft/NeoForge 已提供 org.lwjgl Java 模块；这里只内嵌 OpenCL binding 与跨平台 core JNI 资源。
+    // 仅合并 OpenCL binding；客户端复用 Minecraft 的 LWJGL，专服缺少 LWJGL 时自动回退 CPU。
+    // shadowJar 会移除 binding 的 module-info，避免专服启动时强制解析 org.lwjgl 模块。
     compileOnly("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
-    include("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
+    shadowLwjglOpenCl("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
     forgeRuntimeLibrary("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
     runtimeOnly("org.lwjgl:lwjgl-opencl:3.3.3") { transitive = false }
-    shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-windows") { transitive = false }
-    shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-windows-arm64") { transitive = false }
-    shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-linux") { transitive = false }
-    shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-linux-arm64") { transitive = false }
-    shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos") { transitive = false }
-    shadowLwjglNatives("org.lwjgl:lwjgl:3.3.3:natives-macos-arm64") { transitive = false }
 
     forgeRuntimeLibrary("org.apache.lucene:lucene-core:8.11.2") { transitive = false }
     forgeRuntimeLibrary("org.apache.lucene:lucene-analyzers-common:8.11.2") { transitive = false }
