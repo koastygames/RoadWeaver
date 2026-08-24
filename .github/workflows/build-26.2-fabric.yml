@@ -1,0 +1,45 @@
+name: Build Minecraft 26.2 Fabric
+
+on:
+  push:
+    branches:
+      - 26.2-Fabric
+  pull_request:
+    branches:
+      - 1.21.11-Architectury
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build Fabric 26.2
+        run: ./gradlew :fabric:build --stacktrace --warning-mode all
+
+      - name: Upload Fabric JAR
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roadweaver-26.2-fabric
+          path: |
+            fabric/build/libs/*.jar
+            !fabric/build/libs/*-dev.jar
+            !fabric/build/libs/*-sources.jar
