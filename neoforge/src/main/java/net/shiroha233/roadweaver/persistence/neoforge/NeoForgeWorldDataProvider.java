@@ -2,9 +2,11 @@ package net.shiroha233.roadweaver.persistence.neoforge;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.core.model.StructureLocationData;
 import net.shiroha233.roadweaver.persistence.WorldDataProvider;
@@ -18,11 +20,11 @@ import java.util.Objects;
 import java.util.Set;
 
 public class NeoForgeWorldDataProvider extends WorldDataProvider {
-    private static final String DATA_NAME = "roadweaver_world_data";
     private static final SavedDataType<Data> TYPE = new SavedDataType<>(
-            DATA_NAME,
-            level -> new Data(),
-            Data::makeCodec
+            Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "world_data"),
+            Data::new,
+            Data.CODEC,
+            null
     );
 
     public static class Data extends SavedData {
@@ -52,10 +54,6 @@ public class NeoForgeWorldDataProvider extends WorldDataProvider {
         private List<StructureConnection> highwayConnections = new ArrayList<>();
         private Set<Long> plannedTileKeys = new HashSet<>();
         private Map<Long, Long> plannedTileCenters = new HashMap<>();
-
-        private static Codec<Data> makeCodec(ServerLevel level) {
-            return CODEC;
-        }
 
         private static Data fromSerialized(
                 StructureLocationData structureLocations,
