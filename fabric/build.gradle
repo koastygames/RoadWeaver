@@ -65,9 +65,11 @@ tasks.register("generateRoadWeaverFabric26Compat", Copy) {
 
 	// Runtime does not need Fabric datagen, and the 26.2 API has replaced FabricDataOutput.
 	exclude 'net/shiroha233/datagen/**'
+	exclude 'net/shiroha233/roadweaver/RoadWeaverDataGenerator.java'
 
 	// Minecraft 26.2 replaced the legacy client GUI/render-state APIs.
 	exclude 'net/shiroha233/roadweaver/client/**'
+	exclude 'net/shiroha233/roadweaver/network/fabric/ClientNetBridgeImpl.java'
 	exclude 'net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java'
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
