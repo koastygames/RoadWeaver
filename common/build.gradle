@@ -3,21 +3,41 @@ architectury {
 }
 
 dependencies {
-    // Common code compiles against Fabric Loader and Architectury, while the Fabric module supplies runtime artifacts.
     implementation("dev.architectury:architectury:${project.architectury_version}")
     compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
-
-    // H2 is shaded and relocated by the Fabric module.
     compileOnly("com.h2database:h2:2.2.224")
+}
+
+// Minecraft 26.2 replaced the legacy immediate-mode GUI with render-state extraction.
+// Keep the existing UI source in-tree, but compile the gameplay/server code independently until
+// that UI is ported. The generated source tree also normalizes the small ChunkPos API changes.
+def compat26Dir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
+
+tasks.register("generateRoadWeaver26Sources", Copy) {
+    from("src/main/java")
+    into(compat26Dir)
+
+    exclude "net/shiroha233/roadweaver/client/**"
+
+    filter { String line ->
+        line
+            .replace("player.chunkPosition().x", "player.chunkPosition().x()")
+            .replace("player.chunkPosition().z", "player.chunkPosition().z()")
+            .replace("candidate.x", "candidate.x()")
+            .replace("candidate.z", "candidate.z()")
+            .replace("ChunkPos.asLong(cx, cz)", "new ChunkPos(cx, cz).toLong()")
+    }
 }
 
 sourceSets {
     main {
-        java {
-            exclude 'net/shiroha233/roadweaver/client/gui/**'
-        }
+        java.setSrcDirs([compat26Dir])
         resources {
             exclude 'pack.mcmeta'
         }
     }
+}
+
+tasks.named("compileJava") {
+    dependsOn tasks.named("generateRoadWeaver26Sources")
 }
