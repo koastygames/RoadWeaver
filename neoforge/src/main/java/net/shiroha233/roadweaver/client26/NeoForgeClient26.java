@@ -11,8 +11,6 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
-import net.shiroha233.roadweaver.client26.RoadMapScreen26;
-import net.shiroha233.roadweaver.client26.RoadWeaverConfigScreen26;
 import net.shiroha233.roadweaver.network26.ClientNetworkNeoForge26;
 import org.lwjgl.glfw.GLFW;
 
@@ -30,10 +28,8 @@ public final class NeoForgeClient26 {
         NeoForge.EVENT_BUS.addListener(NeoForgeClient26::onLogin);
         NeoForge.EVENT_BUS.addListener(NeoForgeClient26::onLogout);
 
-        container.registerExtensionPoint(
-                IConfigScreenFactory.class,
-                () -> (minecraft, parent) -> new RoadWeaverConfigScreen26(parent)
-        );
+        IConfigScreenFactory factory = (minecraft, parent) -> new RoadWeaverConfigScreen26(parent);
+        container.registerExtensionPoint(IConfigScreenFactory.class, factory);
     }
 
     private static void registerKeyMappings(RegisterKeyMappingsEvent event) {
@@ -52,7 +48,7 @@ public final class NeoForgeClient26 {
     private static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
         if (openMap == null || mc.player == null) return;
-        if (mc.screen instanceof RoadMapScreen26) return;
+        if (mc.gui.screen() instanceof RoadMapScreen26) return;
 
         while (openMap.consumeClick()) {
             if (RoadMapScreen26.canOpen()) {
