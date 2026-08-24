@@ -67,3 +67,7 @@ sourceSets {
 tasks.named("compileJava") {
     dependsOn tasks.named("generateRoadWeaver26Sources")
 }
+
+tasks.named("sourcesJar") {
+    dependsOn tasks.named("generateRoadWeaver26Sources")
+}
