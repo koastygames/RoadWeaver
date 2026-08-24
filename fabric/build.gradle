@@ -19,8 +19,8 @@ configurations {
 
 repositories {
 	maven {
-		url "https://maven.shedaniel.me/"
-		name "Shedaniel Maven"
+		url = "https://maven.shedaniel.me/"
+		name = "Shedaniel Maven"
 	}
 }
 
@@ -32,8 +32,6 @@ dependencies {
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	implementation "dev.architectury:architectury-fabric:${project.architectury_version}"
 	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
-
-	// RoadWeaver uses MixinExtras annotations in its mixins.
 	implementation("io.github.llamalad7:mixinextras-fabric:0.5.0")
 
 	if (enableModMenuDevRuntime) {
@@ -42,28 +40,27 @@ dependencies {
 		}
 	}
 
-	// H2 is bundled and relocated to avoid conflicts with other mods.
 	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
 	runtimeOnly("com.h2database:h2:2.2.224") { transitive = false }
 	shadowH2("com.h2database:h2:2.2.224") { transitive = false }
 }
 
 processResources {
-	inputs.property "version", project.version
-	inputs.property "minecraft_version", rootProject.minecraft_version
+	def modVersion = project.version.toString()
+	def mcVersion = rootProject.minecraft_version.toString()
+	inputs.property "version", modVersion
+	inputs.property "minecraft_version", mcVersion
 
 	filesMatching("fabric.mod.json") {
-		expand "version": project.version, "minecraft_version": rootProject.minecraft_version
+		expand "version": modVersion, "minecraft_version": mcVersion
 	}
 }
 
 shadowJar {
 	configurations = [project.configurations.shadowCommon, project.configurations.shadowH2]
-	archiveClassifier.set(null)
+	archiveClassifier.set("")
 
 	exclude "architectury.common.json"
-
-	// Relocate the embedded database namespace.
 	relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
 
 	exclude 'META-INF/versions/**'
@@ -98,6 +95,11 @@ tasks.named('build') {
 
 sourceSets {
 	main {
+		// The pre-26.2 custom client screens use the removed GuiGraphics API.
+		// Core gameplay stays enabled on both physical clients and dedicated servers.
+		java {
+			exclude 'net/shiroha233/roadweaver/client/**'
+		}
 		resources {
 			exclude 'assets/roadweaver/lang/*.json'
 			exclude 'pack.mcmeta'
