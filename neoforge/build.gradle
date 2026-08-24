@@ -20,10 +20,6 @@ repositories {
         url = "https://maven.neoforged.net/releases/"
         name = "NeoForge"
     }
-    maven {
-        url = "https://maven.shedaniel.me/"
-        name = "Shedaniel Maven"
-    }
 }
 
 dependencies {
@@ -32,10 +28,6 @@ dependencies {
 
     neoForge "net.neoforged:neoforge:${project.neoforge_version}"
     implementation "dev.architectury:architectury-neoforge:${project.architectury_version}"
-
-    // The legacy Cloth Config screens are disabled in the 26.2 core compatibility build,
-    // but keeping the API on the development classpath preserves compatibility for the later UI port.
-    compileOnly "me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}"
 
     compileOnly("com.h2database:h2:2.2.224") { transitive = false }
     runtimeOnly("com.h2database:h2:2.2.224") { transitive = false }
@@ -57,24 +49,24 @@ processResources {
     }
 }
 
-// Copy the existing NeoForge implementation into a 26.2 compatibility tree while preserving
-// the original sources for the older branches.
+// Copy the NeoForge implementation into a 26.2 compatibility tree while preserving the legacy
+// source for older branches. New client26/network26 sources are native 26.2 implementations and
+// intentionally survive the exclusions below.
 tasks.register("generateRoadWeaverNeoForge26Compat", Copy) {
     from("src/main/java")
     into(compatNeoForgeDir)
 
-    // Minecraft 26.2 replaced the legacy GUI/render extraction path.
+    // Retired pre-26.2 client GUI implementation. The new native implementation lives in client26.
     exclude 'net/shiroha233/roadweaver/client/**'
     exclude 'net/shiroha233/roadweaver/datagen/**'
 
-    // The old map GUI packet implementation targets pre-26.2 payload APIs.
-    // Core road generation does not require it, so it remains disabled until the UI/network port.
+    // Retired pre-26.2 packet implementation. The new split protocol lives in network26.
     exclude 'net/shiroha233/roadweaver/network/**'
 
     // Optional DynamicTrees integration is kept off for the first 26.2 runtime-compatible build.
     exclude 'net/shiroha233/roadweaver/mixin/neoforge/dynamictree/**'
 
-    // Client-only mixins target the removed GuiGraphics rendering path.
+    // Client-only legacy mixins target the removed GuiGraphics rendering path.
     exclude 'net/shiroha233/roadweaver/mixin/neoforge/CreateWorldScreenMixin.java'
     exclude 'net/shiroha233/roadweaver/mixin/neoforge/CreateWorldScreenInitMixin.java'
     exclude 'net/shiroha233/roadweaver/mixin/neoforge/LevelLoadingScreenMixin.java'
@@ -96,19 +88,25 @@ tasks.register("generateRoadWeaverNeoForge26Compat", Copy) {
     }
 
     doLast {
-        // Replace the old loader entrypoint with a 26.2 core entrypoint that avoids the disabled
-        // client GUI/network classes while keeping all server-side generation systems active.
+        // Replace the legacy loader entrypoint with a 26.2 entrypoint. Client-only classes are
+        // reached only behind the physical-client check, keeping dedicated-server classloading safe.
         def target = compatNeoForgeDir.get().file("net/shiroha233/roadweaver/RoadWeaver.java").asFile
         target.parentFile.mkdirs()
         target.text = '''package net.shiroha233.roadweaver;
 
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.player.PermissionsChangedEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.shiroha233.roadweaver.command.MapAccessCommand;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.features.neoforge.RoadFeaturesNeoForge;
+import net.shiroha233.roadweaver.network26.MapNetworkNeoForge26;
 import net.shiroha233.roadweaver.planning.neoforge.ServerPlanningHooks;
 import net.shiroha233.roadweaver.structures.neoforge.StructureRegistryNeoForge;
 import org.slf4j.Logger;
@@ -119,17 +117,38 @@ public final class RoadWeaver {
     public static final String MOD_ID = "roadweaver";
     private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public RoadWeaver(IEventBus modEventBus) {
+    public RoadWeaver(IEventBus modEventBus, ModContainer modContainer) {
         LOGGER.info("Initializing RoadWeaver for Minecraft 26.2 NeoForge...");
         ConfigService.load();
         StructureRegistryNeoForge.register(modEventBus);
         RoadFeaturesNeoForge.register(modEventBus);
+        MapNetworkNeoForge26.register(modEventBus);
         ServerPlanningHooks.register(modEventBus);
+
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(this::onPermissionsChanged);
+
+        FMLLoader loader = FMLLoader.getCurrentOrNull();
+        if (loader != null && loader.getDist() == Dist.CLIENT) {
+            net.shiroha233.roadweaver.client26.NeoForgeClient26.register(modEventBus, modContainer);
+        }
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {
         MapAccessCommand.register(event.getDispatcher());
+    }
+
+    private void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MapNetworkNeoForge26.syncMapAccess(player);
+        }
+    }
+
+    private void onPermissionsChanged(PermissionsChangedEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MapNetworkNeoForge26.syncMapAccess(player);
+        }
     }
 
     public static Logger getLogger() {
