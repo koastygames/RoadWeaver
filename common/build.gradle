@@ -1,17 +1,16 @@
- architectury {
-    common("fabric", "neoforge")
+architectury {
+    common("fabric")
 }
 
 dependencies {
-    // Architectury API（作为 mod 依赖以启用 Loom 重映射）
-    modImplementation("dev.architectury:architectury:${project.architectury_version}")
+    // Common code compiles against Fabric Loader and Architectury, while the Fabric module supplies runtime artifacts.
+    implementation("dev.architectury:architectury:${project.architectury_version}")
     compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
-    
-    // H2 Database - 编译时依赖，运行时由平台模块提供
+
+    // H2 is shaded and relocated by the Fabric module.
     compileOnly("com.h2database:h2:2.2.224")
-    
 }
- 
+
 sourceSets {
     main {
         java {
