@@ -40,6 +40,7 @@ jobs:
         run: |
           mkdir -p neoforge/run
           echo 'eula=true' > neoforge/run/eula.txt
+          echo 'online-mode=false' > neoforge/run/server.properties
 
           set +e
           timeout 120s ./gradlew :neoforge:runServer --args='nogui' > /tmp/roadweaver-neoforge-server.log 2>&1
@@ -57,6 +58,36 @@ jobs:
           fi
 
           echo "Dedicated server did not reach the running state (exit ${run_status})."
+          exit 1
+
+      - name: Smoke-test client mod loading
+        shell: bash
+        run: |
+          rm -rf neoforge/run/logs neoforge/run/crash-reports
+
+          set +e
+          timeout 90s xvfb-run -a ./gradlew :neoforge:runClient > /tmp/roadweaver-neoforge-client.log 2>&1
+          run_status=$?
+          set -e
+
+          cat /tmp/roadweaver-neoforge-client.log
+          if [ -f neoforge/run/logs/latest.log ]; then
+            cat neoforge/run/logs/latest.log
+          fi
+
+          if [ -d neoforge/run/crash-reports ] && find neoforge/run/crash-reports -type f -print -quit | grep -q .; then
+            echo 'Client produced a crash report.'
+            exit 1
+          fi
+
+          if [ -f neoforge/run/logs/latest.log ] && \
+             grep -Fq 'Initializing RoadWeaver for Minecraft 26.2 NeoForge' neoforge/run/logs/latest.log && \
+             ! grep -Eq 'MixinApplyError|MixinTransformerError|ModLoadingException|Failed to complete lifecycle event' neoforge/run/logs/latest.log; then
+            echo 'RoadWeaver loaded successfully in the NeoForge client environment.'
+            exit 0
+          fi
+
+          echo "NeoForge client did not reach RoadWeaver mod initialization (exit ${run_status})."
           exit 1
 
       - name: Collect release JAR
