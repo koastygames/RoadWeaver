@@ -3,8 +3,14 @@ package net.shiroha233.roadweaver.map.permission.neoforge;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.shiroha233.roadweaver.map.permission.MapAccessPolicy;
-import net.shiroha233.roadweaver.network.neoforge.MapNetworkNeoForge;
 
+/**
+ * NeoForge bridge for map permissions.
+ *
+ * The permission policy itself remains fully persistent on Minecraft 26.2. The legacy map GUI
+ * packet channel is intentionally disabled in the 26.2 core port, so client synchronisation is
+ * a no-op until the map UI/network layer is migrated to the new 26.2 APIs.
+ */
 public final class MapAccessPlatformBridgeImpl {
     private MapAccessPlatformBridgeImpl() {
     }
@@ -18,17 +24,10 @@ public final class MapAccessPlatformBridgeImpl {
     }
 
     public static void syncPlayer(ServerPlayer player) {
-        if (player != null) {
-            MapNetworkNeoForge.syncMapAccess(player);
-        }
+        // Client map networking is disabled in the Minecraft 26.2 core compatibility build.
     }
 
     public static void syncAll(MinecraftServer server) {
-        if (server == null) {
-            return;
-        }
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            MapNetworkNeoForge.syncMapAccess(player);
-        }
+        // Client map networking is disabled in the Minecraft 26.2 core compatibility build.
     }
 }
