@@ -1,4 +1,4 @@
-# Minecraft 26.2 / NeoForge metadata for the RoadWeaver core compatibility port.
+# Minecraft 26.2 / NeoForge metadata for the full RoadWeaver port.
 modLoader = "javafml"
 loaderVersion = "${loader_version_range}"
 license = "MIT"
@@ -32,13 +32,6 @@ type = "required"
 versionRange = "[21.0.7,)"
 ordering = "AFTER"
 side = "BOTH"
-
-[[dependencies.roadweaver]]
-modId = "cloth_config"
-type = "optional"
-versionRange = "[26.2.155,)"
-ordering = "NONE"
-side = "CLIENT"
 
 [[mixins]]
 config = "roadweaver.mixins.json"
