@@ -21,22 +21,17 @@ public final class ClientNetworkNeoForge26 {
 
     private static void handleSnapshot(MapNetworkPayloads.MapSnapshotPayload payload, IPayloadContext context) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen instanceof RoadMapScreen26 screen) {
+        if (mc.gui.screen() instanceof RoadMapScreen26 screen) {
             screen.acceptSnapshot(payload.requestSeq(), payload.dimension(), payload.snapshot());
         }
     }
 
     private static void handleTeleportAck(MapNetworkPayloads.MapTeleportAckPayload payload, IPayloadContext context) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null) return;
-        if (payload.success()) {
-            mc.player.displayClientMessage(
-                    Component.translatable("gui.roadweaver.map.teleport.success_pos", payload.x(), payload.y(), payload.z()),
-                    true
-            );
-        } else {
-            mc.player.displayClientMessage(Component.translatable("gui.roadweaver.map.teleport.denied"), true);
-        }
+        Component message = payload.success()
+                ? Component.translatable("gui.roadweaver.map.teleport.success_pos", payload.x(), payload.y(), payload.z())
+                : Component.translatable("gui.roadweaver.map.teleport.denied");
+        mc.gui.hud.setOverlayMessage(message, false);
     }
 
     private static void handleAccessSync(MapNetworkPayloads.MapAccessSyncPayload payload, IPayloadContext context) {
