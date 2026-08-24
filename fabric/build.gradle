@@ -58,10 +58,18 @@ processResources {
 	}
 }
 
-// The 1.21.11 map UI/network class directly references the removed client GUI classes.
-// For the 26.2 core port, retain the API used by the initializer without loading GUI-only code.
-tasks.register("generateRoadWeaverFabric26Compat") {
-	outputs.dir(compatFabricDir)
+// Copy the Fabric implementation into a 26.2 source tree while leaving the legacy GUI code in Git.
+tasks.register("generateRoadWeaverFabric26Compat", Copy) {
+	from("src/main/java")
+	into(compatFabricDir)
+
+	exclude 'net/shiroha233/roadweaver/client/**'
+	exclude 'net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/LevelLoadingScreenMixin.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/BiomeGrassColorFailSafeMixin.java'
+
 	doLast {
 		def target = compatFabricDir.get().file("net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java").asFile
 		target.parentFile.mkdirs()
@@ -70,19 +78,18 @@ tasks.register("generateRoadWeaverFabric26Compat") {
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Minecraft 26.2 compatibility shim.
- * The legacy map/config GUI is disabled until it is migrated to GuiGraphicsExtractor.
- * Road generation, persistence, structures, commands and planning remain active.
+ * Minecraft 26.2 core compatibility shim.
+ * Legacy map/config GUI networking is disabled until the GUI is migrated to GuiGraphicsExtractor.
  */
 public final class MapNetworkFabric {
     private MapNetworkFabric() {}
 
     public static void registerServerReceivers() {
-        // Map UI packets are intentionally disabled in the 26.2 core compatibility build.
+        // UI packet path intentionally disabled for the 26.2 core port.
     }
 
     public static void syncMapAccess(ServerPlayer player) {
-        // No map UI is registered in the 26.2 core compatibility build.
+        // No map UI receiver is installed in the 26.2 core port.
     }
 }
 '''
@@ -132,15 +139,7 @@ tasks.named('build') {
 
 sourceSets {
 	main {
-		java {
-			srcDir compatFabricDir
-			exclude 'net/shiroha233/roadweaver/client/**'
-			exclude 'net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java'
-			exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
-			exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
-			exclude 'net/shiroha233/roadweaver/mixin/fabric/LevelLoadingScreenMixin.java'
-			exclude 'net/shiroha233/roadweaver/mixin/fabric/BiomeGrassColorFailSafeMixin.java'
-		}
+		java.setSrcDirs([compatFabricDir])
 		resources {
 			exclude 'assets/roadweaver/lang/*.json'
 			exclude 'pack.mcmeta'
