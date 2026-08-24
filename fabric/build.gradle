@@ -11,6 +11,8 @@ def enableModMenuDevRuntime = providers.gradleProperty("fabric_enable_modmenu")
 	.map(String::toBoolean)
 	.getOrElse(false)
 
+def compatFabricDir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
+
 configurations {
 	shadowCommon
 	shadowH2
@@ -56,6 +58,37 @@ processResources {
 	}
 }
 
+// The 1.21.11 map UI/network class directly references the removed client GUI classes.
+// For the 26.2 core port, retain the API used by the initializer without loading GUI-only code.
+tasks.register("generateRoadWeaverFabric26Compat") {
+	outputs.dir(compatFabricDir)
+	doLast {
+		def target = compatFabricDir.get().file("net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java").asFile
+		target.parentFile.mkdirs()
+		target.text = '''package net.shiroha233.roadweaver.network.fabric;
+
+import net.minecraft.server.level.ServerPlayer;
+
+/**
+ * Minecraft 26.2 compatibility shim.
+ * The legacy map/config GUI is disabled until it is migrated to GuiGraphicsExtractor.
+ * Road generation, persistence, structures, commands and planning remain active.
+ */
+public final class MapNetworkFabric {
+    private MapNetworkFabric() {}
+
+    public static void registerServerReceivers() {
+        // Map UI packets are intentionally disabled in the 26.2 core compatibility build.
+    }
+
+    public static void syncMapAccess(ServerPlayer player) {
+        // No map UI is registered in the 26.2 core compatibility build.
+    }
+}
+'''
+	}
+}
+
 shadowJar {
 	configurations = [project.configurations.shadowCommon, project.configurations.shadowH2]
 	archiveClassifier.set("")
@@ -89,16 +122,20 @@ sourcesJar {
 	from commonSources.archiveFile.map { zipTree(it) }
 }
 
+tasks.named('compileJava') {
+	dependsOn tasks.named('generateRoadWeaverFabric26Compat')
+}
+
 tasks.named('build') {
 	dependsOn tasks.named('shadowJar')
 }
 
 sourceSets {
 	main {
-		// Minecraft 26.2 replaced the old GuiGraphics pipeline. Keep the legacy GUI/mixins
-		// in source control, but exclude them from this core compatibility build.
 		java {
+			srcDir compatFabricDir
 			exclude 'net/shiroha233/roadweaver/client/**'
+			exclude 'net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java'
 			exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
 			exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
 			exclude 'net/shiroha233/roadweaver/mixin/fabric/LevelLoadingScreenMixin.java'
