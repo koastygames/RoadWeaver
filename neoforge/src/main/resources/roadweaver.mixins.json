@@ -2,7 +2,7 @@
   "required": true,
   "minVersion": "0.8",
   "package": "net.shiroha233.roadweaver.mixin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "plugin": "net.shiroha233.roadweaver.mixin.MixinConfigPlugin",
   "mixins": [
     "neoforge.MinecraftServerMixin",
@@ -13,18 +13,11 @@
     "neoforge.GenericVegetationFeatureMixin",
     "neoforge.BeardifierMixin",
     "neoforge.StructureManagerAccessor",
-    "neoforge.dynamictree.DynamicTreeFeatureMixin",
     "neoforge.ServerLevelStructureMixin",
     "neoforge.PlayerDimensionChangeMixin",
     "neoforge.tyg.TreeFromStructureNBTFeatureMixin",
     "neoforge.rtf.RTFTemplateFeatureMixin",
     "neoforge.rtf.RTFBushFeatureMixin"
-  ],
-  "client": [
-    "neoforge.CreateWorldScreenMixin",
-    "neoforge.CreateWorldScreenInitMixin",
-    "neoforge.LevelLoadingScreenMixin",
-    "neoforge.BiomeGrassColorFailSafeMixin"
   ],
   "injectors": {
     "defaultRequire": 1
