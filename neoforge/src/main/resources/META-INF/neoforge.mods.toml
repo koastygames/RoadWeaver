@@ -10,7 +10,7 @@ displayName = "RoadWeaver"
 authors = "shiroha233"
 credits = "Includes code adapted from 'settlement-roads-new' (CC0-1.0) by Countered."
 description = '''Automatically generates roads between structures like villages.'''
-logoFile = "assets/roadweaver/icon.png"
+iconFile = "assets/roadweaver/icon.png"
 
 [[dependencies.roadweaver]]
 modId = "neoforge"
