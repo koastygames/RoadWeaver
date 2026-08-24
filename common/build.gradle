@@ -1,10 +1,9 @@
 architectury {
-    common("fabric")
+    common("neoforge")
 }
 
 dependencies {
     implementation("dev.architectury:architectury:${project.architectury_version}")
-    compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
     compileOnly("com.h2database:h2:2.2.224")
 }
 
