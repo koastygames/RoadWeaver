@@ -14,7 +14,8 @@
 	"icon": "assets/roadweaver/icon.png",
 	"environment": "*",
 	"entrypoints": {
-		"main": ["net.shiroha233.roadweaver.RoadWeaver"]
+		"main": ["net.shiroha233.roadweaver.RoadWeaver"],
+		"client": ["net.shiroha233.roadweaver.client26.FabricClient26"]
 	},
 	"mixins": ["roadweaver.mixins.json"],
 	"depends": {
@@ -22,8 +23,7 @@
 		"minecraft": ">=26.2 <26.3",
 		"java": ">=25",
 		"fabric-api": "*",
-		"architectury": ">=21.0.7",
-		"cloth-config2": ">=26.2.155"
+		"architectury": ">=21.0.7"
 	},
 	"suggests": {
 		"sereneseasons": "*",
