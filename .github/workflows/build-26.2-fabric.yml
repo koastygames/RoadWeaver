@@ -34,6 +34,30 @@ jobs:
       - name: Build Fabric 26.2
         run: ./gradlew :fabric:build --stacktrace --warning-mode all
 
+      - name: Smoke-test dedicated server startup
+        shell: bash
+        run: |
+          mkdir -p fabric/run
+          echo 'eula=true' > fabric/run/eula.txt
+
+          set +e
+          timeout 90s ./gradlew :fabric:runServer --args='nogui' > /tmp/roadweaver-server.log 2>&1
+          run_status=$?
+          set -e
+
+          cat /tmp/roadweaver-server.log
+
+          if [ -f fabric/run/logs/latest.log ]; then
+            cat fabric/run/logs/latest.log
+            if grep -Fq 'Done (' fabric/run/logs/latest.log; then
+              echo 'RoadWeaver 26.2 dedicated server reached the running state.'
+              exit 0
+            fi
+          fi
+
+          echo "Dedicated server did not reach the running state (exit ${run_status})."
+          exit 1
+
       - name: Upload Fabric JAR
         if: success()
         uses: actions/upload-artifact@v4
