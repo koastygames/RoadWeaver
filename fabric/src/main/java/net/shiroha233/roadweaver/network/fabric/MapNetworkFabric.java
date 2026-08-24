@@ -36,12 +36,12 @@ public final class MapNetworkFabric {
 
     private static synchronized void registerPayloadTypes() {
         if (payloadTypesRegistered) return;
-        PayloadTypeRegistry.playC2S().register(RequestRectPayload.TYPE, RequestRectPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(TeleportRequestPayload.TYPE, TeleportRequestPayload.CODEC);
-        PayloadTypeRegistry.playC2S().register(ManualConnectPayload.TYPE, ManualConnectPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(SnapshotPayload.TYPE, SnapshotPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(TeleportAckPayload.TYPE, TeleportAckPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(AccessSyncPayload.TYPE, AccessSyncPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RequestRectPayload.TYPE, RequestRectPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(TeleportRequestPayload.TYPE, TeleportRequestPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ManualConnectPayload.TYPE, ManualConnectPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(SnapshotPayload.TYPE, SnapshotPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(TeleportAckPayload.TYPE, TeleportAckPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AccessSyncPayload.TYPE, AccessSyncPayload.CODEC);
         payloadTypesRegistered = true;
     }
 
