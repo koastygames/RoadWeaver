@@ -50,8 +50,9 @@ processResources {
 }
 
 // Copy the NeoForge implementation into a 26.2 compatibility tree while preserving the legacy
-// source for older branches. New client26/network26 sources are native 26.2 implementations and
-// intentionally survive the exclusions below.
+// source for older branches. New native 26.2 client/network sources intentionally survive the
+// exclusions below, while the NeoForge client bootstrap uses its own package to avoid Java modules
+// seeing a split package between the transformed common JAR and the loader JAR.
 tasks.register("generateRoadWeaverNeoForge26Compat", Copy) {
     from("src/main/java")
     into(compatNeoForgeDir)
@@ -131,7 +132,7 @@ public final class RoadWeaver {
 
         FMLLoader loader = FMLLoader.getCurrentOrNull();
         if (loader != null && loader.getDist() == Dist.CLIENT) {
-            net.shiroha233.roadweaver.client26.NeoForgeClient26.register(modEventBus, modContainer);
+            net.shiroha233.roadweaver.neoclient26.NeoForgeClient26.register(modEventBus, modContainer);
         }
     }
 
@@ -171,9 +172,9 @@ shadowJar {
     exclude 'org/h2/util/SourceCompiler*'
     exclude 'org/h2/tools/**'
     exclude 'org/h2/server/**'
-    exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
-    exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
-    exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
+    exclude 'net/shiroha233.roadweaver/libs/h2/util/SourceCompiler*'
+    exclude 'net/shiroha233.roadweaver/libs/h2/tools/**'
+    exclude 'net/shiroha233.roadweaver/libs/h2/server/**'
     mergeServiceFiles()
     exclude 'module-info.class'
 
