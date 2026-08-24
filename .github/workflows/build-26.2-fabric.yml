@@ -24,6 +24,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
+          cache: gradle
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -39,31 +40,66 @@ jobs:
         run: |
           mkdir -p fabric/run
           echo 'eula=true' > fabric/run/eula.txt
+          echo 'online-mode=false' > fabric/run/server.properties
 
           set +e
-          timeout 90s ./gradlew :fabric:runServer --args='nogui' > /tmp/roadweaver-server.log 2>&1
+          timeout 120s ./gradlew :fabric:runServer --args='nogui' > /tmp/roadweaver-fabric-server.log 2>&1
           run_status=$?
           set -e
 
-          cat /tmp/roadweaver-server.log
-
+          cat /tmp/roadweaver-fabric-server.log
           if [ -f fabric/run/logs/latest.log ]; then
             cat fabric/run/logs/latest.log
             if grep -Fq 'Done (' fabric/run/logs/latest.log; then
-              echo 'RoadWeaver 26.2 dedicated server reached the running state.'
+              echo 'RoadWeaver 26.2 Fabric dedicated server reached the running state.'
               exit 0
             fi
           fi
-
           echo "Dedicated server did not reach the running state (exit ${run_status})."
           exit 1
+
+      - name: Smoke-test client mod loading
+        shell: bash
+        run: |
+          rm -rf fabric/run/logs fabric/run/crash-reports
+
+          set +e
+          timeout 90s xvfb-run -a ./gradlew :fabric:runClient > /tmp/roadweaver-fabric-client.log 2>&1
+          run_status=$?
+          set -e
+
+          cat /tmp/roadweaver-fabric-client.log
+          if [ -f fabric/run/logs/latest.log ]; then
+            cat fabric/run/logs/latest.log
+          fi
+
+          if [ -d fabric/run/crash-reports ] && find fabric/run/crash-reports -type f -print -quit | grep -q .; then
+            echo 'Client produced a crash report.'
+            exit 1
+          fi
+
+          if [ -f fabric/run/logs/latest.log ] && \
+             grep -Fq 'Initializing RoadWeaver (Fabric)' fabric/run/logs/latest.log && \
+             ! grep -Eq 'MixinApplyError|MixinTransformerError|EntrypointException|Could not execute entrypoint|Failed to complete lifecycle event' fabric/run/logs/latest.log; then
+            echo 'RoadWeaver loaded successfully in the Fabric client environment.'
+            exit 0
+          fi
+
+          echo "Fabric client did not reach RoadWeaver mod initialization (exit ${run_status})."
+          exit 1
+
+      - name: Collect release JAR
+        if: success()
+        run: |
+          mkdir -p dist
+          find fabric/build/libs -maxdepth 1 -type f -name '*.jar' \
+            ! -name '*-dev.jar' ! -name '*-sources.jar' -print -exec cp {} dist/ \;
+          ls -lah dist
 
       - name: Upload Fabric JAR
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: roadweaver-26.2-fabric
-          path: |
-            fabric/build/libs/*.jar
-            !fabric/build/libs/*-dev.jar
-            !fabric/build/libs/*-sources.jar
+          path: dist/*.jar
+          if-no-files-found: error
