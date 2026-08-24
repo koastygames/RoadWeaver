@@ -31,11 +31,11 @@ dependencies {
     shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive = false }
 
     neoForge "net.neoforged:neoforge:${project.neoforge_version}"
-    modImplementation "dev.architectury:architectury-neoforge:${project.architectury_version}"
+    implementation "dev.architectury:architectury-neoforge:${project.architectury_version}"
 
     // The legacy Cloth Config screens are disabled in the 26.2 core compatibility build,
     // but keeping the API on the development classpath preserves compatibility for the later UI port.
-    modCompileOnly "me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}"
+    compileOnly "me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}"
 
     compileOnly("com.h2database:h2:2.2.224") { transitive = false }
     runtimeOnly("com.h2database:h2:2.2.224") { transitive = false }
