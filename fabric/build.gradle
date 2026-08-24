@@ -58,11 +58,15 @@ processResources {
 	}
 }
 
-// Copy the Fabric implementation into a 26.2 source tree while leaving the legacy GUI code in Git.
+// Copy the Fabric implementation into a 26.2 source tree while leaving legacy UI/datagen code in Git.
 tasks.register("generateRoadWeaverFabric26Compat", Copy) {
 	from("src/main/java")
 	into(compatFabricDir)
 
+	// Runtime does not need Fabric datagen, and the 26.2 API has replaced FabricDataOutput.
+	exclude 'net/shiroha233/datagen/**'
+
+	// Minecraft 26.2 replaced the legacy client GUI/render-state APIs.
 	exclude 'net/shiroha233/roadweaver/client/**'
 	exclude 'net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java'
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
@@ -124,6 +128,7 @@ jar {
 
 sourcesJar {
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	dependsOn tasks.named('generateRoadWeaverFabric26Compat')
 	def commonSources = project(':common').sourcesJar
 	dependsOn commonSources
 	from commonSources.archiveFile.map { zipTree(it) }
