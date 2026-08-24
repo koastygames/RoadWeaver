@@ -1,0 +1,107 @@
+name: Build RoadWeaver 26.2 NeoForge
+
+on:
+  push:
+    branches:
+      - 26.2-NeoForge
+  pull_request:
+    branches:
+      - 26.2-Fabric
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build NeoForge 26.2 JAR
+        run: ./gradlew :neoforge:build --stacktrace --warning-mode all
+
+      - name: Smoke-test dedicated server startup
+        shell: bash
+        run: |
+          mkdir -p neoforge/run
+          echo 'eula=true' > neoforge/run/eula.txt
+          echo 'online-mode=false' > neoforge/run/server.properties
+
+          set +e
+          timeout 120s ./gradlew :neoforge:runServer --args='nogui' > /tmp/roadweaver-neoforge-server.log 2>&1
+          run_status=$?
+          set -e
+
+          cat /tmp/roadweaver-neoforge-server.log
+
+          if [ -f neoforge/run/logs/latest.log ]; then
+            cat neoforge/run/logs/latest.log
+            if grep -Fq 'Done (' neoforge/run/logs/latest.log; then
+              echo 'RoadWeaver 26.2 NeoForge dedicated server reached the running state.'
+              exit 0
+            fi
+          fi
+
+          echo "Dedicated server did not reach the running state (exit ${run_status})."
+          exit 1
+
+      - name: Smoke-test client mod loading
+        shell: bash
+        run: |
+          rm -rf neoforge/run/logs neoforge/run/crash-reports
+
+          set +e
+          timeout 90s xvfb-run -a ./gradlew :neoforge:runClient > /tmp/roadweaver-neoforge-client.log 2>&1
+          run_status=$?
+          set -e
+
+          cat /tmp/roadweaver-neoforge-client.log
+          if [ -f neoforge/run/logs/latest.log ]; then
+            cat neoforge/run/logs/latest.log
+          fi
+
+          if [ -d neoforge/run/crash-reports ] && find neoforge/run/crash-reports -type f -print -quit | grep -q .; then
+            echo 'Client produced a crash report.'
+            exit 1
+          fi
+
+          if [ -f neoforge/run/logs/latest.log ] && \
+             grep -Fq 'Initializing RoadWeaver for Minecraft 26.2 NeoForge' neoforge/run/logs/latest.log && \
+             ! grep -Eq 'MixinApplyError|MixinTransformerError|ModLoadingException|Failed to complete lifecycle event' neoforge/run/logs/latest.log; then
+            echo 'RoadWeaver loaded successfully in the NeoForge client environment.'
+            exit 0
+          fi
+
+          echo "NeoForge client did not reach RoadWeaver mod initialization (exit ${run_status})."
+          exit 1
+
+      - name: Collect release JAR
+        if: success()
+        run: |
+          mkdir -p dist
+          find neoforge/build/libs -maxdepth 1 -type f -name '*.jar' \
+            ! -name '*-dev.jar' ! -name '*-sources.jar' -print -exec cp {} dist/ \;
+          ls -lah dist
+
+      - name: Upload NeoForge JAR
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roadweaver-26.2-neoforge
+          path: dist/*.jar
+          if-no-files-found: error

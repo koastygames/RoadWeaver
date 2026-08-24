@@ -1,4 +1,4 @@
-# NeoForge Mods.toml 配置文件
+# Minecraft 26.2 / NeoForge metadata for the full RoadWeaver port.
 modLoader = "javafml"
 loaderVersion = "${loader_version_range}"
 license = "MIT"
@@ -9,8 +9,8 @@ version = "${mod_version}"
 displayName = "RoadWeaver"
 authors = "shiroha233"
 credits = "Includes code adapted from 'settlement-roads-new' (CC0-1.0) by Countered."
-description = '''Automatically generates roads between structures like villages'''
-logoFile = "assets/roadweaver/icon.png"
+description = '''Automatically generates roads between structures like villages.'''
+iconFile = "assets/roadweaver/icon.png"
 
 [[dependencies.roadweaver]]
 modId = "neoforge"
@@ -27,12 +27,11 @@ ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.roadweaver]]
-modId = "cloth_config"
-type = "optional"
-versionRange = "[21.11,)"
-ordering = "NONE"
-side = "CLIENT"
+modId = "architectury"
+type = "required"
+versionRange = "[21.0.7,)"
+ordering = "AFTER"
+side = "BOTH"
 
-# Mixin 配置
 [[mixins]]
 config = "roadweaver.mixins.json"

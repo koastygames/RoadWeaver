@@ -3,7 +3,7 @@ package net.shiroha233.roadweaver.network.neoforge;
 import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.network26.ClientNetworkNeoForge26;
 
-/** Minecraft 26.2 NeoForge implementation for the common client network bridge. */
+/** Architectury @ExpectPlatform implementation retained outside the retired legacy network source path. */
 public final class ClientNetBridgeImpl {
     private ClientNetBridgeImpl() {}
 

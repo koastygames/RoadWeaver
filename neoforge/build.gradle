@@ -1,197 +1,214 @@
+// NeoForge-only Minecraft 26.2 build. Minecraft 26.2 is unobfuscated, so no remap step is used.
 plugins {
-	id 'com.gradleup.shadow' version '8.3.6'
+    id 'com.gradleup.shadow'
 }
 
 architectury {
-    platformSetupLoomIde()
     neoForge()
 }
 
-loom {
-    runs {
-        client {
-            client()
-            name "NeoForge Client"
-            runDir "run/client"
-            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
-            programArgs "--username", "Player1"
-        }
-        server {
-            server()
-            name "NeoForge Server"
-            runDir "run/server"
-            vmArgs "-Dneoforge.enabledGameTestNamespace=roadweaver"
-        }
-    }
-}
+def compatNeoForgeDir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
 
 configurations {
-    common
-    shadowCommon // Don't use shadow from the shadow plugin since it conflicts with Loom.
-    shadowSqlite
-    compileClasspath.extendsFrom common
-    runtimeClasspath.extendsFrom common
+    shadowCommon
+    shadowH2
     developmentNeoForge.extendsFrom common
 }
 
-shadowJar {
-    exclude "architectury.common.json"
-    exclude "fabric.mod.json"
-    configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
-    archiveClassifier.set("dev-shadow")
-    
-    // 重定位 H2 Database 包
-    relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
-    
-    // 排除不需要的文件
-    exclude 'META-INF/versions/**'
-    // 排除 H2 中可能触发审查的动态编译/网络服务相关类
-    // SourceCompiler 会使用 JavaCompiler/Groovy 动态编译，Server/tools 可能被视为网络服务能力
-    exclude 'org/h2/util/SourceCompiler*'
-    exclude 'org/h2/tools/**'
-    exclude 'org/h2/server/**'
-    exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
-    exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
-    exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
-    
-    // 强制更新 META-INF/services 里的类名
-    mergeServiceFiles()
-    
-    // 排除 module-info.class 避免 JPMS 冲突
-    exclude 'module-info.class'
-}
-
-remapJar {
-	inputFile.set shadowJar.archiveFile
-	dependsOn shadowJar
-}
-
-jar {
-	archiveClassifier.set("dev")
-	from("${rootProject.projectDir}/LICENSE") {
-		rename { "${it}_${base.archivesName.get()}"}
-	}
-	
-	manifest {
-		attributes([
-			'Specification-Title'     : 'RoadWeaver',
-			'Specification-Vendor'    : 'shiroha233',
-			'Specification-Version'   : '1',
-			'Implementation-Title'    : project.name,
-			'Implementation-Version'  : project.version,
-			'Implementation-Vendor'   : 'shiroha233'
-		])
-	}
-}
-
 repositories {
-    mavenCentral()
     maven {
-        url "https://maven.shedaniel.me/"
-        name "Shedaniel Maven"
-    }
-    maven {
-        url = "https://api.modrinth.com/maven"
-        name = "Modrinth Maven"
-    }
-    maven {
-        url "https://bmclapi2.bangbang93.com/maven/"
-        name "NeoForge Mirror"
-    }
-    maven {
-        url "https://maven.neoforged.net/releases/"
-        name "NeoForge"
-    }
-    maven {
-        url "https://maven.architectury.dev/"
-        name "Architectury"
-    }
-    maven {
-        url "https://cursemaven.com"
-        name "CurseMaven"
-    }
-}
-
-tasks.named('processResources', ProcessResources).configure {
-    def replaceProperties = [
-        minecraft_version: '1.21.11',
-        minecraft_version_range: '[1.21.11,1.22)',
-        neoforge_version: project.neoforge_version,
-        neoforge_version_range: '[21.11,)',
-        loader_version_range: '[4,)',
-        mod_id: 'roadweaver',
-        mod_name: 'RoadWeaver',
-        mod_version: project.version,
-        mod_authors: 'shiroha233',
-        mod_description: 'Automatically generates roads between structures'
-    ]
-
-    inputs.properties replaceProperties
-
-    filesMatching(['META-INF/neoforge.mods.toml']) {
-        expand replaceProperties
+        url = "https://maven.neoforged.net/releases/"
+        name = "NeoForge"
     }
 }
 
 dependencies {
-    // Common 模块 - 添加源代码到编译路径
-    common(project(path: ":common", configuration: "namedElements")) { transitive false }
-    shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive false }
+    common(project(path: ":common")) { transitive = false }
+    shadowCommon(project(path: ":common", configuration: "transformProductionNeoForge")) { transitive = false }
 
-    // NeoForge 平台
-    neoForge "net.neoforged:neoforge:${neoforge_version}"
+    neoForge "net.neoforged:neoforge:${project.neoforge_version}"
+    implementation "dev.architectury:architectury-neoforge:${project.architectury_version}"
 
-    // Optional compat mods (dev only)
-    // TODO: 等待这些模组更新到 1.21.11 后取消注释
-    // modCompileOnly("maven.modrinth:s3dmwKy5:xxx") { transitive = false } // GlitchCore
-    // modCompileOnly("maven.modrinth:e0bNACJD:xxx") { transitive = false } // SereneSeasons NeoForge 1.21.11
-    // modCompileOnly("maven.modrinth:distanthorizons:xxx") { transitive = false } // Distant Horizons
-
-    // Architectury API - 使用 Jar-in-Jar 内嵌
-    modApi("dev.architectury:architectury-neoforge:${project.architectury_version}")
-    include("dev.architectury:architectury-neoforge:${project.architectury_version}")
-
-    // Cloth Config API for NeoForge - Jar-in-Jar include
-    modApi("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
-    include("me.shedaniel.cloth:cloth-config-neoforge:${project.cloth_config_version}")
-    
-    // DynamicTrees - 可选依赖，用于 Mixin 兼容
-    modCompileOnly "maven.modrinth:vdjF5PL5:${project.dynamictrees_version}"
-
-    // Touhou Little Maid (车万女仆)
-    // 暂无 1.21.11 版本，待上游更新后再恢复运行时联调依赖
-
-    // H2 Database - 道路数据持久化（纯Java，无native依赖）
-    forgeRuntimeLibrary("com.h2database:h2:2.2.224") { transitive = false }
-    shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
-
-    forgeRuntimeLibrary("org.apache.lucene:lucene-core:8.11.2") { transitive = false }
-    forgeRuntimeLibrary("org.apache.lucene:lucene-analyzers-common:8.11.2") { transitive = false }
-    forgeRuntimeLibrary("org.apache.lucene:lucene-queryparser:8.11.2") { transitive = false }
+    compileOnly("com.h2database:h2:2.2.224") { transitive = false }
+    runtimeOnly("com.h2database:h2:2.2.224") { transitive = false }
+    shadowH2("com.h2database:h2:2.2.224") { transitive = false }
 }
 
-// Source JAR 组装（合并 common 源码）
+processResources {
+    def replaceProperties = [
+        minecraft_version_range: '[26.2,26.3)',
+        neoforge_version_range: '[26.2.0.62,)',
+        loader_version_range: '[4,)',
+        mod_version: project.version.toString()
+    ]
+
+    inputs.properties replaceProperties
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand replaceProperties
+    }
+}
+
+// Copy the NeoForge implementation into a 26.2 compatibility tree while preserving the legacy
+// source for older branches. New native 26.2 client/network sources intentionally survive the
+// exclusions below, while the NeoForge client bootstrap uses its own package to avoid Java modules
+// seeing a split package between the transformed common JAR and the loader JAR.
+tasks.register("generateRoadWeaverNeoForge26Compat", Copy) {
+    from("src/main/java")
+    into(compatNeoForgeDir)
+
+    // Retired pre-26.2 client GUI implementation. The new native implementation lives in client26.
+    exclude 'net/shiroha233/roadweaver/client/**'
+    exclude 'net/shiroha233/roadweaver/datagen/**'
+
+    // Retired pre-26.2 packet implementation. The new split protocol lives in network26.
+    exclude 'net/shiroha233/roadweaver/network/**'
+
+    // Optional DynamicTrees integration is kept off for the first 26.2 runtime-compatible build.
+    exclude 'net/shiroha233/roadweaver/mixin/neoforge/dynamictree/**'
+
+    // Client-only legacy mixins target the removed GuiGraphics rendering path.
+    exclude 'net/shiroha233/roadweaver/mixin/neoforge/CreateWorldScreenMixin.java'
+    exclude 'net/shiroha233/roadweaver/mixin/neoforge/CreateWorldScreenInitMixin.java'
+    exclude 'net/shiroha233/roadweaver/mixin/neoforge/LevelLoadingScreenMixin.java'
+    exclude 'net/shiroha233/roadweaver/mixin/neoforge/BiomeGrassColorFailSafeMixin.java'
+
+    filter { String line ->
+        line
+            .replace("player.chunkPosition().x", "player.chunkPosition().x()")
+            .replace("player.chunkPosition().z", "player.chunkPosition().z()")
+            .replace("candidate.x", "candidate.x()")
+            .replace("candidate.z", "candidate.z()")
+            .replace("chunkPos.x", "chunkPos.x()")
+            .replace("chunkPos.z", "chunkPos.z()")
+            .replace("ChunkPos.asLong(", "ChunkPos.pack(")
+            .replace("chunkPos.toLong()", "chunkPos.pack()")
+            .replace("new ChunkPos(pos)", "ChunkPos.containing(pos)")
+            .replace("new ChunkPos(anchor)", "ChunkPos.containing(anchor)")
+            .replace("new ChunkPos(chunkLong)", "ChunkPos.unpack(chunkLong)")
+    }
+
+    doLast {
+        // Replace the legacy loader entrypoint with a 26.2 entrypoint. Client-only classes are
+        // reached only behind the physical-client check, keeping dedicated-server classloading safe.
+        def target = compatNeoForgeDir.get().file("net/shiroha233/roadweaver/RoadWeaver.java").asFile
+        target.parentFile.mkdirs()
+        target.text = '''package net.shiroha233.roadweaver;
+
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.player.PermissionsChangedEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.shiroha233.roadweaver.command.MapAccessCommand;
+import net.shiroha233.roadweaver.config.ConfigService;
+import net.shiroha233.roadweaver.features.neoforge.RoadFeaturesNeoForge;
+import net.shiroha233.roadweaver.network26.MapNetworkNeoForge26;
+import net.shiroha233.roadweaver.planning.neoforge.ServerPlanningHooks;
+import net.shiroha233.roadweaver.structures.neoforge.StructureRegistryNeoForge;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@Mod(RoadWeaver.MOD_ID)
+public final class RoadWeaver {
+    public static final String MOD_ID = "roadweaver";
+    private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+    public RoadWeaver(IEventBus modEventBus, ModContainer modContainer) {
+        LOGGER.info("Initializing RoadWeaver for Minecraft 26.2 NeoForge...");
+        ConfigService.load();
+        StructureRegistryNeoForge.register(modEventBus);
+        RoadFeaturesNeoForge.register(modEventBus);
+        MapNetworkNeoForge26.register(modEventBus);
+        ServerPlanningHooks.register(modEventBus);
+
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerLoggedIn);
+        NeoForge.EVENT_BUS.addListener(this::onPermissionsChanged);
+
+        FMLLoader loader = FMLLoader.getCurrentOrNull();
+        if (loader != null && loader.getDist() == Dist.CLIENT) {
+            net.shiroha233.roadweaver.neoclient26.NeoForgeClient26.register(modEventBus, modContainer);
+        }
+    }
+
+    private void onRegisterCommands(RegisterCommandsEvent event) {
+        MapAccessCommand.register(event.getDispatcher());
+    }
+
+    private void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MapNetworkNeoForge26.syncMapAccess(player);
+        }
+    }
+
+    private void onPermissionsChanged(PermissionsChangedEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MapNetworkNeoForge26.syncMapAccess(player);
+        }
+    }
+
+    public static Logger getLogger() {
+        return LOGGER;
+    }
+}
+'''
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowCommon, project.configurations.shadowH2]
+    archiveClassifier.set("")
+
+    exclude "architectury.common.json"
+    exclude "fabric.mod.json"
+    relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
+
+    exclude 'META-INF/versions/**'
+    exclude 'org/h2/util/SourceCompiler*'
+    exclude 'org/h2/tools/**'
+    exclude 'org/h2/server/**'
+    exclude 'net/shiroha233.roadweaver/libs/h2/util/SourceCompiler*'
+    exclude 'net/shiroha233.roadweaver/libs/h2/tools/**'
+    exclude 'net/shiroha233.roadweaver/libs/h2/server/**'
+    mergeServiceFiles()
+    exclude 'module-info.class'
+
+    from("${rootProject.projectDir}/LICENSE") {
+        rename { "${it}_${base.archivesName.get()}" }
+    }
+}
+
+jar {
+    archiveClassifier.set("dev")
+}
+
 sourcesJar {
-    // Avoid duplicate entries when merging common sources
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    def commonSources = project(":common").sourcesJar
+    dependsOn tasks.named('generateRoadWeaverNeoForge26Compat')
+    def commonSources = project(':common').sourcesJar
     dependsOn commonSources
     from commonSources.archiveFile.map { zipTree(it) }
 }
 
-components.java {
-    withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
-        skip()
-    }
+tasks.named('compileJava') {
+    dependsOn tasks.named('generateRoadWeaverNeoForge26Compat')
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('shadowJar')
 }
 
 sourceSets {
     main {
-        java {
-            // Avoid JPMS split-package: keep top-level network package only in common
-        }
+        java.setSrcDirs([compatNeoForgeDir])
         resources {
             exclude 'assets/roadweaver/lang/*.json'
+            exclude 'pack.mcmeta'
         }
     }
 }

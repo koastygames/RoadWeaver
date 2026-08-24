@@ -93,8 +93,12 @@
 					"name": "minecraft:player_head",
 					"functions": [
 						{
-							"function": "minecraft:set_nbt",
-							"tag": "{SkullOwner: \"Shiroha233\"}"
+							"function": "minecraft:set_components",
+							"components": {
+								"minecraft:profile": {
+									"name": "Shiroha233"
+								}
+							}
 						},
 						{
 							"function": "minecraft:set_name",
