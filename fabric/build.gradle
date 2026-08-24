@@ -95,10 +95,14 @@ tasks.named('build') {
 
 sourceSets {
 	main {
-		// The pre-26.2 custom client screens use the removed GuiGraphics API.
-		// Core gameplay stays enabled on both physical clients and dedicated servers.
+		// Minecraft 26.2 replaced the old GuiGraphics pipeline. Keep the legacy GUI/mixins
+		// in source control, but exclude them from this core compatibility build.
 		java {
 			exclude 'net/shiroha233/roadweaver/client/**'
+			exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
+			exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
+			exclude 'net/shiroha233/roadweaver/mixin/fabric/LevelLoadingScreenMixin.java'
+			exclude 'net/shiroha233/roadweaver/mixin/fabric/BiomeGrassColorFailSafeMixin.java'
 		}
 		resources {
 			exclude 'assets/roadweaver/lang/*.json'
