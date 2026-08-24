@@ -8,7 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.client.map.data.MapSnapshot;
-import net.shiroha233.roadweaver.core.model.ConnectionStatus;
 import net.shiroha233.roadweaver.core.model.StructureConnection;
 import net.shiroha233.roadweaver.network.ClientNetBridge;
 
@@ -66,10 +65,8 @@ public final class RoadMapScreen26 extends Screen {
     public static void applyAccessAllowed(boolean allowed) {
         serverAllowsMap = allowed;
         Minecraft mc = Minecraft.getInstance();
-        if (!allowed && mc.screen instanceof RoadMapScreen26) {
-            if (mc.player != null) {
-                mc.player.displayClientMessage(Component.translatable("gui.roadweaver.map.access_denied"), true);
-            }
+        if (!allowed && mc.gui.screen() instanceof RoadMapScreen26) {
+            mc.gui.hud.setOverlayMessage(Component.translatable("gui.roadweaver.map.access_denied"), false);
             mc.gui.setScreen(null);
         }
     }
