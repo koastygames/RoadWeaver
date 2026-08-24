@@ -33,7 +33,6 @@ dependencies {
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	implementation "dev.architectury:architectury-fabric:${project.architectury_version}"
-	implementation "me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}"
 	implementation("io.github.llamalad7:mixinextras-fabric:0.5.0")
 
 	if (enableModMenuDevRuntime) {
@@ -58,48 +57,23 @@ processResources {
 	}
 }
 
-// Copy the Fabric implementation into a 26.2 source tree while leaving legacy UI/datagen code in Git.
+// Copy the Fabric implementation into a 26.2 source tree while leaving retired legacy UI/datagen code in Git.
 tasks.register("generateRoadWeaverFabric26Compat", Copy) {
 	from("src/main/java")
 	into(compatFabricDir)
 
-	// Runtime does not need Fabric datagen, and the 26.2 API has replaced FabricDataOutput.
+	// Runtime does not need Fabric datagen, and the 26.2 API replaced its old datagen surface.
 	exclude 'net/shiroha233/datagen/**'
 	exclude 'net/shiroha233/roadweaver/RoadWeaverDataGenerator.java'
 
-	// Minecraft 26.2 replaced the legacy client GUI/render-state APIs.
+	// Retired pre-26.2 client implementation. The native port lives in client26.
 	exclude 'net/shiroha233/roadweaver/client/**'
-	exclude 'net/shiroha233/roadweaver/network/fabric/ClientNetBridgeImpl.java'
-	exclude 'net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java'
+
+	// Client-only legacy mixins target the removed GuiGraphics rendering path.
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/LevelLoadingScreenMixin.java'
 	exclude 'net/shiroha233/roadweaver/mixin/fabric/BiomeGrassColorFailSafeMixin.java'
-
-	doLast {
-		def target = compatFabricDir.get().file("net/shiroha233/roadweaver/network/fabric/MapNetworkFabric.java").asFile
-		target.parentFile.mkdirs()
-		target.text = '''package net.shiroha233.roadweaver.network.fabric;
-
-import net.minecraft.server.level.ServerPlayer;
-
-/**
- * Minecraft 26.2 core compatibility shim.
- * Legacy map/config GUI networking is disabled until the GUI is migrated to GuiGraphicsExtractor.
- */
-public final class MapNetworkFabric {
-    private MapNetworkFabric() {}
-
-    public static void registerServerReceivers() {
-        // UI packet path intentionally disabled for the 26.2 core port.
-    }
-
-    public static void syncMapAccess(ServerPlayer player) {
-        // No map UI receiver is installed in the 26.2 core port.
-    }
-}
-'''
-	}
 }
 
 shadowJar {
