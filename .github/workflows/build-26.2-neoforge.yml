@@ -35,6 +35,30 @@ jobs:
       - name: Build NeoForge 26.2 JAR
         run: ./gradlew :neoforge:build --stacktrace --warning-mode all
 
+      - name: Smoke-test dedicated server startup
+        shell: bash
+        run: |
+          mkdir -p neoforge/run
+          echo 'eula=true' > neoforge/run/eula.txt
+
+          set +e
+          timeout 120s ./gradlew :neoforge:runServer --args='nogui' > /tmp/roadweaver-neoforge-server.log 2>&1
+          run_status=$?
+          set -e
+
+          cat /tmp/roadweaver-neoforge-server.log
+
+          if [ -f neoforge/run/logs/latest.log ]; then
+            cat neoforge/run/logs/latest.log
+            if grep -Fq 'Done (' neoforge/run/logs/latest.log; then
+              echo 'RoadWeaver 26.2 NeoForge dedicated server reached the running state.'
+              exit 0
+            fi
+          fi
+
+          echo "Dedicated server did not reach the running state (exit ${run_status})."
+          exit 1
+
       - name: Collect release JAR
         if: success()
         run: |
