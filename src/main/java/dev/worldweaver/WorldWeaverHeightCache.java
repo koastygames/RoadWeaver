@@ -10,19 +10,21 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * Fixed-size, allocation-free cache for NoiseBasedChunkGenerator base-height queries.
  *
  * Each Heightmap type owns a direct-mapped region, so the full 64-bit packed X/Z key
- * can be compared exactly rather than relying on a probabilistic fingerprint. Reads
- * verify the slot twice so concurrent replacement can only turn a would-be hit into
- * a miss; it cannot return a height belonging to another coordinate.
+ * can be compared exactly rather than relying on a probabilistic fingerprint. Each
+ * slot uses a tiny sequence lock: readers never block, writers never allocate, and a
+ * concurrent replacement can only turn a would-be hit into a miss, never a wrong
+ * terrain height.
  *
- * A generation stamp is advanced whenever the RandomState identity changes. That
- * invalidates the complete cache in O(1), avoiding a large map clear and its GC spike.
+ * A RandomState generation token invalidates the complete cache in O(1), avoiding a
+ * large map clear and its GC spike when a generator is reused with another state.
  */
 public final class WorldWeaverHeightCache {
     public static final int MISS = Integer.MIN_VALUE;
 
     private final AtomicLongArray keys;
     private final AtomicIntegerArray values;
-    private final AtomicIntegerArray stamps;
+    private final AtomicIntegerArray slotGenerations;
+    private final AtomicIntegerArray sequences;
     private final int slotsPerType;
     private final int slotMask;
     private final AtomicLong stateToken = new AtomicLong(packState(Integer.MIN_VALUE, 1));
@@ -35,44 +37,60 @@ public final class WorldWeaverHeightCache {
         int totalSlots = Math.multiplyExact(this.slotsPerType, typeCount);
         this.keys = new AtomicLongArray(totalSlots);
         this.values = new AtomicIntegerArray(totalSlots);
-        this.stamps = new AtomicIntegerArray(totalSlots);
+        this.slotGenerations = new AtomicIntegerArray(totalSlots);
+        this.sequences = new AtomicIntegerArray(totalSlots);
     }
 
     public int get(int x, int z, Heightmap.Types type, int randomStateIdentity) {
-        int generation = generationFor(randomStateIdentity);
-        long key = packCoordinates(x, z);
-        int index = indexFor(key, type);
+        int stateGeneration = generationFor(randomStateIdentity);
+        long expectedKey = packCoordinates(x, z);
+        int index = indexFor(expectedKey, type);
 
-        int firstStamp = stamps.get(index);
-        if (firstStamp != generation) {
+        int firstSequence = sequences.get(index);
+        if ((firstSequence & 1) != 0) {
+            return MISS;
+        }
+        if (slotGenerations.get(index) != stateGeneration) {
             return MISS;
         }
 
-        long firstKey = keys.get(index);
-        if (firstKey != key) {
+        long observedKey = keys.get(index);
+        if (observedKey != expectedKey) {
+            return MISS;
+        }
+        int observedValue = values.get(index);
+
+        int secondSequence = sequences.get(index);
+        if (firstSequence != secondSequence || (secondSequence & 1) != 0) {
+            return MISS;
+        }
+        if (slotGenerations.get(index) != stateGeneration) {
             return MISS;
         }
 
-        int value = values.get(index);
-        int secondStamp = stamps.get(index);
-        long secondKey = keys.get(index);
-
-        if (secondStamp == firstStamp && secondStamp == generation && secondKey == firstKey) {
-            return value;
-        }
-        return MISS;
+        return observedValue;
     }
 
     public void put(int x, int z, Heightmap.Types type, int randomStateIdentity, int value) {
-        int generation = generationFor(randomStateIdentity);
+        int stateGeneration = generationFor(randomStateIdentity);
         long key = packCoordinates(x, z);
         int index = indexFor(key, type);
 
-        // Publish payload first and the generation stamp last. Readers re-check both
-        // key and stamp, so racing replacement safely degrades to a cache miss.
-        values.set(index, value);
-        keys.set(index, key);
-        stamps.set(index, generation);
+        // A cache write is optional. If another worldgen worker owns this exact slot,
+        // skip the write instead of spinning and adding contention to chunk generation.
+        int sequence = sequences.get(index);
+        if ((sequence & 1) != 0 || !sequences.compareAndSet(index, sequence, sequence + 1)) {
+            return;
+        }
+
+        try {
+            keys.set(index, key);
+            values.set(index, value);
+            slotGenerations.set(index, stateGeneration);
+        } finally {
+            // Publishing an even sequence makes the completed tuple visible to readers.
+            sequences.set(index, sequence + 2);
+        }
     }
 
     public int capacity() {
@@ -89,8 +107,7 @@ public final class WorldWeaverHeightCache {
             }
 
             int nextGeneration = currentGeneration + 1;
-            // Generation zero is reserved for never-written slots. A wrap would take
-            // billions of RandomState swaps; skip zero to retain that invariant.
+            // Zero is reserved for slots that have never been populated.
             if (nextGeneration == 0) {
                 nextGeneration = 1;
             }
