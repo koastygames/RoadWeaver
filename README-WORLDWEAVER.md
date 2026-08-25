@@ -8,6 +8,10 @@ Minecraft 1.21.1 separates structure *planning* from structure *block placement*
 
 WorldWeaver preserves this contract rather than replacing it with a private scheduler that would break other worldgen mods. It accelerates repeated base-height queries in vanilla `NoiseBasedChunkGenerator`, keeps generation asynchronous, and leaves all biome/structure/placed-feature registry contents intact.
 
+## Low-GC height cache
+
+Repeated structure and feature placement can ask the noise generator for the same terrain heights many times. WorldWeaver uses a fixed-size, primitive direct-mapped cache split by heightmap type. It stores the full packed X/Z key, performs race-safe double verification on concurrent reads, allocates no key objects on lookups, never grows, and invalidates in O(1) when the `RandomState` changes. This avoids the allocation pressure and bulk-clear spikes of a general-purpose map cache.
+
 ## Compatibility policy
 
 - No hard-coded biome IDs.
@@ -15,6 +19,7 @@ WorldWeaver preserves this contract rather than replacing it with a private sche
 - No replacement biome source.
 - No replacement chunk generator.
 - No forced world preset.
+- No custom chunk executor or thread pool.
 - Custom/modded chunk generators are left untouched unless they invoke vanilla `ChunkGenerator` decoration methods.
 - Datapack worldgen remains registry-driven.
 
@@ -23,6 +28,6 @@ This is intentionally safer than globally reordering `ChunkStatus`, which would 
 ## JVM tuning switches
 
 - `-Dworldweaver.disableHeightCache=true` — disable the base-height cache.
-- `-Dworldweaver.heightCacheMaxEntries=65536` — maximum cache entries per vanilla noise generator (1024–1048576).
+- `-Dworldweaver.heightCacheMaxEntries=65536` — approximate total fixed cache capacity requested per vanilla noise generator (1024–1048576).
 - `-Dworldweaver.logSlowWorldgen=true` — opt in to slow-phase logging.
 - `-Dworldweaver.slowWorldgenMs=250` — slow phase threshold in milliseconds (25–60000).
