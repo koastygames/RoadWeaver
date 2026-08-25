@@ -1,0 +1,31 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="All Rights Reserved"
+
+[[mixins]]
+config="worldweaver.mixins.json"
+
+[[mods]]
+modId="worldweaver"
+version="1.0.0"
+displayName="WorldWeaver"
+authors="WorldWeaver Project"
+description='''
+Compatibility-first overhaul and optimization layer for Minecraft 1.21.1 chunk world generation.
+WorldWeaver preserves registry-driven biome, feature and structure generation while reducing repeated
+terrain height work and profiling the terrain -> decoration pipeline without replacing modded generators.
+'''
+
+[[dependencies.worldweaver]]
+modId="neoforge"
+type="required"
+versionRange="[21.1,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.worldweaver]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.1]"
+ordering="NONE"
+side="BOTH"
