@@ -1,0 +1,80 @@
+name: MetroForge Polished APK Build v3
+
+on:
+  push:
+    branches:
+      - metroforge-apk-build-20260905
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-polished:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout temporary build branch
+        uses: actions/checkout@v4
+
+      - name: Reconstruct verified base source
+        shell: bash
+        run: |
+          cat metroforge-build/part_*.b64 > /tmp/metroforge-source.b64
+          base64 --decode /tmp/metroforge-source.b64 > /tmp/metroforge-source.zip
+          echo "0a84ee2de779824df4b6c6cab076f1b5a2c6ccc8bec1faa7f1915d893ec1b155  /tmp/metroforge-source.zip" | sha256sum -c -
+          unzip -q /tmp/metroforge-source.zip -d "$GITHUB_WORKSPACE/metroforge-src"
+
+      - name: Apply polished v0.2 patch and compile fixes
+        shell: bash
+        run: |
+          base64 --decode metroforge-polish/patch.gz.b64 | gzip -d > /tmp/metroforge-polish.patch
+          echo "f7248baff0f45d012360e0a2b9b846d2ef3de2ce1a14ed606aa5a1efc474a329  /tmp/metroforge-polish.patch" | sha256sum -c -
+          cd "$GITHUB_WORKSPACE/metroforge-src/MetroForgeCity"
+          patch --dry-run -p1 < /tmp/metroforge-polish.patch
+          patch -p1 < /tmp/metroforge-polish.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/koastygames/metroforge/MainActivity.java')
+          s = p.read_text()
+          s = s.replace('Button stats = smallButton("STATS");\n        stats.setOnClickListener(v -> { audio.uiTap(); showStats(); });\n        top.addView(stats);', 'Button statsButton = smallButton("STATS");\n        statsButton.setOnClickListener(v -> { audio.uiTap(); showStats(); });\n        top.addView(statsButton);', 1)
+          p.write_text(s)
+          p = Path('app/src/main/java/com/koastygames/metroforge/render/CityRenderer.java')
+          s = p.read_text()
+          s = s.replace('if (east) drawCube(x + 0.25f, 0.024f, z, 0.52f, 0.006f, 0.14f, 0.15f, 0.16f, 1f);', 'if (east) drawCube(x + 0.25f, 0.024f, z, 0.52f, 0.006f, 0.14f, 0.14f, 0.15f, 0.16f, 1f);')
+          p.write_text(s)
+          PY
+          grep -q "Button statsButton" app/src/main/java/com/koastygames/metroforge/MainActivity.java
+          grep -q "versionName '0.2.0'" app/build.gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build polished debug APK
+        working-directory: metroforge-src/MetroForgeCity
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Verify polished APK
+        shell: bash
+        run: |
+          APK="metroforge-src/MetroForgeCity/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload polished APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MetroForge-polished-apk-v3
+          path: metroforge-src/MetroForgeCity/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 1
