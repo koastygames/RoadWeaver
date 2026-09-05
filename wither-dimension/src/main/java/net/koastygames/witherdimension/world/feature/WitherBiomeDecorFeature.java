@@ -35,14 +35,37 @@ public class WitherBiomeDecorFeature extends Feature<NoneFeatureConfiguration> {
         BlockPos surface = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE_WG, ctx.origin());
         if (surface.getY() <= level.getMinY() + 2) return false;
 
-        if (level.getBiome(surface).is(ASHEN)) decorateAshen(level, surface, r);
-        else if (level.getBiome(surface).is(SOULSWAMP)) decorateSoulSwamp(level, surface, r);
-        else if (level.getBiome(surface).is(BASALT)) decorateBasalt(level, surface, r);
-        else if (level.getBiome(surface).is(CRYSTAL)) decorateCrystal(level, surface, r);
+        if (level.getBiome(surface).is(ASHEN)) {
+            paintSurface(level, surface, ModBlocks.ASH_STONE, ModBlocks.WITHER_STONE, r);
+            decorateAshen(level, surface, r);
+        } else if (level.getBiome(surface).is(SOULSWAMP)) {
+            paintSurface(level, surface, ModBlocks.SOULSTONE, ModBlocks.SOUL_SAND_BRICKS, r);
+            decorateSoulSwamp(level, surface, r);
+        } else if (level.getBiome(surface).is(BASALT)) {
+            paintSurface(level, surface, ModBlocks.WITHER_STONE, ModBlocks.POLISHED_WITHER_STONE, r);
+            decorateBasalt(level, surface, r);
+        } else if (level.getBiome(surface).is(CRYSTAL)) {
+            paintSurface(level, surface, ModBlocks.VOID_INFUSED_STONE, ModBlocks.WITHER_STONE, r);
+            decorateCrystal(level, surface, r);
+        }
         return true;
     }
 
     private static void set(WorldGenLevel l, BlockPos p, Block b) { l.setBlock(p, b.defaultBlockState(), 3); }
+
+    private static void paintSurface(WorldGenLevel level, BlockPos center, Block top, Block under, RandomSource r) {
+        for (int x = -5; x <= 5; x++) {
+            for (int z = -5; z <= 5; z++) {
+                BlockPos air = level.getHeightmapPos(Heightmap.Types.WORLD_SURFACE_WG, center.offset(x, 0, z));
+                BlockPos ground = air.below();
+                if (level.getBlockState(ground).is(Blocks.WATER) || level.getBlockState(ground).is(Blocks.LAVA)) continue;
+                set(level, ground, r.nextInt(8) == 0 ? under : top);
+                if (ground.getY() > level.getMinY() + 1 && !level.getBlockState(ground.below()).isAir()) {
+                    set(level, ground.below(), under);
+                }
+            }
+        }
+    }
 
     private static void decorateAshen(WorldGenLevel l, BlockPos o, RandomSource r) {
         int kind = r.nextInt(4);
