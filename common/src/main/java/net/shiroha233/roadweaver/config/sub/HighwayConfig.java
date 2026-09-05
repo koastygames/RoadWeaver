@@ -4,9 +4,13 @@ import net.shiroha233.roadweaver.config.SubConfig;
 import net.shiroha233.roadweaver.core.constants.RoadConstants;
 
 /**
- * 高速公路配置
+ * Highway generation and route-quality configuration.
  */
 public final class HighwayConfig implements SubConfig {
+    private static final double DEFAULT_ROUTE_CURVATURE = 0.035;
+    private static final double DEFAULT_TURN_PENALTY = 2.25;
+    private static final double DEFAULT_GRADE_CHANGE_PENALTY = 12.0;
+
     private boolean enabled = false;
     private boolean autoPlanEnabled = true;
     private int gridBlocks = RoadConstants.DEFAULT_HIGHWAY_GRID_BLOCKS;
@@ -19,6 +23,12 @@ public final class HighwayConfig implements SubConfig {
     private int aStarMaxSteps = RoadConstants.DEFAULT_HIGHWAY_ASTAR_MAX_STEPS;
     private double floatingWeight = RoadConstants.DEFAULT_HIGHWAY_FLOATING_WEIGHT;
     private double penetrationWeight = RoadConstants.DEFAULT_HIGHWAY_PENETRATION_WEIGHT;
+
+    // Route-quality controls. These deliberately default to subtle values so old worlds
+    // keep the same topology while newly calculated links look less artificial.
+    private double routeCurvature = DEFAULT_ROUTE_CURVATURE;
+    private double turnPenalty = DEFAULT_TURN_PENALTY;
+    private double gradeChangePenalty = DEFAULT_GRADE_CHANGE_PENALTY;
 
     @Override
     public void sanitize() {
@@ -34,6 +44,13 @@ public final class HighwayConfig implements SubConfig {
         aStarMaxSteps = Math.max(RoadConstants.HIGHWAY_ASTAR_MAX_STEPS_MIN, Math.min(RoadConstants.HIGHWAY_ASTAR_MAX_STEPS_MAX, aStarMaxSteps));
         floatingWeight = Math.max(0, floatingWeight);
         penetrationWeight = Math.max(0, penetrationWeight);
+
+        if (!Double.isFinite(routeCurvature)) routeCurvature = DEFAULT_ROUTE_CURVATURE;
+        if (!Double.isFinite(turnPenalty)) turnPenalty = DEFAULT_TURN_PENALTY;
+        if (!Double.isFinite(gradeChangePenalty)) gradeChangePenalty = DEFAULT_GRADE_CHANGE_PENALTY;
+        routeCurvature = Math.max(0.0, Math.min(0.12, routeCurvature));
+        turnPenalty = Math.max(0.0, Math.min(20.0, turnPenalty));
+        gradeChangePenalty = Math.max(0.0, Math.min(200.0, gradeChangePenalty));
     }
 
     @Override
@@ -51,6 +68,9 @@ public final class HighwayConfig implements SubConfig {
         copy.aStarMaxSteps = this.aStarMaxSteps;
         copy.floatingWeight = this.floatingWeight;
         copy.penetrationWeight = this.penetrationWeight;
+        copy.routeCurvature = this.routeCurvature;
+        copy.turnPenalty = this.turnPenalty;
+        copy.gradeChangePenalty = this.gradeChangePenalty;
         return copy;
     }
 
@@ -82,4 +102,10 @@ public final class HighwayConfig implements SubConfig {
     public void setFloatingWeight(double v) { this.floatingWeight = v; }
     public double penetrationWeight() { return penetrationWeight; }
     public void setPenetrationWeight(double v) { this.penetrationWeight = v; }
+    public double routeCurvature() { return routeCurvature; }
+    public void setRouteCurvature(double v) { this.routeCurvature = v; }
+    public double turnPenalty() { return turnPenalty; }
+    public void setTurnPenalty(double v) { this.turnPenalty = v; }
+    public double gradeChangePenalty() { return gradeChangePenalty; }
+    public void setGradeChangePenalty(double v) { this.gradeChangePenalty = v; }
 }

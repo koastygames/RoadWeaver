@@ -7,6 +7,8 @@ import net.minecraft.network.chat.Component;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 
+import java.util.Locale;
+
 /** Lightweight native Minecraft 26.2 configuration screen for RoadWeaver. */
 public final class RoadWeaverConfigScreen26 extends Screen {
     private final Screen parent;
@@ -39,26 +41,49 @@ public final class RoadWeaverConfigScreen26 extends Screen {
         y += row + 8;
 
         int half = (columnWidth - 54) / 2;
-        addRenderableWidget(Button.builder(Component.literal("Radius -"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Radius - (" + cfg.structurePrediction().predictRadiusChunks() + ")"), b -> {
             int value = Math.max(1, cfg.structurePrediction().predictRadiusChunks() - 8);
             cfg.structurePrediction().setPredictRadiusChunks(value); save();
             b.setMessage(Component.literal("Radius - (" + value + ")"));
         }).bounds(left, y, half + 18, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Radius +"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Radius + (" + cfg.structurePrediction().predictRadiusChunks() + ")"), b -> {
             int value = Math.min(4096, cfg.structurePrediction().predictRadiusChunks() + 8);
             cfg.structurePrediction().setPredictRadiusChunks(value); save();
             b.setMessage(Component.literal("Radius + (" + value + ")"));
         }).bounds(left + half + 22, y, half + 18, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Road width -"), b -> {
-            int value = Math.max(0, cfg.roadAppearance().roadWidth() - 1);
+        addRenderableWidget(Button.builder(Component.literal("Road width - (" + cfg.roadAppearance().roadWidth() + ")"), b -> {
+            int value = Math.max(1, cfg.roadAppearance().roadWidth() - 1);
             cfg.roadAppearance().setRoadWidth(value); save();
-            b.setMessage(Component.literal("Width - (" + value + ")"));
+            b.setMessage(Component.literal("Road width - (" + value + ")"));
         }).bounds(right, y, half + 18, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("Road width +"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("Road width + (" + cfg.roadAppearance().roadWidth() + ")"), b -> {
             int value = Math.min(31, cfg.roadAppearance().roadWidth() + 1);
             cfg.roadAppearance().setRoadWidth(value); save();
-            b.setMessage(Component.literal("Width + (" + value + ")"));
+            b.setMessage(Component.literal("Road width + (" + value + ")"));
         }).bounds(right + half + 22, y, half + 18, 20).build());
+        y += row;
+
+        addRenderableWidget(Button.builder(Component.literal("Hwy width - (" + cfg.highway().roadWidth() + ")"), b -> {
+            int value = Math.max(1, cfg.highway().roadWidth() - 1);
+            cfg.highway().setRoadWidth(value); save();
+            b.setMessage(Component.literal("Hwy width - (" + value + ")"));
+        }).bounds(left, y, half + 18, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("Hwy width + (" + cfg.highway().roadWidth() + ")"), b -> {
+            int value = Math.min(31, cfg.highway().roadWidth() + 1);
+            cfg.highway().setRoadWidth(value); save();
+            b.setMessage(Component.literal("Hwy width + (" + value + ")"));
+        }).bounds(left + half + 22, y, half + 18, 20).build());
+        addRenderableWidget(Button.builder(Component.literal(curveLabel("Curve -", cfg.highway().routeCurvature())), b -> {
+            double value = Math.max(0.0, cfg.highway().routeCurvature() - 0.005);
+            cfg.highway().setRouteCurvature(value); save();
+            b.setMessage(Component.literal(curveLabel("Curve -", cfg.highway().routeCurvature())));
+        }).bounds(right, y, half + 18, 20).build());
+        addRenderableWidget(Button.builder(Component.literal(curveLabel("Curve +", cfg.highway().routeCurvature())), b -> {
+            double value = Math.min(0.12, cfg.highway().routeCurvature() + 0.005);
+            cfg.highway().setRouteCurvature(value); save();
+            b.setMessage(Component.literal(curveLabel("Curve +", cfg.highway().routeCurvature())));
+        }).bounds(right + half + 22, y, half + 18, 20).build());
+
         addRenderableWidget(Button.builder(Component.literal("Save & Done"), b -> { save(); onClose(); })
                 .bounds(Math.max(18, width / 2 - 70), Math.max(y + 34, height - 34), 140, 20).build());
     }
@@ -75,6 +100,10 @@ public final class RoadWeaverConfigScreen26 extends Screen {
         return Component.literal(name + ": " + (value ? "ON" : "OFF"));
     }
 
+    private static String curveLabel(String prefix, double value) {
+        return prefix + " (" + String.format(Locale.ROOT, "%.1f%%", value * 100.0) + ")";
+    }
+
     private static void save() {
         ConfigService.get().sanitize();
         ConfigService.save();
@@ -85,7 +114,7 @@ public final class RoadWeaverConfigScreen26 extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, delta);
         String titleText = getTitle().getString();
         graphics.text(font, titleText, Math.max(18, (width - font.width(titleText)) / 2), 18, 0xFFFFFFFF, true);
-        graphics.text(font, "Core RoadWeaver settings — advanced options remain in config/roadweaver.json",
+        graphics.text(font, "Core RoadWeaver settings — highway curve affects newly generated routes",
                 Math.max(18, width / 2 - 205), 34, 0xFFB8C0C8, true);
     }
 
