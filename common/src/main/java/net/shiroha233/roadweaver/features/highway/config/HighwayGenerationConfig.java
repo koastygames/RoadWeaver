@@ -5,7 +5,7 @@ import net.shiroha233.roadweaver.config.sub.PathfindingCostConfig;
 import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
 
 /**
- * Highway 生成配置快照
+ * Immutable highway-generation snapshot used by worker threads.
  */
 public record HighwayGenerationConfig(
         PathfindingCostConfig pathfindingCost,
@@ -17,6 +17,9 @@ public record HighwayGenerationConfig(
         PathfindingCostConfig.PathfindingAlgorithm pathfindingAlgorithm,
         double floatingWeight,
         double penetrationWeight,
+        double routeCurvature,
+        double turnPenalty,
+        double gradeChangePenalty,
         int threadDutyCycle,
         int bridgeMinWaterDepth
 ) {
@@ -33,14 +36,15 @@ public record HighwayGenerationConfig(
                 PathfindingCostConfig.PathfindingAlgorithm.ASTAR_BIDIRECTIONAL,
                 cfg.highwayFloatingWeight(),
                 cfg.highwayPenetrationWeight(),
+                cfg.highway().routeCurvature(),
+                cfg.highway().turnPenalty(),
+                cfg.highway().gradeChangePenalty(),
                 cfg.performance().threadDutyCycle(),
                 cfg.bridge().minWaterDepth()
         );
     }
 
-    /**
-     * 转换为 RoadGenerationConfig
-     */
+    /** Converts this highway snapshot into the shared road-generation snapshot. */
     public RoadGenerationConfig toRoadGenerationConfig() {
         return RoadGenerationConfig.fromHighwayConfig(this);
     }
