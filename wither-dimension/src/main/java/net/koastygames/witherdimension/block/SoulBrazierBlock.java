@@ -35,25 +35,21 @@ public class SoulBrazierBlock extends Block {
     }
 
     private GateFrame findFrame(Level level, BlockPos brazierPos) {
-        // The brazier may be placed on either side of a frame. Frames may run east-west (X axis)
-        // or north-south (Z axis), matching the two horizontal orientations supported by Nether portals.
         GateFrame[] candidates = new GateFrame[] {
                 new GateFrame(brazierPos.north(), Direction.Axis.X),
                 new GateFrame(brazierPos.south(), Direction.Axis.X),
                 new GateFrame(brazierPos.east(), Direction.Axis.Z),
                 new GateFrame(brazierPos.west(), Direction.Axis.Z)
         };
-
-        for (GateFrame candidate : candidates) {
-            if (hasFrame(level, candidate)) return candidate;
-        }
+        for (GateFrame candidate : candidates) if (hasFrame(level, candidate)) return candidate;
         return null;
     }
 
     private boolean hasFrame(Level level, GateFrame frame) {
+        // Concept-art proportions: 5 blocks wide x 7 blocks tall, leaving a 3 x 5 portal field.
         for (int horizontal = -2; horizontal <= 2; horizontal++) {
-            for (int dy = 0; dy <= 5; dy++) {
-                boolean border = horizontal == -2 || horizontal == 2 || dy == 0 || dy == 5;
+            for (int dy = 0; dy <= 6; dy++) {
+                boolean border = horizontal == -2 || horizontal == 2 || dy == 0 || dy == 6;
                 BlockPos p = offset(frame.baseCenter(), frame.axis(), horizontal, dy);
                 if (border) {
                     if (!level.getBlockState(p).is(ModBlocks.WITHERED_OBSIDIAN)) return false;
@@ -67,7 +63,7 @@ public class SoulBrazierBlock extends Block {
 
     private void fillPortal(Level level, GateFrame frame) {
         for (int horizontal = -1; horizontal <= 1; horizontal++) {
-            for (int dy = 1; dy <= 4; dy++) {
+            for (int dy = 1; dy <= 5; dy++) {
                 BlockPos p = offset(frame.baseCenter(), frame.axis(), horizontal, dy);
                 level.setBlock(p, ModBlocks.WITHER_GATE.defaultBlockState(), 3);
             }
@@ -75,9 +71,7 @@ public class SoulBrazierBlock extends Block {
     }
 
     private static BlockPos offset(BlockPos baseCenter, Direction.Axis axis, int horizontal, int dy) {
-        return axis == Direction.Axis.X
-                ? baseCenter.offset(horizontal, dy, 0)
-                : baseCenter.offset(0, dy, horizontal);
+        return axis == Direction.Axis.X ? baseCenter.offset(horizontal, dy, 0) : baseCenter.offset(0, dy, horizontal);
     }
 
     private record GateFrame(BlockPos baseCenter, Direction.Axis axis) { }
