@@ -1,10 +1,10 @@
 package net.koastygames.witherdimension.entity;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.projectile.WitherSkull;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
@@ -16,14 +16,12 @@ public class CitadelSentinelEntity extends AbstractWitherMob {
         super.aiStep();
         if (level().isClientSide()) return;
         LivingEntity target = getTarget();
-        if (target != null && tickCount % 72 == 0) {
+        if (target != null && tickCount % 72 == 0 && level() instanceof ServerLevel server) {
             double d = distanceToSqr(target);
-            if (d > 20.0D && d < 324.0D) {
-                Vec3 velocity = target.position().add(0.0D, target.getBbHeight() * 0.45D, 0.0D)
-                        .subtract(position().add(0.0D, 1.7D, 0.0D)).normalize().scale(0.72D);
-                WitherSkull skull = new WitherSkull(level(), this, velocity);
-                skull.setPos(getX(), getY() + 1.7D, getZ());
-                level().addFreshEntity(skull);
+            if (d > 20.0D && d < 324.0D && hasLineOfSight(target)) {
+                target.hurtServer(server, damageSources().mobAttack(this), 7.0F);
+                Vec3 push = target.position().subtract(position()).normalize().scale(0.65D);
+                target.push(push.x, 0.18D, push.z);
             }
         }
     }
