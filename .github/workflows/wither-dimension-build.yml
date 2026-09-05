@@ -1,0 +1,32 @@
+name: Build Wither Dimension
+on:
+  push:
+    branches: [wither-dimension-build]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.1'
+      - name: Restore source bundle
+        run: |
+          cat wither-dimension/.ci/part-* > /tmp/wither.b64
+          base64 -d /tmp/wither.b64 > /tmp/wither.zip
+          unzip -oq /tmp/wither.zip -d wither-dimension
+      - name: Build
+        working-directory: wither-dimension
+        run: gradle build --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: wither-dimension-26.2
+          path: wither-dimension/build/libs/*.jar
