@@ -5,6 +5,7 @@ import net.koastygames.witherdimension.registry.ModBlocks;
 import net.koastygames.witherdimension.registry.ModEntities;
 import net.koastygames.witherdimension.registry.ModItems;
 import net.koastygames.witherdimension.world.ModWorldgen;
+import net.koastygames.witherdimension.world.PortalHandler;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
@@ -25,6 +26,7 @@ public class WitherDimensionMod implements ModInitializer {
         ModItems.initialize();
         ModEntities.initialize();
         ModWorldgen.initialize();
+        PortalHandler.initialize();
         LOGGER.info("The Wither Dimension initialized");
     }
 }
