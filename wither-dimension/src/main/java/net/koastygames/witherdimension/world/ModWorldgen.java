@@ -1,6 +1,7 @@
 package net.koastygames.witherdimension.world;
 
 import net.koastygames.witherdimension.WitherDimensionMod;
+import net.koastygames.witherdimension.world.feature.WitherBiomeDecorFeature;
 import net.koastygames.witherdimension.world.feature.WitherLandmarkFeature;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -11,6 +12,10 @@ public final class ModWorldgen {
     public static final Feature<NoneFeatureConfiguration> WITHER_LANDMARK = Registry.register(
             BuiltInRegistries.FEATURE, WitherDimensionMod.id("wither_landmark"),
             new WitherLandmarkFeature(NoneFeatureConfiguration.CODEC));
+    public static final Feature<NoneFeatureConfiguration> WITHER_BIOME_DECOR = Registry.register(
+            BuiltInRegistries.FEATURE, WitherDimensionMod.id("wither_biome_decor"),
+            new WitherBiomeDecorFeature(NoneFeatureConfiguration.CODEC));
+
     public static void initialize() { }
     private ModWorldgen() { }
 }

@@ -46,8 +46,11 @@ public final class ModItems {
             .title(Component.translatable("itemGroup.witherdimension.main"))
             .icon(() -> new ItemStack(WITHERITE_INGOT))
             .displayItems((params, output) -> {
-                output.accept(ModBlocks.WITHERED_OBSIDIAN); output.accept(ModBlocks.WITHER_STONE); output.accept(ModBlocks.ASH_STONE);
-                output.accept(ModBlocks.SOULSTONE); output.accept(ModBlocks.BONE_BRICKS); output.accept(ModBlocks.CURSED_CRYSTAL_BLOCK);
+                output.accept(ModBlocks.WITHERED_OBSIDIAN); output.accept(ModBlocks.WITHER_STONE); output.accept(ModBlocks.POLISHED_WITHER_STONE);
+                output.accept(ModBlocks.WITHER_BRICKS); output.accept(ModBlocks.CRACKED_WITHER_BRICKS); output.accept(ModBlocks.VOID_INFUSED_STONE);
+                output.accept(ModBlocks.ASH_STONE); output.accept(ModBlocks.ASH_BRICKS); output.accept(ModBlocks.SOULSTONE); output.accept(ModBlocks.SOUL_SAND_BRICKS);
+                output.accept(ModBlocks.BONE_BRICKS); output.accept(ModBlocks.BONE_PILLAR); output.accept(ModBlocks.SOUL_FIRE_LOG); output.accept(ModBlocks.WITHER_MOSS);
+                output.accept(ModBlocks.SKULL_LANTERN); output.accept(ModBlocks.CURSED_CRYSTAL_BLOCK); output.accept(ModBlocks.CURSED_CRYSTAL_ORE);
                 output.accept(ModBlocks.WITHERITE_ORE); output.accept(ModBlocks.SOUL_VEIN_ORE); output.accept(ModBlocks.SOUL_BRAZIER);
                 output.accept(RAW_WITHERITE); output.accept(WITHERITE_INGOT); output.accept(SOUL_VEIN_SHARD); output.accept(SOUL_CORE);
                 output.accept(WITHERITE_SWORD); output.accept(WITHERITE_PICKAXE); output.accept(WITHERITE_AXE); output.accept(WITHERITE_SHOVEL); output.accept(WITHERITE_HOE); output.accept(WITHERITE_WARHAMMER);
