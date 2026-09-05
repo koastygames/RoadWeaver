@@ -2,6 +2,7 @@ package net.koastygames.witherdimension.block;
 
 import net.koastygames.witherdimension.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -20,26 +21,40 @@ public class SoulBrazierBlock extends Block {
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (!stack.is(Items.NETHER_STAR)) return InteractionResult.PASS;
         if (level.isClientSide()) return InteractionResult.SUCCESS;
-        BlockPos plane = pos.north();
-        if (!hasFrame(level, plane)) {
+
+        GateFrame frame = findFrame(level, pos);
+        if (frame == null) {
             player.sendSystemMessage(Component.translatable("message.witherdimension.invalid_gate"));
             return InteractionResult.FAIL;
         }
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = 1; dy <= 4; dy++) {
-                level.setBlock(plane.offset(dx, dy, 0), ModBlocks.WITHER_GATE.defaultBlockState(), 3);
-            }
-        }
+
+        fillPortal(level, frame);
         if (!player.getAbilities().instabuild) stack.shrink(1);
         player.sendSystemMessage(Component.translatable("message.witherdimension.gate_open"));
         return InteractionResult.SUCCESS;
     }
 
-    private boolean hasFrame(Level level, BlockPos baseCenter) {
-        for (int dx = -2; dx <= 2; dx++) {
+    private GateFrame findFrame(Level level, BlockPos brazierPos) {
+        // The brazier may be placed on either side of a frame. Frames may run east-west (X axis)
+        // or north-south (Z axis), matching the two horizontal orientations supported by Nether portals.
+        GateFrame[] candidates = new GateFrame[] {
+                new GateFrame(brazierPos.north(), Direction.Axis.X),
+                new GateFrame(brazierPos.south(), Direction.Axis.X),
+                new GateFrame(brazierPos.east(), Direction.Axis.Z),
+                new GateFrame(brazierPos.west(), Direction.Axis.Z)
+        };
+
+        for (GateFrame candidate : candidates) {
+            if (hasFrame(level, candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private boolean hasFrame(Level level, GateFrame frame) {
+        for (int horizontal = -2; horizontal <= 2; horizontal++) {
             for (int dy = 0; dy <= 5; dy++) {
-                boolean border = dx == -2 || dx == 2 || dy == 0 || dy == 5;
-                BlockPos p = baseCenter.offset(dx, dy, 0);
+                boolean border = horizontal == -2 || horizontal == 2 || dy == 0 || dy == 5;
+                BlockPos p = offset(frame.baseCenter(), frame.axis(), horizontal, dy);
                 if (border) {
                     if (!level.getBlockState(p).is(ModBlocks.WITHERED_OBSIDIAN)) return false;
                 } else if (!level.getBlockState(p).isAir() && !level.getBlockState(p).is(ModBlocks.WITHER_GATE)) {
@@ -49,4 +64,21 @@ public class SoulBrazierBlock extends Block {
         }
         return true;
     }
+
+    private void fillPortal(Level level, GateFrame frame) {
+        for (int horizontal = -1; horizontal <= 1; horizontal++) {
+            for (int dy = 1; dy <= 4; dy++) {
+                BlockPos p = offset(frame.baseCenter(), frame.axis(), horizontal, dy);
+                level.setBlock(p, ModBlocks.WITHER_GATE.defaultBlockState(), 3);
+            }
+        }
+    }
+
+    private static BlockPos offset(BlockPos baseCenter, Direction.Axis axis, int horizontal, int dy) {
+        return axis == Direction.Axis.X
+                ? baseCenter.offset(horizontal, dy, 0)
+                : baseCenter.offset(0, dy, horizontal);
+    }
+
+    private record GateFrame(BlockPos baseCenter, Direction.Axis axis) { }
 }
