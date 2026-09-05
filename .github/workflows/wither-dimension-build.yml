@@ -17,11 +17,6 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.5.1'
-      - name: Restore source bundle
-        run: |
-          cat wither-dimension/.ci/part-* > /tmp/wither.b64
-          base64 -d /tmp/wither.b64 > /tmp/wither.zip
-          unzip -oq /tmp/wither.zip -d wither-dimension
       - name: Build
         working-directory: wither-dimension
         run: gradle build --stacktrace

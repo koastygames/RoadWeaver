@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "witherdimension",
+  "version": "${version}",
+  "name": "The Wither Dimension",
+  "description": "A balanced late-game Wither-themed dimension with unique biomes, structures, mobs, resources and equipment.",
+  "authors": ["koastygames"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["net.koastygames.witherdimension.WitherDimensionMod"],
+    "client": ["net.koastygames.witherdimension.client.WitherDimensionClient"]
+  },
+  "depends": {"fabricloader": ">=0.19.3", "minecraft": "~26.2", "java": ">=25", "fabric-api": "*"}
+}
