@@ -1,24 +1,73 @@
- architectury {
-    common("fabric", "neoforge")
+architectury {
+    common("fabric")
 }
 
 dependencies {
-    // Architectury API（作为 mod 依赖以启用 Loom 重映射）
-    modImplementation("dev.architectury:architectury:${project.architectury_version}")
+    implementation("dev.architectury:architectury:${project.architectury_version}")
     compileOnly("net.fabricmc:fabric-loader:${project.loader_version}")
-    
-    // H2 Database - 编译时依赖，运行时由平台模块提供
     compileOnly("com.h2database:h2:2.2.224")
-    
 }
- 
+
+// Minecraft 26.2 replaced the legacy GUI/render path and made ChunkPos a record.
+// Keep original source intact while producing a small 26.2 compatibility source tree.
+def compat26Dir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
+
+tasks.register("generateRoadWeaver26Sources", Copy) {
+    from("src/main/java")
+    into(compat26Dir)
+
+    // Preserve the pure map DTOs used by networking, but leave the old screens/renderers out.
+    exclude "net/shiroha233/roadweaver/client/ConfigScreenFactory.java"
+    exclude "net/shiroha233/roadweaver/client/config/**"
+    exclude "net/shiroha233/roadweaver/client/render/**"
+    exclude "net/shiroha233/roadweaver/client/tips/**"
+    exclude "net/shiroha233/roadweaver/client/map/*.java"
+    exclude "net/shiroha233/roadweaver/client/map/interaction/**"
+    exclude "net/shiroha233/roadweaver/client/map/render/**"
+    exclude "net/shiroha233/roadweaver/client/map/ui/**"
+
+    filter { String line ->
+        line
+            // ChunkPos is a record in 26.x.
+            .replace("player.chunkPosition().x", "player.chunkPosition().x()")
+            .replace("player.chunkPosition().z", "player.chunkPosition().z()")
+            .replace("candidate.x", "candidate.x()")
+            .replace("candidate.z", "candidate.z()")
+            .replace("chunkPos.x", "chunkPos.x()")
+            .replace("chunkPos.z", "chunkPos.z()")
+            .replace("ChunkPos.asLong(", "ChunkPos.pack(")
+            .replace("chunkPos.toLong()", "chunkPos.pack()")
+            .replace("new ChunkPos(cx, cz).toLong()", "ChunkPos.pack(cx, cz)")
+            .replace("new ChunkPos(pos)", "ChunkPos.containing(pos)")
+            .replace("new ChunkPos(anchor)", "ChunkPos.containing(anchor)")
+            .replace("new ChunkPos(ctx.origin())", "ChunkPos.containing(ctx.origin())")
+            .replace("new ChunkPos(middle)", "ChunkPos.containing(middle)")
+            .replace("new ChunkPos(sp)", "ChunkPos.containing(sp)")
+            .replace("new ChunkPos(mid)", "ChunkPos.containing(mid)")
+            .replace("new ChunkPos(chunkLong)", "ChunkPos.unpack(chunkLong)")
+
+            // 26.2 moved BlockPos center helpers to Vec3.
+            .replace("segments.get(i).middlePos().getCenter()", "net.minecraft.world.phys.Vec3.atCenterOf(segments.get(i).middlePos())")
+
+            // Dyed block constants are now color collections.
+            .replace("Blocks.GRAY_CONCRETE", "Blocks.CONCRETE.pick(net.minecraft.world.item.DyeColor.GRAY)")
+            .replace("Blocks.WHITE_CONCRETE", "Blocks.CONCRETE.pick(net.minecraft.world.item.DyeColor.WHITE)")
+    }
+}
+
 sourceSets {
     main {
-        java {
-            exclude 'net/shiroha233/roadweaver/client/gui/**'
-        }
+        java.setSrcDirs([compat26Dir])
         resources {
             exclude 'pack.mcmeta'
         }
     }
+}
+
+tasks.named("compileJava") {
+    dependsOn tasks.named("generateRoadWeaver26Sources")
+}
+
+tasks.named("sourcesJar") {
+    dependsOn tasks.named("generateRoadWeaver26Sources")
 }
