@@ -88,9 +88,11 @@ public final class BiomeRoadMaterialSelector {
 
     private static void addTerrainBlock(LinkedHashSet<Block> blocks, Block block) {
         // Avoid vegetation, fluids and blocks that should never become road fill.
+        // In 26.2 the grass plant is represented by SHORT_GRASS; there is no
+        // Blocks.GRASS constant (the old grass block is Blocks.GRASS_BLOCK).
         if (block == Blocks.AIR || block == Blocks.CAVE_AIR || block == Blocks.VOID_AIR
                 || block == Blocks.WATER || block == Blocks.LAVA
-                || block == Blocks.TALL_GRASS || block == Blocks.GRASS
+                || block == Blocks.TALL_GRASS || block == Blocks.SHORT_GRASS
                 || block == Blocks.FERN || block == Blocks.LARGE_FERN
                 || block == Blocks.DEAD_BUSH || block == Blocks.SUGAR_CANE
                 || block == Blocks.SWEET_BERRY_BUSH || block == Blocks.VINE
