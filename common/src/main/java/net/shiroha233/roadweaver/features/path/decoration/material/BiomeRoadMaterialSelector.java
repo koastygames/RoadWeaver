@@ -20,12 +20,16 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Resolves a small, deterministic road palette from the biome and the terrain
- * immediately around the road. Custom biome/worldgen mods are supported without
- * hard dependencies by using the active terrain blocks as palette candidates.
+ * Resolves a compact road palette from the biome and nearby generated terrain.
+ *
+ * 3.1.0 deliberately avoids caching by biome alone: a single biome can contain
+ * different terrain layers or modded surface blocks. The cache therefore also
+ * includes a small terrain signature, preserving the performance benefit while
+ * preventing the first road generated in a biome from dictating every later road.
  */
 public final class BiomeRoadMaterialSelector {
-    private static final Map<ResourceKey<Biome>, List<BlockState>> PALETTE_CACHE = new ConcurrentHashMap<>();
+    private static final Map<PaletteCacheKey, List<BlockState>> PALETTE_CACHE = new ConcurrentHashMap<>();
+    private static final int MAX_CACHE_ENTRIES = 4096;
 
     private BiomeRoadMaterialSelector() {}
 
@@ -37,14 +41,37 @@ public final class BiomeRoadMaterialSelector {
         }
 
         ResourceKey<Biome> key = keyOpt.get();
-        List<BlockState> cached = PALETTE_CACHE.get(key);
+        PaletteCacheKey cacheKey = new PaletteCacheKey(key, terrainSignature(world, pos));
+        List<BlockState> cached = PALETTE_CACHE.get(cacheKey);
         if (cached != null) {
             return cached;
         }
 
         List<BlockState> resolved = buildPalette(biome, world, pos);
-        List<BlockState> previous = PALETTE_CACHE.putIfAbsent(key, resolved);
+        if (PALETTE_CACHE.size() >= MAX_CACHE_ENTRIES) {
+            // This cache is intentionally bounded: biome/worldgen combinations can
+            // be numerous on large modpacks and should never grow without limit.
+            PALETTE_CACHE.clear();
+        }
+        List<BlockState> previous = PALETTE_CACHE.putIfAbsent(cacheKey, resolved);
         return previous != null ? previous : resolved;
+    }
+
+    private static long terrainSignature(WorldGenLevel world, BlockPos pos) {
+        long signature = 0xcbf29ce484222325L;
+        signature = mix(signature, world.getBlockState(pos.below()).getBlock());
+        signature = mix(signature, world.getBlockState(pos.below(2)).getBlock());
+        signature = mix(signature, world.getBlockState(pos.below(3)).getBlock());
+        signature = mix(signature, world.getBlockState(pos.north()).getBlock());
+        signature = mix(signature, world.getBlockState(pos.south()).getBlock());
+        signature = mix(signature, world.getBlockState(pos.west()).getBlock());
+        signature = mix(signature, world.getBlockState(pos.east()).getBlock());
+        return signature;
+    }
+
+    private static long mix(long value, Block block) {
+        value ^= Integer.toUnsignedLong(System.identityHashCode(block));
+        return value * 0x100000001b3L;
     }
 
     private static List<BlockState> buildPalette(Holder<Biome> biome, WorldGenLevel world, BlockPos pos) {
@@ -55,6 +82,8 @@ public final class BiomeRoadMaterialSelector {
         addTerrainBlock(blocks, world.getBlockState(pos.below()).getBlock());
         addTerrainBlock(blocks, world.getBlockState(pos.below(2)).getBlock());
         addTerrainBlock(blocks, world.getBlockState(pos.below(3)).getBlock());
+        addTerrainBlock(blocks, world.getBlockState(pos.north()).getBlock());
+        addTerrainBlock(blocks, world.getBlockState(pos.south()).getBlock());
         addTerrainBlock(blocks, world.getBlockState(pos.west()).getBlock());
         addTerrainBlock(blocks, world.getBlockState(pos.east()).getBlock());
 
@@ -88,8 +117,6 @@ public final class BiomeRoadMaterialSelector {
 
     private static void addTerrainBlock(LinkedHashSet<Block> blocks, Block block) {
         // Avoid vegetation, fluids and blocks that should never become road fill.
-        // In 26.2 the grass plant is represented by SHORT_GRASS; there is no
-        // Blocks.GRASS constant (the old grass block is Blocks.GRASS_BLOCK).
         if (block == Blocks.AIR || block == Blocks.CAVE_AIR || block == Blocks.VOID_AIR
                 || block == Blocks.WATER || block == Blocks.LAVA
                 || block == Blocks.TALL_GRASS || block == Blocks.SHORT_GRASS
@@ -162,4 +189,6 @@ public final class BiomeRoadMaterialSelector {
             blocks.add(Blocks.COARSE_DIRT);
         }
     }
+
+    private record PaletteCacheKey(ResourceKey<Biome> biome, long terrainSignature) {}
 }
