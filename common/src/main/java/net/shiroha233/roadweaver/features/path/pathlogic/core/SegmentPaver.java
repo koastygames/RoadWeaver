@@ -15,7 +15,10 @@ import net.shiroha233.roadweaver.features.path.pathlogic.pathfinding.RoadHeightI
 import java.util.List;
 
 /**
- * 路面铺设器
+ * Road surface paver.
+ *
+ * 3.1.0 uses segment-local height projections for slope/slab checks so long
+ * generated roads do not repeatedly scan their complete centreline.
  */
 public final class SegmentPaver {
     private SegmentPaver() {}
@@ -77,24 +80,23 @@ public final class SegmentPaver {
                 slabs = List.of();
             }
 
-            if (slabs != null && !slabs.isEmpty()) {
-                if (shouldPlaceSlab(widthBlock.getX(), widthBlock.getZ(), y, centers, targetY)) {
-                    BlockState slabState = slabs.get(random.nextInt(slabs.size()));
-                    if (slabState.getBlock() instanceof SlabBlock) {
-                        slabState = slabState.setValue(SlabBlock.TYPE, SlabType.BOTTOM);
-                    }
-                    world.setBlock(pos, slabState, 3);
+            if (slabs != null && !slabs.isEmpty()
+                    && shouldPlaceSlab(widthBlock.getX(), widthBlock.getZ(), y, segmentIndex, centers, targetY)) {
+                BlockState slabState = slabs.get(random.nextInt(slabs.size()));
+                if (slabState.getBlock() instanceof SlabBlock) {
+                    slabState = slabState.setValue(SlabBlock.TYPE, SlabType.BOTTOM);
                 }
+                world.setBlock(pos, slabState, 3);
             }
         }
     }
 
-    private static boolean shouldPlaceSlab(int x, int z, int currentY,
+    private static boolean shouldPlaceSlab(int x, int z, int currentY, int segmentIndex,
             List<BlockPos> centers, int[] targetY) {
-        int yAhead = RoadHeightInterpolator.getInterpolatedY(x + 1, z, centers, targetY);
-        int yBehind = RoadHeightInterpolator.getInterpolatedY(x - 1, z, centers, targetY);
-        int yLeft = RoadHeightInterpolator.getInterpolatedY(x, z + 1, centers, targetY);
-        int yRight = RoadHeightInterpolator.getInterpolatedY(x, z - 1, centers, targetY);
+        int yAhead = RoadHeightInterpolator.getInterpolatedYNear(x + 1, z, segmentIndex, centers, targetY);
+        int yBehind = RoadHeightInterpolator.getInterpolatedYNear(x - 1, z, segmentIndex, centers, targetY);
+        int yLeft = RoadHeightInterpolator.getInterpolatedYNear(x, z + 1, segmentIndex, centers, targetY);
+        int yRight = RoadHeightInterpolator.getInterpolatedYNear(x, z - 1, segmentIndex, centers, targetY);
 
         boolean needsSlabX = (yAhead > currentY && yBehind >= currentY)
                 || (yBehind > currentY && yAhead >= currentY);
