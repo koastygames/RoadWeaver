@@ -1,10 +1,9 @@
-// 负责 Fabric 子项目的构建、开发运行依赖与产物打包。
+// Fabric-only Minecraft 26.2 build. Minecraft 26.2 is unobfuscated, so no remapJar step is used.
 plugins {
-	id 'com.gradleup.shadow' version '8.3.6'
+	id 'com.gradleup.shadow'
 }
 
 architectury {
-	platformSetupLoomIde()
 	fabric()
 }
 
@@ -12,125 +11,116 @@ def enableModMenuDevRuntime = providers.gradleProperty("fabric_enable_modmenu")
 	.map(String::toBoolean)
 	.getOrElse(false)
 
-configurations.configureEach {
-	resolutionStrategy.force("io.github.llamalad7:mixinextras-fabric:0.5.0")
-}
+def compatFabricDir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
 
 configurations {
-	common
-	shadowCommon // 避免与 Loom 的 shadow 配置冲突。
-	shadowSqlite // 打包嵌入式数据库依赖。
-	compileClasspath.extendsFrom common
-	runtimeClasspath.extendsFrom common
+	shadowCommon
+	shadowH2
 	developmentFabric.extendsFrom common
 }
 
 repositories {
 	maven {
-		url "https://maven.shedaniel.me/"
-		name "Shedaniel Maven"
+		url = "https://maven.shedaniel.me/"
+		name = "Shedaniel Maven"
 	}
 }
 
 dependencies {
-	implementation project(":common")
-	common(project(path: ":common", configuration: "namedElements")) { transitive = false }
+	common(project(path: ":common")) { transitive = false }
 	shadowCommon(project(path: ":common", configuration: "transformProductionFabric")) { transitive = false }
 
-	// 显式拉起新版本 MixinExtras，避免 dev launch 继续注入旧版 0.4.1。
-	modImplementation("io.github.llamalad7:mixinextras-fabric:0.5.0")
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	implementation "dev.architectury:architectury-fabric:${project.architectury_version}"
+	implementation("io.github.llamalad7:mixinextras-fabric:0.5.0")
 
-	// Fabric Loader
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
-	// Fabric API
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-	// Architectury API，打包进最终模组。
-	modImplementation("dev.architectury:architectury-fabric:${project.architectury_version}") {
-		exclude group: "net.fabricmc.fabric-api"
-	}
-	include("dev.architectury:architectury-fabric:${project.architectury_version}")
-
-	// Cloth Config API for Fabric
-	modApi("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}") {
-		exclude group: "net.fabricmc.fabric-api"
-	}
-	include("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
-
-	// 可选开发期 UI 模组，默认关闭，避免 dev run 被外部仓库网络抖动阻塞。
 	if (enableModMenuDevRuntime) {
-		modLocalRuntime("com.terraformersmc:modmenu:${project.modmenu_version}") {
+		runtimeOnly("com.terraformersmc:modmenu:${project.modmenu_version}") {
 			transitive = false
 		}
 	}
 
-	// H2 数据库用于纯 Java 持久化，不引入 native 依赖。
 	compileOnly("com.h2database:h2:2.2.224") { transitive = false }
-	modLocalRuntime("com.h2database:h2:2.2.224") { transitive = false }
-	shadowSqlite("com.h2database:h2:2.2.224") { transitive = false }
+	runtimeOnly("com.h2database:h2:2.2.224") { transitive = false }
+	shadowH2("com.h2database:h2:2.2.224") { transitive = false }
 }
 
 processResources {
-	inputs.property "version", project.version
+	def modVersion = project.version.toString()
+	def mcVersion = rootProject.minecraft_version.toString()
+	inputs.property "version", modVersion
+	inputs.property "minecraft_version", mcVersion
 
 	filesMatching("fabric.mod.json") {
-		expand "version": project.version
+		expand "version": modVersion, "minecraft_version": mcVersion
 	}
 }
 
-shadowJar {
-	exclude "architectury.common.json"
-	configurations = [project.configurations.shadowCommon, project.configurations.shadowSqlite]
-	archiveClassifier.set("dev-shadow")
+// Copy the Fabric implementation into a 26.2 source tree while leaving retired legacy UI/datagen code in Git.
+tasks.register("generateRoadWeaverFabric26Compat", Copy) {
+	from("src/main/java")
+	into(compatFabricDir)
 
-	// 重新定位 H2 包名，避免与外部环境冲突。
+	// Runtime does not need Fabric datagen, and the 26.2 API replaced its old datagen surface.
+	exclude 'net/shiroha233/datagen/**'
+	exclude 'net/shiroha233/roadweaver/RoadWeaverDataGenerator.java'
+
+	// Retired pre-26.2 client implementation. The native port lives in client26.
+	exclude 'net/shiroha233/roadweaver/client/**'
+
+	// Client-only legacy mixins target the removed GuiGraphics rendering path.
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenMixin.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/CreateWorldScreenInitMixin.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/LevelLoadingScreenMixin.java'
+	exclude 'net/shiroha233/roadweaver/mixin/fabric/BiomeGrassColorFailSafeMixin.java'
+}
+
+shadowJar {
+	configurations = [project.configurations.shadowCommon, project.configurations.shadowH2]
+	archiveClassifier.set("")
+
+	exclude "architectury.common.json"
 	relocate 'org.h2', 'net.shiroha233.roadweaver.libs.h2'
 
 	exclude 'META-INF/versions/**'
-	// 收紧 H2 中与动态编译、工具、服务端相关的类，降低运行面。
 	exclude 'org/h2/util/SourceCompiler*'
 	exclude 'org/h2/tools/**'
 	exclude 'org/h2/server/**'
 	exclude 'net/shiroha233/roadweaver/libs/h2/util/SourceCompiler*'
 	exclude 'net/shiroha233/roadweaver/libs/h2/tools/**'
 	exclude 'net/shiroha233/roadweaver/libs/h2/server/**'
-
 	mergeServiceFiles()
 	exclude 'module-info.class'
-}
 
-remapJar {
-	inputFile.set shadowJar.archiveFile
-	dependsOn shadowJar
-	archiveClassifier.set(null)
-}
-
-jar {
-	archiveClassifier.set("dev")
 	from("${rootProject.projectDir}/LICENSE") {
 		rename { "${it}_${base.archivesName.get()}" }
 	}
 }
 
+jar {
+	archiveClassifier.set("dev")
+}
+
 sourcesJar {
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	dependsOn tasks.named('generateRoadWeaverFabric26Compat')
 	def commonSources = project(':common').sourcesJar
 	dependsOn commonSources
 	from commonSources.archiveFile.map { zipTree(it) }
 }
 
-components.java {
-	withVariantsFromConfiguration(project.configurations.shadowRuntimeElements) {
-		skip()
-	}
+tasks.named('compileJava') {
+	dependsOn tasks.named('generateRoadWeaverFabric26Compat')
+}
+
+tasks.named('build') {
+	dependsOn tasks.named('shadowJar')
 }
 
 sourceSets {
 	main {
-		java {
-			// 避免开发环境下 shaded common 触发 JPMS split-package。
-		}
+		java.setSrcDirs([compatFabricDir])
 		resources {
 			exclude 'assets/roadweaver/lang/*.json'
 			exclude 'pack.mcmeta'
