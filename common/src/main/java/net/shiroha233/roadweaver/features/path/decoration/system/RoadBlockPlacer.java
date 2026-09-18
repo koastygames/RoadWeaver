@@ -10,7 +10,11 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import java.util.List;
 
 /**
- * 道路方块放置器
+ * Road block placement with controlled material variation.
+ *
+ * The first palette entry is treated as the local biome's primary material and
+ * is deliberately favoured. Secondary materials add visual variation without
+ * turning the road into noisy random block spam.
  */
 public final class RoadBlockPlacer {
     private RoadBlockPlacer() {}
@@ -21,10 +25,10 @@ public final class RoadBlockPlacer {
             List<BlockState> materials,
             RandomSource random,
             ModConfig cfg) {
-        if (!PlacementRules.placeAllowedCheck(blockBelow.getBlock()))
+        if (!PlacementRules.placeAllowedCheck(blockBelow.getBlock()) || materials == null || materials.isEmpty())
             return;
-        BlockState chosen = materials.get(random.nextInt(materials.size()));
 
+        BlockState chosen = chooseMaterial(materials, random);
         BlockPos below1 = surfacePos.below();
         world.setBlock(below1, chosen, 3);
 
@@ -35,5 +39,18 @@ public final class RoadBlockPlacer {
         if (belowState1.is(Blocks.GRASS_BLOCK)) {
             world.setBlock(belowPos1, Blocks.DIRT.defaultBlockState(), 3);
         }
+    }
+
+    private static BlockState chooseMaterial(List<BlockState> materials, RandomSource random) {
+        if (materials.size() == 1) {
+            return materials.get(0);
+        }
+
+        // Keep the dominant surface material visually coherent. The remaining
+        // 30% is spread across secondary materials for natural variation.
+        if (random.nextInt(100) < 70) {
+            return materials.get(0);
+        }
+        return materials.get(1 + random.nextInt(materials.size() - 1));
     }
 }
