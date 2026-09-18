@@ -2,54 +2,81 @@ package net.shiroha233.roadweaver.features.path.pathlogic.pathfinding;
 
 import net.minecraft.core.BlockPos;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
- * 道路高度插值器
+ * Road height interpolation helpers.
+ *
+ * Provides both full-road projection and segment-local projection paths.
+ * Per-block paving can therefore avoid repeatedly scanning long centrelines.
  */
 public final class RoadHeightInterpolator {
+    private static final int LOCAL_SEARCH_RADIUS = 20;
+
     private RoadHeightInterpolator() {}
 
     public static int getInterpolatedY(int x, int z, List<BlockPos> centers, int[] targetY) {
-        if (centers == null || centers.isEmpty() || targetY == null || targetY.length == 0) {
+        if (!valid(centers, targetY)) {
             return 64;
         }
-        
+
         int n = centers.size();
         if (n == 1 || targetY.length == 1) {
             return targetY[0];
         }
-        
-        if (targetY.length != n) {
+
+        ProjectionResult proj = findNearestProjection(x, z, centers, 0, n - 2);
+        return interpolateY(proj.segmentIndex, proj.t, targetY);
+    }
+
+    /**
+     * Projects onto only the road segments around the supplied segment index.
+     */
+    public static int getInterpolatedYNear(int x, int z, int segmentIndex,
+            List<BlockPos> centers, int[] targetY) {
+        if (!valid(centers, targetY)) {
+            return 64;
+        }
+
+        int n = centers.size();
+        if (n == 1 || targetY.length == 1) {
             return targetY[0];
         }
-        
-        ProjectionResult proj = findNearestProjection(x, z, centers);
+
+        int clampedSegment = Math.max(0, Math.min(segmentIndex, n - 2));
+        int start = Math.max(0, clampedSegment - LOCAL_SEARCH_RADIUS);
+        int end = Math.min(n - 2, clampedSegment + LOCAL_SEARCH_RADIUS);
+        ProjectionResult proj = findNearestProjection(x, z, centers, start, end);
         return interpolateY(proj.segmentIndex, proj.t, targetY);
+    }
+
+    private static boolean valid(List<BlockPos> centers, int[] targetY) {
+        return centers != null && !centers.isEmpty()
+                && targetY != null && targetY.length > 0
+                && (centers.size() == 1 || targetY.length == centers.size());
     }
 
     private record ProjectionResult(int segmentIndex, double t, double distSq) {}
 
-    private static ProjectionResult findNearestProjection(int x, int z, List<BlockPos> centers) {
-        int n = centers.size();
-        
-        int bestSegment = 0;
+    private static ProjectionResult findNearestProjection(int x, int z, List<BlockPos> centers,
+            int searchStart, int searchEnd) {
+        int bestSegment = searchStart;
         double bestT = 0.0;
         double bestDistSq = Double.MAX_VALUE;
-        
-        for (int i = 0; i < n - 1; i++) {
+
+        for (int i = searchStart; i <= searchEnd; i++) {
             BlockPos a = centers.get(i);
             BlockPos b = centers.get(i + 1);
-            
+
             double ax = a.getX();
             double az = a.getZ();
             double bx = b.getX();
             double bz = b.getZ();
-            
             double dx = bx - ax;
             double dz = bz - az;
             double lenSq = dx * dx + dz * dz;
-            
+
             double t;
             if (lenSq < 1e-9) {
                 t = 0.0;
@@ -57,78 +84,58 @@ public final class RoadHeightInterpolator {
                 t = ((x - ax) * dx + (z - az) * dz) / lenSq;
                 t = Math.max(0.0, Math.min(1.0, t));
             }
-            
+
             double projX = ax + t * dx;
             double projZ = az + t * dz;
             double distSq = (x - projX) * (x - projX) + (z - projZ) * (z - projZ);
-            
+
             if (distSq < bestDistSq) {
                 bestDistSq = distSq;
                 bestSegment = i;
                 bestT = t;
             }
         }
-        
+
         return new ProjectionResult(bestSegment, bestT, bestDistSq);
     }
 
     private static int interpolateY(int segmentIndex, double t, int[] targetY) {
         int y0 = targetY[segmentIndex];
         int y1 = targetY[segmentIndex + 1];
-        double interpolated = y0 + t * (y1 - y0);
-        return (int) Math.round(interpolated);
+        return (int) Math.round(y0 + t * (y1 - y0));
     }
 
-    public static int[] batchInterpolate(List<BlockPos> positions, 
-                                         int segmentIndex,
-                                         List<BlockPos> centers, 
-                                         int[] targetY) {
+    public static int[] batchInterpolate(List<BlockPos> positions,
+            int segmentIndex,
+            List<BlockPos> centers,
+            int[] targetY) {
         if (positions == null || positions.isEmpty()) {
             return new int[0];
         }
-        
-        int[] results = new int[positions.size()];
-        int n = centers.size();
 
-        int extendedRadius = 20;
-        int searchStart = Math.max(0, segmentIndex - extendedRadius);
-        int searchEnd = Math.min(n - 2, segmentIndex + extendedRadius);
+        int[] results = new int[positions.size()];
+        if (!valid(centers, targetY)) {
+            Arrays.fill(results, 64);
+            return results;
+        }
+
+        int n = centers.size();
+        if (n == 1 || targetY.length == 1) {
+            Arrays.fill(results, targetY[0]);
+            return results;
+        }
+
+        int clampedSegment = Math.max(0, Math.min(segmentIndex, n - 2));
+        int searchStart = Math.max(0, clampedSegment - LOCAL_SEARCH_RADIUS);
+        int searchEnd = Math.min(n - 2, clampedSegment + LOCAL_SEARCH_RADIUS);
 
         for (int i = 0; i < positions.size(); i++) {
             BlockPos pos = positions.get(i);
-            int x = pos.getX();
-            int z = pos.getZ();
-
-            int bestSeg = segmentIndex;
-            double bestT = 0.5;
-            double bestDistSq = Double.MAX_VALUE;
-            
-            for (int seg = searchStart; seg <= searchEnd; seg++) {
-                BlockPos a = centers.get(seg);
-                BlockPos b = centers.get(seg + 1);
-                
-                double ax = a.getX(), az = a.getZ();
-                double bx = b.getX(), bz = b.getZ();
-                double dx = bx - ax, dz = bz - az;
-                double lenSq = dx * dx + dz * dz;
-                
-                double t = (lenSq < 1e-9) ? 0.0 
-                    : Math.max(0.0, Math.min(1.0, ((x - ax) * dx + (z - az) * dz) / lenSq));
-                
-                double projX = ax + t * dx;
-                double projZ = az + t * dz;
-                double distSq = (x - projX) * (x - projX) + (z - projZ) * (z - projZ);
-                
-                if (distSq < bestDistSq) {
-                    bestDistSq = distSq;
-                    bestSeg = seg;
-                    bestT = t;
-                }
-            }
-            
-            results[i] = interpolateY(bestSeg, bestT, targetY);
+            ProjectionResult proj = findNearestProjection(pos.getX(), pos.getZ(), centers,
+                    searchStart, searchEnd);
+            results[i] = interpolateY(proj.segmentIndex, proj.t, targetY);
         }
-        
+
         return results;
     }
 }
