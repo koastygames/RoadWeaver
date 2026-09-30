@@ -9,9 +9,8 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.shiroha233.roadweaver.network.fabric.MapNetworkFabric;
-import org.lwjgl.glfw.GLFW;
 
-/** Physical-client bootstrap for the Minecraft 26.2 Fabric port. */
+/** Physical-client bootstrap for the Minecraft 26.3 Fabric port. */
 public final class FabricClient26 implements ClientModInitializer {
     private static KeyMapping openMap;
 
@@ -24,8 +23,8 @@ public final class FabricClient26 implements ClientModInitializer {
 
         openMap = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.roadweaver.open_map",
-                InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_H,
+                InputConstants.Type.KEYBOARD,
+                InputConstants.KEY_H,
                 KeyMapping.Category.register(Identifier.fromNamespaceAndPath("roadweaver", "general"))
         ));
 

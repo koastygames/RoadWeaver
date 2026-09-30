@@ -29,12 +29,12 @@ tasks.register("generateRoadWeaver26Sources", Copy) {
     filter { String line ->
         line
             // ChunkPos is a record in 26.x.
-            .replace("player.chunkPosition().x", "player.chunkPosition().x()")
-            .replace("player.chunkPosition().z", "player.chunkPosition().z()")
-            .replace("candidate.x", "candidate.x()")
-            .replace("candidate.z", "candidate.z()")
-            .replace("chunkPos.x", "chunkPos.x()")
-            .replace("chunkPos.z", "chunkPos.z()")
+            .replaceAll(/player\\.chunkPosition\\(\\)\\.x(?!\\()/, "player.chunkPosition().x()")
+            .replaceAll(/player\\.chunkPosition\\(\\)\\.z(?!\\()/, "player.chunkPosition().z()")
+            .replaceAll(/candidate\\.x(?!\\()/, "candidate.x()")
+            .replaceAll(/candidate\\.z(?!\\()/, "candidate.z()")
+            .replaceAll(/chunkPos\\.x(?!\\()/, "chunkPos.x()")
+            .replaceAll(/chunkPos\\.z(?!\\()/, "chunkPos.z()")
             .replace("ChunkPos.asLong(", "ChunkPos.pack(")
             .replace("chunkPos.toLong()", "chunkPos.pack()")
             .replace("new ChunkPos(cx, cz).toLong()", "ChunkPos.pack(cx, cz)")

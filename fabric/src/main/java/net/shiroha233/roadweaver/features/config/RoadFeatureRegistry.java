@@ -8,13 +8,10 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.levelgen.GenerationStep;
-import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.features.highway.HighwayFeature;
-import net.shiroha233.roadweaver.features.highway.config.HighwayFeatureConfig;
 import net.shiroha233.roadweaver.features.path.PathFeature;
-import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 
 /**
  * Fabric Feature 注册
@@ -23,11 +20,10 @@ public final class RoadFeatureRegistry {
     private RoadFeatureRegistry() {}
 
     public static void register() {
-        Feature<PathFeatureConfig> feature = new PathFeature(PathFeatureConfig.CODEC);
-        Registry.register(BuiltInRegistries.FEATURE, Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), feature);
+        Registry.register(BuiltInRegistries.FEATURE_TYPE, Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), PathFeature.CODEC);
 
-        Feature<HighwayFeatureConfig> highwayFeature = new HighwayFeature(HighwayFeatureConfig.CODEC);
-        Registry.register(BuiltInRegistries.FEATURE, Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"), highwayFeature);
+        
+        Registry.register(BuiltInRegistries.FEATURE_TYPE, Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"), HighwayFeature.CODEC);
 
         ResourceKey<PlacedFeature> placedKey = ResourceKey.create(
                 Registries.PLACED_FEATURE,
