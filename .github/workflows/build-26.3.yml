@@ -3,6 +3,8 @@ name: RoadWeaver 26.3 Build
 on:
   push:
     branches:
+      - 26.2-Fabric
+      - 26.2-NeoForge
       - 26.3-Fabric
       - 26.3-NeoForge
   pull_request:
