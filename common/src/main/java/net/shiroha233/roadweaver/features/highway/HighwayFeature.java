@@ -15,6 +15,7 @@ import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
+import net.shiroha233.roadweaver.features.highway.placement.HighwaySegmentPaver;
 
 import java.util.HashSet;
 import java.util.List;
