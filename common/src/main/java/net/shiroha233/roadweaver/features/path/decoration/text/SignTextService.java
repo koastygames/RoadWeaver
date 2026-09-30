@@ -9,6 +9,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.HangingSignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.shiroha233.roadweaver.persistence.sharded.SignTextShardStorage;
 import net.shiroha233.roadweaver.persistence.sqlite.SignTextSqliteStorage;
@@ -89,19 +90,8 @@ public final class SignTextService {
         BlockEntity be = chunk.getBlockEntity(pos);
         if (!(be instanceof HangingSignBlockEntity sign)) return false;
 
-        SignText front = sign.getText(true);
-        front = front.setMessage(0, Component.translatable("gui.roadweaver.sign.next_location"));
-        front = front.setMessage(1, Component.literal(text + " m"));
-        front = front.setMessage(2, Component.literal(""));
-        front = front.setMessage(3, Component.literal(""));
-        sign.setText(front, true);
-
-        SignText back = sign.getText(false);
-        back = back.setMessage(0, Component.literal("----------"));
-        back = back.setMessage(1, Component.translatable("gui.roadweaver.sign.welcome"));
-        back = back.setMessage(2, Component.translatable("gui.roadweaver.sign.traveller"));
-        back = back.setMessage(3, Component.literal("----------"));
-        sign.setText(back, false);
+        sign.updateText(t -> { var m=t.asMutable(); m.setLine(0, Component.translatable("gui.roadweaver.sign.next_location")); m.setLine(1, Component.literal(text + " m")); m.setLine(2, Component.literal("")); m.setLine(3, Component.literal("")); return m.asImmutable(); }, SignTextSlot.FRONT);
+        sign.updateText(t -> { var m=t.asMutable(); m.setLine(0, Component.literal("----------")); m.setLine(1, Component.translatable("gui.roadweaver.sign.welcome")); m.setLine(2, Component.translatable("gui.roadweaver.sign.traveller")); m.setLine(3, Component.literal("----------")); return m.asImmutable(); }, SignTextSlot.BACK);
 
         sign.setChanged();
         return true;
@@ -125,19 +115,8 @@ public final class SignTextService {
         BlockEntity be = chunk.getBlockEntity(pos);
         if (!(be instanceof HangingSignBlockEntity sign)) return false;
 
-        SignText front = sign.getText(true);
-        front = front.setMessage(0, Component.translatable("gui.roadweaver.sign.sea_question.line1"));
-        front = front.setMessage(1, Component.translatable("gui.roadweaver.sign.sea_question.line2"));
-        front = front.setMessage(2, Component.literal(""));
-        front = front.setMessage(3, Component.literal(""));
-        sign.setText(front, true);
-
-        SignText back = sign.getText(false);
-        back = back.setMessage(0, Component.literal(""));
-        back = back.setMessage(1, Component.literal(""));
-        back = back.setMessage(2, Component.literal(""));
-        back = back.setMessage(3, Component.literal(""));
-        sign.setText(back, false);
+        sign.updateText(t -> { var m=t.asMutable(); m.setLine(0, Component.translatable("gui.roadweaver.sign.sea_question.line1")); m.setLine(1, Component.translatable("gui.roadweaver.sign.sea_question.line2")); m.setLine(2, Component.literal("")); m.setLine(3, Component.literal("")); return m.asImmutable(); }, SignTextSlot.FRONT);
+        sign.updateText(t -> { var m=t.asMutable(); m.setLine(0, Component.literal("")); m.setLine(1, Component.literal("")); m.setLine(2, Component.literal("")); m.setLine(3, Component.literal("")); return m.asImmutable(); }, SignTextSlot.BACK);
 
         sign.setChanged();
         return true;
