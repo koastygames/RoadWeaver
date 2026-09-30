@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver.features.path.pathlogic.core;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
@@ -34,7 +33,7 @@ public final class StructureAvoidanceService {
         
         StructureManager sm = level.structureManager();
         
-        if (!sm.hasAnyStructureAt(pos)) {
+        if (sm.getAllStructuresAt(pos).isEmpty()) {
             return false;
         }
         
