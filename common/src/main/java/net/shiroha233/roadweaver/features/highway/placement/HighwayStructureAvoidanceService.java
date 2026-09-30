@@ -2,7 +2,6 @@ package net.shiroha233.roadweaver.features.highway.placement;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
@@ -33,7 +32,7 @@ public final class HighwayStructureAvoidanceService {
         if (level == null) return false;
 
         StructureManager sm = level.structureManager();
-        if (!sm.hasAnyStructureAt(pos)) {
+        if (sm.getAllStructuresAt(pos).isEmpty()) {
             return false;
         }
 
@@ -48,10 +47,7 @@ public final class HighwayStructureAvoidanceService {
 
             for (long chunkLong : chunkRefs) {
                 ChunkPos chunkPos = new ChunkPos(chunkLong);
-                SectionPos sectionPos = SectionPos.of(chunkPos, level.getMinSectionY());
-
                 StructureStart start = sm.getStartForStructure(
-                        sectionPos,
                         structure,
                         level.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.STRUCTURE_STARTS)
                 );
