@@ -1,0 +1,37 @@
+name: RoadWeaver 26.3 Build
+
+on:
+  push:
+    branches:
+      - 26.2-Fabric
+      - 26.2-NeoForge
+      - 26.3-Fabric
+      - 26.3-NeoForge
+  pull_request:
+    branches:
+      - 26.3-Fabric
+      - 26.3-NeoForge
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build --no-daemon

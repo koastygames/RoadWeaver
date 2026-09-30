@@ -104,7 +104,7 @@ public final class StructurePredictor {
                 if (!isChunkInRange(candidate, minChunkX, minChunkZ, maxChunkX, maxChunkZ)) {
                     continue;
                 }
-                if (!placement.isStructureChunk(state, candidate.x, candidate.z)) {
+                if (!placement.isStructureChunk(state, candidate.x(), candidate.z())) {
                     continue;
                 }
 
@@ -327,11 +327,10 @@ public final class StructurePredictor {
     }
 
     private static Holder<Biome> sampleBiome(BiomeSource biomeSource, RandomState randomState, BlockPos pos) {
-        return biomeSource.getNoiseBiome(
+        return biomeSource.createUncachedResolver(randomState).getNoiseBiome(
                 QuartPos.fromBlock(pos.getX()),
                 QuartPos.fromBlock(64),
-                QuartPos.fromBlock(pos.getZ()),
-                randomState.sampler());
+                QuartPos.fromBlock(pos.getZ()));
     }
 
     private static boolean matchesBiome(BiomeSource biomeSource,
@@ -346,10 +345,10 @@ public final class StructurePredictor {
             int minChunkZ,
             int maxChunkX,
             int maxChunkZ) {
-        return candidate.x >= minChunkX
-                && candidate.x <= maxChunkX
-                && candidate.z >= minChunkZ
-                && candidate.z <= maxChunkZ;
+        return candidate.x() >= minChunkX
+                && candidate.x() <= maxChunkX
+                && candidate.z() >= minChunkZ
+                && candidate.z() <= maxChunkZ;
     }
 
     private static String resolveMatchingStructureId(List<Holder<Structure>> matchedStructures,

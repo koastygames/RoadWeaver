@@ -37,7 +37,7 @@ public final class StructureInjector {
         
         Registry<Structure> structureRegistry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         StructureManager structureManager = level.structureManager();
-        StructureTemplateManager templateManager = level.getStructureManager();
+        StructureTemplateManager templateManager = level.getStructureTemplateManager();
         
         int injectedCount = 0;
         

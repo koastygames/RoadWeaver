@@ -158,7 +158,7 @@ public final class TerrainSamplingCache {
         var chunkSource = level.getChunkSource();
         var randomState = chunkSource.getGeneratorState().randomState();
         var biomeSource = chunkSource.getGenerator().getBiomeSource();
-        Holder<Biome> biome = biomeSource.getNoiseBiome(x >> 2, 16, z >> 2, randomState.sampler());
+        Holder<Biome> biome = biomeSource.createUncachedResolver(randomState).getNoiseBiome(x >> 2, 16, z >> 2);
         biomeCache.put(key, biome);
         return biome;
     }
