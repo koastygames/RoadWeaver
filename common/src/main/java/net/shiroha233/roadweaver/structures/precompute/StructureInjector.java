@@ -1,7 +1,6 @@
 package net.shiroha233.roadweaver.structures.precompute;
 
 import net.minecraft.core.Registry;
-import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -37,7 +36,7 @@ public final class StructureInjector {
         
         Registry<Structure> structureRegistry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         StructureManager structureManager = level.structureManager();
-        StructureTemplateManager templateManager = level.getStructureManager();
+        StructureTemplateManager templateManager = level.getStructureTemplateManager();
         
         int injectedCount = 0;
         
@@ -80,8 +79,7 @@ public final class StructureInjector {
                     new net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer(List.of(piece))
                 );
                 
-                SectionPos sectionPos = SectionPos.of(chunkPos, 0);
-                structureManager.setStartForStructure(sectionPos, structure, start, chunk);
+                structureManager.setStartForStructure(structure, start, chunk);
                 
                 injectedCount++;
                 
