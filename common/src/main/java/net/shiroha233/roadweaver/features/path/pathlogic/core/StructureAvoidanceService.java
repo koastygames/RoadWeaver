@@ -48,13 +48,7 @@ public final class StructureAvoidanceService {
             
             for (long chunkLong : chunkRefs) {
                 ChunkPos chunkPos = new ChunkPos(chunkLong);
-                SectionPos sectionPos = SectionPos.of(chunkPos, level.getMinSectionY());
-                
-                StructureStart start = sm.getStartForStructure(
-                        sectionPos, 
-                        structure, 
-                        level.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.STRUCTURE_STARTS)
-                );
+                StructureStart start = sm.getStartForStructure(structure, level.getChunk(chunkPos.x, chunkPos.z, ChunkStatus.STRUCTURE_STARTS));
                 
                 if (start == null || !start.isValid()) continue;
                 
