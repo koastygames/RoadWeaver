@@ -8,7 +8,6 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.levelgen.GenerationStep;
-import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.shiroha233.roadweaver.RoadWeaver;
 import net.shiroha233.roadweaver.features.highway.HighwayFeature;
@@ -21,7 +20,6 @@ public final class RoadFeatureRegistry {
     private RoadFeatureRegistry() {}
 
     public static void register() {
-        Feature feature = new PathFeature();
         Registry.register(BuiltInRegistries.FEATURE_TYPE, Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), PathFeature.CODEC);
 
         
