@@ -17,10 +17,10 @@ public final class RoadFeaturesNeoForge {
             if (event.getRegistryKey().equals(Registries.FEATURE_TYPE)) {
                 event.register(Registries.FEATURE_TYPE, 
                     Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "road_feature"), 
-                    () -> new PathFeature(PathFeatureConfig.CODEC));
+                    () -> PathFeature.CODEC);
                 event.register(Registries.FEATURE_TYPE, 
                     Identifier.fromNamespaceAndPath(RoadWeaver.MOD_ID, "highway_feature"), 
-                    () -> new HighwayFeature(HighwayFeatureConfig.CODEC));
+                    () -> HighwayFeature.CODEC);
             }
         });
     }
