@@ -52,6 +52,11 @@ tasks.register("generateRoadWeaver26Sources", Copy) {
             // Dyed block constants are now color collections.
             .replace("Blocks.GRAY_CONCRETE", "Blocks.CONCRETE.pick(net.minecraft.world.item.DyeColor.GRAY)")
             .replace("Blocks.WHITE_CONCRETE", "Blocks.CONCRETE.pick(net.minecraft.world.item.DyeColor.WHITE)")
+
+            // Minecraft 26.3 changed structure verification to use the template manager.
+            .replace("                level.structureManager(),", "                level.getStructureTemplateManager(),")
+            // Minecraft 26.3 changed the StructureManager start-registration signature.
+            .replace("structureManager.setStartForStructure(sectionPos, structure, start, chunk);", "structureManager.setStartForStructure(structure, start, chunk);")
     }
 }
 
