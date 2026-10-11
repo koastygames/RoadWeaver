@@ -35,3 +35,14 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew build --no-daemon
+
+      - name: Upload built JARs
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoadWeaver-26.3-NeoForge
+          path: |
+            **/build/libs/*.jar
+            !**/build/libs/*-sources.jar
+          if-no-files-found: error
+          retention-days: 14
