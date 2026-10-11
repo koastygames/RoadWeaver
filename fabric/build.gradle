@@ -1,4 +1,4 @@
-// Fabric-only Minecraft 26.2 build. Minecraft 26.2 is unobfuscated, so no remapJar step is used.
+// Fabric-only Minecraft 26.3 build. Minecraft 26.3 is unobfuscated, so no remapJar step is used.
 plugins {
 	id 'com.gradleup.shadow'
 }
@@ -11,7 +11,7 @@ def enableModMenuDevRuntime = providers.gradleProperty("fabric_enable_modmenu")
 	.map(String::toBoolean)
 	.getOrElse(false)
 
-def compatFabricDir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
+def compatFabricDir = layout.buildDirectory.dir("generated/sources/roadweaver263/main/java")
 
 configurations {
 	shadowCommon
@@ -58,7 +58,7 @@ processResources {
 }
 
 // Copy the Fabric implementation into a 26.2 source tree while leaving retired legacy UI/datagen code in Git.
-tasks.register("generateRoadWeaverFabric26Compat", Copy) {
+tasks.register("generateRoadWeaverFabric263Compat", Copy) {
 	from("src/main/java")
 	into(compatFabricDir)
 
@@ -104,14 +104,14 @@ jar {
 
 sourcesJar {
 	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-	dependsOn tasks.named('generateRoadWeaverFabric26Compat')
+	dependsOn tasks.named('generateRoadWeaverFabric263Compat')
 	def commonSources = project(':common').sourcesJar
 	dependsOn commonSources
 	from commonSources.archiveFile.map { zipTree(it) }
 }
 
 tasks.named('compileJava') {
-	dependsOn tasks.named('generateRoadWeaverFabric26Compat')
+	dependsOn tasks.named('generateRoadWeaverFabric263Compat')
 }
 
 tasks.named('build') {

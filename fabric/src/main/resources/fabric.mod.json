@@ -7,7 +7,7 @@
 	"authors": ["shiroha233"],
 	"contributors": ["Countered (settlement-roads-new, CC0-1.0)"],
 	"contact": {
-		"homepage": "https://github.com/shiroha-233/RoadWeaver",
+		"homepage": "https://github.com/koastygames/RoadWeaver",
 		"sources": "https://github.com/shiroha-233/RoadWeaver"
 	},
 	"license": "MIT",
@@ -19,8 +19,8 @@
 	},
 	"mixins": ["roadweaver.mixins.json"],
 	"depends": {
-		"fabricloader": ">=0.19.3",
-		"minecraft": ">=26.2 <26.3",
+		"fabricloader": ">=0.19.5",
+		"minecraft": ">=26.3 <26.4",
 		"java": ">=25",
 		"fabric-api": "*",
 		"architectury": ">=21.0.7"

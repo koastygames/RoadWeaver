@@ -1,7 +1,7 @@
 // Shared build configuration for the Minecraft 26.2 Fabric port.
 plugins {
 	id 'architectury-plugin' version '3.5-SNAPSHOT'
-	id 'dev.architectury.loom-no-remap' version '1.17-SNAPSHOT' apply false
+	id 'dev.architectury.loom-no-remap' version '1.17.491' apply false
 	id 'com.gradleup.shadow' version '9.2.2' apply false
 }
 
@@ -14,7 +14,7 @@ allprojects {
 	apply plugin: 'architectury-plugin'
 
 	group = rootProject.maven_group
-	version = '2.2.1-26.2'
+	version = '2.2.1-26.3'
 
 	configurations {
 		common {

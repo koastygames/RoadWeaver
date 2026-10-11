@@ -2,7 +2,7 @@
 [![Modrinth Downloads](https://img.shields.io/modrinth/dt/6jk8Pote?style=flat-square&logo=Modrinth&label=Modrinth)](https://modrinth.com/mod/roadweaver)
 [![CurseForge Downloads](https://img.shields.io/curseforge/dt/1358489?style=flat-square&logo=CurseForge&label=CurseForge&color=f16436)](https://www.curseforge.com/minecraft/mc-mods/roadweaver)
 [![Discord Invite](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=flat-square)](https://discord.gg/tUJMJkbbr2)
-[![Github Stars](https://img.shields.io/github/stars/shiroha-233/RoadWeaver?logo=github&style=flat-square)](https://github.com/shiroha-233/RoadWeaver)
+[![Github Stars](https://img.shields.io/github/stars/koastygames/RoadWeaver?logo=github&style=flat-square)](https://github.com/koastygames/RoadWeaver)
 
 English | [简体中文](README_CN.md)
 
@@ -41,6 +41,8 @@ A Minecraft mod that automatically generates beautiful roads between villages or
 - **Manual Link Mode**: Plan road networks according to your preferences
 
 ## Compatibility
+
+- **Minecraft 26.3:** native Fabric and NeoForge ports are maintained in the `26.3-Fabric` and `26.3-NeoForge` branches.
 
 - New versions (2.0.0+) completely abandon the old `/locate` command search mechanism, no longer blocking the game main thread
 - Structure prediction, road network planning and pathfinding all run in dedicated thread pools; main thread only handles driving and result application
