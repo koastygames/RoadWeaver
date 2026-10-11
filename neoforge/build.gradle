@@ -1,4 +1,4 @@
-// NeoForge-only Minecraft 26.2 build. Minecraft 26.2 is unobfuscated, so no remap step is used.
+// NeoForge-only Minecraft 26.3 build. Minecraft 26.3 is unobfuscated, so no remap step is used.
 plugins {
     id 'com.gradleup.shadow'
 }
@@ -7,7 +7,7 @@ architectury {
     neoForge()
 }
 
-def compatNeoForgeDir = layout.buildDirectory.dir("generated/sources/roadweaver26/main/java")
+def compatNeoForgeDir = layout.buildDirectory.dir("generated/sources/roadweaver263/main/java")
 
 configurations {
     shadowCommon
@@ -36,8 +36,8 @@ dependencies {
 
 processResources {
     def replaceProperties = [
-        minecraft_version_range: '[26.2,26.3)',
-        neoforge_version_range: '[26.2.0.62,)',
+        minecraft_version_range: '[26.3,26.4)',
+        neoforge_version_range: '[26.3.0,)',
         loader_version_range: '[4,)',
         mod_version: project.version.toString()
     ]
@@ -53,7 +53,7 @@ processResources {
 // source for older branches. New native 26.2 client/network sources intentionally survive the
 // exclusions below, while the NeoForge client bootstrap uses its own package to avoid Java modules
 // seeing a split package between the transformed common JAR and the loader JAR.
-tasks.register("generateRoadWeaverNeoForge26Compat", Copy) {
+tasks.register("generateRoadWeaverNeoForge263Compat", Copy) {
     from("src/main/java")
     into(compatNeoForgeDir)
 
@@ -119,7 +119,7 @@ public final class RoadWeaver {
     private static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     public RoadWeaver(IEventBus modEventBus, ModContainer modContainer) {
-        LOGGER.info("Initializing RoadWeaver for Minecraft 26.2 NeoForge...");
+        LOGGER.info("Initializing RoadWeaver for Minecraft 26.3 NeoForge...");
         ConfigService.load();
         StructureRegistryNeoForge.register(modEventBus);
         RoadFeaturesNeoForge.register(modEventBus);
@@ -189,14 +189,14 @@ jar {
 
 sourcesJar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependsOn tasks.named('generateRoadWeaverNeoForge26Compat')
+    dependsOn tasks.named('generateRoadWeaverNeoForge263Compat')
     def commonSources = project(':common').sourcesJar
     dependsOn commonSources
     from commonSources.archiveFile.map { zipTree(it) }
 }
 
 tasks.named('compileJava') {
-    dependsOn tasks.named('generateRoadWeaverNeoForge26Compat')
+    dependsOn tasks.named('generateRoadWeaverNeoForge263Compat')
 }
 
 tasks.named('build') {

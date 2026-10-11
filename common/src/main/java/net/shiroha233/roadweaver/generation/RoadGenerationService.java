@@ -4,7 +4,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.config.sub.RoadGenerationConfig;
@@ -40,7 +39,6 @@ public final class RoadGenerationService {
     private static final ConcurrentHashMap<ServerLevel, AtomicInteger> RUNNING_COUNT = new ConcurrentHashMap<>();
     private static final Set<Future<?>> ALL_RUNNING = ConcurrentHashMap.newKeySet();
 
-    private static final Identifier ROAD_CF_ID = Identifier.fromNamespaceAndPath("roadweaver", "road_feature");
 
     public static void onServerStarted() {
         ALL_RUNNING.clear();
@@ -129,10 +127,7 @@ public final class RoadGenerationService {
         try {
             if (Thread.currentThread().isInterrupted()) return false;
 
-            var reg = level.registryAccess()
-                    .lookupOrThrow(net.minecraft.core.registries.Registries.CONFIGURED_FEATURE);
-            ConfiguredFeature<?, ?> cf = reg.getValue(ROAD_CF_ID);
-            PathFeatureConfig cfg = (cf != null && cf.config() instanceof PathFeatureConfig rfc) ? rfc : new PathFeatureConfig();
+            PathFeatureConfig cfg = new PathFeatureConfig();
 
             if (Thread.currentThread().isInterrupted()) return false;
             ModConfig modCfg = ConfigService.get();

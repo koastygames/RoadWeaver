@@ -6,7 +6,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.levelgen.Beardifier;
-import net.minecraft.world.level.levelgen.DensityFunction;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import net.shiroha233.roadweaver.beardifier.RoadBeardifierAccess;
 import net.shiroha233.roadweaver.beardifier.RoadDensityComputer;
 import net.shiroha233.roadweaver.config.ConfigService;
@@ -89,12 +89,12 @@ public class BeardifierMixin implements RoadBeardifierAccess {
         }
     }
 
-    @Inject(method = "compute", at = @At("RETURN"), cancellable = true)
-    private void roadweaver$addRoadDensity(DensityFunction.FunctionContext ctx,
-                                           CallbackInfoReturnable<Double> cir) {
+    @Inject(method = "sampleValue(Lnet/minecraft/world/level/levelgen/densityfunction/SamplerContext;III)F", at = @At("RETURN"), cancellable = true)
+    private void roadweaver$addRoadDensity(SamplerContext ctx, int blockX, int blockY, int blockZ,
+                                           CallbackInfoReturnable<Float> cir) {
         if (roadweaver$roadSegments.isEmpty()) return;
 
-        double road = RoadDensityComputer.compute(ctx.blockX(), ctx.blockY(), ctx.blockZ(),
+        float road = (float) RoadDensityComputer.compute(blockX, blockY, blockZ,
                 roadweaver$roadSegments, roadweaver$clearHeight);
         if (road != 0.0) {
             cir.setReturnValue(cir.getReturnValue() + road);

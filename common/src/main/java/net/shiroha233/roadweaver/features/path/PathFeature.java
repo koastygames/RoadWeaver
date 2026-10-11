@@ -1,22 +1,21 @@
 package net.shiroha233.roadweaver.features.path;
 
-import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
-import net.minecraft.world.level.levelgen.feature.Feature;
-import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.block.state.BlockState;
 import net.shiroha233.roadweaver.config.ConfigService;
 import net.shiroha233.roadweaver.config.ModConfig;
 import net.shiroha233.roadweaver.core.model.RoadData;
 import net.shiroha233.roadweaver.core.model.RoadSegmentPlacement;
 import net.shiroha233.roadweaver.features.path.bridge.BridgeSegment;
-import net.shiroha233.roadweaver.features.path.config.PathFeatureConfig;
 import net.shiroha233.roadweaver.features.path.decoration.base.Decoration;
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationExecutor;
 import net.shiroha233.roadweaver.features.path.decoration.system.DecorationPlanner;
@@ -34,48 +33,45 @@ import net.shiroha233.roadweaver.persistence.sharded.RoadShardStorage;
 
 import java.util.*;
 
-/**
- * 閬撹矾涓栫晫鐢熸垚 Feature
- */
-public class PathFeature extends Feature<PathFeatureConfig> {
-    public PathFeature(Codec<PathFeatureConfig> codec) {
-        super(codec);
+public final class PathFeature implements Feature {
+    public static final MapCodec<PathFeature> CODEC = MapCodec.unit(new PathFeature());
+
+    @Override
+    public MapCodec<PathFeature> codec() {
+        return CODEC;
     }
 
     @Override
-    public boolean place(FeaturePlaceContext<PathFeatureConfig> ctx) {
-        WorldGenLevel world = ctx.level();
+    public boolean place(WorldGenLevel world, ChunkGenerator generator, RandomSource random, BlockPos origin) {
         Level lvl = world.getLevel();
         if (!(lvl instanceof ServerLevel server))
             return false;
 
         ModConfig cfg = ConfigService.get();
         String dimId = server.dimension().identifier().toString();
-        
         if (!cfg.roadsEnabledForDimension(dimId))
             return false;
 
-        ChunkPos currentChunk = new ChunkPos(ctx.origin());
+        ChunkPos currentChunk = ChunkPos.containing(origin);
         int minX = currentChunk.getMinBlockX();
         int minZ = currentChunk.getMinBlockZ();
         int maxX = currentChunk.getMaxBlockX();
         int maxZ = currentChunk.getMaxBlockZ();
-        
+
         List<RoadData> roadDataList = RoadShardStorage.queryRect(server, minX, minZ, maxX, maxZ);
         if (roadDataList == null || roadDataList.isEmpty())
             return false;
 
-        RandomSource random = ctx.random();
         int averagingRadius = Math.max(0, cfg.averagingRadius());
 
         Set<BlockPos> processedMiddle = new HashSet<>();
         Set<Decoration> decorations = new HashSet<>();
-        
+
         for (RoadData data : roadDataList) {
             processRoadDataInChunk(world, server, currentChunk, data, processedMiddle, decorations, random, cfg,
                     averagingRadius);
         }
-        
+
         DecorationExecutor.tryPlaceDecorations(decorations);
         return true;
     }
@@ -90,54 +86,38 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             ModConfig cfg,
             int averagingRadius) {
         String dimId = server.dimension().identifier().toString();
-        
-        if (!cfg.roadsEnabledForDimension(dimId)) {
-            return;
-        }
+        if (!cfg.roadsEnabledForDimension(dimId)) return;
 
         boolean bridgeEnabled = cfg.bridgeEnabledForDimension(dimId);
         int roadType = data.roadType();
-        if (roadType != 0 && roadType != 1 && roadType != 3) {
-            return;
-        }
-        
+        if (roadType != 0 && roadType != 1 && roadType != 3) return;
+
         int roadWidth = Math.max(1, data.width());
         List<BlockState> materials = data.materials();
         List<BlockState> slabMaterials = data.slabMaterials();
         List<RoadSegmentPlacement> segments = data.roadSegmentList();
-        if (segments == null || segments.size() < 5)
-            return;
+        if (segments == null || segments.size() < 5) return;
 
         List<BlockPos> middlePositions = segments.stream().map(RoadSegmentPlacement::middlePos).toList();
-        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg,
-                dimId);
+        BridgeRangeCalculator.RangeResult res = BridgeRangeCalculator.compute(middlePositions, data.spans(), cfg, dimId);
         boolean[] isBridge = res.isBridge();
         List<int[]> bridgeRanges = res.mergedRanges();
         boolean[] skipSegments = res.skipSegments();
 
         BridgeSegment bridgeSegment = new BridgeSegment(isBridge, segments);
-
         boolean useBuoysInstead = bridgeEnabled && cfg.bridgeUseBuoysInstead();
         boolean useBuoysWhenSkipped = bridgeEnabled && cfg.bridgeUseBuoysWhenSkipped();
 
         int intervalBlocks = Math.max(4, cfg.buoyIntervalBlocks());
-        boolean[] buoyMarkersForBridge = (useBuoysInstead
-                ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks)
-                : null);
-        boolean[] buoyMarkersForSkipped = (useBuoysWhenSkipped
-                ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks)
-                : null);
+        boolean[] buoyMarkersForBridge = useBuoysInstead
+                ? BuoyMarkerPlanner.markersForBridgeRanges(middlePositions, bridgeRanges, intervalBlocks) : null;
+        boolean[] buoyMarkersForSkipped = useBuoysWhenSkipped
+                ? BuoyMarkerPlanner.markersForMask(middlePositions, skipSegments, intervalBlocks) : null;
 
         var targetY = data.targetY();
         boolean slopeLimitEnabled = cfg.slopeLimitEnabledForDimension(dimId);
-        HeightProfileService.HeightProfile hp = HeightProfileService.build(
-                world,
-                middlePositions,
-                currentChunk,
-                averagingRadius,
-                slopeLimitEnabled,
-                cfg.maxSlopeStepPerTwoSegments(),
-                targetY);
+        HeightProfileService.HeightProfile hp = HeightProfileService.build(world, middlePositions, currentChunk,
+                averagingRadius, slopeLimitEnabled, cfg.maxSlopeStepPerTwoSegments(), targetY);
         boolean usePersisted = hp.usePersisted();
         int[] smoothedYArr = hp.smoothedY();
         int[] baseYArr;
@@ -154,17 +134,15 @@ public class PathFeature extends Feature<PathFeatureConfig> {
         int deckY = server.getSeaLevel() + cfg.bridgeDeckClearance();
         int segmentIndex = 0;
         BridgeSegmentPlanner.Context bridgeCtx = BridgeSegmentPlanner.newContext();
-        
+
         for (int i = 2; i < segments.size() - 2; i++) {
             BlockPos middle = middlePositions.get(i);
-            if (!processedMiddle.add(middle))
-                continue;
+            if (!processedMiddle.add(middle)) continue;
             segmentIndex++;
-            if (segmentIndex < 8 || segmentIndex > segments.size() - 8)
-                continue;
-            ChunkPos middleChunk = new ChunkPos(middle);
-            if (!middleChunk.equals(currentChunk))
-                continue;
+            if (segmentIndex < 8 || segmentIndex > segments.size() - 8) continue;
+
+            ChunkPos middleChunk = ChunkPos.containing(middle);
+            if (!middleChunk.equals(currentChunk)) continue;
 
             BlockPos prev = middlePositions.get(i - 2);
             BlockPos next = middlePositions.get(i + 2);
@@ -177,9 +155,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
             int baseYForThis = (baseYArr != null ? baseYArr[i] : topYCenter);
 
             RoadSegmentPlacement seg = segments.get(i);
-            if (StructureAvoidanceService.shouldAvoid(world, middle)) {
-                continue;
-            }
+            if (StructureAvoidanceService.shouldAvoid(world, middle)) continue;
 
             if (skipSegments != null && i >= 0 && i < skipSegments.length && skipSegments[i]) {
                 if (useBuoysWhenSkipped && buoyMarkersForSkipped != null && i < buoyMarkersForSkipped.length
@@ -205,8 +181,7 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                     boolean success = BridgeSegmentPlannerNew.processSegment(world, line, seg, middle, prev);
                     if (!success) {
                         BridgeSegmentPlanner.processSegment(world, seg, middle, prev, next, roadWidth, baseYForThis,
-                                deckY,
-                                segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
+                                deckY, segmentIndex, random, cfg, bridgeRanges, baseYArr, i, bridgeCtx);
                     }
                 }
             } else {
@@ -214,30 +189,14 @@ public class PathFeature extends Feature<PathFeatureConfig> {
                         random, cfg);
 
                 if (cfg.roadSignsEnabledForDimension(dimId)) {
-                    SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(
-                            world,
-                            decorations,
-                            averaged,
-                            next,
-                            prev,
-                            roadWidth,
-                            skipSegments,
-                            i);
+                    SkippedBridgeBankSignPlanner.addIfSkippedBridgeBank(world, decorations, averaged, next, prev,
+                            roadWidth, skipSegments, i);
                 }
             }
 
             if (!isBridge[i] || cfg.bridgeKeepLamps()) {
-                DecorationPlanner.addDecoration(
-                        world,
-                        decorations,
-                        averaged,
-                        segmentIndex,
-                        next,
-                        prev,
-                        middlePositions,
-                        roadWidth,
-                        random,
-                        cfg,
+                DecorationPlanner.addDecoration(world, decorations, averaged, segmentIndex, next, prev, middlePositions,
+                        roadWidth, random, cfg,
                         (roadType == 0 ? DecorationPlanner.Mode.ARTIFICIAL : DecorationPlanner.Mode.NATURAL));
             }
         }

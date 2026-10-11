@@ -40,7 +40,7 @@ public final class NeoForgeClient26 {
         );
         openMap = new KeyMapping(
                 "key.roadweaver.open_map",
-                InputConstants.Type.KEYSYM,
+                InputConstants.Type.KEYBOARD,
                 GLFW.GLFW_KEY_H,
                 category
         );
