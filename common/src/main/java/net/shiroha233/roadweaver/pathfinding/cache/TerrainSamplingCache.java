@@ -4,7 +4,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -74,7 +73,8 @@ public final class TerrainSamplingCache {
             ensureAccurateSampler(level);
             h = accurateSampler.oceanFloorWg(x, z);
         } else {
-            h = level.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, x, z);
+            ensureFastSampler(level);
+            h = fastSampler.sampleOceanFloor(x, z);
         }
         oceanFloorCache.put(key, h);
         return h;
@@ -93,7 +93,8 @@ public final class TerrainSamplingCache {
             ensureAccurateSampler(level);
             h = accurateSampler.motionBlockingNoLeaves(x, z);
         } else {
-            h = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+            ensureFastSampler(level);
+            h = fastSampler.sampleHeight(x, z);
         }
         motionBlockingCache.put(key, h);
         return h;
@@ -102,6 +103,15 @@ public final class TerrainSamplingCache {
     public int waterDepth(ServerLevel level, int x, int z) {
         int top = motionBlockingNoLeaves(level, x, z);
         int floor = oceanFloor(level, x, z);
+        if (!highPrecisionMode) {
+            Holder<Biome> biome = getBiome(level, x, z);
+            boolean isWaterBiome = biome.is(BiomeTags.IS_RIVER)
+                    || biome.is(BiomeTags.IS_OCEAN)
+                    || biome.is(BiomeTags.IS_DEEP_OCEAN);
+            if (isWaterBiome) {
+                top = Math.max(top, level.getSeaLevel());
+            }
+        }
         return Math.max(0, top - floor);
     }
 
@@ -143,6 +153,13 @@ public final class TerrainSamplingCache {
         int top = motionBlockingNoLeaves(level, x, z);
         int floor = oceanFloor(level, x, z);
         boolean res = top > floor;
+        if (!res && !highPrecisionMode) {
+            Holder<Biome> biome = getBiome(level, x, z);
+            boolean isWaterBiome = biome.is(BiomeTags.IS_RIVER)
+                    || biome.is(BiomeTags.IS_OCEAN)
+                    || biome.is(BiomeTags.IS_DEEP_OCEAN);
+            res = isWaterBiome && floor < level.getSeaLevel();
+        }
         columnWaterCache.put(key, res);
         return res;
     }

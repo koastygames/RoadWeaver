@@ -46,6 +46,11 @@ public final class CachedTerrainField implements PathTerrainField {
     }
 
     @Override
+    public int waterDepth(int x, int z) {
+        return cache.waterDepth(level, x, z);
+    }
+
+    @Override
     public Holder<Biome> biome(int x, int z) {
         return cache.getBiome(level, x, z);
     }
